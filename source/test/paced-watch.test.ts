@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {startEventLogWatch} from '../lib/components/EventLogWatchController.js';
+import {startPacedWatch} from '../lib/utils/paced-watch.js';
 
 beforeEach(() => {
 	vi.useFakeTimers();
@@ -14,10 +14,10 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-describe('startEventLogWatch', () => {
+describe('startPacedWatch', () => {
 	it('checks once per interval until stopped', async () => {
 		const check = vi.fn(async () => {});
-		const stop = startEventLogWatch(check, 1_000);
+		const stop = startPacedWatch(check, 1_000);
 
 		await vi.advanceTimersByTimeAsync(3_000);
 		expect(check).toHaveBeenCalledTimes(3);
@@ -31,7 +31,7 @@ describe('startEventLogWatch', () => {
 		const check = vi.fn(
 			() => new Promise<void>(resolve => setTimeout(resolve, 2_500)),
 		);
-		const stop = startEventLogWatch(check, 1_000);
+		const stop = startPacedWatch(check, 1_000);
 
 		// Starts at 1s, runs until 3.5s, so the next one is due at 6s.
 		await vi.advanceTimersByTimeAsync(5_999);
@@ -47,7 +47,7 @@ describe('startEventLogWatch', () => {
 		const check = vi
 			.fn(async () => {})
 			.mockRejectedValueOnce(new Error('boom'));
-		const stop = startEventLogWatch(check, 1_000);
+		const stop = startPacedWatch(check, 1_000);
 
 		await vi.advanceTimersByTimeAsync(2_000);
 		expect(check).toHaveBeenCalledTimes(2);

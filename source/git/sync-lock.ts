@@ -131,6 +131,39 @@ export const isSyncLockHeld = (gitDir: string): boolean => {
 	return claimOver(readHolder(lockPath)) === null;
 };
 
+// `rev-parse` is a subprocess, too slow to spawn on every watch tick, and a
+// worktree's gitdir does not move. Only an answer is kept: the worktree may
+// not exist yet.
+const gitDirs = new Map<string, Promise<string | null>>();
+
+const cachedGitDir = (worktreeRoot: string): Promise<string | null> => {
+	const cached = gitDirs.get(worktreeRoot);
+	if (cached) return cached;
+
+	const gitDir = getGitDir(worktreeRoot).then(
+		result => (isFail(result) ? null : result.value),
+		() => null,
+	);
+	gitDirs.set(worktreeRoot, gitDir);
+
+	void gitDir.then(value => {
+		if (value === null && gitDirs.get(worktreeRoot) === gitDir) {
+			gitDirs.delete(worktreeRoot);
+		}
+	});
+
+	return gitDir;
+};
+
+/** `isSyncLockHeld` for a worktree; false when git cannot say where its lock is. */
+export const isSyncLockHeldAt = async (
+	worktreeRoot: string,
+): Promise<boolean> => {
+	const gitDir = await cachedGitDir(worktreeRoot);
+
+	return gitDir !== null && isSyncLockHeld(gitDir);
+};
+
 export const describeHolder = (holder: LockHolder): string =>
 	`${holder.operation} (pid ${holder.pid} on ${
 		holder.hostname

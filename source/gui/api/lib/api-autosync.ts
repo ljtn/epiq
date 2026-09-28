@@ -1,51 +1,27 @@
+import {LogPublisher} from './api-log-watch.js';
 import {GuiProject} from './gui-project.js';
-import {getStateBranchRoot} from '../../../git/git-storage.js';
 import {effectiveAutoSyncIntervalMs} from '../../../lib/config/auto-sync-interval.js';
 import {autoSyncBlockedReason} from '../../../lib/config/sync-settings.js';
 import {
 	loadSettingsFromConfig,
 	readEpiqConfig,
 } from '../../../lib/config/user-config.js';
-import {logSignature} from '../../../lib/event/log-signature.js';
 import {isFail} from '../../../lib/model/result-types.js';
-import {resolveClosestEpiqProjectRoot} from '../../../lib/storage/paths.js';
 import {logger} from '../../../logger.js';
-import {getGuiState, sync} from '../../../mcp/epiq-api.js';
+import {sync} from '../../../mcp/epiq-api.js';
 import {
 	getTimeTravelStatus,
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
-import {broadcastGuiMessage} from '../../client/lib/gui-broadcast.js';
-import {slimStateResult} from './slim-state.js';
 
-export const startGuiAutoSync = (input: {project: GuiProject}) => {
+export const startGuiAutoSync = (input: {
+	project: GuiProject;
+	publisher: LogPublisher;
+}) => {
 	let timer: NodeJS.Timeout | undefined;
 	let disposed = false;
 	let syncing = false;
 	let lastStartedAt = 0;
-
-	// The log as of the last pass that found it changed. Compared against the
-	// log on disk after each sync, so what decides a broadcast is whether the
-	// board changed — not whether git reported the pass a success. A pull that
-	// landed before a push was refused, a remote that came back, an agent
-	// appending to the same worktree: all of them move the log and none of them
-	// move the sync result.
-	//
-	// Recorded before the derive, not after it succeeds: a log that cannot be
-	// derived is tried again only once it changes, which is also the only time
-	// its outcome can change.
-	let attempted: string | null = currentSignature();
-
-	function currentSignature(): string | null {
-		// Walks up like every other read on this path: the GUI may have been
-		// launched in a subdirectory of the project.
-		const projectRoot = resolveClosestEpiqProjectRoot(input.project.repoRoot);
-		if (isFail(projectRoot)) return null;
-
-		const stateBranchRoot = getStateBranchRoot({repoRoot: projectRoot.value});
-
-		return isFail(stateBranchRoot) ? null : logSignature(stateBranchRoot.value);
-	}
 
 	const config = () => {
 		const result = readEpiqConfig();
@@ -103,22 +79,9 @@ export const startGuiAutoSync = (input: {project: GuiProject}) => {
 
 				await sync({repoRoot: input.project.repoRoot});
 
-				// Publishing replaces every client's board wholesale, discarding
-				// whatever the user was part-way through. An unchanged log is not
-				// worth that; a failed sync over a changed one is.
-				const signature = currentSignature();
-				if (signature === null || signature === attempted) return;
-				attempted = signature;
-
-				const payload = slimStateResult(
-					await getGuiState({repoRoot: input.project.repoRoot}),
-				);
-
-				// A log that cannot be derived — mid-rebase, half-written — is not
-				// sent as an error in place of the board the clients hold.
-				if (isFail(payload)) return;
-
-				broadcastGuiMessage({type: 'state', payload});
+				// Whether the pass moved the log, not whether it succeeded: a pull that
+				// landed before a refused push still changed the board.
+				await input.publisher.publishIfLogMoved();
 			});
 		} finally {
 			syncing = false;
