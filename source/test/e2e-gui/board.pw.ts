@@ -49,3 +49,18 @@ test('survives repeated board toggling', async ({page, pageErrors}) => {
 	await expect(page.getByText('Todo')).toBeVisible();
 	expect(pageErrors).toEqual([]);
 });
+
+test('the board switcher reads in the same quiet colour as the text filter', async ({
+	page,
+	pageErrors,
+}) => {
+	const [switcherColor, placeholderColor] = await page.evaluate<
+		[string, string]
+	>(`[
+		getComputedStyle(document.querySelector('[data-testid="board-switcher"]')).color,
+		getComputedStyle(document.querySelector('[data-testid="text-filter"]'), '::placeholder').color,
+	]`);
+
+	expect(switcherColor).toBe(placeholderColor);
+	expect(pageErrors).toEqual([]);
+});
