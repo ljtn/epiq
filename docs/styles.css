@@ -1289,6 +1289,10 @@ kbd {
 	line-height: 1.4;
 	transition: color 0.15s ease;
 }
+.comments {
+	margin-top: 48px;
+	min-height: 240px;
+}
 .article-nav-link:hover,
 .article-nav-link:hover .article-nav-title {
 	color: var(--cyan);
