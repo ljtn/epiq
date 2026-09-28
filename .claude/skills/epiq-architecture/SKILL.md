@@ -9,44 +9,44 @@ No server, no shared clock. Each actor appends to **its own** JSONL log on the s
 
 ## The model
 
-- **`id = [ulid, refId]`.** `refId` is the causal parent: the tail of the order this actor last saw (`getEdgeRef`). Concurrent writers may share a parent.
-- **Order is derived, never stored.** `getSortedEvents` builds the forest from `refId`, sorts siblings by ULID, walks depth-first, dedupes by id. File line order means nothing.
-- **The ULID is a hybrid logical clock:** `getNextId(Math.max(Date.now(), decodeTime(edge) + 1))`. Wall clock is only a lower bound.
-- **An event names its actor by id only.** `persist` calls `stripActor`; `AppEvent` has no name. Spread `actorOf(user)`, never the configured identity — TypeScript does not excess-check a spread. The id comes from the log file name `<id>.jsonl`; the name from the contributor registry, built by `create.contributor` / `rename.contributor` / `tombstone.contributor` / `restore.contributor`.
+- **Every event names its causal parent** — the last event its writer had seen. Concurrent writers may share a parent.
+- **Order is derived, never stored.** It is rebuilt from the parent links, with concurrent siblings tie-broken by id. File line order means nothing.
+- **Ids are a hybrid logical clock** (ULIDs): a new id always sorts after its parent, whatever the wall clock says. The wall clock is only a lower bound.
+- **An event identifies its actor by id and carries nothing else about them.** The id comes from the log file name; the display name from the contributor registry, which is itself built from events.
 - Same event set ⇒ same order ⇒ same board.
 
 ## Invariants
 
-- **Order = `refId` + ULID tiebreak.** Nothing else.
-- **Ids are permanent; tombstone instead.** `tombstoneNode` marks the node and its descendants `isDeleted`; `tombstoneContributor` clears the name but keeps the record so assignments still resolve.
-- **Replay is total.** An event that lost a race, or names state this replay never applied, is a `materializeSkip` (`ConvergenceFail`) and skipped. The same precondition on a live write is a real failure — there it is the answer the caller asked for.
-- **Unreadable stays ordered.** The envelope (`v`, `id`) parses even when the payload doesn't, so a newer build's event keeps its place.
-- **Append only.** One id, one byte sequence — what makes `*.jsonl merge=union` safe.
-- **Time travel cuts causally.** `splitEventsAtTime` leaves a child unapplied when its parent is, whatever its timestamp.
+- **Order comes from parent links plus the id tiebreak.** Nothing else.
+- **Ids are permanent; tombstone instead.** A tombstoned node takes its descendants with it; a tombstoned contributor keeps its record so assignments still resolve.
+- **Replay is total.** An event that lost a race, or names state this replay never applied, is skipped, not fatal. The same precondition on a live write is a real failure — there it is the answer the caller asked for.
+- **Unreadable stays ordered.** The envelope parses even when the payload doesn't, so a newer build's event keeps its place.
+- **Append only.** One id is one byte sequence — what makes git's union merge of the logs safe.
+- **Time travel cuts causally.** An event whose parent is past the cut is past it too, whatever its timestamp.
 
 ## Never
 
-- **Break a client already out there.** The format grows by adding (new event type, field nothing older must read), never by changing or repurposing what an older build reads. Most rules below follow from this one. A version marker can't help retroactively: an older build can't check for something it shipped without.
-- **Change the log file name grammar without a release between reader and writer.** It has no additive form — every client reads every other client's logs, so there is no second name to add — and an old build misreads a name rather than failing. The `<id>.<name>.jsonl` → `<id>.jsonl` move was safe only because the reader shipped a release earlier. `old-log-file-names.test.ts` pins both `<id>.<name>.jsonl` and `<id>.jsonl`.
-- **Order or resolve conflicts by wall clock.** `Date.now()` is an id lower bound and a display value only.
-- **Mint an id without seeding past the current edge** — it would sort before its parent. Exception: a damaged edge (undecodable, at ULID's ceiling, or over a day ahead) seeds from the wall clock (`seedFromEdgeRef`); order still comes from `refId`.
+- **Break a client already out there.** The format grows by adding (a new event type, a field nothing older must read), never by changing or repurposing what an older build reads. Most rules below follow from this one. A version marker can't help retroactively: an older build can't check for something it shipped without.
+- **Change the log file name's grammar without a release between reader and writer.** It has no additive form — every client reads every other client's logs — and an old build misreads a name rather than failing. A test pins every form still out there.
+- **Order or resolve conflicts by wall clock.** No latest-timestamp-wins; time is a display value and an id lower bound.
+- **Mint an id that could sort before its parent** — it corrupts the order. A damaged parent id (undecodable, or absurdly far ahead) falls back to the wall clock; order still comes from the parent link.
 - **Hard-delete** a node, contributor, tag or event, or reuse or rewrite an id — replay would reach a reference that no longer exists.
 - **Rewrite, reorder or de-duplicate log lines** — union merge depends on their identity.
 - **Abort replay on an event that merely lost** — one concurrent edit would leave a board that never opens again for whoever's build understands the most.
 - **Assume a single writer.** Any log can gain lines between two reads, even mid-sync.
-- **Put actor identity, or anything derivable, in the payload.**
-- **Read a display name off an event or a log file name.** Resolve it by id through `identityOf`. The name segment in an old `<id>.<name>.jsonl` is a sanitized storage key — lowercased, `/` and `.` mangled — only a fallback for authors the registry lacks (`loadActorNames`).
-- **Store a name beside an id** — a copy freezes at the old name and never sees a rename. That is why `userName` left `AppEvent` and `authorName` left comments.
-- **Add a payload field older clients must interpret** without a `SCHEMA_VERSION` story.
+- **Put actor identity, or anything derivable, in the payload.** Beware spreading a user object into an event: TypeScript doesn't excess-check a spread.
+- **Read a display name off an event or a log file name.** Resolve it by id from the registry. Old log file names still carry a sanitized name, kept only as a fallback for authors the registry lacks.
+- **Store a name beside an id** — the copy freezes at the old name and never sees a rename.
+- **Add a payload field older clients must interpret** without a schema-version story.
 
 ## Adding an event type
 
-It is applied on every machine, in causal order, possibly after events it didn't expect: make it idempotent, express preconditions as `materializeSkip` rather than fatal, and reference targets by id only. Four places in `lib/board/`: `AppEventMap` + `EVENT_ACTIONS` (`board-events.model.ts`), the payload schema (`board-events.schema.ts`), the handler (`board-materialize.ts`), and `getAffectedNodeIds` (`board-replay.ts`). `lib/event/` doesn't change; it reads the action list and handlers off the catalog.
+It is applied on every machine, in causal order, possibly after events it didn't expect: make it idempotent, treat unmet preconditions as a skip rather than an error, and reference targets by id only. All of it lives in `lib/board/` — the event map and action list, the payload schema, the handler, and which nodes it affects for replay. The generic log in `lib/event/` doesn't change.
 
 ## Proving a change is safe
 
 - `source/test/replay-equivalence.test.ts` — batched replay equals per-event replay.
-- `source/test/event-core-generic.test.ts` — the log still works for a non-board product.
+- `source/test/event-core-generic.test.ts` — the log still works for a product that isn't the board.
 - `npm run test:collab` — several actors on one remote end with the same events and order.
 - Touching ordering, merge, replay or materialization means running all three.
 - The pre-push hook runs lint, typecheck, unit, e2e, collaboration and GUI tests. Do not bypass it.
@@ -54,39 +54,39 @@ It is applied on every machine, in causal order, possibly after events it didn't
 
 ## The layers
 
-Dependencies point down only.
+Dependencies point down.
 
-- **`source/lib/event/`** — the log, generic over an `EventMap`: ids and edge, causal sort, envelope, pending log, replay guards, write path. A product passes `createEventLog` an `EventCatalog`: its genesis action, action list, payload check, a handler per action, and replay/write hooks. **No board vocabulary here**, in code or comments; `event-core-generic.test.ts` imports no board code.
-- **`source/lib/board/`** — the board as that product: event map, schemas, handlers, replay, boot. `board-log.ts` is its one `createEventLog` instance and what everything else imports (`materialize`, `loadMergedEvents`, `materializeAndPersistAll`, …); nothing outside `lib/board/` reaches into `lib/event/`.
-- **Rest of `source/lib/`** — node repository, ranks, state, the TUI. No MCP, HTTP or React — which is what lets the same code serve all three.
-- **`source/mcp/api/`** — one function per board operation (`createBoard`, `moveIssue`, `addIssueTag`): boots, checks preconditions, writes events, returns a `Result`. Mutations live here only.
-- **`source/mcp/server.ts`, `source/gui/api/`** — front doors into the same `mcp/api` functions. A guard in only one door is a bug in the other.
-- **`source/gui/client/`** — React only; importing Node-side code (`lib/event`, `lib/board`, …) breaks the GUI build.
+- **`source/lib/event/`** — the log itself, generic over what it carries: ids, causal sort, envelope, pending writes, replay, persistence. A product plugs in its own events and handlers. **No board vocabulary here**, in code or comments; `event-core-generic.test.ts` proves it with a toy product and must import no board code.
+- **`source/lib/board/`** — the board as one such product. `board-log.ts` is the board's single log instance: board state is read and written through it, never by driving `lib/event/` directly. (Lower-level helpers — pending-log files, log signatures, id time — are shared with the git layer and UI.)
+- **Rest of `source/lib/`** — the domain around it and the TUI. Knows nothing of MCP, HTTP or the GUI, which is what lets the same code serve all three.
+- **`source/mcp/api/`** — one function per board operation: boots, checks preconditions, writes events, returns a `Result`. Mutations live here only.
+- **`source/mcp/server.ts`, `source/gui/api/`** — front doors into the same `mcp/api` functions; neither re-implements one. A guard in only one door is a bug in the other.
+- **`source/gui/client/`** — React in the browser; it can't import Node-side code, and the GUI build fails if it does.
 
 Across all layers:
 
-- **Errors are returned, never thrown** — `failed()` / `succeeded()` / `isFail` up to the front door.
-- **A `lib/` change lands in TUI, MCP and GUI at once**; check all three.
-- The one upward reach, `lib/state/sync-state.ts` → `gui/client/lib/gui-broadcast.js`, is a wart, not a pattern.
+- **Errors are returned as a `Result`, never thrown**, up to the front door.
+- **A `lib/` change lands in the TUI, the MCP and the GUI at once**; check all three.
+- `lib/state/sync-state.ts` reaching up into the GUI to broadcast sync status is the one upward dependency: a wart, not a pattern.
 
 ## One module per concept
 
-- **A capability is a vertical slice**, not a shortcut: GUI board creation is `createBoard` in `mcp/api/boards.ts`, a `board:create` message, a hook, a palette entry.
-- **Name a module after its concept** (`use-swimlane-editing.ts`, `use-board-creation.ts`, `commands/command-registry.ts`).
-- **State lives where it is drawn**; a module answers its question for every caller (`needsWrite` in the command registry).
-- **A few domain modules of a few hundred lines**, not a file per fragment; the entry file stays an overview.
-- **Keep the domain a value, not a React tree** — the command registry takes injected handlers and tests without a DOM.
+- **A capability is a vertical slice**, never a shortcut across layers: creating a board from the GUI is an `mcp/api` function, a websocket message, a client hook and a palette entry — not a socket handler writing events itself.
+- **Name a module after its concept**, so the file can be guessed.
+- **State lives where it is drawn**, and a module that owns a question answers it for every caller — reuse the rule, don't restate it.
+- **A few domain modules of a few hundred lines**, not a file per fragment; an entry file stays an overview of the flow.
+- **Keep the domain a value, not a React tree**, so tests build it without a DOM.
 
-What this prevents has happened here: App.tsx at 1900 lines passing 27 hook return values down as props, and one nine-line boot/actor/state preamble repeated at 21 `mcp/api` call sites.
+What this prevents has happened here: an `App.tsx` of 1900 lines passing 27 hook results down as props, and one boot/actor/state preamble copied into 21 `mcp/api` functions.
 
 ### Adding a websocket message
 
 Five places; a missed one fails quietly:
 
 - `gui/api/lib/websocket.model.ts` — the type
-- `gui/api/lib/websocket.schema.ts` — the zod shape; unlisted messages are refused
+- `gui/api/lib/websocket.schema.ts` — the shape; an unlisted message is refused
 - `gui/client/lib/gui-mutations.ts` — if it mutates, so the client holds broadcasts until its reply lands
-- `gui/api/lib/websocket.ts` — the handler; calls `mcp/api`, nothing else
+- `gui/api/lib/websocket.ts` — the handler, which calls `mcp/api` and nothing else
 - `mcp/epiq-api.ts` — the export, for a new function
 
 ## Working on epiq
