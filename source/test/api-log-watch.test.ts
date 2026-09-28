@@ -86,15 +86,17 @@ describe('GUI log watch', () => {
 		expect(broadcastMock).not.toHaveBeenCalled();
 
 		appendEvent('claude-peter~pending.jsonl');
-		await tick();
 
-		expect(broadcastMock).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(broadcastMock).toHaveBeenCalledTimes(1));
 		expect(broadcastMock.mock.calls[0]?.[0]).toMatchObject({type: 'state'});
 	});
 
 	it('publishes each change once, not on every pass', async () => {
 		start();
 		appendEvent('claude-peter~pending.jsonl');
+		await vi.waitFor(() => expect(broadcastMock).toHaveBeenCalledTimes(1));
+
+		// Several more passes over the same log.
 		await tick();
 		await tick();
 
@@ -111,9 +113,8 @@ describe('GUI log watch', () => {
 		expect(getGuiStateMock).not.toHaveBeenCalled();
 
 		syncLocked = false;
-		await tick();
 
-		expect(broadcastMock).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(broadcastMock).toHaveBeenCalledTimes(1));
 	});
 
 	it('leaves a board in the past alone, and catches up on return', async () => {
@@ -125,9 +126,8 @@ describe('GUI log watch', () => {
 		expect(getGuiStateMock).not.toHaveBeenCalled();
 
 		timeMode = 'live';
-		await tick();
 
-		expect(broadcastMock).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(broadcastMock).toHaveBeenCalledTimes(1));
 	});
 
 	it('stops publishing once stopped', async () => {
