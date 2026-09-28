@@ -15,15 +15,18 @@
  *   cloudflare   free, no cookies. SITE is the token from the Web Analytics
  *                dashboard.
  *
- * All three are cookieless and store no personal data, which is why no consent
+ *   umami        free Hobby plan on cloud.umami.is, no cookies. SITE is the
+ *                website id (a UUID) from the site's settings.
+ *
+ * All four are cookieless and store no personal data, which is why no consent
  * banner is wired up here. Adding a cookie-based tracker later would change
  * that.
  */
 (function () {
 	"use strict";
 
-	var PROVIDER = "goatcounter"; // "goatcounter" | "plausible" | "cloudflare"
-	var SITE = "epiq";
+	var PROVIDER = "umami"; // "goatcounter" | "plausible" | "cloudflare" | "umami"
+	var SITE = "fd1a56da-e575-4402-86bd-802311cb0e85";
 
 	if (!SITE) return;
 
@@ -45,6 +48,9 @@
 	} else if (PROVIDER === "cloudflare") {
 		s.src = "https://static.cloudflareinsights.com/beacon.min.js";
 		s.setAttribute("data-cf-beacon", JSON.stringify({ token: SITE }));
+	} else if (PROVIDER === "umami") {
+		s.src = "https://cloud.umami.is/script.js";
+		s.setAttribute("data-website-id", SITE);
 	} else {
 		return;
 	}
