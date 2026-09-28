@@ -1,6 +1,6 @@
 ---
 name: epiq-architecture
-description: How epiq is built — the distributed rules its event log obeys (causal ordering by last-known edge, logical clocks, tombstones, total replay), and the layers the code is arranged in. Read before touching events, ordering, merge, replay, materialization or sync, before adding an event type or a websocket message, and before adding a module, a hook or a capability that crosses layers.
+description: How epiq is built — the distributed rules its event log obeys (causal ordering by last-known edge, logical clocks, tombstones, total replay), the layers the code is arranged in, and the workflow for working on epiq itself. Read before any change to this repository, and in particular before touching events, ordering, merge, replay, materialization or sync, before adding an event type or a websocket message, and before adding a module, a hook or a capability that crosses layers.
 ---
 
 # The event log is a CRDT
@@ -27,7 +27,7 @@ There is no server and no shared clock. Every actor appends to **its own** JSONL
 ## Never
 
 - **Never break a client that is already out there.** The format grows by *adding* — a new event type, a field nothing older has to interpret — never by changing or repurposing what an older build already reads. Most of the rules below are what that one comes to in practice. A version marker is not the mechanism and does not help retroactively: an older build cannot be taught to check something it was shipped without.
-- **Never change the log file name's grammar without a release between the reader and the writer.** It is the one part of the format with no additive shape — every client reads every *other* client's logs, so there is no second name to add one under, and an older build does not fail on a name it cannot parse, it misreads it. `ZFZFW9D` moved `<id>.<name>.jsonl` to `<id>.jsonl` and was only safe because the reader had shipped a release earlier and everyone had upgraded past it. `old-log-file-names.test.ts` pins both forms so neither can be tidied away.
+- **Never change the log file name's grammar without a release between the reader and the writer.** It is the one part of the format with no additive shape — every client reads every *other* client's logs, so there is no second name to add one under, and an older build does not fail on a name it cannot parse, it misreads it. The move from `<id>.<name>.jsonl` to `<id>.jsonl` was only safe because the reader had shipped a release earlier and everyone had upgraded past it. `old-log-file-names.test.ts` pins both forms so neither can be tidied away.
 - **Never order, compare or resolve conflicts by wall clock.** No "latest write wins by timestamp". `Date.now()` is a lower bound for id generation and a display value; it is not a fact about ordering.
 - **Never mint an id without seeding past the current edge.** An id that sorts before its own parent corrupts the DAG. Exception: an edge that is itself damage — undecodable, at ULID's ceiling, or more than a day ahead of the wall clock — seeds from the wall clock instead (`seedFromEdgeRef`); ordering survives because it comes from `refId`, not the timestamp.
 - **Never hard-delete** a node, contributor, tag or event, and never reuse or rewrite an id. Replay would then reach a reference that no longer exists.
@@ -35,7 +35,7 @@ There is no server and no shared clock. Every actor appends to **its own** JSONL
 - **Never abort replay on an event that merely lost.** One concurrent edit would leave a board that never opens again for whoever's build understands the most.
 - **Never assume a single writer.** Any log can gain lines from another machine between two reads, including mid-sync.
 - **Never put actor identity, or anything derivable, into the payload.**
-- **Never read a display name off an event or a log file name.** Resolve it from the registry, by id, through `identityOf`. A log written before ZFZFW9D is still `<id>.<name>.jsonl`, and that segment is a sanitized storage key — lowercased, `/` and `.` mangled — kept only as a fallback for an author the registry has never heard of. `loadActorNames` records which readers take it.
+- **Never read a display name off an event or a log file name.** Resolve it from the registry, by id, through `identityOf`. A log written under the old naming is still `<id>.<name>.jsonl`, and that segment is a sanitized storage key — lowercased, `/` and `.` mangled — kept only as a fallback for an author the registry has never heard of. `loadActorNames` records which readers take it.
 - **Never store a name beside an id.** A denormalized copy freezes at whatever its subject was called when it was written, and a rename never reaches it. That is what took `userName` off `AppEvent` and `authorName` off a comment record.
 - **Never add a payload field older clients must interpret** without a `SCHEMA_VERSION` story.
 
@@ -84,7 +84,7 @@ The layering above is what exists; following it is the cheapest thing you can do
 - **A few domain modules of a few hundred lines beat a file per fragment.** The entry file stays a brief overview of the flow.
 - **Keep the domain a value, not a React tree.** The command registry is built from injected handlers, so a test constructs the whole thing with no DOM.
 
-What the rule prevents is already on the board: `HZCA9EG` — App.tsx at 1900 lines, handing 27 hook return values down as props — and `XCNBCDB` — the same nine-line boot/actor/state preamble repeated at 21 `mcp/api` call sites. Both are what adding to a layer without giving the addition a home costs later.
+What the rule prevents has already happened here: App.tsx at 1900 lines, handing 27 hook return values down as props, and the same nine-line boot/actor/state preamble repeated at 21 `mcp/api` call sites. Both are what adding to a layer without giving the addition a home costs later.
 
 ### Adding a websocket message
 
@@ -96,10 +96,17 @@ Five places. Miss one and it fails quietly rather than loudly:
 - `gui/api/lib/websocket.ts` — the handler, which calls `mcp/api` and does nothing else
 - `mcp/epiq-api.ts` — the export, when the function is new
 
-## Workflow
-- Make branch in worktree
-- Make changes
-- Review your work
-- Address findings
-- On green light - merge via rebase
-- Squash commits only if they are trivial and share the same ticket ref prefix. Otherwise, keep them separate for history and bisectability.
+## Working on epiq
+
+Rules for this repository, on top of the shipped `epiq` skill.
+
+- **Never test against the real board** — use a throwaway project, and stop dev servers when done.
+- **First line:** `Assuming claude/<name> — please /rename claude/<name> so this window carries the name.`
+- **Session's MCP never connected?** Run your own `npx -y -p epiq@latest epiq-mcp` over stdio; never borrow another session's. Kill it, and its `epiq-mcp` child, when done.
+- **Folding a follow-up into a ticket:** back to Ongoing, commits take its ref, add a `Solution:` comment.
+- **Done:** comment starting `Solution:`, move to Done, don't close — the release does.
+- **Tags:** `fork` for a change of approach (and update the description), `human-input-needed` for a decision that is the user's, `from-review` for review findings (name the PR).
+- **Worktree before the first edit** (`.claude/worktrees/<ref>-<slug>`); the root checkout stays on `main`, and `main` never goes in a worktree. A fresh one needs `npm install`.
+- **Every change goes through a PR** — never commit or merge to `main` locally.
+- **Rebase onto the target, merge with `gh pr merge --rebase`.** Squash only trivial commits sharing one ref.
+- **The git user is the sole author:** no `Co-Authored-By`, `Claude-Session` or `Generated with` lines. Check `git log --format='%an%n%b'` before pushing.
