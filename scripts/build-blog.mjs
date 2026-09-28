@@ -393,13 +393,6 @@ function renderPost(post, older, newer) {
 				</figure>`
 		: "";
 
-	const source = post.devto
-		? `					<p class="article-source">
-						Originally published on
-						<a class="inline-link" href="${esc(post.devto)}" rel="noopener">dev.to</a>.
-					</p>`
-		: "";
-
 	const nav = [
 		newer
 			? `<a class="article-nav-link" href="./${esc(newer.slug)}.html"><span>← Newer</span><span class="article-nav-title">${esc(newer.title)}</span></a>`
@@ -446,7 +439,6 @@ ${cover}
 				</div>
 
 				<footer class="article-foot">
-${source}
 					<div class="article-nav">
 						${nav}
 					</div>

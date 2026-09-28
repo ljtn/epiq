@@ -46,7 +46,6 @@ Everything else is optional and derived when you leave it out:
 | `cover_alt` | empty — set it when the cover carries meaning |
 | `tags` | none; write them comma-separated: `tags: git, tui` |
 | `draft` | published; `draft: true` keeps it off the index |
-| `devto` | no "originally published" line |
 
 ## Styling
 

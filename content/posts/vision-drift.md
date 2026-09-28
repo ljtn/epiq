@@ -3,7 +3,6 @@ title: Vision drift: workflow replay to the rescue
 date: 2026-07-15
 tags: ai, agents, productivity, tui
 cover_alt: The epiq board running in a terminal, four columns of issues on a dark ground
-devto: https://dev.to/ljtn/vision-drift-addressing-the-next-problem-in-agentic-workflows-2gfb
 ---
 
 Harness engineering has recently popularized the idea of containing **_architectural drift_** in agentic workflows. What might be missing in the discussion is a similar issue on a higher level - **_vision drift_**.
