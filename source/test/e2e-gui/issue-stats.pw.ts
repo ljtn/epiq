@@ -143,9 +143,9 @@ test('the Stats tab lists the ticket activity', async ({
 
 	const activity = panel.getByTestId('issue-activity');
 	await expect(activity).toBeVisible();
-	await expect(activity.getByTestId('log-line').first()).toContainText(
-		`Created with title "${title}"`,
-	);
+	// Either order: a commit's time is whole seconds, so one made in the same
+	// second as the ticket can sort first.
+	await expect(activity).toContainText(`Created with title "${title}"`);
 	// The ticket's commits among its events, as the log draws them.
 	await expect(activity).toContainText(`${ref} add a parser`);
 	// Barebones: a day is a date, not a fold.
