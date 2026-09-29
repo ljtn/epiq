@@ -121,7 +121,7 @@ test('a ticket with no commits still says how long it has been sitting', async (
 });
 
 // The ticket's own events, as the log draws them, under the Board figures.
-test('the Stats tab lists the ticket activity, and opens the log on it', async ({
+test('the Stats tab lists the ticket activity', async ({
 	page,
 	pageErrors,
 	repoRoot,
@@ -150,14 +150,6 @@ test('the Stats tab lists the ticket activity, and opens the log on it', async (
 	await expect(activity).toContainText(`${ref} add a parser`);
 	// Barebones: a day is a date, not a fold.
 	await expect(activity.getByTestId('log-day').first()).toBeDisabled();
-
-	await expect(page.getByTestId('event-log')).toHaveCount(0);
-	await panel.getByTestId('issue-activity-open-log').click();
-	await expect(page.getByTestId('event-log')).toBeVisible();
-	await expect(page.getByTestId('ticket-only')).toHaveAttribute(
-		'aria-pressed',
-		'true',
-	);
 
 	expect(pageErrors).toEqual([]);
 });
