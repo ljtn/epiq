@@ -1157,15 +1157,27 @@ export const App = () => {
 		});
 	};
 
+	// A card's own controls open its ticket, and make it the selection the way
+	// a click on the card does.
+	const selectCardTab = (
+		nextIssueId: string,
+		tab: IssueDetailsTab,
+		diffView?: DiffViewName,
+	) => {
+		setStatsSwimlaneId(null);
+		setPickedIssueIds([nextIssueId]);
+		openIssueTab(nextIssueId, tab, boardSlug, diffView);
+	};
+
 	const selectIssueComments = (nextIssueId: string) =>
-		openIssueTab(nextIssueId, 'comments');
+		selectCardTab(nextIssueId, 'comments');
 
 	// The stat on a card is a picture of the ticket's whole change, so it opens
 	// the view that draws it that way rather than the commits that made it.
 	// Named in the route for this click alone — the reader's remembered choice
 	// is left as it is, the way a deep link into a commit leaves it.
 	const selectIssueCode = (nextIssueId: string) =>
-		openIssueTab(nextIssueId, 'code', boardSlug, 'flat');
+		selectCardTab(nextIssueId, 'code', 'flat');
 
 	// A log line goes where the thing it names is read: a commit to its diff, a
 	// comment among the comments, anything else to the ticket's overview. Which
