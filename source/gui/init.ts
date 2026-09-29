@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import {resolveEnvActor} from '../lib/config/actor-env.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {
@@ -9,6 +8,8 @@ import {
 	failed,
 } from '../lib/model/result-types.js';
 import {patchSettingsState} from '../lib/state/settings.state.js';
+import {EPIQ_VERSION} from '../version.js';
+import {launchBanner} from './launch-banner.js';
 import {openBrowser} from './open-browser.js';
 import {startGuiServer} from './api/api-server.js';
 import {
@@ -45,7 +46,12 @@ export const startGui = async (input: {
 		const url = `http://127.0.0.1:${PREFERRED_GUI_PORT}`;
 
 		console.log(
-			`Epiq GUI already running for this project at ${chalk.cyan(url)}`,
+			launchBanner({
+				url,
+				repoRoot: input.repoRoot,
+				version: EPIQ_VERSION,
+				reused: true,
+			}),
 		);
 
 		openBrowser(url);
@@ -59,7 +65,14 @@ export const startGui = async (input: {
 
 	const {url} = serverResult.value;
 
-	console.log(`Epiq GUI running at ${chalk.cyan(url)}`);
+	console.log(
+		launchBanner({
+			url,
+			repoRoot: input.repoRoot,
+			version: EPIQ_VERSION,
+			reused: false,
+		}),
+	);
 
 	openBrowser(url);
 
