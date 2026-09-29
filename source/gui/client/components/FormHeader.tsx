@@ -28,7 +28,7 @@ export const FormHeader = ({
 			style={{
 				display: 'flex',
 				justifyContent: 'space-between',
-				alignItems: 'flex-start',
+				alignItems: 'center',
 				gap: 12,
 				padding: `${PANE_HEADER_INSET}px 0`,
 				// The log's header draws the same rule, for the same reason: it is

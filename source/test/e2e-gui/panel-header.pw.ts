@@ -99,6 +99,33 @@ test('the age is centred on the line the panel buttons keep', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+test('docked to the right, the ref and the age are centred on the buttons', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openTicket(page, appUrl, `Header ${Date.now()}`);
+	await dockTo(page, 'right');
+
+	const aside = page.locator('aside');
+	const close = await aside
+		.getByRole('button', {name: 'Close', exact: true})
+		.boundingBox();
+	const ref = await aside.getByTestId('copy-ref').first().boundingBox();
+	const age = await page.getByTestId('issue-created-at').boundingBox();
+
+	if (!close || !ref || !age) throw new Error('header parts not found');
+
+	const closeMiddle = close.y + close.height / 2;
+	for (const box of [ref, age]) {
+		expect(Math.abs(box.y + box.height / 2 - closeMiddle)).toBeLessThanOrEqual(
+			1,
+		);
+	}
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('docked to the bottom the title rides in the header row, and moves back below it on the right', async ({
 	page,
 	appUrl,
