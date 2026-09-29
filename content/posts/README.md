@@ -3,7 +3,8 @@
 Posts are plain markdown in this folder. One file per post, named after its
 URL: `vision-drift.md` becomes `/blog/vision-drift.html`.
 
-Everything under `docs/blog/` is generated. Never edit it by hand.
+Everything under `docs/blog/` is generated, including the RSS feed at
+`docs/blog/feed.xml`. Never edit it by hand.
 
 ## The loop
 
@@ -45,7 +46,7 @@ Everything else is optional and derived when you leave it out:
 | `cover` | `images/<slug>.<ext>` if that file exists |
 | `cover_alt` | empty — set it when the cover carries meaning |
 | `tags` | none; write them comma-separated: `tags: git, tui` |
-| `draft` | published; `draft: true` keeps it off the index |
+| `draft` | published; `draft: true` keeps it off the index and the feed |
 
 ## Styling
 
