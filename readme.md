@@ -10,7 +10,7 @@ Epiq provides issue tracking as a portable, integrated part of the development e
 
 With great attention to user ergonomics and developer experience, epiq strives to make project management painless and friction free.
 
-![Epiq board with the time travel timeline above it](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/time-travel.jpeg)
+![The Epiq GUI: the event log, the board and a ticket's code diff, under the time travel timeline](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/time-travel.jpeg)
 
 ## Audit the workflow
 
