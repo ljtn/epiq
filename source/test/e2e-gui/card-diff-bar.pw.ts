@@ -58,6 +58,34 @@ test('a card whose ticket has commits carries its diff stat, and carries none be
 	expect(pageErrors).toEqual([]);
 });
 
+test('the stat on another card moves the selection to it, not beside it', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const first = `First ${Date.now()}`;
+	await addTicketForRef(page, first);
+	const ref = await addTicketForRef(page, `Second ${Date.now()}`);
+	commitLinkedFile(repoRoot, ref, 'add notes');
+	await page.reload();
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const card = page.locator('div[draggable="true"]').filter({hasText: first});
+	await card.getByTestId('ticket-title').click();
+	await expect(card).not.toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+
+	await statOn(page, ref).click();
+	await expect(page).toHaveURL(/tab=code/);
+	await expect(card).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+	await expect(page.locator('aside')).not.toContainText('tickets selected');
+
+	expect(pageErrors).toEqual([]);
+});
+
 // The stat is the whole control, so where it draws nothing there must be
 // nothing — not a button of its size with no mark in it, which is a thing to
 // hover and click that cannot be seen.
