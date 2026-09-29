@@ -1,19 +1,11 @@
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useState} from 'react';
+import {WORDMARK_LINES} from '../static/wordmark.js';
 
 type Props = {
 	durationMs?: number;
 	slogan?: string;
 };
-
-const logoLines = [
-	'███████╗██████╗ ██╗ ██████╗ ',
-	'██╔════╝██╔══██╗██║██╔═══██╗',
-	'█████╗  ██████╔╝██║██║   ██║',
-	'██╔══╝  ██╔═══╝ ██║██║▄▄ ██║',
-	'███████╗██║     ██║╚██████╔╝',
-	'╚══════╝╚═╝     ╚═╝ ╚═══▀▀╝ ',
-];
 
 function clamp(value: number, min: number, max: number) {
 	return Math.min(max, Math.max(min, value));
@@ -93,7 +85,7 @@ export default function Logo({
 		>
 			<Box flexDirection="column" minWidth={42}>
 				<Box flexDirection="column" marginBottom={1}>
-					{logoLines.map((line, idx) => (
+					{WORDMARK_LINES.map((line, idx) => (
 						<Box key={idx} justifyContent="center">
 							{colorizeLine(line, idx)}
 						</Box>
