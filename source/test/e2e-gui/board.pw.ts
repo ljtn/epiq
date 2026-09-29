@@ -64,3 +64,25 @@ test('the board switcher reads in the same quiet colour as the text filter', asy
 	expect(switcherColor).toBe(placeholderColor);
 	expect(pageErrors).toEqual([]);
 });
+
+test('the board switcher lights the option under the pointer', async ({
+	page,
+	pageErrors,
+}) => {
+	await page.getByTestId('board-switcher').click();
+	const option = page
+		.getByTestId('board-switcher-option')
+		.filter({hasText: 'QA'});
+	await expect(option).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+	await option.hover();
+	await expect(option).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+	await page
+		.getByTestId('board-switcher-option')
+		.filter({hasText: 'Default'})
+		.hover();
+	await expect(option).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+	expect(pageErrors).toEqual([]);
+});
