@@ -522,8 +522,6 @@ export const CommitSeriesGroup = ({
 // The scope row's narrow form: one trigger naming the scope in hand, over the
 // same popover the board series uses, rather than seven buttons that do not fit.
 //
-// Its own component because it holds the open/shut state, and ScrubberControls
-// is a plain expression with nowhere to put a hook.
 // The narrow form's width, shared by the trigger and the menu under it so the
 // two line up.
 const SCOPE_SELECT_WIDTH = 108;

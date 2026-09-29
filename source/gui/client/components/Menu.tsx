@@ -26,7 +26,6 @@ export const Menu = ({
 	width,
 	minWidth,
 	disabled = false,
-	muted = false,
 	testId,
 	title,
 	popupRole = 'listbox',
@@ -45,8 +44,6 @@ export const Menu = ({
 	// The popover's, when it should not simply match the trigger.
 	minWidth?: number;
 	disabled?: boolean;
-	// Greyed without being disabled: the trigger still opens.
-	muted?: boolean;
 	testId?: string;
 	title?: string;
 	popupRole?: 'listbox' | 'group' | 'menu';
@@ -71,7 +68,9 @@ export const Menu = ({
 
 	// Shut, not just hidden, so re-enabling does not reopen it.
 	useEffect(() => {
-		if (disabled) setOwnOpen(false);
+		if (!disabled) return;
+		setOwnOpen(false);
+		if (controlledOpen) onOpenChange?.(false);
 	}, [disabled]);
 
 	const listId = useId();
@@ -120,7 +119,7 @@ export const Menu = ({
 					aria-expanded={open}
 					title={title}
 					style={{
-						...selectTriggerStyle(color, disabled || muted),
+						...selectTriggerStyle(color, disabled),
 						...(width ? {width} : {}),
 						...triggerStyle,
 					}}
@@ -229,7 +228,19 @@ export const MenuItem = ({
 			{children}
 		</button>
 	) : (
-		<div data-testid={testId} title={title} style={rowStyle} {...hover}>
+		<div
+			data-testid={testId}
+			title={title}
+			// The whole lit row answers, not just the control's own box and label.
+			onClick={event => {
+				if (event.target !== event.currentTarget) return;
+				event.currentTarget
+					.querySelector<HTMLElement>('input, button')
+					?.click();
+			}}
+			style={{...rowStyle, cursor: 'pointer'}}
+			{...hover}
+		>
 			{children}
 		</div>
 	);
