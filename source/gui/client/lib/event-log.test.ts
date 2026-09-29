@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {
 	actorColumnChars,
 	actorColumnWidth,
+	actorColumnWidthsByDay,
 	buildLogEntries,
 	daysToOpen,
 	dayRowsShown,
@@ -279,6 +280,27 @@ describe('touchedLines', () => {
 	it('is whether a commit changed any line at all', () => {
 		expect(touchedLines({insertions: 0, deletions: 0})).toBe(false);
 		expect(touchedLines({insertions: 0, deletions: 1})).toBe(true);
+	});
+});
+
+describe('actorColumnWidthsByDay', () => {
+	const signed = (id: string, t: number, name: string): LogEntry => ({
+		...row(id, t),
+		actor: {name},
+	});
+
+	it('sizes each day to its own widest name', () => {
+		const day = 24 * 60 * 60 * 1000;
+		const days = groupByDay([
+			signed('a', 1, 'Jonatan Lampa'),
+			signed('b', 1 + day, 'claude/paul'),
+			signed('c', 1 + day, 'jola'),
+		]);
+
+		expect(actorColumnWidthsByDay(days)).toEqual([
+			actorColumnWidth('Jonatan Lampa'.length),
+			actorColumnWidth('/paul'.length),
+		]);
 	});
 });
 

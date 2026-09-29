@@ -668,10 +668,9 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	// figure rather than between spans; which name sets it is unit-tested.)
 	const actorColumn = (await page.evaluate(
 		`(() => {
-			const panel = document.querySelector('[data-testid="event-log"]');
 			const spans = [...document.querySelectorAll('.epiq-log-actor')];
 			return {
-				chars: getComputedStyle(panel).getPropertyValue('--epiq-log-actor-width').trim(),
+				chars: getComputedStyle(spans[0]).getPropertyValue('--epiq-log-actor-width').trim(),
 				widest: Math.max(...spans.map(span => span.textContent.length)),
 				widths: spans.map(span => Math.round(span.getBoundingClientRect().width)),
 				// A name within the cap is shown whole: the column is sized to it.
