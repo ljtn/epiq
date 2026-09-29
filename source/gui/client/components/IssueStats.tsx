@@ -232,7 +232,7 @@ export const IssueStats = ({
 						value={percent(shape.concentration)}
 						label="In one file"
 						title={shape.largestFile?.path}
-						note={
+						action={
 							shape.largestFile && (
 								<FileLinkIcon file={shape.largestFile} onOpen={onOpenFile} />
 							)
@@ -268,7 +268,7 @@ export const IssueStats = ({
 								: 'Test files added'
 						}
 						title={tests.addedTestFiles.map(file => file.path).join('\n')}
-						note={
+						action={
 							tests.addedTestFiles.length > 0 && (
 								<div style={{display: 'flex', gap: 2}}>
 									{tests.addedTestFiles.slice(0, 3).map(file => (

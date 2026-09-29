@@ -2,6 +2,7 @@ import React from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
 	ROW,
+	STAT_CAPTION,
 	STAT_CELL,
 	STAT_LABEL,
 	STAT_NOTE,
@@ -16,11 +17,14 @@ export const Stat = ({
 	value,
 	label,
 	note,
+	action,
 	title,
 }: {
 	value: string;
 	label: string;
 	note?: React.ReactNode;
+	// A control beside the label, hung off its end so the label stays centred.
+	action?: React.ReactNode;
 	title?: string;
 }) => (
 	<div
@@ -33,9 +37,26 @@ export const Stat = ({
 			event.currentTarget.style.background = STAT_CELL.background as string;
 		}}
 	>
-		<div style={STAT_VALUE}>{value}</div>
-		<div style={STAT_LABEL}>{label}</div>
-		{note && <div style={STAT_NOTE}>{note}</div>}
+		<div style={{...STAT_VALUE, gridRow: 2}}>{value}</div>
+		<div style={STAT_CAPTION}>
+			<div style={{...STAT_LABEL, position: 'relative'}}>
+				{label}
+				{action && (
+					<span
+						style={{
+							position: 'absolute',
+							left: '100%',
+							top: '50%',
+							transform: 'translateY(-50%)',
+							marginLeft: 2,
+						}}
+					>
+						{action}
+					</span>
+				)}
+			</div>
+			{note && <div style={STAT_NOTE}>{note}</div>}
+		</div>
 	</div>
 );
 

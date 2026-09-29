@@ -29,13 +29,13 @@ export const statGrid = (compact: boolean): React.CSSProperties => ({
 	marginTop: 14,
 });
 
+// Three rows with the figure in the middle one, so it sits at the square's
+// centre whatever is written under it.
 export const STAT_CELL: React.CSSProperties = {
-	display: 'flex',
-	flexDirection: 'column',
-	alignItems: 'center',
-	justifyContent: 'center',
+	display: 'grid',
+	gridTemplateRows: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+	justifyItems: 'center',
 	textAlign: 'center',
-	gap: 4,
 	minWidth: 0,
 	aspectRatio: '1 / 1',
 	boxSizing: 'border-box',
@@ -52,6 +52,18 @@ export const STAT_VALUE: React.CSSProperties = {
 	// Tabular-ish spacing: a column of figures that shifts as it updates reads
 	// as movement rather than as a number.
 	letterSpacing: '-0.01em',
+};
+
+// The label and note, under the figure in the bottom row.
+export const STAT_CAPTION: React.CSSProperties = {
+	gridRow: 3,
+	alignSelf: 'start',
+	display: 'flex',
+	flexDirection: 'column',
+	alignItems: 'center',
+	gap: 4,
+	paddingTop: 10,
+	minWidth: 0,
 };
 
 export const STAT_LABEL: React.CSSProperties = {
