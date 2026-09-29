@@ -47,11 +47,9 @@ export const Section = ({
 					<span
 						aria-hidden
 						style={{
-							// The event log's own dot, to the pixel: same size, same
-							// round, so a colour means the same thing in both places.
-							width: 5,
-							height: 5,
-							borderRadius: '50%',
+							width: 2,
+							height: 15,
+							borderRadius: 1,
 							background: tone,
 							flexShrink: 0,
 						}}
