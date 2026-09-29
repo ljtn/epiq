@@ -2339,10 +2339,6 @@ export const App = () => {
 								onOpenStatsFile={openStatsFile}
 								boardStats={boardStats}
 								activity={issueActivity}
-								onOpenActivityInLog={() => {
-									changeSelection({ticketOnly: true});
-									setLogOpen(true);
-								}}
 								statsError={
 									issueStats?.issueId === selectedIssue.id
 										? issueStats.error

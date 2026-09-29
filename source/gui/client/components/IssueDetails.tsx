@@ -314,7 +314,6 @@ export const IssueDetails = ({
 	onOpenStatsFile,
 	boardStats,
 	activity,
-	onOpenActivityInLog,
 	knownTags: tags,
 	knownAssignees: assignees,
 	onOpenAssigneePicker,
@@ -384,8 +383,6 @@ export const IssueDetails = ({
 	boardStats: BoardStats | null;
 	// The ticket's own history, as log lines.
 	activity: readonly LogEntry[];
-	// Opens the panel's log narrowed to this ticket.
-	onOpenActivityInLog: () => void;
 	knownTags: GuiTag[];
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
@@ -1047,14 +1044,7 @@ export const IssueDetails = ({
 						onOpenFile={onOpenStatsFile}
 						boardStats={boardStats}
 						compact={panelWidth < TAB_COUNTS_WIDTH}
-						activity={
-							<IssueActivity
-								entries={activity}
-								onOpenInLog={
-									canNarrowTimeline ? onOpenActivityInLog : undefined
-								}
-							/>
-						}
+						activity={<IssueActivity entries={activity} />}
 					/>
 				);
 

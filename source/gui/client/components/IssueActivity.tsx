@@ -1,6 +1,5 @@
-// A ticket's own events, drawn with the event log's rows and nothing else of
-// it: no fields, lanes, folding or chart link. The panel's log, narrowed to the
-// ticket, is one click away for the rest.
+// A ticket's own events and commits, drawn with the event log's rows and
+// nothing else of it: no fields, lanes, folding or chart link.
 
 import {useMemo, useState} from 'react';
 import {
@@ -10,8 +9,6 @@ import {
 	LogEntry,
 	LOG_ACTOR_WIDTH_PROPERTY,
 } from '../lib/event-log';
-import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {Button} from './Button';
 import {Empty} from './FormPrimitives';
 import {DayDivider, EarlierRow, EventRow} from './LogRows';
 import {Section} from './Section';
@@ -21,12 +18,9 @@ export const ACTIVITY_SHOWN = 8;
 
 export const IssueActivity = ({
 	entries,
-	onOpenInLog,
 }: {
 	// Oldest first, as the log reads.
 	entries: readonly LogEntry[];
-	// Absent where the log cannot be narrowed to the ticket.
-	onOpenInLog?: () => void;
 }) => {
 	const [all, setAll] = useState(false);
 	const hidden = all ? 0 : Math.max(0, entries.length - ACTIVITY_SHOWN);
@@ -37,21 +31,7 @@ export const IssueActivity = ({
 	const widths = useMemo(() => actorColumnWidthsByDay(days), [days]);
 
 	return (
-		<Section
-			title="Activity"
-			action={
-				onOpenInLog && (
-					<Button
-						variant="ghost"
-						data-testid="issue-activity-open-log"
-						onClick={onOpenInLog}
-						style={{fontSize: TEXT.meta, color: GUI_THEME.dim}}
-					>
-						Open in log
-					</Button>
-				)
-			}
-		>
+		<Section title="Activity">
 			{entries.length === 0 ? (
 				<Empty>No activity yet</Empty>
 			) : (
