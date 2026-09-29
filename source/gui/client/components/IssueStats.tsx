@@ -124,16 +124,16 @@ const Note = ({when, children}: {when: boolean; children: React.ReactNode}) =>
  */
 const BoardSection = ({
 	boardStats,
-	compact,
+	across,
 	first = false,
 }: {
 	boardStats: BoardStats | null;
-	compact: boolean;
+	across: number;
 	first?: boolean;
 }) =>
 	boardStats ? (
 		<Section title="Board" first={first}>
-			<div style={statGrid(compact)}>
+			<div style={statGrid(3, across)}>
 				<Stat value={inDays(boardStats.ageMs)} label="Days old" />
 				<Stat
 					value={String(boardStats.timesSentBack)}
@@ -154,7 +154,7 @@ export const IssueStats = ({
 	onOpenFile,
 	boardStats,
 	activity,
-	compact = false,
+	across = 4,
 }: {
 	stats: Stats | null;
 	loading: boolean;
@@ -164,8 +164,8 @@ export const IssueStats = ({
 	onOpenFile?: (file: FilePointer) => void;
 	// Null while the board has yet to arrive, or for a ticket no lane holds.
 	boardStats: BoardStats | null;
-	// The panel is too narrow for four figures across.
-	compact?: boolean;
+	// How many stat squares fit across the panel.
+	across?: number;
 	// The ticket's own events, read with the Board figures they add up to.
 	activity?: React.ReactNode;
 }) => {
@@ -181,7 +181,7 @@ export const IssueStats = ({
 	if (shape.commits === 0) {
 		return (
 			<div style={{fontSize: TEXT.ui}}>
-				<BoardSection boardStats={boardStats} compact={compact} first />
+				<BoardSection boardStats={boardStats} across={across} first />
 				{activity}
 
 				<Section title="Code">
@@ -209,11 +209,11 @@ export const IssueStats = ({
 			{/* First: what the board has done with a ticket is the frame the
 			    code is read in — whether this change is a week old and still
 			    moving, or has been sent back twice already. */}
-			<BoardSection boardStats={boardStats} compact={compact} first />
+			<BoardSection boardStats={boardStats} across={across} first />
 			{activity}
 
 			<Section title="Code">
-				<div style={statGrid(compact)}>
+				<div style={statGrid(4, across)}>
 					<Stat
 						value={String(shape.files)}
 						label="Files touched"
@@ -257,7 +257,7 @@ export const IssueStats = ({
 			</Section>
 
 			<Section title="Tests">
-				<div style={statGrid(compact)}>
+				<div style={statGrid(2, across)}>
 					<Stat value={String(tests.testLinesAdded)} label="Test lines added" />
 					<Stat
 						value={String(tests.addedTestFiles.length)}
@@ -267,8 +267,18 @@ export const IssueStats = ({
 								: 'Test files added'
 						}
 						title={tests.addedTestFiles.map(file => file.path).join('\n')}
+						// One beside the label; several in a row under it, where
+						// they fit the square.
 						action={
-							tests.addedTestFiles.length > 0 && (
+							tests.addedTestFiles.length === 1 && (
+								<FileLinkIcon
+									file={tests.addedTestFiles[0]!}
+									onOpen={onOpenFile}
+								/>
+							)
+						}
+						note={
+							tests.addedTestFiles.length > 1 && (
 								<div style={{display: 'flex', gap: 2}}>
 									{tests.addedTestFiles.slice(0, 3).map(file => (
 										<FileLinkIcon

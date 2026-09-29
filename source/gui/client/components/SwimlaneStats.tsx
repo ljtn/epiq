@@ -100,7 +100,7 @@ export const SwimlaneStats = ({
 
 			<Section title="Time in this lane" first>
 				{dwell ? (
-					<div style={statGrid(true)}>
+					<div style={statGrid(4, 2)}>
 						<Stat
 							value={formatDuration(dwell.median) || '0s'}
 							label="median stay"
