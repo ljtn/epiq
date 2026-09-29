@@ -592,6 +592,13 @@ test('the field boxes fold into a menu when the pane is too narrow', async ({
 	await header.getByTestId('log-field-actor').hover();
 	await expect(row).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
+	// And the whole lit row answers, not only the box and its label.
+	const actor = header.getByLabel('Actor', {exact: true});
+	const before = await actor.isChecked();
+	const box = (await row.boundingBox())!;
+	await page.mouse.click(box.x + box.width - 3, box.y + box.height / 2);
+	await expect(actor).toBeChecked({checked: !before});
+
 	expect(pageErrors).toEqual([]);
 });
 
