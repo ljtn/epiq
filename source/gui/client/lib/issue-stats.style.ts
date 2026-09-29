@@ -68,7 +68,7 @@ export const STAT_CAPTION: React.CSSProperties = {
 
 export const STAT_LABEL: React.CSSProperties = {
 	color: GUI_THEME.secondary,
-	fontSize: 9,
+	fontSize: 8,
 	textTransform: 'uppercase',
 	letterSpacing: '0.1em',
 };
