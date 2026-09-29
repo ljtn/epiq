@@ -39,7 +39,6 @@ export const IssueActivity = ({
 	return (
 		<Section
 			title="Activity"
-			tone={GUI_THEME.accent}
 			action={
 				onOpenInLog && (
 					<Button
