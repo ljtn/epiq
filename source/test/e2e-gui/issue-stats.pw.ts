@@ -124,11 +124,21 @@ test('a ticket with no commits still says how long it has been sitting', async (
 test('the Stats tab lists the ticket activity, and opens the log on it', async ({
 	page,
 	pageErrors,
+	repoRoot,
 }) => {
 	const title = `Activity ${Date.now()}`;
 	await addTicket(page, title);
 
 	const panel = page.locator('aside:not([data-testid="event-log"])');
+	const ref = (
+		await panel.getByTestId('copy-ref').first().textContent()
+	)?.trim();
+	expect(ref).toBeTruthy();
+	commitLinkedFiles(repoRoot, ref!, 'add a parser', {
+		[`activity-${ref}.ts`]: 'export const one = 1;\n',
+	});
+	await page.reload();
+
 	await panel.getByRole('button', {name: /^Stats/}).click();
 
 	const activity = panel.getByTestId('issue-activity');
@@ -136,6 +146,8 @@ test('the Stats tab lists the ticket activity, and opens the log on it', async (
 	await expect(activity.getByTestId('log-line').first()).toContainText(
 		`Created with title "${title}"`,
 	);
+	// The ticket's commits among its events, as the log draws them.
+	await expect(activity).toContainText(`${ref} add a parser`);
 	// Barebones: a day is a date, not a fold.
 	await expect(activity.getByTestId('log-day').first()).toBeDisabled();
 

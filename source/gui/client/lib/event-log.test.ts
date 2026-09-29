@@ -9,7 +9,7 @@ import {
 	LOG_DAY_ROWS,
 	MAX_ACTOR_CHARS,
 	groupByDay,
-	issueHistoryLogEntries,
+	issueActivityLogEntries,
 	isDayOpen,
 	touchedLines,
 	lastIndexAtOrBefore,
@@ -477,26 +477,39 @@ describe('daysToOpen', () => {
 	});
 });
 
-describe('issueHistoryLogEntries', () => {
-	it('draws a ticket history as log lines that lead nowhere', () => {
-		const [line] = issueHistoryLogEntries([
-			{
-				id: 'e1',
-				t: 5,
-				action: 'issue:create',
-				label: 'Created',
-				actor: {id: 'u1', name: 'claude/hugo', color: '#fff'},
-			},
-		]);
+describe('issueActivityLogEntries', () => {
+	it('draws a ticket history and commits as log lines, in clock order, leading nowhere', () => {
+		const lines = issueActivityLogEntries(
+			[
+				{
+					id: 'e1',
+					t: 5,
+					action: 'issue:create',
+					label: 'Created',
+					actor: {id: 'u1', name: 'claude/hugo', color: '#fff'},
+				},
+			],
+			[
+				{
+					sha: 'abc',
+					time: 3,
+					author: 'Jo',
+					authorEmail: 'jo@example.com',
+					subject: 'E2JW616 first',
+					linesChanged: 3,
+					insertions: 2,
+					deletions: 1,
+				},
+			],
+		);
 
-		expect(line).toMatchObject({
-			id: 'e1',
-			t: 5,
-			label: 'Created',
-			actor: {name: 'claude/hugo'},
-			issue: null,
+		expect(lines.map(line => line.label)).toEqual(['E2JW616 first', 'Created']);
+		expect(lines[0]).toMatchObject({
+			actor: {name: 'Jo'},
+			diff: {insertions: 2, deletions: 1},
 			sha: null,
-			diff: null,
+			issue: null,
 		});
+		expect(lines[1]).toMatchObject({actor: {name: 'claude/hugo'}, issue: null});
 	});
 });

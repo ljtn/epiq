@@ -120,7 +120,7 @@ import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME, UI_FONT} from './lib/gui-theme';
-import {issueHistoryLogEntries} from './lib/event-log';
+import {issueActivityLogEntries} from './lib/event-log';
 import {plural} from './lib/gui-format.helper';
 import {REVEAL_MS, useReveal} from './lib/use-reveal';
 import {usePrefersReducedMotion} from './lib/scrubber';
@@ -604,12 +604,15 @@ export const App = () => {
 
 	const issueActivity = useMemo(
 		() =>
-			issueHistoryLogEntries(
+			issueActivityLogEntries(
 				selectedIssue && issueDetail?.issueId === selectedIssue.id
 					? issueDetail.history
 					: [],
+				selectedIssue && issueCommits?.issueId === selectedIssue.id
+					? issueCommits.commits
+					: [],
 			),
-		[selectedIssue?.id, issueDetail],
+		[selectedIssue?.id, issueDetail, issueCommits],
 	);
 
 	// Typed into the box beside the board switcher; hides cards whose ref and
