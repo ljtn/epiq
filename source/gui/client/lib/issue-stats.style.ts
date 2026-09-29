@@ -8,6 +8,7 @@
 // crowded by its own footnotes.
 
 import {GUI_THEME} from './gui-theme';
+import {menuRowHoverBackground} from './select-style';
 
 /**
  * Four across where there is room, two by two where there is not.
@@ -32,10 +33,9 @@ export const STAT_CELL: React.CSSProperties = {
 	textAlign: 'center',
 	gap: 4,
 	minWidth: 0,
-	// Room for the hover ground to sit around the figure rather than against
-	// it, and a shape for it to be.
+	// A ground of the menus' own blue-grey, which the pointer clears.
 	padding: '6px 4px',
-	borderRadius: 6,
+	background: menuRowHoverBackground,
 	transition: 'background 120ms ease',
 };
 
