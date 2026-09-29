@@ -216,10 +216,9 @@ export const IssueStats = ({
 				<div style={statGrid(compact)}>
 					<Stat
 						value={String(shape.files)}
-						label="Files"
-						// Only what happened: "0 deleted" is a line of noise that
-						// wraps the note onto two lines in a narrow panel.
-						note={[
+						label="Files touched"
+						// The breakdown on hover; only what happened.
+						title={[
 							shape.filesAdded > 0 && `${shape.filesAdded} added`,
 							shape.filesModified > 0 && `${shape.filesModified} modified`,
 							shape.filesDeleted > 0 && `${shape.filesDeleted} deleted`,
