@@ -42,7 +42,7 @@ export const Checkbox = ({
 			style={{
 				display: 'flex',
 				alignItems: 'center',
-				gap: 5,
+				gap: 8,
 				fontSize: 11,
 				color,
 				cursor: disabled ? 'not-allowed' : 'pointer',
