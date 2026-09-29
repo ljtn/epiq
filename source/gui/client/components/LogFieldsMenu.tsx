@@ -64,11 +64,6 @@ export const LogFieldsMenu = ({
 	const [open, setOpen] = useState(false);
 	const ref = useDismissOnOutsideClick(open, () => setOpen(false));
 
-	// Something is hidden, which the row said by itself and a shut popover
-	// cannot. The trigger carries it rather than a count: which ones are off is
-	// a question the popover answers, and it is one click away.
-	const anyOff = LOG_FIELD_ORDER.some(field => !fields[field]);
-
 	return (
 		<div ref={ref} style={{position: 'relative', flexShrink: 0}}>
 			<button
@@ -78,12 +73,9 @@ export const LogFieldsMenu = ({
 				aria-haspopup="true"
 				aria-expanded={open}
 				title="Choose what each line shows"
-				style={selectTriggerStyle(
-					anyOff ? GUI_THEME.accent : GUI_THEME.dim,
-					false,
-				)}
+				style={selectTriggerStyle(GUI_THEME.dim, false)}
 			>
-				<span style={selectLabelStyle}>Fields</span>
+				<span style={selectLabelStyle}>View options</span>
 				<span style={{display: 'inline-flex', flexShrink: 0}}>
 					<IconChevronDown size={14} />
 				</span>

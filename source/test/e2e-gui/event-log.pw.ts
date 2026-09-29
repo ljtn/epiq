@@ -561,6 +561,10 @@ test('the field boxes fold into a menu when the pane is too narrow', async ({
 
 	const menu = page.getByTestId('log-fields-menu');
 	await expect(menu).toBeVisible();
+	await expect(menu).toHaveText('View options');
+	const quiet = await page.evaluate<string>(
+		`getComputedStyle(document.querySelector('[data-testid="log-fields-menu"]')).color`,
+	);
 	await expect(header.getByLabel('Label', {exact: true})).toHaveCount(0);
 
 	// The symptom itself: every control the header carries is inside the pane.
@@ -579,6 +583,8 @@ test('the field boxes fold into a menu when the pane is too narrow', async ({
 	await expect(page.locator('.epiq-log-pane').first()).toHaveClass(
 		/epiq-log--no-time/,
 	);
+	// A field off does not colour the trigger.
+	await expect(menu).toHaveCSS('color', quiet);
 
 	expect(pageErrors).toEqual([]);
 });
