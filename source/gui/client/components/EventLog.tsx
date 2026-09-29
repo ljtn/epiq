@@ -31,8 +31,7 @@ import {
 	groupByDay,
 	isDayOpen,
 	LogEntry,
-	actorColumnChars,
-	actorColumnWidth,
+	actorColumnWidthsByDay,
 	LOG_ACTOR_CLASS,
 	LOG_ACTOR_WIDTH_PROPERTY,
 	LOG_DIFF_CLASS,
@@ -476,7 +475,7 @@ const EventLogPanel = ({
 	// Walked when the log moves, not when the board beside it repaints — which
 	// during a movie is every animation frame.
 	const days = useMemo(() => groupByDay(entries), [entries]);
-	const actorChars = useMemo(() => actorColumnChars(entries), [entries]);
+	const actorWidths = useMemo(() => actorColumnWidthsByDay(days), [days]);
 
 	const newestId = entries[entries.length - 1]?.id ?? null;
 
@@ -726,8 +725,6 @@ const EventLogPanel = ({
 						: `1px solid ${GUI_THEME.edgeOnChrome}`,
 					boxShadow: inWindow ? undefined : '10px 0 24px rgba(0, 0, 0, 0.45)',
 					background: GUI_THEME.chrome,
-					// The name column's width, for every row at once.
-					[LOG_ACTOR_WIDTH_PROPERTY]: actorColumnWidth(actorChars),
 					// How many lanes the pane divides into while it is split.
 					[LOG_LANE_COUNT_PROPERTY]: lanes.length,
 				} as React.CSSProperties
@@ -895,7 +892,18 @@ const EventLogPanel = ({
 							);
 
 							return (
-								<div key={day.key}>
+								<div
+									key={day.key}
+									// Inline wins over the pane's classes, so it is set only
+									// while the name column is drawn.
+									style={
+										fields.actor && !split
+											? ({
+													[LOG_ACTOR_WIDTH_PROPERTY]: actorWidths[index],
+											  } as React.CSSProperties)
+											: undefined
+									}
+								>
 									<DayDivider
 										label={day.label}
 										count={day.entries.length}

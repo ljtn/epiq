@@ -119,6 +119,10 @@ const LOG_COLUMN_GAP_PX = 8;
 export const actorColumnWidth = (chars: number): string =>
 	chars === 0 ? '0px' : `calc(${chars}ch + ${LOG_COLUMN_GAP_PX}px)`;
 
+// Each day's own: a long name on one day does not widen every other day's.
+export const actorColumnWidthsByDay = (days: readonly LogDay[]): string[] =>
+	days.map(day => actorColumnWidth(actorColumnChars(day.entries)));
+
 // How many lines the panel is handed. Well past what one pane shows, because
 // the pane scrolls and reaching back through it is the point — and because
 // folding, not this, is now what bounds the document: a folded day is one row
@@ -331,12 +335,11 @@ export const LOG_ACTOR_CLASS = 'epiq-log-actor';
 // The provider's mark in front of an agent's name — see lib/agent-identity.
 export const LOG_DIFF_CLASS = 'epiq-log-diff';
 // The name is a column too, so the labels line up whoever signed each line.
-// It is as wide as the widest name in the slice — see actorColumnChars — set
-// on the panel and read by every row, and never wider than this, so one long
-// name cannot push every label off the right edge; past it the name is cut
-// with an ellipsis. Set on the panel rather than the pane: the pane is what
-// wears the field classes, and a class on it zeroes a column the panel has
-// sized, where a class could not beat an inline value on the same node.
+// It is as wide as the widest name in its day — see actorColumnChars — set on
+// the day and read by its rows, and capped, so one long name cannot push every
+// label off the right edge; past it the name is cut with an ellipsis. The
+// pane's field and split classes zero it, so a day sets it only while the
+// column is drawn.
 //
 // A commit's diff stat is deliberately not a column: it belongs to the few
 // rows that are commits and pushes only their labels along, rather than
