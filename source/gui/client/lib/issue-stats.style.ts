@@ -8,7 +8,7 @@
 // crowded by its own footnotes.
 
 import {GUI_THEME} from './gui-theme';
-import {menuRowHoverBackground} from './select-style';
+import {menuBlueGrey} from './select-style';
 
 /**
  * Four across where there is room, two by two where there is not.
@@ -39,9 +39,9 @@ export const STAT_CELL: React.CSSProperties = {
 	minWidth: 0,
 	aspectRatio: '1 / 1',
 	boxSizing: 'border-box',
-	// A ground of the menus' own blue-grey, which the pointer clears.
+	// The menus' blue-grey at half a hovered row's strength; the pointer clears it.
 	padding: '6px 4px',
-	background: menuRowHoverBackground,
+	background: menuBlueGrey(0.05),
 	transition: 'background 120ms ease',
 };
 

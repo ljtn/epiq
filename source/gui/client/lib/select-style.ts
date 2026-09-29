@@ -68,5 +68,8 @@ export const popoverStyle: React.CSSProperties = {
 	whiteSpace: 'nowrap',
 };
 
-// A menu row under the pointer: the selected row's blue-grey, fainter.
-export const menuRowHoverBackground = 'rgba(120, 146, 204, 0.1)';
+// The selected row's blue-grey, fainter, at any strength.
+export const menuBlueGrey = (alpha: number) => `rgba(120, 146, 204, ${alpha})`;
+
+// A menu row under the pointer.
+export const menuRowHoverBackground = menuBlueGrey(0.1);
