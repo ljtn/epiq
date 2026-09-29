@@ -17,11 +17,14 @@ import {menuRowHoverBackground} from './select-style';
  * columns first, which puts one stat of four alone on a second row and reads
  * as a mistake. Two by two is a layout.
  */
+// One size for every stat, so a row of them is a row of equal squares.
+const STAT_SIZE = 116;
+
 export const statGrid = (compact: boolean): React.CSSProperties => ({
 	display: 'grid',
 	gridTemplateColumns: compact
 		? 'repeat(2, 1fr)'
-		: 'repeat(auto-fit, minmax(82px, 1fr))',
+		: `repeat(auto-fill, ${STAT_SIZE}px)`,
 	gap: 16,
 	marginTop: 14,
 });
@@ -30,9 +33,12 @@ export const STAT_CELL: React.CSSProperties = {
 	display: 'flex',
 	flexDirection: 'column',
 	alignItems: 'center',
+	justifyContent: 'center',
 	textAlign: 'center',
 	gap: 4,
 	minWidth: 0,
+	aspectRatio: '1 / 1',
+	boxSizing: 'border-box',
 	// A ground of the menus' own blue-grey, which the pointer clears.
 	padding: '6px 4px',
 	background: menuRowHoverBackground,
