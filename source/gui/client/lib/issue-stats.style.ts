@@ -39,9 +39,9 @@ export const STAT_CELL: React.CSSProperties = {
 	minWidth: 0,
 	aspectRatio: '1 / 1',
 	boxSizing: 'border-box',
-	// The menus' blue-grey at half a hovered row's strength; the pointer clears it.
+	// The menus' blue-grey at a fifth of a hovered row's strength; the pointer clears it.
 	padding: '6px 4px',
-	background: menuBlueGrey(0.05),
+	background: menuBlueGrey(0.02),
 	transition: 'background 120ms ease',
 };
 
