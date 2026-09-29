@@ -38,7 +38,7 @@ test('the Stats tab measures the ticket own commits', async ({
 	await page.getByRole('button', {name: /^Stats/}).click();
 
 	// The shape of the change, from the patch itself.
-	await expect(page.getByText('Files', {exact: true})).toBeVisible();
+	await expect(page.getByText('Files touched', {exact: true})).toBeVisible();
 	await expect(page.getByText('Directories', {exact: true})).toBeVisible();
 
 	// The test signal: one test line per code line, and one test file added.
