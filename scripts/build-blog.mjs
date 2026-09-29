@@ -465,7 +465,13 @@ function absolutize(html, post) {
 	const page = `${BASE_URL}/blog/${post.slug}.html`;
 	return html.replace(/\b(src|href)="([^"]*)"/g, (whole, attr, url) => {
 		if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return whole;
-		return `${attr}="${esc(new URL(url, page).href)}"`;
+		// The attribute arrives escaped; resolve the raw URL, then escape once.
+		const raw = url
+			.replace(/&quot;/g, '"')
+			.replace(/&lt;/g, "<")
+			.replace(/&gt;/g, ">")
+			.replace(/&amp;/g, "&");
+		return `${attr}="${esc(new URL(raw, page).href)}"`;
 	});
 }
 
