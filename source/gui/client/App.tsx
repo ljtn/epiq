@@ -120,6 +120,7 @@ import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME, UI_FONT} from './lib/gui-theme';
+import {issueHistoryLogEntries} from './lib/event-log';
 import {plural} from './lib/gui-format.helper';
 import {REVEAL_MS, useReveal} from './lib/use-reveal';
 import {usePrefersReducedMotion} from './lib/scrubber';
@@ -600,6 +601,16 @@ export const App = () => {
 			currentLaneId: lane.id,
 		});
 	}, [selectedIssue?.id, state, issueDetail]);
+
+	const issueActivity = useMemo(
+		() =>
+			issueHistoryLogEntries(
+				selectedIssue && issueDetail?.issueId === selectedIssue.id
+					? issueDetail.history
+					: [],
+			),
+		[selectedIssue?.id, issueDetail],
+	);
 
 	// Typed into the box beside the board switcher; hides cards whose ref and
 	// title both miss it. Not part of the URL selection: it is a passing
@@ -2324,6 +2335,11 @@ export const App = () => {
 								}
 								onOpenStatsFile={openStatsFile}
 								boardStats={boardStats}
+								activity={issueActivity}
+								onOpenActivityInLog={() => {
+									changeSelection({ticketOnly: true});
+									setLogOpen(true);
+								}}
 								statsError={
 									issueStats?.issueId === selectedIssue.id
 										? issueStats.error

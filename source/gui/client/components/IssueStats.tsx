@@ -139,6 +139,7 @@ export const IssueStats = ({
 	error,
 	onOpenFile,
 	boardStats,
+	activity,
 	compact = false,
 }: {
 	stats: Stats | null;
@@ -151,6 +152,8 @@ export const IssueStats = ({
 	boardStats: BoardStats | null;
 	// The panel is too narrow for four figures across.
 	compact?: boolean;
+	// The ticket's own events, read with the Board figures they add up to.
+	activity?: React.ReactNode;
 }) => {
 	if (error) return <Empty>{error}</Empty>;
 	if (loading || !stats)
@@ -165,6 +168,7 @@ export const IssueStats = ({
 		return (
 			<div style={{fontSize: TEXT.ui}}>
 				<BoardSection boardStats={boardStats} compact={compact} first />
+				{activity}
 
 				<Section title="Code" tone={CODE_TONE}>
 					<div style={LINE}>
@@ -192,6 +196,7 @@ export const IssueStats = ({
 			    code is read in — whether this change is a week old and still
 			    moving, or has been sent back twice already. */}
 			<BoardSection boardStats={boardStats} compact={compact} first />
+			{activity}
 
 			<Section title="Code" tone={CODE_TONE}>
 				<div style={statGrid(compact)}>

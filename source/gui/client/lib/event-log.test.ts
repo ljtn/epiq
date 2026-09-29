@@ -9,6 +9,7 @@ import {
 	LOG_DAY_ROWS,
 	MAX_ACTOR_CHARS,
 	groupByDay,
+	issueHistoryLogEntries,
 	isDayOpen,
 	touchedLines,
 	lastIndexAtOrBefore,
@@ -473,5 +474,29 @@ describe('daysToOpen', () => {
 
 	it('is nothing to open for an empty log', () => {
 		expect(daysToOpen([], 40)).toBe(0);
+	});
+});
+
+describe('issueHistoryLogEntries', () => {
+	it('draws a ticket history as log lines that lead nowhere', () => {
+		const [line] = issueHistoryLogEntries([
+			{
+				id: 'e1',
+				t: 5,
+				action: 'issue:create',
+				label: 'Created',
+				actor: {id: 'u1', name: 'claude/hugo', color: '#fff'},
+			},
+		]);
+
+		expect(line).toMatchObject({
+			id: 'e1',
+			t: 5,
+			label: 'Created',
+			actor: {name: 'claude/hugo'},
+			issue: null,
+			sha: null,
+			diff: null,
+		});
 	});
 });

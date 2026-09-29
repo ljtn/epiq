@@ -54,6 +54,8 @@ import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
+import {IssueActivity} from './IssueActivity';
+import {LogEntry} from '../lib/event-log';
 import {IssueStats as IssueStatsPayload} from '../../../lib/stats/issue-stats.model.js';
 import {BoardStats} from '../../../lib/stats/board-stats.js';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
@@ -311,6 +313,8 @@ export const IssueDetails = ({
 	statsError,
 	onOpenStatsFile,
 	boardStats,
+	activity,
+	onOpenActivityInLog,
 	knownTags: tags,
 	knownAssignees: assignees,
 	onOpenAssigneePicker,
@@ -378,6 +382,10 @@ export const IssueDetails = ({
 	// The board half of the Stats tab, worked out by the caller: what counts as
 	// backwards is a fact about lane order, which lives up there.
 	boardStats: BoardStats | null;
+	// The ticket's own history, as log lines.
+	activity: readonly LogEntry[];
+	// Opens the panel's log narrowed to this ticket.
+	onOpenActivityInLog: () => void;
 	knownTags: GuiTag[];
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
@@ -1039,6 +1047,14 @@ export const IssueDetails = ({
 						onOpenFile={onOpenStatsFile}
 						boardStats={boardStats}
 						compact={panelWidth < TAB_COUNTS_WIDTH}
+						activity={
+							<IssueActivity
+								entries={activity}
+								onOpenInLog={
+									canNarrowTimeline ? onOpenActivityInLog : undefined
+								}
+							/>
+						}
 					/>
 				);
 
