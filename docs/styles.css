@@ -1846,3 +1846,25 @@ h2 {
 		justify-content: flex-start;
 	}
 }
+
+/* The blog's feed link, under its heading: the nav's command-link voice. */
+.feed-link {
+	display: inline-block;
+	margin-top: 4px;
+	color: var(--muted);
+	font: 14px var(--mono);
+	letter-spacing: -0.02em;
+	text-decoration: none;
+	transition: color 0.15s ease;
+}
+.feed-link .accent {
+	margin-right: 1px;
+	color: inherit;
+	transition: color 0.15s ease;
+}
+.feed-link:hover {
+	color: var(--text);
+}
+.feed-link:hover .accent {
+	color: var(--cyan);
+}

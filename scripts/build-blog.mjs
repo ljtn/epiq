@@ -34,6 +34,9 @@ const DOCS = join(root, "docs");
 const OUT_DIR = join(DOCS, "blog");
 const BASE_URL = "https://ljtn.github.io/epiq";
 const AUTHOR = "Jonatan Lampa";
+const FEED_URL = `${BASE_URL}/blog/feed.xml`;
+const BLOG_DESCRIPTION =
+	"Writing from the Epiq project: developer experience, event sourcing, Git internals, and building a terminal-native issue tracker.";
 
 /* Comments are GitHub Discussions in the Announcements category, via giscus. */
 const GISCUS = {
@@ -248,6 +251,7 @@ function shell({ title, description, canonical, image, type = "website", depth, 
 		<meta property="og:site_name" content="Epiq" />
 		${imageTags}
 ${head}
+		<link rel="alternate" type="application/rss+xml" title="Epiq blog" href="${FEED_URL}" />
 		<link rel="icon" href="${up}favicon.ico" sizes="any" />
 		<link rel="stylesheet" href="${up}styles.css" />
 	</head>
@@ -337,8 +341,7 @@ function renderIndex(posts) {
 
 	return shell({
 		title: "Epiq — blog",
-		description:
-			"Writing from the Epiq project: developer experience, event sourcing, Git internals, and building a terminal-native issue tracker.",
+		description: BLOG_DESCRIPTION,
 		canonical: `${BASE_URL}/blog.html`,
 		image: SITE_CARD,
 		depth: 0,
@@ -346,6 +349,9 @@ function renderIndex(posts) {
 			<header class="docs-head wrap">
 				<div class="kicker">Blog</div>
 				<h1>Epiq lore.</h1>
+				<a class="feed-link" href="./blog/feed.xml" aria-label="RSS feed"
+					><span class="accent">:</span>rss</a
+				>
 			</header>
 
 			<div class="wrap rel-wrap">
@@ -380,12 +386,12 @@ function comments(post) {
 				</section>`;
 }
 
+function renderArticle(post) {
+	return md.render(post.body, { heading: 2, levels: true, images: true });
+}
+
 function renderPost(post, older, newer) {
-	const article = md.render(post.body, {
-		heading: 2,
-		levels: true,
-		images: true,
-	});
+	const article = renderArticle(post);
 
 	const cover = post.cover
 		? `				<figure class="article-cover">
@@ -449,6 +455,60 @@ ${comments(post)}
 	});
 }
 
+/* ---------- feed ---------- */
+
+const rfc822 = (iso) => new Date(iso + "T00:00:00Z").toUTCString();
+
+/* A feed reader has no page to resolve against, so every relative link and
+ * image in a post points at the published site instead. */
+function absolutize(html, post) {
+	const page = `${BASE_URL}/blog/${post.slug}.html`;
+	return html.replace(/\b(src|href)="([^"]*)"/g, (whole, attr, url) => {
+		if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return whole;
+		return `${attr}="${esc(new URL(url, page).href)}"`;
+	});
+}
+
+const cdata = (s) => `<![CDATA[${s.replace(/]]>/g, "]]]]><![CDATA[>")}]]>`;
+
+function renderFeed(posts) {
+	const items = posts
+		.map((post) => {
+			const url = `${BASE_URL}/blog/${post.slug}.html`;
+			const cover = post.cover
+				? `<p><img src="${esc(post.cover)}" alt="${esc(post.coverAlt)}" /></p>\n`
+				: "";
+			const tags = post.tags.map((t) => `\n\t\t\t<category>${esc(t)}</category>`).join("");
+			return `		<item>
+			<title>${esc(post.title)}</title>
+			<link>${url}</link>
+			<guid isPermaLink="true">${url}</guid>
+			<pubDate>${rfc822(post.date)}</pubDate>
+			<dc:creator>${esc(AUTHOR)}</dc:creator>${tags}
+			<description>${esc(post.description)}</description>
+			<content:encoded>${cdata(absolutize(cover + renderArticle(post), post))}</content:encoded>
+		</item>`;
+		})
+		.join("\n");
+
+	// Dated by the newest post, not the clock, so a rebuild with nothing new
+	// leaves the file untouched.
+	const updated = posts.length ? rfc822(posts[0].date) : "";
+
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+	<channel>
+		<title>Epiq blog</title>
+		<link>${BASE_URL}/blog.html</link>
+		<atom:link href="${FEED_URL}" rel="self" type="application/rss+xml" />
+		<description>${esc(BLOG_DESCRIPTION)}</description>
+		<language>en</language>${updated ? `\n\t\t<lastBuildDate>${updated}</lastBuildDate>` : ""}
+${items}
+	</channel>
+</rss>
+`;
+}
+
 /* ---------- the build ---------- */
 
 function copyImages() {
@@ -501,6 +561,7 @@ function build({ quiet = false } = {}) {
 	for (const post of posts.filter((p) => p.draft)) {
 		writeFileSync(join(OUT_DIR, `${post.slug}.html`), renderPost(post));
 	}
+	writeFileSync(join(OUT_DIR, "feed.xml"), renderFeed(published));
 
 	const images = copyImages();
 
@@ -520,7 +581,7 @@ function build({ quiet = false } = {}) {
 		console.log(
 			`built ${published.length} post${published.length === 1 ? "" : "s"}` +
 				(drafts ? ` (+${drafts} draft)` : "") +
-				` + index, ${images} image${images === 1 ? "" : "s"}`
+				` + index, feed, ${images} image${images === 1 ? "" : "s"}`
 		);
 		for (const p of posts) {
 			console.log(`  ${p.date}  blog/${p.slug}.html${p.draft ? "  [draft]" : ""}`);
@@ -630,6 +691,7 @@ const MIME = {
 	".css": "text/css; charset=utf-8",
 	".js": "text/javascript; charset=utf-8",
 	".json": "application/json",
+	".xml": "application/xml; charset=utf-8",
 	".webp": "image/webp",
 	".png": "image/png",
 	".jpg": "image/jpeg",
