@@ -10,7 +10,11 @@
 import {formatDate, formatDayLabel} from '../../../lib/utils/date.utils.js';
 import {commitAuthorLabel} from './commit-author';
 import {actorDisplayChars} from './agent-identity';
-import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
+import {
+	GuiCommitEntry,
+	GuiEventTimelineEntry,
+	GuiIssueHistoryEntry,
+} from './gui-state.model';
 import {EVENT_CATEGORY_COLORS, GUI_THEME, TEXT} from './gui-theme';
 import {LOG_ROW_SELECTOR} from './log-destination';
 import {categoryOf} from './scrubber';
@@ -87,6 +91,24 @@ export const buildLogEntries = (
 			sha: commit.sha,
 		})),
 	].sort((left, right) => left.t - right.t);
+
+// A ticket's own history as log lines. They lead nowhere: they are already
+// about the ticket they are shown on.
+export const issueHistoryLogEntries = (
+	history: readonly GuiIssueHistoryEntry[],
+): LogEntry[] =>
+	history.map(entry => ({
+		id: entry.id,
+		t: entry.t,
+		label: entry.label,
+		color: EVENT_CATEGORY_COLORS[categoryOf(entry.action)],
+		actor: {name: entry.actor.name},
+		diff: null,
+		issue: null,
+		target: null,
+		action: entry.action,
+		sha: null,
+	}));
 
 // How wide the name column is, in characters: the longest name in the slice,
 // up to MAX_ACTOR_CHARS. Zero when nobody signed anything, which is a slice
