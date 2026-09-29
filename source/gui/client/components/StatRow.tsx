@@ -26,14 +26,11 @@ export const Stat = ({
 	<div
 		style={STAT_CELL}
 		title={title}
-		// The same lift every hoverable surface in the app takes, so a figure
-		// under the pointer separates from the four beside it — and a path in
-		// the note below reads as part of that block rather than as loose text.
 		onMouseEnter={event => {
-			event.currentTarget.style.background = GUI_THEME.hover;
+			event.currentTarget.style.background = 'transparent';
 		}}
 		onMouseLeave={event => {
-			event.currentTarget.style.background = 'transparent';
+			event.currentTarget.style.background = STAT_CELL.background as string;
 		}}
 	>
 		<div style={STAT_VALUE}>{value}</div>
