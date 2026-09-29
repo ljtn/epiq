@@ -48,6 +48,27 @@ export type LogEntry = {
 	sha: string | null;
 };
 
+// Prefixed, because a sha and a ULID share no namespace and both end up
+// as React keys in the same column.
+const commitLogEntry = (commit: GuiCommitEntry): LogEntry => ({
+	id: `commit-${commit.sha}`,
+	t: commit.time,
+	label: commit.subject,
+	color: GUI_THEME.green,
+	// The same label the scrubber puts on this commit. Taking the raw git
+	// name here instead left one view calling somebody by their board name
+	// and the other by their git name, in the same window.
+	actor: {name: commitAuthorLabel(commit)},
+	diff: {insertions: commit.insertions, deletions: commit.deletions},
+	// A commit belongs to whichever ticket its subject is prefixed with,
+	// which the board resolves when the line is clicked — it already has to,
+	// for the scatter's own commit dots.
+	issue: null,
+	target: null,
+	action: null,
+	sha: commit.sha,
+});
+
 // Both series in one column, in clock order. Commits are lines and nothing
 // more: they change no board state, so they never drive a checkout and never
 // become a frame of a movie — the playhead is still walked by events alone.
@@ -70,45 +91,30 @@ export const buildLogEntries = (
 			action: event.action,
 			sha: null,
 		})),
-		// Prefixed, because a sha and a ULID share no namespace and both end up
-		// as React keys in the same column.
-		...commits.map(commit => ({
-			id: `commit-${commit.sha}`,
-			t: commit.time,
-			label: commit.subject,
-			color: GUI_THEME.green,
-			// The same label the scrubber puts on this commit. Taking the raw git
-			// name here instead left one view calling somebody by their board name
-			// and the other by their git name, in the same window.
-			actor: {name: commitAuthorLabel(commit)},
-			diff: {insertions: commit.insertions, deletions: commit.deletions},
-			// A commit belongs to whichever ticket its subject is prefixed with,
-			// which the board resolves when the line is clicked — it already has to,
-			// for the scatter's own commit dots.
-			issue: null,
-			target: null,
-			action: null,
-			sha: commit.sha,
-		})),
+		...commits.map(commitLogEntry),
 	].sort((left, right) => left.t - right.t);
 
-// A ticket's own history as log lines. They lead nowhere: they are already
-// about the ticket they are shown on.
-export const issueHistoryLogEntries = (
+// A ticket's own history and commits as log lines, in clock order. They lead
+// nowhere: they are already about the ticket they are shown on.
+export const issueActivityLogEntries = (
 	history: readonly GuiIssueHistoryEntry[],
+	commits: readonly GuiCommitEntry[],
 ): LogEntry[] =>
-	history.map(entry => ({
-		id: entry.id,
-		t: entry.t,
-		label: entry.label,
-		color: EVENT_CATEGORY_COLORS[categoryOf(entry.action)],
-		actor: {name: entry.actor.name},
-		diff: null,
-		issue: null,
-		target: null,
-		action: entry.action,
-		sha: null,
-	}));
+	[
+		...history.map(entry => ({
+			id: entry.id,
+			t: entry.t,
+			label: entry.label,
+			color: EVENT_CATEGORY_COLORS[categoryOf(entry.action)],
+			actor: {name: entry.actor.name},
+			diff: null,
+			issue: null,
+			target: null,
+			action: entry.action,
+			sha: null,
+		})),
+		...commits.map(commit => ({...commitLogEntry(commit), sha: null})),
+	].sort((left, right) => left.t - right.t);
 
 // How wide the name column is, in characters: the longest name in the slice,
 // up to MAX_ACTOR_CHARS. Zero when nobody signed anything, which is a slice
