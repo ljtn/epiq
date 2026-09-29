@@ -131,7 +131,7 @@ const Radio = ({
 		style={{
 			display: 'flex',
 			alignItems: 'center',
-			gap: 5,
+			gap: 8,
 			background: 'transparent',
 			border: 'none',
 			padding: 0,
