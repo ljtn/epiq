@@ -22,6 +22,8 @@ import {ProportionBar, StackedBar} from './StatBars';
 import {BoardStats} from '../../../lib/stats/board-stats.js';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
+import {IconArrowUpRight} from './IconArrowUpRight';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {Stat, StatRow} from './StatRow';
 
 // What the ticket's own code says about itself, read as an answer to one
@@ -85,6 +87,25 @@ const FileLink = ({
 		</button>
 	);
 };
+
+// The same link as an icon, for a square too small to spell the path out. The
+// path is its tooltip and its name.
+const FileLinkIcon = ({
+	file,
+	onOpen,
+}: {
+	file: FilePointer;
+	onOpen?: (file: FilePointer) => void;
+}) =>
+	onOpen && file.sha ? (
+		<IconButton
+			title={`${file.path} — open the diff`}
+			aria-label={`${file.path} — open the diff`}
+			onClick={() => onOpen(file)}
+		>
+			<IconArrowUpRight size={ICON_SIZE} />
+		</IconButton>
+	) : null;
 
 // A note earns a line only when it has something to say. A page of zeroes
 // reads as a checklist somebody has to work through; three lines read as
@@ -210,9 +231,10 @@ export const IssueStats = ({
 					<Stat
 						value={percent(shape.concentration)}
 						label="In one file"
+						title={shape.largestFile?.path}
 						note={
 							shape.largestFile && (
-								<FileLink file={shape.largestFile} onOpen={onOpenFile} />
+								<FileLinkIcon file={shape.largestFile} onOpen={onOpenFile} />
 							)
 						}
 					/>
@@ -245,11 +267,20 @@ export const IssueStats = ({
 								? 'Test file added'
 								: 'Test files added'
 						}
-						note={tests.addedTestFiles.slice(0, 3).map(file => (
-							<div key={file.path}>
-								<FileLink file={file} onOpen={onOpenFile} />
-							</div>
-						))}
+						title={tests.addedTestFiles.map(file => file.path).join('\n')}
+						note={
+							tests.addedTestFiles.length > 0 && (
+								<div style={{display: 'flex', gap: 2}}>
+									{tests.addedTestFiles.slice(0, 3).map(file => (
+										<FileLinkIcon
+											key={file.path}
+											file={file}
+											onOpen={onOpenFile}
+										/>
+									))}
+								</div>
+							)
+						}
 					/>
 				</div>
 
