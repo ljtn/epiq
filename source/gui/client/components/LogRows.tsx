@@ -34,62 +34,71 @@ export const DayDivider = ({
 	label: string;
 	count: number;
 	open: boolean;
-	// Absent where days cannot fold: the divider is then only a date.
+	// Absent where days cannot fold: the divider is then only a date, and not
+	// a control.
 	onToggle?: () => void;
-}) => (
-	<button
-		type="button"
-		data-testid="log-day"
-		aria-expanded={onToggle ? open : undefined}
-		disabled={!onToggle}
-		onClick={onToggle}
-		title={
-			!onToggle
-				? undefined
-				: open
-				? `Fold ${label}`
-				: `Show the ${count} lines of ${label}`
-		}
-		style={{
-			display: 'flex',
-			alignItems: 'center',
-			gap: 8,
-			width: '100%',
-			height: LOG_ROW_HEIGHT,
-			padding: 0,
-			background: 'transparent',
-			border: 'none',
-			color: GUI_THEME.dim,
-			fontFamily: 'inherit',
-			fontSize: TEXT.meta,
-			cursor: onToggle ? 'pointer' : 'default',
-		}}
-	>
-		<span
-			aria-hidden
-			style={{display: 'inline-flex', alignItems: 'center', flexShrink: 0}}
-		>
-			{!onToggle ? null : open ? (
-				<IconChevronDown size={11} />
-			) : (
-				<IconChevronRight size={11} />
+}) => {
+	const style: React.CSSProperties = {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 8,
+		width: '100%',
+		height: LOG_ROW_HEIGHT,
+		padding: 0,
+		background: 'transparent',
+		border: 'none',
+		color: GUI_THEME.dim,
+		fontFamily: 'inherit',
+		fontSize: TEXT.meta,
+	};
+
+	const content = (
+		<>
+			{onToggle && (
+				<span
+					aria-hidden
+					style={{display: 'inline-flex', alignItems: 'center', flexShrink: 0}}
+				>
+					{open ? (
+						<IconChevronDown size={11} />
+					) : (
+						<IconChevronRight size={11} />
+					)}
+				</span>
 			)}
-		</span>
-		<span style={{flexShrink: 0}}>{label}</span>
-		{/* The rule between the day and its tally, not after both: run together
-		    they read as one number on the end of the date. */}
-		<span aria-hidden style={dividerRuleStyle} />
-		<span
-			style={{
-				flexShrink: 0,
-				color: GUI_THEME.dim2,
-				fontVariantNumeric: 'tabular-nums',
-			}}
+			<span style={{flexShrink: 0}}>{label}</span>
+			{/* The rule between the day and its tally, not after both: run together
+			    they read as one number on the end of the date. */}
+			<span aria-hidden style={dividerRuleStyle} />
+			<span
+				style={{
+					flexShrink: 0,
+					color: GUI_THEME.dim2,
+					fontVariantNumeric: 'tabular-nums',
+				}}
+			>
+				{count}
+			</span>
+		</>
+	);
+
+	return onToggle ? (
+		<button
+			type="button"
+			data-testid="log-day"
+			aria-expanded={open}
+			onClick={onToggle}
+			title={open ? `Fold ${label}` : `Show the ${count} lines of ${label}`}
+			style={{...style, cursor: 'pointer'}}
 		>
-			{count}
-		</span>
-	</button>
-);
+			{content}
+		</button>
+	) : (
+		<div data-testid="log-day" style={style}>
+			{content}
+		</div>
+	);
+};
 
 // The rows an open day is holding back. Inside the day rather than above it,
 // because what it opens is the rest of this day and not another one — and

@@ -149,7 +149,9 @@ test('the Stats tab lists the ticket activity', async ({
 	// The ticket's commits among its events, as the log draws them.
 	await expect(activity).toContainText(`${ref} add a parser`);
 	// Barebones: a day is a date, not a fold.
-	await expect(activity.getByTestId('log-day').first()).toBeDisabled();
+	await expect(activity.getByTestId('log-day').first()).not.toHaveAttribute(
+		'aria-expanded',
+	);
 
 	expect(pageErrors).toEqual([]);
 });

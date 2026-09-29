@@ -55,6 +55,7 @@ import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
 import {IssueActivity} from './IssueActivity';
+import {statsAcross} from '../lib/issue-stats.style';
 import {LogEntry} from '../lib/event-log';
 import {IssueStats as IssueStatsPayload} from '../../../lib/stats/issue-stats.model.js';
 import {BoardStats} from '../../../lib/stats/board-stats.js';
@@ -1043,8 +1044,8 @@ export const IssueDetails = ({
 						error={statsError}
 						onOpenFile={onOpenStatsFile}
 						boardStats={boardStats}
-						compact={panelWidth < TAB_COUNTS_WIDTH}
-						activity={<IssueActivity entries={activity} />}
+						across={statsAcross(panelWidth - 2 * ASIDE_PADDING)}
+						activity={<IssueActivity key={issue.id} entries={activity} />}
 					/>
 				);
 

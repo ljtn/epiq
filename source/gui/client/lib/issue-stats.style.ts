@@ -10,24 +10,30 @@
 import {GUI_THEME} from './gui-theme';
 import {menuBlueGrey} from './select-style';
 
-/**
- * Four across where there is room, two by two where there is not.
- *
- * Explicit rather than auto-fit: left to itself the grid drops to three
- * columns first, which puts one stat of four alone on a second row and reads
- * as a mistake. Two by two is a layout.
- */
 // One size for every stat, so a row of them is a row of equal squares.
-const STAT_SIZE = 116;
+export const STAT_SIZE = 116;
+const STAT_GAP = 16;
 
-export const statGrid = (compact: boolean): React.CSSProperties => ({
-	display: 'grid',
-	gridTemplateColumns: compact
-		? 'repeat(2, 1fr)'
-		: `repeat(auto-fill, ${STAT_SIZE}px)`,
-	gap: 16,
-	marginTop: 14,
-});
+// How many squares fit across a width.
+export const statsAcross = (width: number): number =>
+	Math.max(1, Math.floor((width + STAT_GAP) / (STAT_SIZE + STAT_GAP)));
+
+// All in one row where they fit. Four that do not go two by two rather than
+// three and one: one stat alone on a second row reads as a mistake.
+export const statGrid = (
+	count: number,
+	across: number,
+): React.CSSProperties => {
+	const columns =
+		count <= across ? count : count === 4 && across >= 2 ? 2 : across;
+
+	return {
+		display: 'grid',
+		gridTemplateColumns: `repeat(${columns}, ${STAT_SIZE}px)`,
+		gap: STAT_GAP,
+		marginTop: 14,
+	};
+};
 
 export const STAT_HOVER_BACKGROUND = menuBlueGrey(0.05);
 
@@ -46,6 +52,11 @@ export const STAT_CELL: React.CSSProperties = {
 	background: menuBlueGrey(0.02),
 	transition: 'background 120ms ease',
 };
+
+// A figure's size, shrunk for one too long to fit its square at full size: a
+// monospace digit is about 0.62em wide.
+export const statValueSize = (value: string): number =>
+	Math.min(38, Math.floor((STAT_SIZE - 16) / (0.62 * value.length)));
 
 export const STAT_VALUE: React.CSSProperties = {
 	color: GUI_THEME.primary,

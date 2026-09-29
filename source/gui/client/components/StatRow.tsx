@@ -8,6 +8,7 @@ import {
 	STAT_LABEL,
 	STAT_NOTE,
 	STAT_VALUE,
+	statValueSize,
 } from '../lib/issue-stats.style';
 
 // The two marks every stats surface is built from: a figure with its label,
@@ -38,7 +39,9 @@ export const Stat = ({
 			event.currentTarget.style.background = STAT_CELL.background as string;
 		}}
 	>
-		<div style={{...STAT_VALUE, gridRow: 2}}>{value}</div>
+		<div style={{...STAT_VALUE, fontSize: statValueSize(value), gridRow: 2}}>
+			{value}
+		</div>
 		<div style={STAT_CAPTION}>
 			<div style={{...STAT_LABEL, position: 'relative'}}>
 				{label}
