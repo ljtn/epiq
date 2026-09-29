@@ -38,6 +38,7 @@ export const Dropdown = ({
 	testId?: string;
 }) => {
 	const [open, setOpen] = useState(false);
+	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	// The list is no longer inside the trigger, so `aria-haspopup` alone leaves
 	// a reader with a control that says a list exists and no way to reach it.
 	const listId = useId();
@@ -103,6 +104,7 @@ export const Dropdown = ({
 							ref={listRef}
 							id={listId}
 							role="listbox"
+							onMouseLeave={() => setHoveredId(null)}
 							style={{
 								...popoverStyle,
 								position: 'fixed',
@@ -119,6 +121,7 @@ export const Dropdown = ({
 						>
 							{items.map(item => {
 								const selected = item.id === value?.id;
+								const hovered = item.id === hoveredId;
 
 								return (
 									<button
@@ -127,6 +130,7 @@ export const Dropdown = ({
 										role="option"
 										aria-selected={selected}
 										data-testid={testId ? `${testId}-option` : undefined}
+										onMouseEnter={() => setHoveredId(item.id)}
 										onClick={() => {
 											setOpen(false);
 											onSelect(item.id);
@@ -138,7 +142,11 @@ export const Dropdown = ({
 											alignItems: 'center',
 											gap: 12,
 											border: 'none',
-											background: selected ? GUI_THEME.line : 'transparent',
+											background: selected
+												? GUI_THEME.line
+												: hovered
+												? GUI_THEME.raisedHover
+												: 'transparent',
 											color: selected ? GUI_THEME.accent : GUI_THEME.primary,
 											fontFamily: 'inherit',
 											fontSize: 11,
