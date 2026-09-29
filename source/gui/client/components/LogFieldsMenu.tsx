@@ -2,7 +2,6 @@
 // stand them in a row. Same boxes, same order, same titles — the only thing
 // that changes is whether they are read across the header or down a popover.
 
-import {useState} from 'react';
 import {
 	LOG_FIELD_NAMES,
 	LOG_FIELD_ORDER,
@@ -10,14 +9,8 @@ import {
 	LogFields,
 } from '../lib/log-fields';
 import {GUI_THEME} from '../lib/gui-theme';
-import {
-	popoverStyle,
-	selectLabelStyle,
-	selectTriggerStyle,
-} from '../lib/select-style';
-import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {Checkbox} from './Checkbox';
-import {IconChevronDown} from './IconChevronDown';
+import {Menu, MenuItem} from './Menu';
 
 // One field's box, wherever it is drawn. Both places take it from here so the
 // fold cannot drift from the row it stands in for — same tick, same title, and
@@ -60,40 +53,25 @@ export const LogFieldsMenu = ({
 	fields: LogFields;
 	onChangeField: (field: LogField, on: boolean) => void;
 	spokenField: LogField | null;
-}) => {
-	const [open, setOpen] = useState(false);
-	const ref = useDismissOnOutsideClick(open, () => setOpen(false));
-
-	return (
-		<div ref={ref} style={{position: 'relative', flexShrink: 0}}>
-			<button
-				type="button"
-				data-testid="log-fields-menu"
-				onClick={() => setOpen(value => !value)}
-				aria-haspopup="true"
-				aria-expanded={open}
-				title="Choose what each line shows"
-				style={selectTriggerStyle(GUI_THEME.dim, false)}
-			>
-				<span style={selectLabelStyle}>View options</span>
-				<span style={{display: 'inline-flex', flexShrink: 0}}>
-					<IconChevronDown size={14} />
-				</span>
-			</button>
-
-			{open && (
-				<div style={popoverStyle}>
-					{LOG_FIELD_ORDER.map(field => (
-						<LogFieldBox
-							key={field}
-							field={field}
-							fields={fields}
-							spoken={field === spokenField}
-							onChangeField={onChangeField}
-						/>
-					))}
-				</div>
-			)}
-		</div>
-	);
-};
+}) => (
+	<Menu
+		label="View options"
+		testId="log-fields-menu"
+		title="Choose what each line shows"
+		chevronSize={14}
+		popupRole="group"
+	>
+		{() =>
+			LOG_FIELD_ORDER.map(field => (
+				<MenuItem key={field}>
+					<LogFieldBox
+						field={field}
+						fields={fields}
+						spoken={field === spokenField}
+						onChangeField={onChangeField}
+					/>
+				</MenuItem>
+			))
+		}
+	</Menu>
+);
