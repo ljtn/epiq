@@ -586,6 +586,12 @@ test('the field boxes fold into a menu when the pane is too narrow', async ({
 	// A field off does not colour the trigger.
 	await expect(menu).toHaveCSS('color', quiet);
 
+	// Its rows light under the pointer, as every menu's do.
+	const row = header.getByTestId('log-field-actor').locator('..');
+	await expect(row).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+	await header.getByTestId('log-field-actor').hover();
+	await expect(row).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
 	expect(pageErrors).toEqual([]);
 });
 

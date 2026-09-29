@@ -47,12 +47,11 @@ export const popoverStyle: React.CSSProperties = {
 	top: '100%',
 	left: 0,
 	marginTop: 6,
-	// Carries the column and its gap itself. Without them the options stack as
-	// plain blocks and their radios sit edge to edge.
+	// Tight, because each row carries its own padding for the hover to fill.
 	display: 'flex',
 	flexDirection: 'column',
-	gap: 7,
-	padding: '10px 14px 10px 10px',
+	gap: 2,
+	padding: 6,
 	// Sized for the common case up front, so opening a kind with a list does
 	// not visibly widen the panel under the pointer.
 	minWidth: 178,
@@ -68,3 +67,6 @@ export const popoverStyle: React.CSSProperties = {
 	zIndex: 30,
 	whiteSpace: 'nowrap',
 };
+
+// A menu row under the pointer: the selected row's blue-grey, fainter.
+export const menuRowHoverBackground = 'rgba(120, 146, 204, 0.1)';

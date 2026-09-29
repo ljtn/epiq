@@ -3,14 +3,7 @@
 // people, and the scope picker, which is the same choice of window the wide
 // bar spells out in full. Both are popovers that dismiss on a click away.
 
-import {useEffect, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
-import {
-	popoverStyle,
-	selectLabelStyle,
-	selectTriggerStyle,
-} from '../lib/select-style';
-import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {
 	Scope,
 	scopeButtonLabel,
@@ -28,6 +21,7 @@ import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
+import {Menu, MenuItem} from './Menu';
 
 // What every control wears while the socket is down.
 export const mutedStyle: React.CSSProperties = {
@@ -95,7 +89,7 @@ const SELECT_TRIGGER_WIDTH = 162;
 const nestedListStyle: React.CSSProperties = {
 	display: 'flex',
 	flexDirection: 'column',
-	gap: 7,
+	gap: 2,
 	marginLeft: 5,
 	paddingLeft: 8,
 	borderLeft: `1px solid ${GUI_THEME.line}`,
@@ -264,16 +258,25 @@ export const BoardSeriesGroup = ({
 	// Where the server capped the window its buckets are pre-summed across every
 	// kind, so nothing in here is selectable. The select still opens — the greyed
 	// options are what says why, and a dead trigger would not.
-	const ref = useDismissOnOutsideClick(expanded, onToggleExpanded);
-
 	return (
-		<div
-			ref={ref}
-			style={{position: 'relative', display: 'flex', flexDirection: 'column'}}
-		>
-			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-				{/* Unlabelled: the select beside it already names the series, and a
-				    second copy of the name would only compete with it. */}
+		<Menu
+			open={expanded}
+			onOpenChange={next => next !== expanded && onToggleExpanded()}
+			// A handle of its own: its label carries the series *and* what of it
+			// is plotted, so the text is not a name anything can be found by.
+			testId="series-select"
+			label={label}
+			color={color}
+			width={SELECT_TRIGGER_WIDTH}
+			minWidth={178}
+			disabled={!showIssues || !connected}
+			title={
+				filtered ? 'Choose what to plot' : 'Too many events to split by kind'
+			}
+			popupRole="group"
+			popupLabel="Filter the board"
+			leading={
+				// Unlabelled: the select beside it already names the series.
 				<Checkbox
 					label={null}
 					testId="show-board-events"
@@ -283,146 +286,100 @@ export const BoardSeriesGroup = ({
 					disabled={!connected}
 					onChange={onChangeShowIssues}
 				/>
-				{/* A handle of its own: its label carries the series *and* what of it
-				    is plotted, so the text is not a name anything can be found by. */}
-				<button
-					type="button"
-					data-testid="series-select"
-					onClick={onToggleExpanded}
-					disabled={!showIssues || !connected}
-					title={
-						filtered
-							? 'Choose what to plot'
-							: 'Too many events to split by kind'
-					}
-					aria-haspopup="listbox"
-					aria-expanded={expanded}
-					style={{
-						...selectTriggerStyle(color, !showIssues),
-						width: SELECT_TRIGGER_WIDTH,
-						...(connected ? {} : mutedStyle),
-					}}
-				>
-					{/* No title of its own — the button's explains more. */}
-					<span style={selectLabelStyle}>{label}</span>
-					<span style={{display: 'inline-flex', flexShrink: 0}}>
-						<IconChevronDown size={12} />
-					</span>
-				</button>
-			</div>
+			}
+		>
+			{() =>
+				FILTER_AXES.map(axis => {
+					const option = VIEW_FOR_AXIS[axis];
+					const state = axisStates[axis];
+					const open = expandedAxis === axis;
+					const rowLabel = VIEW_LABELS[option].toLowerCase();
 
-			{expanded && (
-				<div role="group" aria-label="Filter the board" style={popoverStyle}>
-					{FILTER_AXES.map(axis => {
-						const option = VIEW_FOR_AXIS[axis];
-						const state = axisStates[axis];
-						const open = expandedAxis === axis;
-						const rowLabel = VIEW_LABELS[option].toLowerCase();
+					return (
+						<div
+							key={axis}
+							style={{display: 'flex', flexDirection: 'column', gap: 2}}
+						>
+							<MenuItem style={{justifyContent: 'flex-start', gap: 3}}>
+								<Checkbox
+									label={VIEW_LABELS[option]}
+									checked={state === 'all'}
+									mixed={state === 'some'}
+									activeColor={boardViewColor(option)}
+									disabled={!showIssues || !filtered}
+									title={AXIS_TITLES[axis]}
+									onChange={next => onToggleAxis(axis, next)}
+								/>
+								<button
+									type="button"
+									// Named, because its title is not a handle: TooltipLayer
+									// takes that away while its own tooltip is open.
+									data-testid={`filter-axis-${axis}`}
+									disabled={!showIssues || !filtered}
+									// Opening a list does not switch its axis on: reading what
+									// is under a row is not the same as filtering by it.
+									onClick={() => onSetExpandedAxis(open ? null : axis)}
+									title={open ? `Hide ${rowLabel}` : `Pick ${rowLabel}`}
+									aria-expanded={open}
+									style={{
+										...disclosureStyle,
+										// In the row's own colour, so a lit caret reads as
+										// belonging to the thing it is holding back.
+										color:
+											state === 'some'
+												? boardViewColor(option)
+												: disclosureStyle.color,
+									}}
+								>
+									{open ? (
+										<IconChevronDown size={12} />
+									) : (
+										<IconChevronRight size={12} />
+									)}
+								</button>
+							</MenuItem>
 
-						return (
-							<div
-								key={axis}
-								style={{
-									display: 'flex',
-									flexDirection: 'column',
-									gap: 7,
-								}}
-							>
-								<div style={{display: 'flex', alignItems: 'center', gap: 3}}>
-									<Checkbox
-										label={VIEW_LABELS[option]}
-										checked={state === 'all'}
-										mixed={state === 'some'}
-										activeColor={boardViewColor(option)}
-										disabled={!showIssues || !filtered}
-										title={AXIS_TITLES[axis]}
-										onChange={next => onToggleAxis(axis, next)}
-									/>
-									<button
-										type="button"
-										// Named, because its title is not a handle: TooltipLayer
-										// takes that away while its own tooltip is open.
-										data-testid={`filter-axis-${axis}`}
-										disabled={!showIssues || !filtered}
-										// Opening a list does not switch its axis on: reading what
-										// is under a row is not the same as filtering by it.
-										onClick={() => onSetExpandedAxis(open ? null : axis)}
-										// Named after its own row: four rows carry one of these,
-										// and "Pick which to show" on all four says nothing about
-										// which list is being opened.
-										title={open ? `Hide ${rowLabel}` : `Pick ${rowLabel}`}
-										aria-expanded={open}
-										style={{
-											...disclosureStyle,
-											// In the row's own colour rather than the accent, so a
-											// lit caret reads as belonging to the thing it is
-											// holding back.
-											color:
-												state === 'some'
-													? boardViewColor(option)
-													: disclosureStyle.color,
-										}}
-									>
-										{open ? (
-											<IconChevronDown size={12} />
-										) : (
-											<IconChevronRight size={12} />
-										)}
-									</button>
-								</div>
-
-								{open && identitiesByAxis[axis].length > 0 && (
-									<div
-										// Named, so what is under a row is tellable from the rows
-										// themselves — every one of these is a checkbox too.
-										role="group"
-										aria-label={`Which ${rowLabel} to show`}
-										style={{
-											...nestedListStyle,
-											// A repo with dozens of tags would otherwise push the
-											// board itself off the screen.
-											maxHeight: 132,
-											overflowY: 'auto',
-										}}
-									>
-										{identitiesByAxis[axis].map(identity => (
-											<div
-												key={identity.id}
-												style={{
-													display: 'flex',
-													alignItems: 'center',
-													justifyContent: 'space-between',
-													gap: 10,
-												}}
+							{open && identitiesByAxis[axis].length > 0 && (
+								<div
+									role="group"
+									aria-label={`Which ${rowLabel} to show`}
+									style={{
+										...nestedListStyle,
+										// A repo with dozens of tags would otherwise push the
+										// board itself off the screen.
+										maxHeight: 132,
+										overflowY: 'auto',
+									}}
+								>
+									{identitiesByAxis[axis].map(identity => (
+										<MenuItem key={identity.id}>
+											<Checkbox
+												label={identity.name}
+												checked={!hiddenIdsByAxis[axis].has(identity.id)}
+												activeColor={identity.color}
+												disabled={!showIssues}
+												onChange={next =>
+													onToggleIdentity(axis, identity.id, next)
+												}
+											/>
+											<button
+												type="button"
+												title={`Show only ${identity.name}`}
+												disabled={!showIssues}
+												onClick={() => onOnlyIdentity(axis, identity.id)}
+												style={onlyButtonStyle}
 											>
-												<Checkbox
-													label={identity.name}
-													checked={!hiddenIdsByAxis[axis].has(identity.id)}
-													activeColor={identity.color}
-													disabled={!showIssues}
-													onChange={next =>
-														onToggleIdentity(axis, identity.id, next)
-													}
-												/>
-												<button
-													type="button"
-													title={`Show only ${identity.name}`}
-													disabled={!showIssues}
-													onClick={() => onOnlyIdentity(axis, identity.id)}
-													style={onlyButtonStyle}
-												>
-													only
-												</button>
-											</div>
-										))}
-									</div>
-								)}
-							</div>
-						);
-					})}
-				</div>
-			)}
-		</div>
+												only
+											</button>
+										</MenuItem>
+									))}
+								</div>
+							)}
+						</div>
+					);
+				})
+			}
+		</Menu>
 	);
 };
 
@@ -463,32 +420,22 @@ export const CommitSeriesGroup = ({
 	onChangeLinkedOnly: (next: boolean) => void;
 	onChangeLinesMeasure: (next: boolean) => void;
 }) => {
-	const [open, setOpen] = useState(false);
-	const ref = useDismissOnOutsideClick(open, () => setOpen(false));
 	const usable = connected && !idle;
 
-	useEffect(() => {
-		if (!usable) setOpen(false);
-	}, [usable]);
-
-	const choose = (next: boolean) => {
-		onChangeLinkedOnly(next);
-		setOpen(false);
-	};
-
-	// Both groups close the list behind them: either row is one choice made,
-	// and a list left standing over the chart is the thing the scope select
-	// already takes care to avoid.
-	const measure = (next: boolean) => {
-		onChangeLinesMeasure(next);
-		setOpen(false);
-	};
-
 	return (
-		<div ref={ref} style={{position: 'relative'}}>
-			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-				{/* Unlabelled, as the board series' box is: the select beside it
-				    names the series. */}
+		<Menu
+			testId="commit-select"
+			label={`${linesMeasure ? 'Lines' : 'Commits'} (${
+				linkedOnly ? 'linked' : 'all'
+			})`}
+			color={GUI_THEME.green}
+			width={COMMIT_SELECT_WIDTH}
+			minWidth={160}
+			disabled={!showCommits || !usable}
+			title={idle ? 'Flow draws tickets only' : 'Choose which commits to plot'}
+			popupRole="group"
+			leading={
+				// Unlabelled, as the board series' box is.
 				<Checkbox
 					label={null}
 					testId="show-commits"
@@ -498,93 +445,77 @@ export const CommitSeriesGroup = ({
 					disabled={!usable}
 					onChange={onChangeShowCommits}
 				/>
-				<button
-					type="button"
-					data-testid="commit-select"
-					onClick={() => setOpen(!open)}
-					disabled={!showCommits || !usable}
-					aria-haspopup="listbox"
-					aria-expanded={open}
-					title={
-						idle ? 'Flow draws tickets only' : 'Choose which commits to plot'
-					}
-					style={{
-						...selectTriggerStyle(GUI_THEME.green, !showCommits || idle),
-						width: COMMIT_SELECT_WIDTH,
-						...(usable ? {} : mutedStyle),
-					}}
-				>
-					<span style={selectLabelStyle}>
-						{`${linesMeasure ? 'Lines' : 'Commits'} (${
-							linkedOnly ? 'linked' : 'all'
-						})`}
-					</span>
-					<span style={{display: 'inline-flex', flexShrink: 0}}>
-						<IconChevronDown size={12} />
-					</span>
-				</button>
-			</div>
+			}
+		>
+			{close => {
+				// Either group closes the list: each row is one choice made.
+				const choose = (next: boolean) => {
+					onChangeLinkedOnly(next);
+					close();
+				};
+				const measure = (next: boolean) => {
+					onChangeLinesMeasure(next);
+					close();
+				};
 
-			{open && (
-				// Two groups, each with its own label, because the list asks two
-				// questions and a reader who cannot see the divider has only the
-				// grouping to tell them apart — one `radiogroup` holding four rows
-				// with two of them checked says nothing true about either.
-				<div style={{...popoverStyle, minWidth: 160}}>
-					<div
-						role="radiogroup"
-						aria-label="Which commits to plot"
-						style={{display: 'contents'}}
-					>
-						<Radio
-							label="All"
-							selected={!linkedOnly}
-							color={GUI_THEME.green}
-							onSelect={() => choose(false)}
-						/>
-						{/* Named without the noun, because the group below supplies it:
-					    with `Lines` chosen, a row reading "All commits" over one
-					    reading "Lines" contradicts itself. What is linked is the
-					    commit — to a ticket the client knows, on any board for the
-					    chart and on this one for the log, and while the board is
-					    narrowed to some tickets, only to those. */}
-						<Radio
-							label="Linked"
-							selected={linkedOnly}
-							color={GUI_THEME.green}
-							onSelect={() => choose(true)}
-						/>
-					</div>
+				return (
+					<>
+						{/* Two groups, each labelled: the list asks two questions. */}
+						<div
+							role="radiogroup"
+							aria-label="Which commits to plot"
+							style={{display: 'contents'}}
+						>
+							<MenuItem>
+								<Radio
+									label="All"
+									selected={!linkedOnly}
+									color={GUI_THEME.green}
+									onSelect={() => choose(false)}
+								/>
+							</MenuItem>
+							{/* Without the noun, which the group below supplies. */}
+							<MenuItem>
+								<Radio
+									label="Linked"
+									selected={linkedOnly}
+									color={GUI_THEME.green}
+									onSelect={() => choose(true)}
+								/>
+							</MenuItem>
+						</div>
 
-					{/* The second question, kept apart from the first: which commits
-					    are drawn is one choice, what their bars measure is another,
-					    and either can be made without disturbing the other. */}
-					<div
-						aria-hidden
-						style={{height: 1, background: GUI_THEME.line, margin: '3px 0'}}
-					/>
+						<div
+							aria-hidden
+							style={{height: 1, background: GUI_THEME.line, margin: '3px 0'}}
+						/>
 
-					<div
-						role="radiogroup"
-						aria-label="What the bars measure"
-						style={{display: 'contents'}}
-					>
-						<Radio
-							label="Commit count"
-							selected={!linesMeasure}
-							color={GUI_THEME.green}
-							onSelect={() => measure(false)}
-						/>
-						<Radio
-							label="Lines (+/-)"
-							selected={linesMeasure}
-							color={GUI_THEME.green}
-							onSelect={() => measure(true)}
-						/>
-					</div>
-				</div>
-			)}
-		</div>
+						<div
+							role="radiogroup"
+							aria-label="What the bars measure"
+							style={{display: 'contents'}}
+						>
+							<MenuItem>
+								<Radio
+									label="Commit count"
+									selected={!linesMeasure}
+									color={GUI_THEME.green}
+									onSelect={() => measure(false)}
+								/>
+							</MenuItem>
+							<MenuItem>
+								<Radio
+									label="Lines (+/-)"
+									selected={linesMeasure}
+									color={GUI_THEME.green}
+									onSelect={() => measure(true)}
+								/>
+							</MenuItem>
+						</div>
+					</>
+				);
+			}}
+		</Menu>
 	);
 };
 
@@ -607,80 +538,31 @@ export const ScopeSelect = ({
 	zoomed: boolean;
 	connected: boolean;
 	onChangeScope: (scope: Scope) => void;
-}) => {
-	const [open, setOpen] = useState(false);
-
-	// The dismissal the board series menu already uses: a select closes when you
-	// look away from it, and this popover sits over the chart, so one left open
-	// takes the timeline's pointer with it.
-	const ref = useDismissOnOutsideClick(open, () => setOpen(false));
-
-	// A dropped socket disables the trigger, and a menu nobody can act on must
-	// not be left sitting there.
-	useEffect(() => {
-		if (!connected) setOpen(false);
-	}, [connected]);
-
-	return (
-		<div ref={ref} style={{position: 'relative'}}>
-			<button
-				type="button"
-				data-testid="scope-select"
-				onClick={() => setOpen(!open)}
-				disabled={!connected}
-				aria-haspopup="listbox"
-				aria-expanded={open}
-				title="Choose the window"
-				style={{
-					...selectTriggerStyle(GUI_THEME.primary, !connected),
-					width: SCOPE_SELECT_WIDTH,
-				}}
-			>
-				{/* A dragged-out window is none of the periods on offer, so it names
-				    itself here the way it reads as pressed on the wide row. */}
-				<span>{zoomed ? 'Zoom' : scopeButtonLabel(scope)}</span>
-				<span style={{display: 'inline-flex', flexShrink: 0}}>
-					<IconChevronDown size={12} />
-				</span>
-			</button>
-
-			{open && (
-				// Narrower than the shared popover's default, which is sized for the
-				// series menu's identity lists: a column of period names needs no
-				// more than the trigger it drops from.
-				<div
-					role="listbox"
-					style={{...popoverStyle, minWidth: SCOPE_SELECT_WIDTH}}
+}) => (
+	// A dragged-out window is none of the periods on offer, so it names itself
+	// here the way it reads as pressed on the wide row.
+	<Menu
+		testId="scope-select"
+		label={zoomed ? 'Zoom' : scopeButtonLabel(scope)}
+		color={GUI_THEME.primary}
+		width={SCOPE_SELECT_WIDTH}
+		disabled={!connected}
+		title="Choose the window"
+	>
+		{close =>
+			SCOPES.map(option => (
+				<MenuItem
+					key={option}
+					role="option"
+					selected={!zoomed && scope === option}
+					onSelect={() => {
+						onChangeScope(option);
+						close();
+					}}
 				>
-					{SCOPES.map(option => (
-						<button
-							key={option}
-							type="button"
-							role="option"
-							aria-selected={!zoomed && scope === option}
-							onClick={() => {
-								onChangeScope(option);
-								setOpen(false);
-							}}
-							style={{
-								background: 'transparent',
-								border: 'none',
-								padding: 0,
-								textAlign: 'left',
-								fontFamily: 'inherit',
-								fontSize: 11,
-								cursor: 'pointer',
-								color:
-									!zoomed && scope === option
-										? GUI_THEME.accent
-										: GUI_THEME.secondary,
-							}}
-						>
-							{scopeButtonLabel(option)}
-						</button>
-					))}
-				</div>
-			)}
-		</div>
-	);
-};
+					{scopeButtonLabel(option)}
+				</MenuItem>
+			))
+		}
+	</Menu>
+);
