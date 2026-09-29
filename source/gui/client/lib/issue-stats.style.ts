@@ -29,6 +29,8 @@ export const statGrid = (compact: boolean): React.CSSProperties => ({
 	marginTop: 14,
 });
 
+export const STAT_HOVER_BACKGROUND = menuBlueGrey(0.05);
+
 // Three rows with the figure in the middle one, so it sits at the square's
 // centre whatever is written under it.
 export const STAT_CELL: React.CSSProperties = {
@@ -39,7 +41,7 @@ export const STAT_CELL: React.CSSProperties = {
 	minWidth: 0,
 	aspectRatio: '1 / 1',
 	boxSizing: 'border-box',
-	// The menus' blue-grey at a fifth of a hovered row's strength; the pointer clears it.
+	// The menus' blue-grey, faint; the pointer deepens it (STAT_HOVER_BACKGROUND).
 	padding: '6px 4px',
 	background: menuBlueGrey(0.02),
 	transition: 'background 120ms ease',

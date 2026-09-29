@@ -4,6 +4,7 @@ import {
 	ROW,
 	STAT_CAPTION,
 	STAT_CELL,
+	STAT_HOVER_BACKGROUND,
 	STAT_LABEL,
 	STAT_NOTE,
 	STAT_VALUE,
@@ -31,7 +32,7 @@ export const Stat = ({
 		style={STAT_CELL}
 		title={title}
 		onMouseEnter={event => {
-			event.currentTarget.style.background = 'transparent';
+			event.currentTarget.style.background = STAT_HOVER_BACKGROUND;
 		}}
 		onMouseLeave={event => {
 			event.currentTarget.style.background = STAT_CELL.background as string;
