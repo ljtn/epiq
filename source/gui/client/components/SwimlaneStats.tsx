@@ -24,9 +24,6 @@ import {Section} from './Section';
 // is a description of how the board actually runs — and the exceptions in
 // those lists are where it does not.
 
-const CODE_TONE = GUI_THEME.green;
-const BOARD_TONE = GUI_THEME.accent;
-
 const FlowList = ({flows, empty}: {flows: LaneFlow[]; empty: string}) => {
 	if (flows.length === 0) return <Empty>{empty}</Empty>;
 
@@ -101,7 +98,7 @@ export const SwimlaneStats = ({
 				</Button>
 			</FormHeader>
 
-			<Section title="Time in this lane" tone={BOARD_TONE} first>
+			<Section title="Time in this lane" first>
 				{dwell ? (
 					<div style={statGrid(true)}>
 						<Stat
@@ -131,7 +128,7 @@ export const SwimlaneStats = ({
 				{stats && <StayTrend points={stats.stayTrend} />}
 			</Section>
 
-			<Section title="Code standing here" tone={CODE_TONE}>
+			<Section title="Code standing here">
 				{stats && stats.code.commits === 0 ? (
 					<Empty>No commits on the tickets in this lane</Empty>
 				) : (
@@ -172,7 +169,7 @@ export const SwimlaneStats = ({
 				)}
 			</Section>
 
-			<Section title="Usually arrives from" tone={BOARD_TONE}>
+			<Section title="Usually arrives from">
 				{state?.loading && <Empty>Reading the board…</Empty>}
 				{state?.error && <Empty>{state.error}</Empty>}
 				{stats && (
@@ -183,7 +180,7 @@ export const SwimlaneStats = ({
 				)}
 			</Section>
 
-			<Section title="Usually moves on to" tone={BOARD_TONE}>
+			<Section title="Usually moves on to">
 				{stats && (
 					<FlowList
 						flows={stats.movesOnTo}
