@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 60 720 240" width="720" height="240" role="img" aria-label="A loose piece of fabric with no shape of its own.">
+	<style>
+		.fab  { fill: rgba(198,167,255,.07); stroke: #c6a7ff; stroke-width: 1; stroke-linejoin: round; }
+		.shade { fill: none; stroke: #000; stroke-width: 7; opacity: .45; filter: url(#soft); transform: translate(0, 2.5px); }
+		.tie  { fill: none; stroke: #6f86a3; stroke-width: 1; opacity: .8; }
+		.peg  { fill: none; stroke: #9aa1b5; stroke-width: 1.6; stroke-linecap: round; }
+		.ld   { fill: none; stroke: rgba(78,84,133,.9); stroke-width: 1; }
+		.ax   { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+		.lbl  { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }
+		.c-f  { fill: #c6a7ff; }
+		.c-g  { fill: #9aa1b5; }
+	</style>
+
+	<defs>
+		<pattern id="weave" width="9" height="9" patternUnits="userSpaceOnUse">
+			<path d="M9 0 H0 V9" fill="none" stroke="#c6a7ff" stroke-width=".6" />
+		</pattern>
+		<clipPath id="cloth"><path d="M500 189 C501 193 488 195 480 198 C472 200 455 200 451 205 C446 209 449 217 452 225 C455 233 472 249 468 252 C464 255 442 248 428 244 C414 241 394 235 383 231 C372 227 369 224 362 222 C355 220 348 220 341 220 C333 220 324 222 317 222 C309 222 299 223 296 220 C293 218 298 211 297 207 C296 203 298 200 288 198 C279 196 253 197 238 195 C223 194 196 194 197 191 C197 188 229 182 241 179 C253 176 262 174 268 172 C274 170 274 170 279 169 C283 168 292 168 295 166 C299 165 299 163 298 161 C297 158 290 156 291 153 C292 150 300 146 306 143 C312 140 317 136 325 136 C333 137 345 144 354 146 C364 149 375 150 382 152 C390 153 393 153 398 155 C403 156 404 158 411 159 C417 160 426 160 436 160 C446 160 467 159 473 159 C479 160 473 163 472 165 C470 167 462 169 462 172 C462 174 466 175 473 178 C479 181 499 186 500 189 Z" /></clipPath>
+		<radialGradient id="patch">
+			<stop offset="0" stop-color="#fff" stop-opacity=".9" />
+			<stop offset="1" stop-color="#fff" stop-opacity="0" />
+		</radialGradient>
+		<mask id="patches">
+			<ellipse cx="300" cy="200" rx="70" ry="36" fill="url(#patch)" />
+			<ellipse cx="452" cy="166" rx="48" ry="18" fill="url(#patch)" />
+		</mask>
+		<filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2" /></filter>
+		<linearGradient id="f0" gradientUnits="userSpaceOnUse" x1="452" y1="225" x2="395" y2="195"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f1" gradientUnits="userSpaceOnUse" x1="362" y1="222" x2="361" y2="199"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f2" gradientUnits="userSpaceOnUse" x1="297" y1="207" x2="341" y2="185"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f3" gradientUnits="userSpaceOnUse" x1="241" y1="179" x2="307" y2="177"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f4" gradientUnits="userSpaceOnUse" x1="298" y1="161" x2="339" y2="171"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f5" gradientUnits="userSpaceOnUse" x1="354" y1="146" x2="357" y2="160"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f6" gradientUnits="userSpaceOnUse" x1="436" y1="160" x2="390" y2="170"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f7" gradientUnits="userSpaceOnUse" x1="473" y1="178" x2="414" y2="177"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+	</defs>
+
+	<path class="fab" d="M500 189 C501 193 488 195 480 198 C472 200 455 200 451 205 C446 209 449 217 452 225 C455 233 472 249 468 252 C464 255 442 248 428 244 C414 241 394 235 383 231 C372 227 369 224 362 222 C355 220 348 220 341 220 C333 220 324 222 317 222 C309 222 299 223 296 220 C293 218 298 211 297 207 C296 203 298 200 288 198 C279 196 253 197 238 195 C223 194 196 194 197 191 C197 188 229 182 241 179 C253 176 262 174 268 172 C274 170 274 170 279 169 C283 168 292 168 295 166 C299 165 299 163 298 161 C297 158 290 156 291 153 C292 150 300 146 306 143 C312 140 317 136 325 136 C333 137 345 144 354 146 C364 149 375 150 382 152 C390 153 393 153 398 155 C403 156 404 158 411 159 C417 160 426 160 436 160 C446 160 467 159 473 159 C479 160 473 163 472 165 C470 167 462 169 462 172 C462 174 466 175 473 178 C479 181 499 186 500 189 Z" />
+	<rect x="0" y="0" width="720" height="300" fill="url(#weave)" clip-path="url(#cloth)" mask="url(#patches)" opacity=".6" />
+	<path class="shade" d="M452 225 C425 229 417 195 395 195" clip-path="url(#cloth)" />
+	<path d="M452 225 C425 229 417 195 395 195" fill="none" stroke="url(#f0)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M362 222 C377 213 352 206 361 199" clip-path="url(#cloth)" />
+	<path d="M362 222 C377 213 352 206 361 199" fill="none" stroke="url(#f1)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M297 207 C306 184 332 201 341 185" clip-path="url(#cloth)" />
+	<path d="M297 207 C306 184 332 201 341 185" fill="none" stroke="url(#f2)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M241 179 C265 195 287 172 307 177" clip-path="url(#cloth)" />
+	<path d="M241 179 C265 195 287 172 307 177" fill="none" stroke="url(#f3)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M298 161 C319 157 322 172 339 171" clip-path="url(#cloth)" />
+	<path d="M298 161 C319 157 322 172 339 171" fill="none" stroke="url(#f4)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M354 146 C339 152 366 156 357 160" clip-path="url(#cloth)" />
+	<path d="M354 146 C339 152 366 156 357 160" fill="none" stroke="url(#f5)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M436 160 C426 171 400 163 390 170" clip-path="url(#cloth)" />
+	<path d="M436 160 C426 171 400 163 390 170" fill="none" stroke="url(#f6)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M473 178 C452 169 431 187 414 177" clip-path="url(#cloth)" />
+	<path d="M473 178 C452 169 431 187 414 177" fill="none" stroke="url(#f7)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+
+	<path class="ld" d="M508 180 H560" />
+	<text class="ax c-f" x="568" y="177">FABRIC</text>
+	<text class="lbl" x="568" y="193">agentic code</text>
+</svg>

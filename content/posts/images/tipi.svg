@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" width="720" height="340" role="img" aria-label="A tipi drawn as a schematic: poles give the fabric its shape, pegs only hold its edge to the ground.">
+	<style>
+		.pole { fill: none; stroke: #75d2fd; stroke-width: 4.8; stroke-linecap: round; }
+		.fab  { fill: rgba(198,167,255,.07); stroke: #c6a7ff; stroke-width: 1; stroke-linejoin: round; }
+		.shade { fill: none; stroke: #000; stroke-width: 7; opacity: .45; filter: url(#soft); transform: translate(0, 2.5px); }
+		.door { fill: rgba(198,167,255,.04); stroke: #c6a7ff; stroke-width: 1; stroke-dasharray: 4 4; opacity: .6; }
+		.tie  { fill: none; stroke: #6f86a3; stroke-width: 1; opacity: .8; }
+		.peg  { fill: none; stroke: #9aa1b5; stroke-width: 1.6; stroke-linecap: round; }
+		.ld   { fill: none; stroke: rgba(78,84,133,.9); stroke-width: 1; }
+		.ax   { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+		.lbl  { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }
+		.c-p  { fill: #75d2fd; }
+		.c-f  { fill: #c6a7ff; }
+		.c-g  { fill: #9aa1b5; }
+	</style>
+
+	<defs>
+		<pattern id="weave" width="9" height="9" patternUnits="userSpaceOnUse">
+			<path d="M9 0 H0 V9" fill="none" stroke="#c6a7ff" stroke-width=".6" />
+		</pattern>
+		<clipPath id="cloth"><path d="M360 74 L228 264 Q256 268 280 281 Q360 292 440 281 Q464 268 492 264 Z" /></clipPath>
+		<radialGradient id="patch">
+			<stop offset="0" stop-color="#fff" stop-opacity=".9" />
+			<stop offset="1" stop-color="#fff" stop-opacity="0" />
+		</radialGradient>
+		<mask id="patches">
+			<ellipse cx="300" cy="215" rx="58" ry="46" fill="url(#patch)" />
+			<ellipse cx="418" cy="160" rx="40" ry="52" fill="url(#patch)" />
+			<ellipse cx="372" cy="262" rx="44" ry="26" fill="url(#patch)" />
+			<path d="M338 285 V253 Q360 229 382 253 V285 Z" fill="#000" />
+		</mask>
+		<mask id="outside">
+			<rect x="0" y="0" width="720" height="340" fill="#fff" />
+			<path d="M360 74 L228 264 Q256 268 280 281 Q360 292 440 281 Q464 268 492 264 Z" fill="#000" />
+		</mask>
+		<filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2" /></filter>
+		<linearGradient id="r0" gradientUnits="userSpaceOnUse" x1="358" y1="80" x2="280" y2="279"><stop offset="0" stop-color="#c6a7ff" stop-opacity="0.15" /><stop offset="0.3" stop-color="#c6a7ff" stop-opacity="0.65" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0.4" /></linearGradient>
+		<linearGradient id="r1" gradientUnits="userSpaceOnUse" x1="362" y1="80" x2="440" y2="279"><stop offset="0" stop-color="#c6a7ff" stop-opacity="0.15" /><stop offset="0.3" stop-color="#c6a7ff" stop-opacity="0.65" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0.4" /></linearGradient>
+		<linearGradient id="r2" gradientUnits="userSpaceOnUse" x1="304" y1="282" x2="336" y2="204"><stop offset="0" stop-color="#c6a7ff" stop-opacity="0.6" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="r3" gradientUnits="userSpaceOnUse" x1="416" y1="282" x2="384" y2="204"><stop offset="0" stop-color="#c6a7ff" stop-opacity="0.6" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+	</defs>
+
+
+	<!-- poles: they cross at the top and carry everything below -->
+	<g mask="url(#outside)">
+		<path class="pole" d="M220 274 L390 32" />
+		<path class="pole" d="M500 274 L330 32" />
+		<path class="pole" d="M276 290 L378 30" />
+		<path class="pole" d="M444 290 L342 30" />
+	</g>
+
+
+	<!-- fabric: soft, and only this shape because something holds it there -->
+	<path class="fab" d="M360 74 L228 264 Q256 268 280 281 Q360 292 440 281 Q464 268 492 264 Z" />
+	<rect x="220" y="70" width="280" height="230" fill="url(#weave)" clip-path="url(#cloth)" mask="url(#patches)" opacity=".6" />
+	<!-- where the fabric stretches over a pole, and sags between -->
+	<path class="shade" d="M358 80 L280 279" clip-path="url(#cloth)" />
+	<path d="M358 80 L280 279" fill="none" stroke="url(#r0)" stroke-width="1.2" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M362 80 L440 279" clip-path="url(#cloth)" />
+	<path d="M362 80 L440 279" fill="none" stroke="url(#r1)" stroke-width="1.2" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M304 282 Q314 240 336 204" clip-path="url(#cloth)" />
+	<path d="M304 282 Q314 240 336 204" fill="none" stroke="url(#r2)" stroke-width="1.2" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M416 282 Q406 240 384 204" clip-path="url(#cloth)" />
+	<path d="M416 282 Q406 240 384 204" fill="none" stroke="url(#r3)" stroke-width="1.2" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="door" d="M338 285 V253 Q360 229 382 253 V285" />
+
+	<!-- pegs: they keep the edge in place, not the shape -->
+	<path class="tie" d="M228 264 L196 286" />
+	<path class="tie" d="M492 264 L524 286" />
+	<path class="tie" d="M280 281 L268 304" />
+	<path class="tie" d="M440 281 L452 304" />
+	<path class="peg" d="M192 282 L200 296 M188 284 L196 280" />
+	<path class="peg" d="M528 282 L520 296 M532 284 L524 280" />
+	<path class="peg" d="M266 300 L270 314 M262 301 L270 299" />
+	<path class="peg" d="M454 300 L450 314 M458 301 L450 299" />
+
+	<!-- labels -->
+	<path class="ld" d="M386 44 H470" />
+	<text class="ax c-p" x="478" y="41">POLES</text>
+	<text class="lbl" x="478" y="57">architecture</text>
+
+	<path class="ld" d="M420 196 H540" />
+	<text class="ax c-f" x="548" y="193">FABRIC</text>
+	<text class="lbl" x="548" y="209">agentic code</text>
+
+	<path class="ld" d="M192 298 V308 H150" />
+	<text class="ax c-g" x="142" y="305" text-anchor="end">PEGS</text>
+	<text class="lbl" x="142" y="321" text-anchor="end">tests, contracts,</text>
+	<text class="lbl" x="142" y="336" text-anchor="end">static analysis</text>
+</svg>

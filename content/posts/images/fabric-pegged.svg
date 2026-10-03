@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 60 720 240" width="720" height="240" role="img" aria-label="The fabric pegged down at its edges, its slack heaped in the middle with nothing to hold it up.">
+	<style>
+		.fab  { fill: rgba(198,167,255,.07); stroke: #c6a7ff; stroke-width: 1; stroke-linejoin: round; }
+		.heap { fill: url(#heapfill); }
+		.rim  { fill: none; stroke: #c6a7ff; stroke-width: 1; stroke-linecap: round; }
+		.shade { fill: none; stroke: #000; stroke-width: 7; opacity: .45; filter: url(#soft); transform: translate(0, 2.5px); }
+		.tie  { fill: none; stroke: #6f86a3; stroke-width: 1; opacity: .8; }
+		.peg  { fill: none; stroke: #9aa1b5; stroke-width: 1.6; stroke-linecap: round; }
+		.ld   { fill: none; stroke: rgba(78,84,133,.9); stroke-width: 1; }
+		.ax   { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+		.lbl  { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }
+		.c-f  { fill: #c6a7ff; }
+		.c-g  { fill: #9aa1b5; }
+	</style>
+
+	<defs>
+		<pattern id="weave" width="9" height="9" patternUnits="userSpaceOnUse">
+			<path d="M9 0 H0 V9" fill="none" stroke="#c6a7ff" stroke-width=".6" />
+		</pattern>
+		<clipPath id="cloth"><path d="M512 208 C511 211 511 215 507 219 C504 222 498 226 492 228 C486 230 477 231 472 232 C466 234 466 235 459 237 C452 238 441 240 432 242 C423 244 412 246 403 247 C394 248 387 248 380 248 C372 249 369 248 360 248 C351 248 338 249 327 249 C316 249 303 247 295 246 C286 244 283 241 278 240 C272 238 268 238 261 237 C254 235 246 232 239 230 C232 227 223 224 219 221 C214 219 213 217 211 214 C209 212 210 211 208 208 C207 206 202 202 201 198 C201 195 202 191 205 188 C208 185 215 184 219 182 C223 180 222 178 227 176 C231 174 240 171 247 168 C254 166 262 163 269 161 C276 159 282 158 289 157 C295 156 299 156 307 155 C316 154 327 152 338 151 C348 150 362 150 371 150 C380 151 387 153 394 154 C401 155 405 154 413 155 C421 156 433 157 442 159 C452 161 463 163 470 165 C477 167 480 169 484 171 C488 173 489 174 493 176 C498 178 506 182 510 185 C514 188 515 192 515 195 C516 198 512 200 512 202 C511 205 512 206 512 208 Z" /></clipPath>
+		<radialGradient id="patch">
+			<stop offset="0" stop-color="#fff" stop-opacity=".9" />
+			<stop offset="1" stop-color="#fff" stop-opacity="0" />
+		</radialGradient>
+		<mask id="patches">
+			<ellipse cx="262" cy="206" rx="44" ry="22" fill="url(#patch)" />
+			<ellipse cx="474" cy="200" rx="40" ry="22" fill="url(#patch)" />
+		</mask>
+		<linearGradient id="heapfill" gradientUnits="userSpaceOnUse" x1="0" y1="186" x2="0" y2="208">
+			<stop offset=".45" stop-color="#14131d" />
+			<stop offset="1" stop-color="#14131d" stop-opacity="0" />
+		</linearGradient>
+		<filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2" /></filter>
+		<linearGradient id="f0" gradientUnits="userSpaceOnUse" x1="512" y1="208" x2="429" y2="205"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f1" gradientUnits="userSpaceOnUse" x1="459" y1="237" x2="405" y2="217"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f2" gradientUnits="userSpaceOnUse" x1="360" y1="248" x2="360" y2="222"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f3" gradientUnits="userSpaceOnUse" x1="261" y1="237" x2="315" y2="217"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f4" gradientUnits="userSpaceOnUse" x1="208" y1="208" x2="291" y2="205"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f5" gradientUnits="userSpaceOnUse" x1="227" y1="176" x2="299" y2="192"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f6" gradientUnits="userSpaceOnUse" x1="307" y1="155" x2="336" y2="183"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f7" gradientUnits="userSpaceOnUse" x1="413" y1="155" x2="384" y2="183"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f8" gradientUnits="userSpaceOnUse" x1="493" y1="176" x2="421" y2="192"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f9" gradientUnits="userSpaceOnUse" x1="375" y1="189" x2="373" y2="206"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f10" gradientUnits="userSpaceOnUse" x1="318" y1="185" x2="303" y2="207"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f11" gradientUnits="userSpaceOnUse" x1="410" y1="179" x2="426" y2="205"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f12" gradientUnits="userSpaceOnUse" x1="440" y1="186" x2="456" y2="205"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+		<linearGradient id="f13" gradientUnits="userSpaceOnUse" x1="288" y1="200" x2="340" y2="200"><stop offset="0" stop-color="#c6a7ff" stop-opacity=".7" /><stop offset="1" stop-color="#c6a7ff" stop-opacity="0" /></linearGradient>
+	</defs>
+
+	<path class="fab" d="M512 208 C511 211 511 215 507 219 C504 222 498 226 492 228 C486 230 477 231 472 232 C466 234 466 235 459 237 C452 238 441 240 432 242 C423 244 412 246 403 247 C394 248 387 248 380 248 C372 249 369 248 360 248 C351 248 338 249 327 249 C316 249 303 247 295 246 C286 244 283 241 278 240 C272 238 268 238 261 237 C254 235 246 232 239 230 C232 227 223 224 219 221 C214 219 213 217 211 214 C209 212 210 211 208 208 C207 206 202 202 201 198 C201 195 202 191 205 188 C208 185 215 184 219 182 C223 180 222 178 227 176 C231 174 240 171 247 168 C254 166 262 163 269 161 C276 159 282 158 289 157 C295 156 299 156 307 155 C316 154 327 152 338 151 C348 150 362 150 371 150 C380 151 387 153 394 154 C401 155 405 154 413 155 C421 156 433 157 442 159 C452 161 463 163 470 165 C477 167 480 169 484 171 C488 173 489 174 493 176 C498 178 506 182 510 185 C514 188 515 192 515 195 C516 198 512 200 512 202 C511 205 512 206 512 208 Z" />
+	<rect x="0" y="0" width="720" height="300" fill="url(#weave)" clip-path="url(#cloth)" mask="url(#patches)" opacity=".6" />
+	<path class="shade" d="M512 208 Q469 203 429 205" clip-path="url(#cloth)" />
+	<path d="M512 208 Q469 203 429 205" fill="none" stroke="url(#f0)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M459 237 Q438 233 405 217" clip-path="url(#cloth)" />
+	<path d="M459 237 Q438 233 405 217" fill="none" stroke="url(#f1)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M360 248 Q352 231 360 222" clip-path="url(#cloth)" />
+	<path d="M360 248 Q352 231 360 222" fill="none" stroke="url(#f2)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M261 237 Q294 233 315 217" clip-path="url(#cloth)" />
+	<path d="M261 237 Q294 233 315 217" fill="none" stroke="url(#f3)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M208 208 Q248 203 291 205" clip-path="url(#cloth)" />
+	<path d="M208 208 Q248 203 291 205" fill="none" stroke="url(#f4)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M227 176 Q259 190 299 192" clip-path="url(#cloth)" />
+	<path d="M227 176 Q259 190 299 192" fill="none" stroke="url(#f5)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M307 155 Q329 165 336 183" clip-path="url(#cloth)" />
+	<path d="M307 155 Q329 165 336 183" fill="none" stroke="url(#f6)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M413 155 Q391 175 384 183" clip-path="url(#cloth)" />
+	<path d="M413 155 Q391 175 384 183" fill="none" stroke="url(#f7)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M493 176 Q461 180 421 192" clip-path="url(#cloth)" />
+	<path d="M493 176 Q461 180 421 192" fill="none" stroke="url(#f8)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+
+	<!-- the slack: plenty of material, heaped in the middle with nothing to hold it up -->
+	<path class="heap" d="M250 207 C268 194 290 186 318 185 C334 184 344 188 356 192 L358 193 C370 178 396 174 410 179 C424 184 430 181 440 186 C456 192 470 198 476 207 Z" />
+	<!-- one lap of fabric folded over the next -->
+	<path class="rim" d="M358 193 C370 178 396 174 410 179 C424 184 430 181 440 186 C456 192 470 198 476 207" />
+	<path class="rim" d="M250 207 C268 194 290 186 318 185 C334 184 344 188 356 192 C364 195 370 194 375 189" />
+	<path class="shade" d="M375 189 Q380 198 373 206" clip-path="url(#cloth)" />
+	<path d="M375 189 Q380 198 373 206" fill="none" stroke="url(#f9)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M318 185 Q313 196 303 207" clip-path="url(#cloth)" />
+	<path d="M318 185 Q313 196 303 207" fill="none" stroke="url(#f10)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M410 179 Q413 192 426 205" clip-path="url(#cloth)" />
+	<path d="M410 179 Q413 192 426 205" fill="none" stroke="url(#f11)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M440 186 Q445 196 456 205" clip-path="url(#cloth)" />
+	<path d="M440 186 Q445 196 456 205" fill="none" stroke="url(#f12)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+	<path class="shade" d="M288 200 Q318 194 340 200" clip-path="url(#cloth)" />
+	<path d="M288 200 Q318 194 340 200" fill="none" stroke="url(#f13)" stroke-width="1.1" stroke-linecap="round" clip-path="url(#cloth)" />
+
+	<!-- pegs: the edge is held, the middle is not -->
+	<path class="tie" d="M512 208 L533 215" />
+	<path class="tie" d="M459 237 L473 253" />
+	<path class="tie" d="M360 248 L360 267" />
+	<path class="tie" d="M261 237 L247 253" />
+	<path class="tie" d="M208 208 L187 215" />
+	<path class="tie" d="M227 176 L208 172" />
+	<path class="tie" d="M307 155 L300 144" />
+	<path class="tie" d="M413 155 L420 144" />
+	<path class="tie" d="M493 176 L512 172" />
+	<path class="peg" d="M533 215 L535 228 M529 216 L537 214" />
+	<path class="peg" d="M473 253 L475 266 M469 254 L477 252" />
+	<path class="peg" d="M360 267 L362 280 M356 268 L364 266" />
+	<path class="peg" d="M247 253 L249 266 M243 254 L251 252" />
+	<path class="peg" d="M187 215 L189 228 M183 216 L191 214" />
+	<path class="peg" d="M208 172 L210 185 M204 173 L212 171" />
+	<path class="peg" d="M300 144 L302 157 M296 145 L304 143" />
+	<path class="peg" d="M420 144 L422 157 M416 145 L424 143" />
+	<path class="peg" d="M512 172 L514 185 M508 173 L516 171" />
+
+	<path class="ld" d="M528 196 H572" />
+	<text class="ax c-f" x="580" y="193">FABRIC</text>
+	<text class="lbl" x="580" y="209">agentic code</text>
+
+	<path class="ld" d="M240 259 H150" />
+	<text class="ax c-g" x="142" y="263" text-anchor="end">PEGS</text>
+	<text class="lbl" x="142" y="279" text-anchor="end">tests, contracts,</text>
+	<text class="lbl" x="142" y="294" text-anchor="end">static analysis</text>
+</svg>
