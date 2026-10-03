@@ -7,17 +7,17 @@ draft: true
 
 Agentic code can be thought of as a fabric. It is easily shaped and can assume any form with little effort, but it is hard to build something rigid out of it. While agents can produce brilliant snippets of code on par with the cutting edge of human knowledge, cohesion and consistency remain a challenge.
 
-![Loose.](./images/fabric-loose.svg)
+![Unguided, agentic code is shapeless, like fabric.](./images/fabric-loose.svg)
 
 ## The peg fallacy
 There is a real problem with the softness of fabric alone. There is a natural inclination to address the lack of structure in agentic workflows by adding tests, contracts and static analysis. However, pinning down the edges with pegs does little to enforce internal structural rigidity. Without an internal structure to apply the constraining forces upon we are still in a soft, flat mess.
 
-![Pegged.](./images/fabric-pegged.svg)
+![Pinned down by tests, but still a mess.](./images/fabric-pegged.svg)
 
 ## Building a tipi
 We'd be helped by sturdy poles to stretch the fabric into its desired shape. In software terms - a distinct architecture by which all additional work is guided and which the tests and static analysis apply constraining forces upon. In tents, there is a symbiotic relationship between the internal structure, the fabric and the pegs. Software is much the same. Without an architecture to stretch the web of features across, the constraining pegs are of little use. Without the pegs, on the other hand, we might wake up in the morning with all of the wooden structure in place, but all of the fabric in a tree top far away.
 
-![Raised on poles.](./images/tipi.svg)
+![A rigid internal structure gives the mess its shape.](./images/tipi.svg)
 
 That's the theory. Stick around for the case study!
 
