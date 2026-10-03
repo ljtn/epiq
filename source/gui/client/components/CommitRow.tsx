@@ -13,6 +13,7 @@ import {COMMIT_HEADER_PADDING, disclosureStyle} from '../lib/commit-row.style';
 import {DiffStat} from './DiffStat';
 import {FileRow} from './FileRow';
 import {CommitDiffState} from '../lib/use-issue-detail';
+import {RepoChip} from './RepoChip';
 
 export const CommitRow = ({
 	commit,
@@ -121,6 +122,7 @@ export const CommitRow = ({
 				>
 					{commit.subject}
 				</span>
+				{commit.repo && <RepoChip repo={commit.repo} />}
 				<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
 				{/* The sha is lookup chrome, not part of reading the list, so it
 			    sits at the far right and only appears on hover or once expanded —

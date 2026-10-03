@@ -158,6 +158,8 @@ export type GuiCommitAuthor = GuiIdentity & {resolved: boolean};
 
 export type GuiCommitEntry = {
 	sha: string;
+	/** The registered repo it is in, by id; absent for the board's own repo. */
+	repo?: string;
 	time: number;
 	/** The raw git author name. Shown only where nothing has claimed the address. */
 	author: string;
@@ -195,12 +197,29 @@ export type GuiCommitDiffFile = {
 
 export type GuiCommitDiff = {
 	sha: string;
+	repo?: string;
 	files: GuiCommitDiffFile[];
 };
 
 // A file in the compacted diff, carrying the commit a comment on it anchors
 // to: the last of the ticket's commits to touch it. See SquashedDiffFile.
-export type GuiSquashedDiffFile = GuiCommitDiffFile & {sha: string};
+export type GuiSquashedDiffFile = GuiCommitDiffFile & {
+	sha: string;
+	repo?: string;
+};
+
+/** Another repo whose commits count as the board's, and this machine's clone of it. */
+export type GuiRepo = {
+	id: string;
+	label: string;
+	url: string;
+	branches: 'default' | 'all';
+	/** `board`, `all`, or a `YYYY-MM-DD` date. */
+	since: string;
+	cloned: boolean;
+	fetchedAt: number | null;
+	error: string | null;
+};
 
 // The Code tab's compacted view: every commit on the ticket as one diff.
 export type GuiSquashedDiff = {

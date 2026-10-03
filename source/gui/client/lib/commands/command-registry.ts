@@ -251,6 +251,16 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		run: context => context.handlers.sync(),
 	},
 	{
+		// The TUI's `:config repoAdd` and `:config repoRemove`. Configuration
+		// rather than board state, so it stays open while history is scrubbed.
+		id: 'gui:repos',
+		title: 'Code repos',
+		group: 'Board',
+		keywords: ['repository', 'repositories', 'git', 'commits', 'remote'],
+		unavailable: context => (context.connected ? null : 'Not connected'),
+		run: context => context.handlers.openRepos(),
+	},
+	{
 		// The TUI replays the log into the terminal; here it is the player that
 		// already exists, over the window the scrubber is showing.
 		id: CmdKeywords.REPLAY,

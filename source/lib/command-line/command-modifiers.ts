@@ -37,6 +37,8 @@ export const ConfigModifiers = {
 	SYNC_DEBOUNCE_MS: 'syncDebounceMs',
 	ATTACHMENT_MAX_KB: 'attachmentMaxKb',
 	LOG_LEVEL: 'logLevel',
+	REPO_ADD: 'repoAdd',
+	REPO_REMOVE: 'repoRemove',
 } as const;
 
 export type ConfigModifier =
@@ -70,6 +72,8 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.SYNC_DEBOUNCE_MS,
 	ConfigModifiers.ATTACHMENT_MAX_KB,
 	ConfigModifiers.LOG_LEVEL,
+	ConfigModifiers.REPO_ADD,
+	ConfigModifiers.REPO_REMOVE,
 ];
 
 // Which edit modifiers are valid depends on what is selected: swimlanes and

@@ -1,7 +1,11 @@
 import {Box, Text} from 'ink';
 import React, {useEffect, useRef, useState} from 'react';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
-import {RefCommitEntry, getCommitsForRef} from '../commits/commits.js';
+import {
+	RefCommitEntry,
+	getCommitsForRef,
+	repoLabelOfId,
+} from '../commits/commits.js';
 import {isFieldNode, Ticket} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {isFail, isSuccess} from '../model/result-types.js';
@@ -159,6 +163,7 @@ export function DiffListUI({ticket, width, height}: Props) {
 			<CommitDiffUI
 				ticket={ticket}
 				sha={openCommit.sha}
+				repo={openCommit.repo}
 				subject={openCommit.subject}
 				width={width}
 				height={height}
@@ -220,6 +225,11 @@ export function DiffListUI({ticket, width, height}: Props) {
 								<Text color={theme.secondary2}>
 									{`${commit.sha.slice(0, 7)} `}
 								</Text>
+								{commit.repo && (
+									<Text color={theme.secondary2}>
+										{`[${repoLabelOfId(commit.repo)}] `}
+									</Text>
+								)}
 								<Text color={isSelected ? theme.accent : theme.primary}>
 									{subject}
 								</Text>

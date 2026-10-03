@@ -81,6 +81,9 @@ export const ScrubberControls = ({
 	onChangeLinkedCommitsOnly,
 	linesMeasure,
 	onChangeLinesMeasure,
+	commitRepos,
+	hiddenCommitRepos,
+	onToggleCommitRepo,
 	allBoards,
 	boardView,
 	identitiesByAxis,
@@ -143,6 +146,10 @@ export const ScrubberControls = ({
 	// What the Code series' bars measure, as against which commits they count.
 	linesMeasure: boolean;
 	onChangeLinesMeasure: (next: boolean) => void;
+	// Which repos the Code series plots, when its commits come from several.
+	commitRepos: readonly string[];
+	hiddenCommitRepos: ReadonlySet<string>;
+	onToggleCommitRepo: (repo: string) => void;
 	allBoards: boolean;
 	boardView: BoardView;
 	// A legend per filter axis, and what is unticked on each: every axis narrows
@@ -341,9 +348,12 @@ export const ScrubberControls = ({
 					showCommits={showCommits}
 					linkedOnly={linkedCommitsOnly}
 					linesMeasure={linesMeasure}
+					repos={commitRepos}
+					hiddenRepos={hiddenCommitRepos}
 					onChangeShowCommits={onChangeShowCommits}
 					onChangeLinkedOnly={onChangeLinkedCommitsOnly}
 					onChangeLinesMeasure={onChangeLinesMeasure}
+					onToggleRepo={onToggleCommitRepo}
 				/>
 				<BoardSeriesGroup
 					connected={connected}

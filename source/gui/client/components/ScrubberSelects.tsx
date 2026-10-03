@@ -22,6 +22,7 @@ import {Checkbox} from './Checkbox';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {Menu, MenuItem} from './Menu';
+import {repoLabelOf} from '../lib/repo-label';
 
 // What every control wears while the socket is down.
 export const mutedStyle: React.CSSProperties = {
@@ -404,14 +405,22 @@ export const CommitSeriesGroup = ({
 	showCommits,
 	linkedOnly,
 	linesMeasure,
+	repos,
+	hiddenRepos,
 	onChangeShowCommits,
 	onChangeLinkedOnly,
 	onChangeLinesMeasure,
+	onToggleRepo,
 }: {
 	connected: boolean;
 	idle: boolean;
 	showCommits: boolean;
 	linkedOnly: boolean;
+	// The repos the window's commits come from, by key — the board's own is
+	// the empty one. Only offered when there is more than one to choose from.
+	repos: readonly string[];
+	hiddenRepos: ReadonlySet<string>;
+	onToggleRepo: (repo: string) => void;
 	// What a bar measures, as against which commits it counts. Two questions,
 	// so two groups in the list rather than one row of four options: flattened,
 	// "the deletions among linked commits" could not be asked for.
@@ -512,6 +521,39 @@ export const CommitSeriesGroup = ({
 								/>
 							</MenuItem>
 						</div>
+
+						{repos.length > 1 && (
+							<>
+								<div
+									aria-hidden
+									style={{
+										height: 1,
+										background: GUI_THEME.line,
+										margin: '3px 0',
+									}}
+								/>
+
+								{/* Several can be on at once, so this group stays open
+								    while it is changed. */}
+								<div
+									role="group"
+									aria-label="Which repos to plot"
+									style={{display: 'contents'}}
+								>
+									{repos.map(repo => (
+										<MenuItem key={repo || 'own'}>
+											<Checkbox
+												label={repo ? repoLabelOf(repo) : 'this repo'}
+												testId="commit-repo-toggle"
+												checked={!hiddenRepos.has(repo)}
+												activeColor={GUI_THEME.green}
+												onChange={() => onToggleRepo(repo)}
+											/>
+										</MenuItem>
+									))}
+								</div>
+							</>
+						)}
 					</>
 				);
 			}}

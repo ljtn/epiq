@@ -140,6 +140,9 @@ export const TimeScrubber = ({
 	onChangeShowCommits,
 	linkedCommitsOnly,
 	onChangeLinkedCommitsOnly,
+	commitRepos,
+	hiddenCommitRepos,
+	onToggleCommitRepo,
 	issueIdByRef,
 	boardIssueIdByRef,
 	lanes,
@@ -195,6 +198,11 @@ export const TimeScrubber = ({
 	// board — the repository's.
 	linkedCommitsOnly: boolean;
 	onChangeLinkedCommitsOnly: (next: boolean) => void;
+	// Which repos the Code series plots. `commits` arrives already narrowed to
+	// them; these are for the menu that changes it.
+	commitRepos: readonly string[];
+	hiddenCommitRepos: ReadonlySet<string>;
+	onToggleCommitRepo: (repo: string) => void;
 	issueIdByRef: ReadonlyMap<string, string>;
 	boardIssueIdByRef: ReadonlyMap<string, string>;
 	// What the flow layout draws its strands from: this board's lanes in column
@@ -1284,6 +1292,9 @@ export const TimeScrubber = ({
 				onChangeLinkedCommitsOnly,
 				linesMeasure,
 				onChangeLinesMeasure: setLinesMeasure,
+				commitRepos,
+				hiddenCommitRepos,
+				onToggleCommitRepo,
 				allBoards,
 				onChangeScope: changeScope,
 				onChangeWindowOnly: (next: boolean) =>
