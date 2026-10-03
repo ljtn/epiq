@@ -10,7 +10,9 @@ export const RepoChip = ({repo}: {repo: string}) => (
 		data-testid="commit-repo"
 		style={{
 			flexShrink: 0,
-			maxWidth: 140,
+			// Narrow enough that the subject beside it keeps most of the row: the
+			// subject is what the row is read for, the repo only says where.
+			maxWidth: 96,
 			overflow: 'hidden',
 			textOverflow: 'ellipsis',
 			whiteSpace: 'nowrap',
