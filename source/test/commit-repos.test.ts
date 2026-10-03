@@ -278,7 +278,13 @@ describe('commits from a registered repo', () => {
 
 		const outcomes = value(await fetchCommitRepos({repoRoot: board}));
 		expect(outcomes).toEqual([
-			{id: repo.id, label: repo.label, ok: true, message: 'Fetched'},
+			{
+				id: repo.id,
+				label: repo.label,
+				ok: true,
+				changed: true,
+				message: 'Fetched',
+			},
 		]);
 
 		const matched = value(
@@ -549,5 +555,72 @@ describe('how much of a registered repo is cloned', () => {
 				entry => entry.subject,
 			),
 		).not.toContain(`${REF_A} on a feature branch`);
+	});
+});
+
+describe('review fixes', () => {
+	it('clones every branch when told all, inside the default window too', async () => {
+		commit(upstream, 'up.txt', `${REF_A} on main`, '2024-01-01T00:00:00Z');
+		git(upstream, ['checkout', '-q', '-b', 'feature']);
+		commit(upstream, 'f.txt', `${REF_A} on a branch`, '2024-02-01T00:00:00Z');
+		git(upstream, ['checkout', '-q', 'main']);
+
+		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: REF_A})).map(
+				entry => entry.subject,
+			),
+		).toContain(`${REF_A} on a branch`);
+	});
+
+	it('lists a commit two sources share once, from the board’s own repo', async () => {
+		value(
+			upsertCommitRepo({repoRoot: board, url: `file://${board}`, since: 'all'}),
+		);
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const matched = value(
+			await getCommitsForRef({repoRoot: board, ref: REF_A}),
+		);
+
+		expect(matched).toHaveLength(1);
+		expect(matched[0]).not.toHaveProperty('repo');
+	});
+
+	it('says whether a fetch moved anything, and skips a repo fetched a moment ago', async () => {
+		commit(upstream, 'up.txt', `${REF_A} first`);
+		value(upsertCommitRepo({repoRoot: board, url}));
+
+		const [cloned] = value(await fetchCommitRepos({repoRoot: board}));
+		expect(cloned!.changed).toBe(true);
+
+		const [idle] = value(await fetchCommitRepos({repoRoot: board}));
+		expect(idle!.changed).toBe(false);
+
+		commit(upstream, 'up.txt', `${REF_A} second`);
+		const [skipped] = value(
+			await fetchCommitRepos({repoRoot: board, minIntervalMs: 60_000}),
+		);
+		expect(skipped).toMatchObject({ok: true, changed: false});
+
+		const [moved] = value(await fetchCommitRepos({repoRoot: board}));
+		expect(moved!.changed).toBe(true);
+	});
+
+	it('reports a clones directory it cannot create rather than throwing', async () => {
+		value(upsertCommitRepo({repoRoot: board, url}));
+		const blocker = path.join(makeTempDir(), 'a-file');
+		fs.writeFileSync(blocker, '');
+
+		const saved = process.env['EPIQ_GLOBAL_DIR'];
+		process.env['EPIQ_GLOBAL_DIR'] = path.join(blocker, 'global');
+		try {
+			const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+			expect(outcome!.ok).toBe(false);
+		} finally {
+			process.env['EPIQ_GLOBAL_DIR'] = saved;
+		}
 	});
 });

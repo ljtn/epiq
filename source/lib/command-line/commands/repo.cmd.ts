@@ -6,6 +6,7 @@ import {
 	removeCommitRepo,
 	removeRepoClone,
 	RepoBranches,
+	repoIdOf,
 	resolveRepoRoot,
 	upsertCommitRepo,
 	type CommitRepo,
@@ -57,7 +58,7 @@ export const parseRepoAddArgs = (input: string): Result<RepoAddArgs> => {
 	return succeeded('Parsed', args);
 };
 
-/** The registered repos by the names `repoRemove` accepts, for completion. */
+/** The registered repos, for `repoRemove`'s completion and its lookup. */
 export const registeredRepos = (): CommitRepo[] => {
 	const repoRootResult = resolveRepoRoot();
 	if (isFail(repoRootResult)) return [];
@@ -85,15 +86,48 @@ export const repoAddCommand = () => {
 	);
 };
 
+/** The names a repo can be removed by: its label where that is unique, else its id. */
+export const removableNames = (repos: CommitRepo[]): string[] =>
+	repos.map(repo =>
+		repos.filter(other => other.label === repo.label).length === 1
+			? repo.label
+			: repo.id,
+	);
+
+/** The id a typed name stands for: a unique label, an id, or a URL. */
+export const resolveRemoveTarget = (
+	repos: CommitRepo[],
+	typed: string,
+): Result<string> => {
+	const byLabel = repos.filter(repo => repo.label === typed);
+	if (byLabel.length > 1) {
+		return failed(
+			`Several repos are called ${typed} — name one by its id or URL`,
+		);
+	}
+
+	const match =
+		byLabel[0] ??
+		repos.find(
+			repo =>
+				repo.id === typed ||
+				(isAllowedRepoUrl(typed) && repo.id === repoIdOf(typed)),
+		);
+
+	return match
+		? succeeded('Resolved', match.id)
+		: failed(`No repo "${typed}" is registered`);
+};
+
 export const repoRemoveCommand = () => {
 	const typed = getCmdState().commandMeta.inputString.trim();
 
 	const repoRootResult = resolveRepoRoot();
 	if (isFail(repoRootResult)) return repoRootResult;
 
-	// By label as well as by id or URL: the label is what the hint lists.
-	const byLabel = registeredRepos().filter(repo => repo.label === typed);
-	const target = byLabel.length === 1 ? byLabel[0]!.id : typed;
+	const repoResult = resolveRemoveTarget(registeredRepos(), typed);
+	if (isFail(repoResult)) return repoResult;
+	const target = repoResult.value;
 
 	const result = removeCommitRepo({
 		repoRoot: repoRootResult.value,

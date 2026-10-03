@@ -4,6 +4,7 @@
 // on purpose — the same fetch a sync does.
 
 import {
+	describeFetchFailures,
 	fetchCommitRepos,
 	invalidateCommitTimelineCache,
 	listRepoStates,
@@ -89,12 +90,38 @@ export const removeRepo = async (
 	);
 };
 
+/**
+ * A board sync's answer, with the other repos fetched after it — outside the
+ * lock the sync was run under, which the caller has already let go of.
+ */
+export const syncThenFetchRepos = async <T extends object>(
+	syncResult: Result<T>,
+	input: RepoRootInput = {},
+): Promise<Result<T & {repos?: RepoFetchOutcome[]}>> => {
+	if (isFail(syncResult)) return syncResult;
+
+	const reposResult = await fetchRepos(input);
+	if (isFail(reposResult) || reposResult.value.length === 0) {
+		return syncResult;
+	}
+
+	return succeeded(
+		[syncResult.message, describeFetchFailures(reposResult.value)]
+			.filter(Boolean)
+			.join(' · '),
+		{...syncResult.value, repos: reposResult.value},
+	);
+};
+
 /** Clones what is missing and fetches the rest, without syncing the board. */
 export const fetchRepos = async (
-	input: RepoRootInput = {},
+	input: RepoRootInput & {minIntervalMs?: number} = {},
 ): Promise<Result<RepoFetchOutcome[]>> => {
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
-	return fetchCommitRepos({repoRoot: repoRootResult.value});
+	return fetchCommitRepos({
+		repoRoot: repoRootResult.value,
+		minIntervalMs: input.minIntervalMs,
+	});
 };

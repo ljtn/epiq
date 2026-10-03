@@ -20,7 +20,9 @@ import {DEFAULT_ATTACHMENT_MAX_KB} from '../media/media-store.js';
 import {
 	parseRepoAddArgs,
 	registeredRepos,
+	removableNames,
 	REPO_ADD_OPTIONS,
+	resolveRemoveTarget,
 } from './commands/repo.cmd.js';
 import {emailsOf} from '../model/email-link.js';
 import {getSafeState, getState} from '../state/state.js';
@@ -547,7 +549,8 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 		}
 
 		case ConfigModifiers.REPO_REMOVE: {
-			const labels = registeredRepos().map(repo => repo.label);
+			const repos = registeredRepos();
+			const labels = removableNames(repos);
 			const typed = inputString.trim();
 
 			if (labels.length === 0) {
@@ -557,7 +560,9 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				});
 			}
 
-			if (labels.includes(typed)) return valid(CONFIRM_MSG);
+			if (typed && !isFail(resolveRemoveTarget(repos, typed))) {
+				return valid(CONFIRM_MSG);
+			}
 
 			return invalid({
 				message: buildOptionsHint({

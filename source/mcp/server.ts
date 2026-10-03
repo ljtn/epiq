@@ -48,6 +48,7 @@ import {
 	addRepo,
 	listRepos,
 	removeRepo,
+	syncThenFetchRepos,
 } from './epiq-api.js';
 import {
 	linkContributorEmail,
@@ -646,7 +647,12 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		exclusiveTool(sync),
+		// The board under the lock, the other repos after it: a first clone can
+		// take minutes, and every other tool waits on that lock.
+		async input =>
+			resultJson(
+				await syncThenFetchRepos(await runExclusive(() => sync(input)), input),
+			),
 	);
 
 	server.registerTool(

@@ -170,27 +170,43 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 	const reloadResult = reloadStateFromEventLog(stateBranchRoot);
 	if (isFail(reloadResult)) return reloadResult;
 
-	// After the board, which is already on screen by now. A repo that did not
-	// fetch is said beside the board's status, not instead of it.
-	const reposResult = await fetchCommitRepos({repoRoot});
-	const fetchNote = isFail(reposResult)
-		? null
-		: describeFetchFailures(reposResult.value);
-	const synced = fetchNote ? `Synced · ${fetchNote}` : 'Synced';
-
 	patchState({
 		hasProjectDefinition: true,
 		// The reload succeeded either way; only the remote half did not.
 		syncStatus: offline
 			? {msg: 'Committed locally, offline', status: 'offline'}
-			: {msg: synced, status: 'synced'},
+			: {msg: 'Synced', status: 'synced'},
 	});
 
 	logger.debug('[sync] syncAndReloadState:done', {
 		syncStatus: getState().syncStatus,
 	});
 
-	return succeeded(synced, true);
+	void fetchReposAfterSync(repoRoot);
+
+	return succeeded('Synced', true);
+};
+
+// The other repos move on somebody else's push, not on this board's edits, so
+// autosync's passes need not fetch them more often than this.
+const REPO_FETCH_INTERVAL_MS = 60_000;
+
+/**
+ * The other repos, once the board is synced and on screen: not awaited, since
+ * a first clone can take minutes and the board's status must not wait on it.
+ * A repo that did not fetch is said beside that status, not instead of it.
+ */
+const fetchReposAfterSync = async (repoRoot: string) => {
+	const result = await fetchCommitRepos({
+		repoRoot,
+		minIntervalMs: REPO_FETCH_INTERVAL_MS,
+	});
+	const note = isFail(result) ? null : describeFetchFailures(result.value);
+	const status = getState().syncStatus;
+
+	if (note && status?.status === 'synced') {
+		patchState({syncStatus: {msg: `Synced · ${note}`, status: 'synced'}});
+	}
 };
 
 /**

@@ -31,6 +31,19 @@ Preserve the linking post-merge via conventions:
 - **Rebase-merge** It is advised to rebase-merge so the ref-prefixed commits land on `main` as they are, preserving linking post-merge.
 - Squashing _within_ one ticket's commits is fine as long as the result keeps the prefix. Do not squash commits carrying different refs into one.
 
+### Commits from other repos
+
+A board can link commits from other repositories too — handy when the board lives in a repo of its own. Register them by remote URL in `.epiq/project.json`:
+
+```json
+"repos": [
+  {"url": "git@github.com:me/service.git"},
+  {"url": "https://example.com/lib.git", "branches": "all", "since": "2025-01-01"}
+]
+```
+
+or from the GUI's command palette (**Code repos**), the TUI (`:config repoAdd <url>`, `:config repoRemove <name>`) or the MCP (`epiq_repo_add`). Epiq keeps its own read-only bare clone of each under `~/.epiq-global/repos/`, fetched on sync with your usual git credentials — never on startup. `branches` is `default` (the default) or `all`; `since` is how much history to clone: `board` (since the board was created, the default), `all`, or a date. A commit shows once it is pushed and the board has synced. Commit `project.json` to share the list.
+
 ## Terminal + Browser
 
 Epiq originated from the command line and offers a first-class terminal experience, but also features a browser interface powered by the same Git-backed event engine.

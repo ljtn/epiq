@@ -155,7 +155,8 @@ const deepenPastWindow = (clonePath: string) =>
 // git refuses `--shallow-since` when it selects nothing, and one commit is
 // the smallest history there is. That commit is a shallow boundary, which the
 // timeline leaves out, so the repo simply shows nothing yet.
-const NOTHING_SELECTED = /no commits selected|shallow|error processing/i;
+const NOTHING_SELECTED =
+	/no commits selected for shallow requests|error processing shallow info/i;
 
 const cloneRepo = async (
 	clonePath: string,
@@ -174,7 +175,8 @@ const cloneRepo = async (
 		'clone',
 		'--bare',
 		'--no-tags',
-		...(repo.branches === 'default' ? ['--single-branch'] : []),
+		// Explicit both ways: a window implies --single-branch otherwise.
+		repo.branches === 'default' ? '--single-branch' : '--no-single-branch',
 		...window,
 		'--',
 		repo.url,
@@ -222,6 +224,13 @@ const cloneRepo = async (
 		cwd: pending,
 		args: ['config', 'remote.origin.fetch', refspecResult.value],
 	});
+
+	// Another process can only have got here first by breaking a lock it took
+	// for abandoned; its clone is as good as this one.
+	if (fs.existsSync(clonePath)) {
+		fs.rmSync(pending, {recursive: true, force: true});
+		return succeeded('Cloned elsewhere', null);
+	}
 
 	fs.renameSync(pending, clonePath);
 	return succeeded('Cloned', null);
@@ -285,9 +294,34 @@ export type RepoFetchOutcome = {
 	id: string;
 	label: string;
 	ok: boolean;
+	/** Whether the clone's branches moved, so its commits may have. */
+	changed: boolean;
 	/** Why it failed, or that another process had the clone. */
 	message: string;
 };
+
+/**
+ * What the clone's branches point at, and where its history is cut: a fetch
+ * that moved either moved the commits it holds. Widening the window moves no
+ * branch at all.
+ */
+const refsOf = async (clonePath: string): Promise<string> => {
+	if (!fs.existsSync(clonePath)) return '';
+
+	const result = await execGit({
+		cwd: clonePath,
+		args: ['for-each-ref', '--format=%(objectname) %(refname)'],
+	});
+
+	const shallow = isShallow(clonePath)
+		? fs.readFileSync(path.join(clonePath, 'shallow'), 'utf8')
+		: '';
+
+	return `${isFail(result) ? '' : result.value.stdout}\n${shallow}`;
+};
+
+const errorMessage = (error: unknown) =>
+	error instanceof Error ? error.message : String(error);
 
 const LOCK_SUFFIX = '.lock';
 
@@ -295,32 +329,54 @@ const fetchOne = async (
 	projectId: string,
 	boardCreatedAt: string,
 	repo: CommitRepo,
+	minIntervalMs: number,
 ): Promise<RepoFetchOutcome> => {
+	const outcome = (ok: boolean, message: string, changed = false) => ({
+		id: repo.id,
+		label: repo.label,
+		ok,
+		changed,
+		message,
+	});
+
 	const clonePath = getRepoClonePath(projectId, repo.id);
-	fs.mkdirSync(path.dirname(clonePath), {recursive: true});
+	const since = sinceDate(repo.since, boardCreatedAt);
+
+	try {
+		fs.mkdirSync(path.dirname(clonePath), {recursive: true});
+	} catch (error) {
+		return outcome(false, errorMessage(error));
+	}
 
 	const lock = acquireLockFile({
 		lockPath: `${clonePath}${LOCK_SUFFIX}`,
 		operation: `fetch ${repo.label}`,
+		// A clone may run that long; breaking it sooner would start a second.
+		staleAfterMs: TRANSFER_TIMEOUT_MS * 2,
 	});
 
-	if (!lock.acquired) {
-		return {
-			id: repo.id,
-			label: repo.label,
-			ok: true,
-			message: 'Another process is fetching it',
-		};
-	}
+	if (!lock.acquired) return outcome(true, 'Another process is fetching it');
 
 	try {
-		const since = sinceDate(repo.since, boardCreatedAt);
-		const previous = fs.existsSync(clonePath) ? readStatus(clonePath) : null;
+		const cloned = fs.existsSync(clonePath);
+		const previous = cloned ? readStatus(clonePath) : null;
 
-		const result = fs.existsSync(clonePath)
+		// Autosync asks often; a repo fetched a moment ago, with the same
+		// options, is left alone. A sync somebody asked for passes no interval.
+		if (
+			previous?.fetchedAt &&
+			!previous.error &&
+			previous.branches === repo.branches &&
+			previous.since === since &&
+			Date.now() - previous.fetchedAt < minIntervalMs
+		) {
+			return outcome(true, 'Fetched recently');
+		}
+
+		const before = await refsOf(clonePath);
+		const result = cloned
 			? await fetchRepo(clonePath, repo, since, previous)
 			: await cloneRepo(clonePath, repo, since);
-
 		const message = isFail(result) ? result.message.trim() : 'Fetched';
 
 		if (fs.existsSync(clonePath)) {
@@ -336,9 +392,15 @@ const fetchOne = async (
 
 		if (isFail(result)) {
 			logger.info(`[repos] ${repo.label}: ${message}`);
+			return outcome(false, message);
 		}
 
-		return {id: repo.id, label: repo.label, ok: !isFail(result), message};
+		return outcome(true, message, (await refsOf(clonePath)) !== before);
+	} catch (error) {
+		// A filesystem refusal is this repo's failure, never the process's: the
+		// GUI starts this without awaiting it.
+		logger.info(`[repos] ${repo.label}: ${errorMessage(error)}`);
+		return outcome(false, errorMessage(error));
 	} finally {
 		lock.release();
 	}
@@ -416,15 +478,22 @@ const CONCURRENCY = 4;
  */
 export const fetchCommitRepos = (input: {
 	repoRoot: string;
+	/** Leave alone a repo fetched less than this long ago, for autosync. */
+	minIntervalMs?: number;
 }): Promise<Result<RepoFetchOutcome[]>> => {
 	// One at a time per project in this process: an autosync pass and a click
 	// arriving together share the fetch already under way.
 	const running = inFlight.get(input.repoRoot);
 	if (running) return running;
 
-	const started = fetchAll(input.repoRoot).finally(() => {
-		inFlight.delete(input.repoRoot);
-	});
+	const started = fetchAll(input.repoRoot, input.minIntervalMs ?? 0)
+		.catch(
+			(error: unknown): Result<RepoFetchOutcome[]> =>
+				failed(errorMessage(error)),
+		)
+		.finally(() => {
+			inFlight.delete(input.repoRoot);
+		});
 	inFlight.set(input.repoRoot, started);
 
 	return started;
@@ -434,6 +503,7 @@ const inFlight = new Map<string, Promise<Result<RepoFetchOutcome[]>>>();
 
 const fetchAll = async (
 	repoRoot: string,
+	minIntervalMs: number,
 ): Promise<Result<RepoFetchOutcome[]>> => {
 	const projectResult = readRepoProject(repoRoot);
 	if (isFail(projectResult)) return failed(projectResult.message);
@@ -458,12 +528,14 @@ const fetchAll = async (
 			...(await Promise.all(
 				repos
 					.slice(start, start + CONCURRENCY)
-					.map(repo => fetchOne(projectId, createdAt, repo)),
+					.map(repo => fetchOne(projectId, createdAt, repo, minIntervalMs)),
 			)),
 		);
 	}
 
-	invalidateCommitTimelineCache();
+	if (outcomes.some(outcome => outcome.changed)) {
+		invalidateCommitTimelineCache();
+	}
 
 	return succeeded('Fetched other repos', outcomes);
 };

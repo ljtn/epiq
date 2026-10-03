@@ -502,6 +502,11 @@ export const getSquashedDiffForRef = async (
 				files: diffResult.value.files.map(file =>
 					repo ? {...file, repo} : file,
 				),
+				// Qualified as `<repo>:<path>` for another repo's file, the key the
+				// GUI tells files apart by: two repos can each have a README.
+				overlappingPaths: diffResult.value.overlappingPaths.map(path =>
+					repo ? `${repo}:${path}` : path,
+				),
 			},
 		});
 	}

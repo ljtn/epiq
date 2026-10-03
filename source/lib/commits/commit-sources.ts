@@ -4,7 +4,7 @@ import {execGit} from '../../git/git-utils.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {readProjectFile} from '../project-setup/project-setup.js';
 import {resolveRepoRoot} from './commit-repo.js';
-import {getRepoClonePath, readCommitRepos} from './commit-repos.js';
+import {getRepoClonePath, readCommitRepos, sinceDate} from './commit-repos.js';
 
 /**
  * Somewhere commits are read from. The board's own repo is one, read in place;
@@ -19,6 +19,12 @@ export type CommitSource = {
 	revisions: string[];
 	/** Commits to leave out of every list. */
 	exclude: ReadonlySet<string>;
+	/**
+	 * Where the repo's history window opens, in ms; older commits are left out.
+	 * A fetch can bring in more than the window — a branch new since the
+	 * clone arrives with its whole history — and the window is what was asked.
+	 */
+	notBefore?: number;
 };
 
 const NOTHING: ReadonlySet<string> = new Set();
@@ -68,6 +74,8 @@ export const listCommitSources = async (
 		const clonePath = getRepoClonePath(projectResult.value.projectId, repo.id);
 		if (!fs.existsSync(clonePath)) return [];
 
+		const since = sinceDate(repo.since, projectResult.value.createdAt);
+
 		return [
 			{
 				repo: repo.id,
@@ -75,6 +83,7 @@ export const listCommitSources = async (
 				// A bare clone's HEAD is the remote's default branch.
 				revisions: repo.branches === 'all' ? ['--branches'] : ['HEAD'],
 				exclude: shallowBoundary(clonePath),
+				...(since ? {notBefore: Date.parse(`${since}T00:00:00Z`)} : {}),
 			},
 		];
 	});

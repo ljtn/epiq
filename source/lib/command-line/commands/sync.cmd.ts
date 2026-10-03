@@ -42,7 +42,7 @@ export const syncCommand = async () => {
 	patchState({
 		mode: Mode.DEFAULT,
 		syncStatus: {
-			msg: result.message,
+			msg: 'Synced',
 			status: 'synced',
 		},
 	});
