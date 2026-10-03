@@ -564,8 +564,10 @@ function build({ quiet = false } = {}) {
 			renderPost(post, published[i + 1], published[i - 1])
 		);
 	});
+	// A draft links back to the latest post before it; nothing links to a draft.
 	for (const post of posts.filter((p) => p.draft)) {
-		writeFileSync(join(OUT_DIR, `${post.slug}.html`), renderPost(post));
+		const older = published.find((p) => p.date <= post.date);
+		writeFileSync(join(OUT_DIR, `${post.slug}.html`), renderPost(post, older));
 	}
 	writeFileSync(join(OUT_DIR, "feed.xml"), renderFeed(published));
 
