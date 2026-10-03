@@ -52,6 +52,9 @@ export const addRepo = async (
 	});
 	if (isFail(upsertResult)) return failed(upsertResult.message);
 
+	// A changed window or branch set reads differently from the same clone.
+	invalidateCommitTimelineCache();
+
 	const listResult = listRepoStates(repoRootResult.value);
 	if (isFail(listResult)) return failed(listResult.message);
 
@@ -73,8 +76,8 @@ export const removeRepo = async (
 	});
 	if (isFail(removeResult)) return failed(removeResult.message);
 
-	// The registration is what counts; a clone that could not be deleted now
-	// is only disk, and the next remove or a manual delete takes it.
+	// The registration is what counts. A clone a fetch is still writing cannot
+	// go now; that fetch deletes it when it finds the repo gone.
 	removeRepoClone({
 		repoRoot: repoRootResult.value,
 		repoId: removeResult.value.id,

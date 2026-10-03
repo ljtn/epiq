@@ -29,6 +29,8 @@ const statusPath = (clonePath: string) => `${clonePath}.json`;
 /** What the clone was last fetched with, and how that went. */
 export type RepoFetchStatus = {
 	fetchedAt: number | null;
+	/** The last try, landed or not: what autosync's interval counts from. */
+	attemptedAt: number | null;
 	error: string | null;
 	branches: RepoBranches | null;
 	/** The date history starts at, or null for all of it. */
@@ -43,6 +45,7 @@ const readStatus = (clonePath: string): RepoFetchStatus | null => {
 
 		return {
 			fetchedAt: typeof raw.fetchedAt === 'number' ? raw.fetchedAt : null,
+			attemptedAt: typeof raw.attemptedAt === 'number' ? raw.attemptedAt : null,
 			error: typeof raw.error === 'string' ? raw.error : null,
 			branches:
 				raw.branches === 'all' || raw.branches === 'default'
@@ -142,12 +145,6 @@ const dropOtherBranches = async (clonePath: string): Promise<void> => {
 };
 
 /**
- * `--shallow-since` cuts *at* the oldest commit in the window: that commit is
- * kept without its parent, so it would be left out as a boundary and its diff
- * could not be read. One commit deeper moves the cut to just outside the
- * window, where the boundary is a commit nobody asked to see.
- */
-/**
  * The window as git reads it: UTC midnight of the day, as an epoch. A bare
  * date is taken at the local time of day, which moves the cut with the hour
  * the clone happened to run at.
@@ -155,6 +152,12 @@ const dropOtherBranches = async (clonePath: string): Promise<void> => {
 const shallowSince = (since: string) =>
 	`--shallow-since=@${Math.floor(Date.parse(`${since}T00:00:00Z`) / 1000)}`;
 
+/**
+ * `--shallow-since` cuts *at* the oldest commit in the window: that commit is
+ * kept without its parent, so it would be left out as a boundary and its diff
+ * could not be read. One commit deeper moves the cut to just outside the
+ * window, where the boundary is a commit nobody asked to see.
+ */
 const deepenPastWindow = (clonePath: string) =>
 	git(clonePath, ['fetch', '--no-tags', '--deepen=1', 'origin']);
 
@@ -366,23 +369,26 @@ const fetchOne = async (
 
 	try {
 		const cloned = fs.existsSync(clonePath);
-		const previous = cloned ? readStatus(clonePath) : null;
+		// Read even with no clone: a first clone that failed left one.
+		const previous = readStatus(clonePath);
 
-		// Autosync asks often; a repo fetched a moment ago, with the same
-		// options, is left alone. A sync somebody asked for passes no interval.
+		// Autosync asks often; a repo tried a moment ago, with the same options,
+		// is left alone — one that failed too, or an unreachable host is asked
+		// again every few seconds. A sync somebody asked for passes no interval.
 		if (
-			previous?.fetchedAt &&
-			!previous.error &&
+			previous?.attemptedAt &&
 			previous.branches === repo.branches &&
 			previous.since === since &&
-			Date.now() - previous.fetchedAt < minIntervalMs
+			Date.now() - previous.attemptedAt < minIntervalMs
 		) {
-			return outcome(true, 'Fetched recently');
+			return previous.error
+				? outcome(false, previous.error)
+				: outcome(true, 'Fetched recently');
 		}
 
 		const before = await refsOf(clonePath);
 		const result = cloned
-			? await fetchRepo(clonePath, repo, since, previous)
+			? await fetchRepo(clonePath, repo, since, cloned ? previous : null)
 			: await cloneRepo(clonePath, repo, since);
 		const message = isFail(result) ? result.message.trim() : 'Fetched';
 
@@ -390,6 +396,7 @@ const fetchOne = async (
 		// nothing else to say why.
 		writeStatus(clonePath, {
 			fetchedAt: isFail(result) ? previous?.fetchedAt ?? null : Date.now(),
+			attemptedAt: Date.now(),
 			error: isFail(result) ? message : null,
 			branches: isFail(result)
 				? previous?.branches ?? repo.branches
@@ -490,12 +497,19 @@ export const fetchCommitRepos = (input: {
 	/** Leave alone a repo fetched less than this long ago, for autosync. */
 	minIntervalMs?: number;
 }): Promise<Result<RepoFetchOutcome[]>> => {
-	// One at a time per project in this process: an autosync pass and a click
-	// arriving together share the fetch already under way.
-	const running = inFlight.get(input.repoRoot);
-	if (running) return running;
+	const minIntervalMs = input.minIntervalMs ?? 0;
 
-	const started = fetchAll(input.repoRoot, input.minIntervalMs ?? 0)
+	// One at a time per project in this process: an autosync pass and a click
+	// arriving together share the fetch already under way — unless that one
+	// was throttled and this asks for more, which runs once it is done.
+	const running = inFlight.get(input.repoRoot);
+	if (running) {
+		return running.minIntervalMs <= minIntervalMs
+			? running.result
+			: running.result.then(() => fetchCommitRepos(input));
+	}
+
+	const result = fetchAll(input.repoRoot, minIntervalMs)
 		.catch(
 			(error: unknown): Result<RepoFetchOutcome[]> =>
 				failed(errorMessage(error)),
@@ -503,12 +517,15 @@ export const fetchCommitRepos = (input: {
 		.finally(() => {
 			inFlight.delete(input.repoRoot);
 		});
-	inFlight.set(input.repoRoot, started);
+	inFlight.set(input.repoRoot, {result, minIntervalMs});
 
-	return started;
+	return result;
 };
 
-const inFlight = new Map<string, Promise<Result<RepoFetchOutcome[]>>>();
+const inFlight = new Map<
+	string,
+	{result: Promise<Result<RepoFetchOutcome[]>>; minIntervalMs: number}
+>();
 
 const fetchAll = async (
 	repoRoot: string,
@@ -540,6 +557,16 @@ const fetchAll = async (
 					.map(repo => fetchOne(projectId, createdAt, repo, minIntervalMs)),
 			)),
 		);
+	}
+
+	// A repo removed while its fetch ran could not have its clone deleted then
+	// — the fetch held it — so it goes now, rather than staying for good.
+	const stillListed = readCommitRepos(repoRoot);
+	if (!isFail(stillListed)) {
+		const listed = new Set(stillListed.value.map(repo => repo.id));
+		for (const repo of repos) {
+			if (!listed.has(repo.id)) removeRepoClone({repoRoot, repoId: repo.id});
+		}
 	}
 
 	if (outcomes.some(outcome => outcome.changed)) {

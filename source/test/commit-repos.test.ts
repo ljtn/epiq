@@ -677,6 +677,48 @@ describe('review fixes', () => {
 		).toContain(`${REF_A} first on a side branch`);
 	});
 
+	it('does not retry a failing repo on every throttled pass', async () => {
+		value(
+			upsertCommitRepo({
+				repoRoot: board,
+				url: `file://${path.join(makeTempDir(), 'missing')}`,
+			}),
+		);
+		const [first] = value(await fetchCommitRepos({repoRoot: board}));
+		expect(first!.ok).toBe(false);
+
+		const [throttled] = value(
+			await fetchCommitRepos({repoRoot: board, minIntervalMs: 60_000}),
+		);
+		expect(throttled).toMatchObject({ok: false, message: first!.message});
+	});
+
+	it('reads a changed window at once, not after the cache ages out', async () => {
+		commit(
+			upstream,
+			'up.txt',
+			`${REF_A} before the board`,
+			'2019-06-01T00:00:00Z',
+		);
+		commit(
+			upstream,
+			'up.txt',
+			`${REF_A} after the board`,
+			'2021-01-01T00:00:00Z',
+		);
+		value(upsertCommitRepo({repoRoot: board, url, since: 'all'}));
+		value(await fetchCommitRepos({repoRoot: board}));
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
+		).toHaveLength(3);
+
+		// Narrowed: no fetch needed, the clone already holds the window.
+		value(upsertCommitRepo({repoRoot: board, url, since: '2020-06-01'}));
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
+		).toHaveLength(2);
+	});
+
 	it('reports a clones directory it cannot create rather than throwing', async () => {
 		value(upsertCommitRepo({repoRoot: board, url}));
 		const blocker = path.join(makeTempDir(), 'a-file');

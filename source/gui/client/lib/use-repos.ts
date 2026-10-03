@@ -59,7 +59,9 @@ export const useRepos = ({
 			setState(prev => ({
 				...prev,
 				data: value ?? prev.data,
-				fetching: false,
+				// Only an answer to something asked of the panel ends a fetch: a
+				// refresh another client's sync set off carries no lastAction.
+				fetching: message.lastAction ? false : prev.fetching,
 				lastAction: message.lastAction
 					? {
 							ok: Boolean(message.lastAction.ok),
