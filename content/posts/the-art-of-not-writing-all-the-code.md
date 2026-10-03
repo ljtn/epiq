@@ -17,7 +17,7 @@ There is a real problem with the softness of fabric alone. There is a natural in
 ## Building a tipi
 We'd be helped by sturdy poles to stretch the fabric into its desired shape. In software terms - a distinct architecture by which all additional work is guided and which the tests and static analysis apply constraining forces upon. In tents, there is a symbiotic relationship between the internal structure, the fabric and the pegs. Software is much the same. Without an architecture to stretch the web of features across, the constraining pegs are of little use. Without the pegs, on the other hand, we might wake up in the morning with all of the wooden structure in place, but all of the fabric in a tree top far away.
 
-![A rigid internal structure gives the mess its shape.](./images/tipi.svg)
+![Structure and tests together give the soft fabric its shape.](./images/tipi.svg)
 
 That's the theory. Stick around for the case study!
 
