@@ -80,6 +80,8 @@ export const repoAddCommand = () => {
 	});
 	if (isFail(result)) return result;
 
+	invalidateCommitTimelineCache();
+
 	return succeeded(
 		`${result.message} — commit .epiq/project.json to share it; :sync fetches it`,
 		null,

@@ -93,7 +93,12 @@ const readSourceLog = async (
 	// start/end-scoped scrub is comparatively cheap and varies request to
 	// request, so caching it would mostly just grow a cache no one re-hits.
 	const cacheable = window.start === undefined && window.end === undefined;
-	const cacheKey = `${source.cwd}\0${source.revisions.join(' ')}`;
+	const cacheKey = [
+		source.cwd,
+		source.revisions.join(' '),
+		source.notBefore ?? '',
+		source.exclude.size,
+	].join('\0');
 	const cached = cacheable ? fullTimelineCache.get(cacheKey) : undefined;
 
 	if (

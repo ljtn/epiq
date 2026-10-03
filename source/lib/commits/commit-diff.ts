@@ -1,4 +1,5 @@
 import {execGit, readGitBlobsBatch} from '../../git/git-utils.js';
+import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {
 	CommitInput,
@@ -483,7 +484,9 @@ export const getSquashedDiffForRef = async (
 	const byRepo = new Map<string, RefCommitEntry[]>();
 	for (const commit of commitsResult.value) {
 		const key = commit.repo ?? '';
-		byRepo.set(key, [...(byRepo.get(key) ?? []), commit]);
+		const list = byRepo.get(key);
+		if (list) list.push(commit);
+		else byRepo.set(key, [commit]);
 	}
 
 	const parts: Array<{repo?: string; diff: SquashedDiff}> = [];
@@ -492,7 +495,13 @@ export const getSquashedDiffForRef = async (
 		if (!cwd) continue;
 
 		const diffResult = await squashInRepo(cwd, input.ref, matched);
-		if (isFail(diffResult)) return failed(diffResult.message);
+		// Another repo's clone failing costs its own files, never the board's:
+		// the timeline reads around a broken clone the same way.
+		if (isFail(diffResult)) {
+			if (!key) return failed(diffResult.message);
+			logger.info(`[repos] could not squash ${key}: ${diffResult.message}`);
+			continue;
+		}
 
 		const repo = key || undefined;
 		parts.push({
