@@ -7,7 +7,7 @@
 // asked for when the selected ticket changes, and each is thrown away when it
 // changes again.
 
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 // Types only, from a module that declares nothing but types and imports
 // nothing at all — so reading the server's own shape here costs the client
 // bundle nothing and cannot drag Node code across the boundary.
@@ -149,15 +149,24 @@ export const useIssueDetail = ({
 	// Separate from the fetch above, which re-runs on every board change: the
 	// commit list comes from git, not the event log, so a board change is no
 	// reason to rescan it.
+	//
+	// Asked again when another repo's clone has moved, keeping the list on
+	// screen until the new one lands.
+	const [reposEpoch, setReposEpoch] = useState(0);
+
 	useEffect(() => {
 		if (!issueId) {
 			setCommits(null);
 			return;
 		}
 
-		setCommits({issueId, loading: true, error: null, commits: []});
+		setCommits(prev =>
+			prev && prev.issueId === issueId
+				? {...prev, loading: true}
+				: {issueId, loading: true, error: null, commits: []},
+		);
 		sendRaw({type: 'issue:commits:get', payload: {issueId}});
-	}, [issueId, sendRaw]);
+	}, [issueId, sendRaw, reposEpoch]);
 
 	const [stats, setStats] = useState<IssueStatsState | null>(null);
 
@@ -217,13 +226,28 @@ export const useIssueDetail = ({
 		});
 	}, [squashed?.issueId, squashed?.signature, squashed?.loading, sendRaw]);
 
+	// Which repo each listed commit is in, so a diff is asked of the right one.
+	// A sha not in the list — a permalink to a commit since rebased away — goes
+	// without, and the server finds it wherever it is.
+	const repoBySha = useRef(new Map<string, string>());
+	repoBySha.current = new Map(
+		(commits?.commits ?? []).flatMap(commit =>
+			commit.repo ? [[commit.sha, commit.repo] as const] : [],
+		),
+	);
+
 	const loadCommitDiff = useCallback(
 		(sha: string) => {
 			setCommitDiffs(prev => ({
 				...prev,
 				[sha]: {loading: true, error: null, files: null},
 			}));
-			sendRaw({type: 'commit:diff:get', payload: {sha}});
+
+			const repo = repoBySha.current.get(sha);
+			sendRaw({
+				type: 'commit:diff:get',
+				payload: repo ? {sha, repo} : {sha},
+			});
 		},
 		[sendRaw],
 	);
@@ -240,6 +264,11 @@ export const useIssueDetail = ({
 	);
 
 	const onMessage = useCallback((message: any) => {
+		if (message.type === 'repos:changed') {
+			setReposEpoch(epoch => epoch + 1);
+			return;
+		}
+
 		if (message.type === 'issue') {
 			const next = getResultValue<IssueDetail>(message.payload);
 			if (next) setDetail(next);

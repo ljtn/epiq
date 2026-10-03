@@ -99,8 +99,23 @@ export const gitEnv = {
 		'ssh -o BatchMode=yes -o ConnectTimeout=10',
 };
 
+/**
+ * `--git-dir` for a bare repository, which epiq's clones of other repos are.
+ * Found by its working directory alone, a bare repository is refused outright
+ * under `safe.bareRepository=explicit`; named, it is not.
+ *
+ * Only a directory named like one is looked at, so the common call pays for a
+ * string test and no stat.
+ */
+const bareGitDirArgs = (cwd: string): string[] =>
+	/\.git(\.\d+\.pending)?$/.test(cwd) &&
+	fs.existsSync(path.join(cwd, 'HEAD')) &&
+	fs.existsSync(path.join(cwd, 'objects'))
+		? ['--git-dir=.']
+		: [];
+
 const runGit = ({
-	args,
+	args: givenArgs,
 	cwd,
 	allowFail,
 	timeoutMs: timeoutOverride,
@@ -111,6 +126,8 @@ const runGit = ({
 	timeoutMs?: number;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
+		const args = [...bareGitDirArgs(cwd), ...givenArgs];
+
 		if (!fs.existsSync(cwd)) {
 			const message = `Git cwd does not exist: ${cwd}`;
 
@@ -252,11 +269,15 @@ export const readGitBlobsBatch = (
 			return;
 		}
 
-		const child = spawn(GIT_BIN, ['cat-file', '--batch'], {
-			cwd,
-			stdio: ['pipe', 'pipe', 'pipe'],
-			env: gitEnv,
-		});
+		const child = spawn(
+			GIT_BIN,
+			[...bareGitDirArgs(cwd), 'cat-file', '--batch'],
+			{
+				cwd,
+				stdio: ['pipe', 'pipe', 'pipe'],
+				env: gitEnv,
+			},
+		);
 
 		const chunks: Buffer[] = [];
 		let stderr = '';

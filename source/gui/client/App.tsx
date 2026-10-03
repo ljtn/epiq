@@ -113,6 +113,9 @@ import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
 import {useSyncSettings} from './lib/use-sync-settings';
+import {useRepos} from './lib/use-repos';
+import {commitRepoKeys, withoutHiddenRepos} from './lib/commit-repo-filter';
+import {ManageReposModal} from './components/ManageReposModal';
 import {IdentityPanel} from './components/IdentityPanel';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useBoardEditing} from './lib/use-board-editing';
@@ -464,6 +467,9 @@ export const App = () => {
 	// on opening it, and the totals again after a claim — which is what moves
 	// the commit figure without the board changing at all.
 	const syncSettings = useSyncSettings({open: identityOpen, sendRaw});
+	// The other repos whose commits count as the board's, behind the palette.
+	const [reposOpen, setReposOpen] = useState(false);
+	const repos = useRepos({open: reposOpen, sendRaw});
 	const personalStats = usePersonalStats({
 		open: identityOpen,
 		changed: contributorEmails.changed,
@@ -961,6 +967,7 @@ export const App = () => {
 
 		contributorEmails.onMessage(message);
 		syncSettings.onMessage(message);
+		repos.onMessage(message);
 		personalStats.onMessage(message);
 
 		if (message.type === 'contributors') {
@@ -1369,6 +1376,15 @@ export const App = () => {
 		setHistoryTick(tick => tick + 1);
 	}, [contributorEmails.changed, theatre]);
 
+	// The same for another repo's clone moving or leaving: its commits are on
+	// the chart and in the log, and nothing on the board says they changed.
+	useEffect(() => {
+		if (theatre) return;
+		if (repos.changed === 0) return;
+
+		setHistoryTick(tick => tick + 1);
+	}, [repos.changed, theatre]);
+
 	// Where the reader is, for the log's own following: a destination in the
 	// same shape a log line resolves to, so the two are compared rather than
 	// following remembering where it last sent anybody.
@@ -1383,6 +1399,28 @@ export const App = () => {
 		  }
 		: null;
 
+	// Which repos the Code series plots, for the chart and the log alike. Not
+	// remembered: the repos on offer are whichever the window's commits name.
+	const [hiddenCommitRepos, setHiddenCommitRepos] = useState<
+		ReadonlySet<string>
+	>(() => new Set());
+	const commitRepos = useMemo(
+		() => commitRepoKeys(history.commits),
+		[history.commits],
+	);
+	const plottedCommits = useMemo(
+		() => withoutHiddenRepos(history.commits, hiddenCommitRepos),
+		[history.commits, hiddenCommitRepos],
+	);
+	const toggleCommitRepo = useCallback((repo: string) => {
+		setHiddenCommitRepos(prev => {
+			const next = new Set(prev);
+			if (next.has(repo)) next.delete(repo);
+			else next.add(repo);
+			return next;
+		});
+	}, []);
+
 	const {
 		entries: logEntries,
 		moment: logMoment,
@@ -1391,7 +1429,7 @@ export const App = () => {
 		open: logOpen,
 		timeline: history.timeline,
 		boardId: selectedBoardId ?? null,
-		commits: history.commits,
+		commits: plottedCommits,
 		selection,
 		selectedIssueId: selectedIssue?.id ?? null,
 		queryIssueIds,
@@ -1527,10 +1565,12 @@ export const App = () => {
 				return;
 			}
 
+			const repo = history.commits.find(commit => commit.sha === sha)?.repo;
+
 			setCommitDiff({sha, loading: true, error: null, files: null});
 			sendRaw({
 				type: 'commit:diff:get',
-				payload: {sha},
+				payload: repo ? {sha, repo} : {sha},
 			});
 		},
 		[history.commits, knownTicketRefs, boardSlug, navigate],
@@ -1672,6 +1712,7 @@ export const App = () => {
 			createSwimlane: () => setCreateSwimlaneTitle(''),
 			createBoard: () => setCreateBoardTitle(''),
 			renameBoard: openRenameBoard,
+			openRepos: () => setReposOpen(true),
 			openIssue: (id: string, boardRef: string) =>
 				openIssueTab(id, 'overview', boardRef),
 			closeIssue,
@@ -1914,7 +1955,7 @@ export const App = () => {
 
 					<TimeScrubber
 						timeline={history.timeline}
-						commits={history.commits}
+						commits={plottedCommits}
 						historyId={history.requestId}
 						boardId={selectedBoardId}
 						connected={connected}
@@ -1936,6 +1977,9 @@ export const App = () => {
 						onChangeShowCommits={setShowCommits}
 						linkedCommitsOnly={linkedCommitsOnly}
 						onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
+						commitRepos={commitRepos}
+						hiddenCommitRepos={hiddenCommitRepos}
+						onToggleCommitRepo={toggleCommitRepo}
 						issueIdByRef={issueIdByRef}
 						boardIssueIdByRef={boardIssueIdByRef}
 						lanes={boardLanes}
@@ -2406,6 +2450,16 @@ export const App = () => {
 						confirmLabel="delete"
 						onConfirm={confirmDeleteSwimlane}
 						onClose={() => setDeleteSwimlaneId(null)}
+					/>
+				)}
+
+				{reposOpen && (
+					<ManageReposModal
+						state={repos}
+						onAdd={repos.add}
+						onRemove={repos.remove}
+						onFetch={repos.fetchNow}
+						onClose={() => setReposOpen(false)}
 					/>
 				)}
 

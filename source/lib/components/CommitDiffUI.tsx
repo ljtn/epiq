@@ -28,6 +28,8 @@ import {ScrollBoxUI} from './ScrollBox.js';
 type Props = {
 	ticket: Ticket;
 	sha: string;
+	/** The registered repo the commit is in; absent for the board's own. */
+	repo?: string;
 	subject: string;
 	width: number;
 	height: number;
@@ -102,7 +104,14 @@ type Load =
 	| {state: 'failed'; message: string}
 	| {state: 'loaded'; rows: PatchRow[]};
 
-export function CommitDiffUI({ticket, sha, subject, width, height}: Props) {
+export function CommitDiffUI({
+	ticket,
+	sha,
+	repo,
+	subject,
+	width,
+	height,
+}: Props) {
 	const [load, setLoad] = useState<Load>({state: 'loading'});
 
 	useEffect(() => {
@@ -110,7 +119,7 @@ export function CommitDiffUI({ticket, sha, subject, width, height}: Props) {
 
 		setLoad({state: 'loading'});
 
-		void getCommitPatch({sha}).then(result => {
+		void getCommitPatch({sha, repo}).then(result => {
 			if (!current) return;
 
 			setLoad(
@@ -123,7 +132,7 @@ export function CommitDiffUI({ticket, sha, subject, width, height}: Props) {
 		return () => {
 			current = false;
 		};
-	}, [sha]);
+	}, [sha, repo]);
 
 	const rows = load.state === 'loaded' ? load.rows : null;
 

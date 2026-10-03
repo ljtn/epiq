@@ -11,6 +11,7 @@ import {setAutoSyncCommand} from '../commands/set-auto-sync.cmd.js';
 import {setEmailsCommand} from '../commands/set-emails.cmd.js';
 import {unclaimEmailCommand} from '../commands/unclaim-email.cmd.js';
 import {setLogLevelCommand} from '../commands/set-log-level.cmd.js';
+import {repoAddCommand, repoRemoveCommand} from '../commands/repo.cmd.js';
 
 export const configCommand = (cmdState: CommandLineInput) => {
 	const value = cmdState.inputString.trim();
@@ -92,6 +93,12 @@ export const configCommand = (cmdState: CommandLineInput) => {
 
 		case ConfigModifiers.ATTACHMENT_MAX_KB:
 			return setAttachmentMaxKbCommand();
+
+		case ConfigModifiers.REPO_ADD:
+			return repoAddCommand();
+
+		case ConfigModifiers.REPO_REMOVE:
+			return repoRemoveCommand();
 
 		default:
 			return failed('Unknown config command');

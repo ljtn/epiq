@@ -17,6 +17,11 @@ import {
 	MIN_ATTACHMENT_MAX_KB,
 } from './commands/set-attachment-max-kb.cmd.js';
 import {DEFAULT_ATTACHMENT_MAX_KB} from '../media/media-store.js';
+import {
+	parseRepoAddArgs,
+	registeredRepos,
+	REPO_ADD_OPTIONS,
+} from './commands/repo.cmd.js';
 import {emailsOf} from '../model/email-link.js';
 import {getSafeState, getState} from '../state/state.js';
 import {getGradientWord, getStringColor} from '../utils/color.js';
@@ -521,6 +526,49 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			}
 
 			return valid(CONFIRM_MSG);
+		}
+
+		case ConfigModifiers.REPO_ADD: {
+			const parsed = parseRepoAddArgs(inputString);
+
+			if (isFail(parsed)) {
+				return invalid({
+					message: hintAlert(parsed.message),
+					completionWordList: [],
+				});
+			}
+
+			// The URL is in; the options are what is left to offer.
+			return valid(
+				`${hintDefault(REPO_ADD_OPTIONS.join('  '))}  ${CONFIRM_MSG}`,
+				[],
+				false,
+			);
+		}
+
+		case ConfigModifiers.REPO_REMOVE: {
+			const labels = registeredRepos().map(repo => repo.label);
+			const typed = inputString.trim();
+
+			if (labels.length === 0) {
+				return invalid({
+					message: hintAlert('no other repos are registered'),
+					completionWordList: [],
+				});
+			}
+
+			if (labels.includes(typed)) return valid(CONFIRM_MSG);
+
+			return invalid({
+				message: buildOptionsHint({
+					prefix: 'stop reading ',
+					wordList: labels,
+					noOfHints: 3,
+					inputString: typed,
+					minLengthForHints: 0,
+				}),
+				completionWordList: labels,
+			});
 		}
 
 		case ConfigModifiers.SYNC_DEBOUNCE_MS: {

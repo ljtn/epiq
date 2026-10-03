@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
-import {GuiSquashedDiff} from '../lib/gui-state.model';
+import {GuiSquashedDiff, GuiSquashedDiffFile} from '../lib/gui-state.model';
+import {repoPathKey} from '../lib/repo-label';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
 import {
@@ -17,6 +18,10 @@ import {useReviewedFiles} from '../lib/reviewed-files';
 import {Button} from './Button';
 import {Empty} from './FormPrimitives';
 import {FileRow} from './FileRow';
+
+// A ticket's commits can span repos, and two repos can each have a README.
+const keyOf = (file: GuiSquashedDiffFile): string =>
+	repoPathKey(file.path, file.repo);
 
 // The ticket's whole change as one diff, the way a pull request reads it: a
 // file appears once, showing where it started and where it ended up, rather
@@ -105,7 +110,9 @@ export const SquashedDiff = ({
 				// Reviewed files out first, so one that is shut anyway does not
 				// spend the budget the rest share — see `pathsOpenByDefault`.
 				pathsOpenByDefault(
-					diff.files.filter(file => !isReviewed(file.sha, file.path)),
+					diff.files
+						.filter(file => !isReviewed(file.sha, file.path))
+						.map(file => ({...file, path: keyOf(file)})),
 				),
 			),
 		);
@@ -120,11 +127,11 @@ export const SquashedDiff = ({
 
 	const expandablePaths = diff.files
 		.filter(file => hasDiffToShow(file) && !isLargeDiff(file))
-		.map(file => file.path);
+		.map(keyOf);
 	const allExpanded =
 		expandablePaths.length > 0
 			? expandablePaths.every(path => expandedFiles.has(path))
-			: diff.files.some(file => expandedFiles.has(file.path));
+			: diff.files.some(file => expandedFiles.has(keyOf(file)));
 
 	const toggleFile = (path: string) =>
 		setExpandedFiles(prev => {
@@ -137,12 +144,12 @@ export const SquashedDiff = ({
 
 	// Ticking a file off is also how you say you are done looking at it, so it
 	// folds; unticking it opens it back up. Same as the per-commit view.
-	const reviewFile = (sha: string, path: string, next: boolean) => {
-		setReviewed(sha, path, next);
+	const reviewFile = (file: GuiSquashedDiffFile, next: boolean) => {
+		setReviewed(file.sha, file.path, next);
 		setExpandedFiles(prev => {
 			const open = new Set(prev);
-			if (next) open.delete(path);
-			else open.add(path);
+			if (next) open.delete(keyOf(file));
+			else open.add(keyOf(file));
 
 			return open;
 		});
@@ -214,13 +221,14 @@ export const SquashedDiff = ({
 
 				return (
 					<FileRow
-						key={file.path}
+						key={keyOf(file)}
 						sha={file.sha}
 						file={file}
-						expanded={expandedFiles.has(file.path)}
-						onToggle={() => toggleFile(file.path)}
+						repo={file.repo}
+						expanded={expandedFiles.has(keyOf(file))}
+						onToggle={() => toggleFile(keyOf(file))}
 						reviewed={isReviewed(file.sha, file.path)}
-						onReviewed={next => reviewFile(file.sha, file.path, next)}
+						onReviewed={next => reviewFile(file, next)}
 						diffStyle={diffStyle}
 						selectable={anchorable}
 						additionsOnly

@@ -21,6 +21,7 @@ import {
 import {disclosureStyle} from '../lib/commit-row.style';
 import {CODE_FONT} from '../lib/code-text.style';
 import {DiffStat} from './DiffStat';
+import {RepoChip} from './RepoChip';
 import {SelectionComposer} from './SelectionComposer';
 
 // What a file's diff carries at a line: an existing comment, or the composer
@@ -88,6 +89,7 @@ const DiffCommentAnnotation = ({
 // it; shut, FileRow stands it in the same box by itself.
 const FileHeader = ({
 	file,
+	repo,
 	expanded,
 	onToggle,
 	commentCount,
@@ -95,6 +97,7 @@ const FileHeader = ({
 	onReviewed,
 }: {
 	file: GuiCommitDiffFile;
+	repo?: string;
 	expanded: boolean;
 	onToggle: () => void;
 	commentCount: number;
@@ -144,6 +147,7 @@ const FileHeader = ({
 				>
 					{file.path}
 				</span>
+				{repo && <RepoChip repo={repo} />}
 				{/* Findable when collapsed — otherwise a comment left on a file with
 				    several others is easy to lose track of. */}
 				{commentCount > 0 && (
@@ -197,6 +201,7 @@ const FileHeader = ({
 export const FileRow = ({
 	sha,
 	file,
+	repo,
 	expanded,
 	onToggle,
 	diffStyle,
@@ -215,6 +220,8 @@ export const FileRow = ({
 	// holds the content shown here (TCYD699).
 	sha: string;
 	file: GuiCommitDiffFile;
+	// The registered repo the file is in, where a diff mixes repos.
+	repo?: string;
 	expanded: boolean;
 	onToggle: () => void;
 	reviewed: boolean;
@@ -340,6 +347,7 @@ export const FileRow = ({
 	const header = () => (
 		<FileHeader
 			file={file}
+			repo={repo}
 			expanded={expanded}
 			onToggle={onToggle}
 			commentCount={fileComments.length}

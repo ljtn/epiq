@@ -20,6 +20,7 @@ export {
 	readCommitRepos,
 	removeCommitRepo,
 	repoIdOf,
+	repoLabelOfId,
 	upsertCommitRepo,
 	type CommitRepo,
 	type RepoBranches,

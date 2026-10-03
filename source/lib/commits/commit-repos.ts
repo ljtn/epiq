@@ -70,6 +70,10 @@ export const repoIdOf = (url: string): string =>
 		.digest('hex')
 		.slice(0, 8)}`;
 
+/** The label back off an id, which carries it ahead of the URL's hash. */
+export const repoLabelOfId = (repoId: string): string =>
+	repoId.replace(/-[0-9a-f]{8}$/, '');
+
 const toRepo = (config: CommitRepoConfig): CommitRepo => ({
 	...config,
 	id: repoIdOf(config.url),
