@@ -45,6 +45,9 @@ import {
 	removeIssueTag,
 	reopenIssue,
 	sync,
+	addRepo,
+	listRepos,
+	removeRepo,
 } from './epiq-api.js';
 import {
 	linkContributorEmail,
@@ -644,6 +647,46 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(sync),
+	);
+
+	server.registerTool(
+		'epiq_repo_list',
+		{
+			description:
+				"List the other repos whose commits count as this board's (registered by URL in .epiq/project.json), with this machine's clone status and last fetch error.",
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await listRepos(input)),
+	);
+
+	server.registerTool(
+		'epiq_repo_add',
+		{
+			description:
+				"Register another repo by remote URL, so commits there prefixed with a ticket's ref link to it; or change an already registered repo's options. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. Edits .epiq/project.json, which needs committing to reach other clones; epiq_sync fetches it.",
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				url: z.string().min(1).max(2000),
+				branches: z.enum(['default', 'all']).optional(),
+				since: z.string().max(20).optional(),
+			}),
+		},
+		async input => resultJson(await addRepo(input)),
+	);
+
+	server.registerTool(
+		'epiq_repo_remove',
+		{
+			description:
+				"Unregister a repo by its id or URL, and delete this machine's clone of it.",
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				repo: z.string().min(1).max(2000),
+			}),
+		},
+		async input => resultJson(await removeRepo(input)),
 	);
 
 	return server;

@@ -31,7 +31,7 @@ import {startGuiAutoSync} from './lib/api-autosync.js';
 import {createLogPublisher, startGuiLogWatch} from './lib/api-log-watch.js';
 import {refuseCrossSiteRequest} from './lib/origin-guard.js';
 import {GuiProject} from './lib/gui-project.js';
-import {setupWebsocket} from './lib/websocket.js';
+import {fetchReposAndBroadcast, setupWebsocket} from './lib/websocket.js';
 
 const distRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -579,7 +579,11 @@ export const startGuiServer = async (input: {
 	}
 
 	const publisher = createLogPublisher({project});
-	const guiAutoSync = startGuiAutoSync({project, publisher});
+	const guiAutoSync = startGuiAutoSync({
+		project,
+		publisher,
+		onReposFetch: () => fetchReposAndBroadcast(project.repoRoot),
+	});
 	const stopLogWatch = startGuiLogWatch(publisher);
 
 	setupWebsocket(server, project, {

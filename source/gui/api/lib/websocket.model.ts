@@ -96,8 +96,20 @@ export type GuiMessage =
 			// No boardId: commits are repository-wide.
 			payload?: {start?: number; end?: number; requestId?: number};
 	  }
-	| {type: 'commit:inspect'; payload: {sha: string}}
-	| {type: 'commit:diff:get'; payload: {sha: string}}
+	// `repo` names the registered repo a commit is in; without it the server
+	// finds the commit itself, the board's own repo first.
+	| {type: 'commit:inspect'; payload: {sha: string; repo?: string}}
+	| {type: 'commit:diff:get'; payload: {sha: string; repo?: string}}
+	// The other repos whose commits count as the board's. Configuration in
+	// `project.json`, not board state, so none of these is a mutating message.
+	| {type: 'repos:get'}
+	| {
+			type: 'repo:add';
+			payload: {url: string; branches?: 'default' | 'all'; since?: string};
+	  }
+	| {type: 'repo:remove'; payload: {repo: string}}
+	// Clones what is missing and fetches the rest — the network, on request.
+	| {type: 'repos:fetch'}
 	| {type: 'issue:commits:get'; payload: {issueId: string}}
 	| {type: 'issue:squashed-diff:get'; payload: {issueId: string}}
 	| {type: 'issue:stats:get'; payload: {issueId: string}}

@@ -14,10 +14,11 @@ export const registerGuiSocket = (socket: WebSocket) => {
 	});
 };
 
-export const broadcastGuiMessage = (body: {
-	type: 'state' | 'sync-status' | 'failed';
-	payload: unknown;
-}) => {
+export const broadcastGuiMessage = (
+	body:
+		| {type: 'state' | 'sync-status' | 'failed'; payload: unknown}
+		| {type: 'repos:changed'},
+) => {
 	const json = JSON.stringify(body);
 
 	for (const socket of sockets) {

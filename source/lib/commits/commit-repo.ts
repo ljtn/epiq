@@ -6,6 +6,9 @@ import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
 
 export type RepoInput = {repoRoot?: string};
 
+/** One commit: its sha, and the registered repo it is in when it is not the board's own. */
+export type CommitInput = RepoInput & {sha: string; repo?: string};
+
 export const resolveRepoRoot = (repoRoot?: string): Result<string> => {
 	const result = resolveClosestEpiqProjectRoot(repoRoot ?? process.cwd());
 	if (isFail(result)) return failed(result.message);

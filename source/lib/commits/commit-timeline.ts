@@ -1,13 +1,20 @@
 import {execGit} from '../../git/git-utils.js';
+import {logger} from '../../logger.js';
 import {CommitAuthor} from '../repository/contributor-directory.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
-import {readProjectFile} from '../project-setup/project-setup.js';
 import {scanCacheMs} from '../utils/cache-ttl.js';
 import {NODE_REF_LENGTH} from '../utils/node-ref.js';
-import {RepoInput, resolveRepoRoot} from './commit-repo.js';
+import {RepoInput} from './commit-repo.js';
+import {CommitSource, listCommitSources} from './commit-sources.js';
 
 export type CommitEntry = {
 	sha: string;
+	/**
+	 * The registered repo this commit was read from, by id. Absent for the
+	 * board's own repo, which is how every commit looked before there were
+	 * other repos.
+	 */
+	repo?: string;
 	time: number;
 	author: string;
 	/**
@@ -38,18 +45,22 @@ const GIT_LOG_RECORD_SEP = '\x1e';
 // long enough to cover "the Commits tab opens right after the scrubber loads".
 export const FULL_TIMELINE_CACHE_TTL_MS = 5_000;
 
-let fullTimelineCache: {
-	repoRoot: string;
-	stateBranch: string;
-	fetchedAt: number;
-	result: CommitEntry[];
-} | null = null;
+// Per source, keyed by where it is read and what is walked.
+const fullTimelineCache = new Map<
+	string,
+	{fetchedAt: number; result: CommitEntry[]}
+>();
 
 // Test-only: the cache is module-level state, so it would otherwise leak
 // between `it()` blocks in the same file (unlike vi.clearAllMocks(), which
 // only resets mock call state, not arbitrary module variables).
 export const resetCommitTimelineCacheForTests = (): void => {
-	fullTimelineCache = null;
+	fullTimelineCache.clear();
+};
+
+/** After a fetch: a clone's history has moved, so its cached read is stale. */
+export const invalidateCommitTimelineCache = (): void => {
+	fullTimelineCache.clear();
 };
 
 // Whether a commit belongs to the window it was fetched for. `--since`/`--until`
@@ -69,47 +80,37 @@ export const inCommitWindow = (
 	(start === undefined || time >= Math.floor(start / 1000) * 1000) &&
 	(end === undefined || time <= end);
 
-// Pure read of the *code* repo's history, safe mid-scrub. `--not <stateBranch>`
-// is required: worktrees share one ref namespace, so epiq's own state commits
-// would otherwise appear mixed into real development history.
-export const getCommitTimeline = async (
-	input: RepoInput & {start?: number; end?: number} = {},
+type Window = {start?: number; end?: number};
+
+const readSourceLog = async (
+	source: CommitSource,
+	window: Window,
 ): Promise<Result<CommitEntry[]>> => {
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
-	if (isFail(repoRootResult)) return failed(repoRootResult.message);
-
-	const projectResult = readProjectFile(repoRootResult.value);
-	if (isFail(projectResult)) return failed(projectResult.message);
-
 	// Only the unwindowed call is cached — it is the expensive, frequently-
 	// repeated one (a full `--shortstat` scan of the whole history); a
 	// start/end-scoped scrub is comparatively cheap and varies request to
 	// request, so caching it would mostly just grow a cache no one re-hits.
-	const cacheable = input.start === undefined && input.end === undefined;
+	const cacheable = window.start === undefined && window.end === undefined;
+	const cacheKey = `${source.cwd}\0${source.revisions.join(' ')}`;
+	const cached = cacheable ? fullTimelineCache.get(cacheKey) : undefined;
 
 	if (
-		cacheable &&
-		fullTimelineCache &&
-		fullTimelineCache.repoRoot === repoRootResult.value &&
-		fullTimelineCache.stateBranch === projectResult.value.stateBranch &&
-		Date.now() - fullTimelineCache.fetchedAt <
-			scanCacheMs(FULL_TIMELINE_CACHE_TTL_MS)
+		cached &&
+		Date.now() - cached.fetchedAt < scanCacheMs(FULL_TIMELINE_CACHE_TTL_MS)
 	) {
-		return succeeded('Computed commit timeline', fullTimelineCache.result);
+		return succeeded('Computed commit timeline', cached.result);
 	}
 
 	const logResult = await execGit({
-		cwd: repoRootResult.value,
+		cwd: source.cwd,
 		args: [
 			'log',
-			'--branches',
-			'--not',
-			projectResult.value.stateBranch,
-			...(input.start !== undefined
-				? [`--since=@${Math.floor(input.start / 1000)}`]
+			...source.revisions,
+			...(window.start !== undefined
+				? [`--since=@${Math.floor(window.start / 1000)}`]
 				: []),
-			...(input.end !== undefined
-				? [`--until=@${Math.floor(input.end / 1000)}`]
+			...(window.end !== undefined
+				? [`--until=@${Math.floor(window.end / 1000)}`]
 				: []),
 			'--shortstat',
 			`--format=${GIT_LOG_RECORD_SEP}%H${GIT_LOG_FIELD_SEP}%at${GIT_LOG_FIELD_SEP}%an${GIT_LOG_FIELD_SEP}%ae${GIT_LOG_FIELD_SEP}%s`,
@@ -127,6 +128,7 @@ export const getCommitTimeline = async (
 				headerLine ?? ''
 			).split(GIT_LOG_FIELD_SEP);
 			if (!sha || !atSeconds) return null;
+			if (source.exclude.has(sha)) return null;
 
 			const statText = statLines.join(' ');
 			const insertions = Number(/(\d+) insertion/.exec(statText)?.[1] ?? 0);
@@ -134,6 +136,7 @@ export const getCommitTimeline = async (
 
 			return {
 				sha,
+				...(source.repo ? {repo: source.repo} : {}),
 				time: Number(atSeconds) * 1000,
 				author: author ?? 'unknown',
 				authorEmail: authorEmail ?? '',
@@ -144,25 +147,98 @@ export const getCommitTimeline = async (
 			};
 		})
 		.filter((commit): commit is CommitEntry => commit !== null)
-		.filter(commit => inCommitWindow(commit.time, input.start, input.end));
+		.filter(commit => inCommitWindow(commit.time, window.start, window.end));
 
 	if (cacheable) {
-		fullTimelineCache = {
-			repoRoot: repoRootResult.value,
-			stateBranch: projectResult.value.stateBranch,
-			fetchedAt: Date.now(),
-			result: commits,
-		};
+		fullTimelineCache.set(cacheKey, {fetchedAt: Date.now(), result: commits});
 	}
 
 	return succeeded('Computed commit timeline', commits);
 };
 
+/**
+ * Each source's commits, in its own `git log` order. Only the board's own repo
+ * failing fails the answer: a broken clone is its fetch's to report, and the
+ * other sources stay readable.
+ */
+const readSourceLogs = async (
+	repoRoot: string | undefined,
+	window: Window,
+): Promise<Result<CommitEntry[][]>> => {
+	const sourcesResult = await listCommitSources(repoRoot);
+	if (isFail(sourcesResult)) return failed(sourcesResult.message);
+
+	const sources = sourcesResult.value;
+	const logs = await Promise.all(
+		sources.map(source => readSourceLog(source, window)),
+	);
+
+	const lists: CommitEntry[][] = [];
+	for (const [index, log] of logs.entries()) {
+		if (isFail(log)) {
+			if (!sources[index]!.repo) return failed(log.message);
+			logger.info(`[repos] could not read a clone: ${log.message}`);
+			continue;
+		}
+
+		lists.push(log.value);
+	}
+
+	return succeeded('Read every source', lists);
+};
+
+/**
+ * Newest first across sources, without reordering any one of them: each list
+ * keeps git's own order, which is what "the commit before this one" is read
+ * from. A single source comes back exactly as git gave it.
+ */
+const mergeNewestFirst = <T extends CommitEntry>(lists: T[][]): T[] => {
+	const nonEmpty = lists.filter(list => list.length > 0);
+	if (nonEmpty.length <= 1) return nonEmpty[0] ?? [];
+
+	const heads = nonEmpty.map(() => 0);
+	const merged: T[] = [];
+
+	while (true) {
+		let pick = -1;
+		let best: T | undefined;
+
+		for (const [index, list] of nonEmpty.entries()) {
+			const candidate = list[heads[index]!];
+			if (candidate && (!best || candidate.time > best.time)) {
+				pick = index;
+				best = candidate;
+			}
+		}
+
+		if (!best) return merged;
+
+		merged.push(best);
+		heads[pick]!++;
+	}
+};
+
+// Pure read of the *code* history, safe mid-scrub: the board's own repo and
+// every registered repo's clone, through the same reader.
+export const getCommitTimeline = async (
+	input: RepoInput & Window = {},
+): Promise<Result<CommitEntry[]>> => {
+	const listsResult = await readSourceLogs(input.repoRoot, {
+		start: input.start,
+		end: input.end,
+	});
+	if (isFail(listsResult)) return failed(listsResult.message);
+
+	return succeeded(
+		'Computed commit timeline',
+		mergeNewestFirst(listsResult.value),
+	);
+};
+
 // Matches the convention documented in the epiq skill: a commit's subject is
-// prefixed with the issue's ref, e.g. "5S52AC8 message". Reuses
-// getCommitTimeline's full-history read rather than a second git invocation —
-// same repo, same state-branch exclusion, and this repo's whole history is a
-// few thousand commits at most.
+// prefixed with the issue's ref, e.g. "5S52AC8 message". Reuses the same
+// full-history read getCommitTimeline caches rather than a second git
+// invocation.
 // A matched commit whose immediate predecessor in the *unfiltered* history
 // (git log's very next entry, not just the next match) is also a matched
 // commit — i.e. no other ticket's commit sits between them.
@@ -185,8 +261,8 @@ export const getCommitsForRef = async (
 		);
 	}
 
-	const timelineResult = await getCommitTimeline({repoRoot: input.repoRoot});
-	if (isFail(timelineResult)) return failed(timelineResult.message);
+	const listsResult = await readSourceLogs(input.repoRoot, {});
+	if (isFail(listsResult)) return failed(listsResult.message);
 
 	// Case-insensitive, matching nodeRefMatches' convention (source/lib/utils/node-ref.ts)
 	// rather than a strict-case prefix: a hand-typed or manually-copied ref
@@ -195,26 +271,27 @@ export const getCommitsForRef = async (
 	const matches = (commit: CommitEntry) =>
 		commit.subject.toUpperCase().startsWith(prefix);
 
-	// Newest-first, same order git log itself returns — so all[i + 1] is
-	// exactly the commit immediately before all[i] in real history, matched
-	// or not.
-	const all = timelineResult.value;
+	// Per source, in git log's order — so all[i + 1] is exactly the commit
+	// immediately before all[i] in that repo's real history, matched or not.
+	const perSource = listsResult.value.map(all => {
+		const matched: RefCommitEntry[] = [];
 
-	const matched: RefCommitEntry[] = [];
+		for (const [index, commit] of all.entries()) {
+			if (!matches(commit)) continue;
 
-	for (const [index, commit] of all.entries()) {
-		if (!matches(commit)) continue;
+			const precedingCommit = all[index + 1];
 
-		const precedingCommit = all[index + 1];
+			matched.push({
+				...commit,
+				precedingSha:
+					precedingCommit && matches(precedingCommit)
+						? precedingCommit.sha
+						: null,
+			});
+		}
 
-		matched.push({
-			...commit,
-			precedingSha:
-				precedingCommit && matches(precedingCommit)
-					? precedingCommit.sha
-					: null,
-		});
-	}
+		return matched;
+	});
 
-	return succeeded('Matched commits by ref', matched);
+	return succeeded('Matched commits by ref', mergeNewestFirst(perSource));
 };

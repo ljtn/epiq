@@ -67,6 +67,7 @@ export const getIssueStats = async (
 
 	const commits: StatsCommit[] = commitsResult.value.map(commit => ({
 		sha: commit.sha,
+		...(commit.repo ? {repo: commit.repo} : {}),
 		time: commit.time,
 		author: commit.authorIdentity?.resolved
 			? commit.authorIdentity.name

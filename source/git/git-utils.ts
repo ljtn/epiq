@@ -103,10 +103,12 @@ const runGit = ({
 	args,
 	cwd,
 	allowFail,
+	timeoutMs: timeoutOverride,
 }: {
 	args: string[];
 	cwd: string;
 	allowFail: boolean;
+	timeoutMs?: number;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
 		if (!fs.existsSync(cwd)) {
@@ -138,7 +140,7 @@ const runGit = ({
 			resolve(value);
 		};
 
-		const timeoutMs = timeoutFor(args);
+		const timeoutMs = timeoutOverride ?? timeoutFor(args);
 
 		const timeout = setTimeout(() => {
 			child.kill('SIGTERM');
@@ -215,11 +217,16 @@ const runGit = ({
 export const execGit = ({
 	args,
 	cwd,
+	timeoutMs,
 }: {
 	args: string[];
 	cwd: string;
+	/** Overrides the per-subcommand cap, for a transfer whose size is unknown. */
+	timeoutMs?: number;
 }): Promise<Result<GitExecResult>> =>
-	runGit({args, cwd, allowFail: false}) as Promise<Result<GitExecResult>>;
+	runGit({args, cwd, allowFail: false, timeoutMs}) as Promise<
+		Result<GitExecResult>
+	>;
 
 export const execGitAllowFail = ({
 	args,
