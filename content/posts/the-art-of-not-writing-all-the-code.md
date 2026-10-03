@@ -1,6 +1,7 @@
 ---
 title: The art of not writing all the code
 date: 2026-10-02
+tags: ai, agents, architecture, testing
 draft: true
 ---
 
