@@ -110,10 +110,19 @@ const broadcastReposChanged = () => {
 	broadcastGuiMessage({type: 'repos:changed'});
 };
 
-/** After a sync, outside any lock: a first clone can take minutes. */
-export const fetchReposAndBroadcast = async (repoRoot: string) => {
-	const result = await fetchRepos({repoRoot});
-	if (!isFail(result) && result.value.length > 0) broadcastReposChanged();
+/**
+ * After a sync, outside any lock: a first clone can take minutes. Clients are
+ * told only when a repo actually moved, since each then asks for its commits
+ * again.
+ */
+export const fetchReposAndBroadcast = async (
+	repoRoot: string,
+	minIntervalMs?: number,
+) => {
+	const result = await fetchRepos({repoRoot, minIntervalMs});
+	if (!isFail(result) && result.value.some(outcome => outcome.changed)) {
+		broadcastReposChanged();
+	}
 };
 
 const sendSocket = (socket: WebSocket, body: unknown) => {
@@ -458,7 +467,14 @@ export const setupWebsocket = (
 							  },
 					});
 
-					return broadcastReposChanged();
+					if (
+						!isFail(result) &&
+						result.value.some(outcome => outcome.changed)
+					) {
+						broadcastReposChanged();
+					}
+
+					return;
 				}
 
 				if (type === 'issue:commits:get') {
@@ -591,7 +607,7 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'sync') {
-					const result = await sync({repoRoot, fetchRepos: false});
+					const result = await sync({repoRoot});
 
 					sendSocket(socket, {
 						type: 'sync:result',

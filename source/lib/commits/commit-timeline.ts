@@ -129,6 +129,9 @@ const readSourceLog = async (
 			).split(GIT_LOG_FIELD_SEP);
 			if (!sha || !atSeconds) return null;
 			if (source.exclude.has(sha)) return null;
+			if (source.notBefore && Number(atSeconds) * 1000 < source.notBefore) {
+				return null;
+			}
 
 			const statText = statLines.join(' ');
 			const insertions = Number(/(\d+) insertion/.exec(statText)?.[1] ?? 0);
@@ -173,6 +176,10 @@ const readSourceLogs = async (
 		sources.map(source => readSourceLog(source, window)),
 	);
 
+	// A commit two sources share — a fork, or the board's own remote
+	// registered by mistake — is listed once, from the first source that has
+	// it: the board's own repo before any other.
+	const seen = new Set<string>();
 	const lists: CommitEntry[][] = [];
 	for (const [index, log] of logs.entries()) {
 		if (isFail(log)) {
@@ -181,7 +188,9 @@ const readSourceLogs = async (
 			continue;
 		}
 
-		lists.push(log.value);
+		const fresh = log.value.filter(commit => !seen.has(commit.sha));
+		for (const commit of fresh) seen.add(commit.sha);
+		lists.push(fresh);
 	}
 
 	return succeeded('Read every source', lists);

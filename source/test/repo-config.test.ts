@@ -1,5 +1,13 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {parseRepoAddArgs} from '../lib/command-line/commands/repo.cmd.js';
+import {acquireLockFile} from '../git/sync-lock.js';
+import {
+	parseRepoAddArgs,
+	removableNames,
+	resolveRemoveTarget,
+} from '../lib/command-line/commands/repo.cmd.js';
 import {repoIdOf, repoLabelOfId} from '../lib/commits/commit-repos.js';
 import {isFail} from '../lib/model/result-types.js';
 import {parseGuiMessage} from '../gui/api/lib/websocket.schema.js';
@@ -123,5 +131,63 @@ describe('the repo messages on the GUI socket', () => {
 	it('takes the bare reads', () => {
 		expect(parseGuiMessage({type: 'repos:get'}).ok).toBe(true);
 		expect(parseGuiMessage({type: 'repos:fetch'}).ok).toBe(true);
+	});
+});
+
+describe(':config repoRemove names', () => {
+	const repos = [
+		'https://a.example/x/api.git',
+		'https://b.example/y/api.git',
+		'https://c.example/web.git',
+	].map(url => ({
+		url,
+		id: repoIdOf(url),
+		label: repoLabelOfId(repoIdOf(url)),
+		branches: 'default' as const,
+		since: 'board',
+	}));
+
+	it('offers a shared label by id, and a unique one by label', () => {
+		expect(removableNames(repos)).toEqual([repos[0]!.id, repos[1]!.id, 'web']);
+	});
+
+	it('refuses a label two repos share, and takes the id or the URL instead', () => {
+		expect(isFail(resolveRemoveTarget(repos, 'api'))).toBe(true);
+		expect(resolveRemoveTarget(repos, repos[1]!.id)).toMatchObject({
+			value: repos[1]!.id,
+		});
+		expect(
+			resolveRemoveTarget(repos, 'https://b.example/y/api.git'),
+		).toMatchObject({value: repos[1]!.id});
+		expect(resolveRemoveTarget(repos, 'web')).toMatchObject({
+			value: repos[2]!.id,
+		});
+	});
+});
+
+describe('a lock file for long work', () => {
+	it('is not broken at the sync lock’s age while its holder lives', () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-lock-'));
+		const lockPath = path.join(dir, 'x.lock');
+		fs.writeFileSync(
+			lockPath,
+			JSON.stringify({
+				pid: process.pid,
+				hostname: os.hostname(),
+				startedAt: Date.now() - 20 * 60 * 1000,
+				operation: 'fetch',
+			}),
+		);
+
+		expect(
+			acquireLockFile({
+				lockPath,
+				operation: 'fetch',
+				staleAfterMs: 60 * 60 * 1000,
+			}).acquired,
+		).toBe(false);
+		expect(acquireLockFile({lockPath, operation: 'fetch'}).acquired).toBe(true);
+
+		fs.rmSync(dir, {recursive: true, force: true});
 	});
 });

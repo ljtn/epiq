@@ -5,6 +5,16 @@
 export const repoLabelOf = (repoId: string): string =>
 	repoId.replace(/-[0-9a-f]{8}$/, '');
 
-/** A path qualified by its repo, for keys that must not collide across repos. */
+/**
+ * A path qualified by its repo, for keys that must not collide across repos.
+ * The server writes a multi-repo diff's overlapping paths the same way.
+ */
 export const repoPathKey = (path: string, repo?: string): string =>
 	repo ? `${repo}:${path}` : path;
+
+/** A `repoPathKey` as a reader would write it: `label/path`. */
+export const repoPathLabel = (key: string): string => {
+	const match = /^([a-z0-9._-]+-[0-9a-f]{8}):(.+)$/.exec(key);
+
+	return match ? `${repoLabelOf(match[1]!)}/${match[2]}` : key;
+};

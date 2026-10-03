@@ -582,7 +582,8 @@ export const startGuiServer = async (input: {
 	const guiAutoSync = startGuiAutoSync({
 		project,
 		publisher,
-		onReposFetch: () => fetchReposAndBroadcast(project.repoRoot),
+		onReposFetch: minIntervalMs =>
+			fetchReposAndBroadcast(project.repoRoot, minIntervalMs),
 	});
 	const stopLogWatch = startGuiLogWatch(publisher);
 

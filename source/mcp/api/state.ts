@@ -39,10 +39,6 @@ import {
 } from './issue-projection.js';
 import {getAttachmentMaxKb} from './attachments.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
-import {
-	describeFetchFailures,
-	fetchCommitRepos,
-} from '../../lib/commits/commit-repo-fetch.js';
 import {getPersistFileName} from '../../lib/board/board-log.js';
 import {
 	setSynced,
@@ -309,15 +305,11 @@ export const getGuiState = async (
 	return deriveGuiState();
 };
 
-type SyncInput = ToolInput & {
-	/**
-	 * Whether to fetch the other registered repos before answering. A caller
-	 * holding a lock passes false and calls `fetchRepos` once it has let go:
-	 * a first clone can take minutes.
-	 */
-	fetchRepos?: boolean;
-};
+type SyncInput = ToolInput;
 
+// The board only. Every caller holds the board's lock across this, so the
+// other repos are fetched after it has let go — `syncThenFetchRepos` — since
+// a first clone can take minutes.
 export const sync = async (input: SyncInput = {}) => {
 	setSyncing();
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
@@ -337,18 +329,5 @@ export const sync = async (input: SyncInput = {}) => {
 	}
 
 	setSynced();
-
-	if (input.fetchRepos === false) return succeeded('Synced', result.value);
-
-	const reposResult = await fetchCommitRepos({repoRoot: repoRootResult.value});
-	if (isFail(reposResult) || reposResult.value.length === 0) {
-		return succeeded('Synced', result.value);
-	}
-
-	return succeeded(
-		['Synced', describeFetchFailures(reposResult.value)]
-			.filter(Boolean)
-			.join(' · '),
-		{...result.value, repos: reposResult.value},
-	);
+	return succeeded('Synced', result.value);
 };

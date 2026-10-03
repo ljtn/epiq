@@ -99,7 +99,10 @@ const isProcessAlive = (pid: number): boolean => {
 };
 
 /** What claim we have over a lock somebody else wrote, if any. */
-const claimOver = (holder: LockHolder | null): LockClaim | null => {
+const claimOver = (
+	holder: LockHolder | null,
+	staleAfterMs = STALE_AFTER_MS,
+): LockClaim | null => {
 	// A lock that says nothing is still broken — leaving it would wedge the
 	// worktree — but it is not evidence that anybody is gone, and it must not be
 	// read as licence to unwind what they are running. A holder mid-acquisition
@@ -111,12 +114,12 @@ const claimOver = (holder: LockHolder | null): LockClaim | null => {
 
 	// Another machine's pid is not ours to interpret, so only age can settle it.
 	if (holder.hostname !== os.hostname()) {
-		return Date.now() - holder.startedAt > STALE_AFTER_MS ? 'stale' : null;
+		return Date.now() - holder.startedAt > staleAfterMs ? 'stale' : null;
 	}
 
 	if (!isProcessAlive(holder.pid)) return 'dead';
 
-	return Date.now() - holder.startedAt > STALE_AFTER_MS ? 'stale' : null;
+	return Date.now() - holder.startedAt > staleAfterMs ? 'stale' : null;
 };
 
 /**
@@ -258,9 +261,12 @@ export const acquireSyncLock = async ({
 export const acquireLockFile = ({
 	lockPath,
 	operation,
+	staleAfterMs,
 }: {
 	lockPath: string;
 	operation: string;
+	/** For work allowed to run longer than a sync: never broken before this. */
+	staleAfterMs?: number;
 }): LockOutcome => {
 	const release = () => {
 		try {
@@ -279,7 +285,7 @@ export const acquireLockFile = ({
 	}
 
 	const holder = readHolder(lockPath);
-	const claim = claimOver(holder);
+	const claim = claimOver(holder, staleAfterMs);
 
 	if (claim === null) {
 		return {acquired: false, heldBy: holder as LockHolder};

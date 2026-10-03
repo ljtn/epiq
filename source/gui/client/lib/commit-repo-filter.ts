@@ -1,4 +1,4 @@
-import {GuiCommitEntry} from './gui-state.model';
+import {GuiCommitEntry} from './gui-state.model.js';
 
 // Which repos the Code series plots. The board's own repo is the empty key,
 // since its commits carry no repo.

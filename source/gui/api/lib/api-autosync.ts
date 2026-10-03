@@ -14,11 +14,19 @@ import {
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
 
+// The other repos move on somebody else's push, not on this board's edits,
+// so they need no fresher than this.
+const REPO_FETCH_INTERVAL_MS = 60_000;
+
 export const startGuiAutoSync = (input: {
 	project: GuiProject;
 	publisher: LogPublisher;
-	/** Fetches the other registered repos, after the board has synced. */
-	onReposFetch?: () => Promise<void>;
+	/**
+	 * Fetches the other registered repos, after the board has synced. Leaves
+	 * alone a repo fetched less than `minIntervalMs` ago: a pass can run every
+	 * few seconds, and each fetch is a round trip.
+	 */
+	onReposFetch?: (minIntervalMs: number) => Promise<void>;
 }) => {
 	let timer: NodeJS.Timeout | undefined;
 	let disposed = false;
@@ -79,17 +87,17 @@ export const startGuiAutoSync = (input: {
 			const synced = await runExclusive(async () => {
 				if (getTimeTravelStatus().mode !== 'live') return false;
 
-				await sync({repoRoot: input.project.repoRoot, fetchRepos: false});
+				const result = await sync({repoRoot: input.project.repoRoot});
 
 				// Whether the pass moved the log, not whether it succeeded: a pull that
 				// landed before a refused push still changed the board.
 				await input.publisher.publishIfLogMoved();
-				return true;
+				return !isFail(result);
 			});
 
 			// Outside the lock: the other repos are not board state, and a first
 			// clone must not hold up every edit while it runs.
-			if (synced) await input.onReposFetch?.();
+			if (synced) await input.onReposFetch?.(REPO_FETCH_INTERVAL_MS);
 		} finally {
 			syncing = false;
 			// Always re-arms, so a request that arrived mid-run is covered by the

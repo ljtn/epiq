@@ -60,4 +60,10 @@ export {
 
 export {getPersonalStats} from './api/personal-stats.js';
 
-export {addRepo, fetchRepos, listRepos, removeRepo} from './api/repos.js';
+export {
+	addRepo,
+	fetchRepos,
+	listRepos,
+	removeRepo,
+	syncThenFetchRepos,
+} from './api/repos.js';

@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {GuiSquashedDiff, GuiSquashedDiffFile} from '../lib/gui-state.model';
-import {repoPathKey} from '../lib/repo-label';
+import {repoPathKey, repoPathLabel} from '../lib/repo-label';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
 import {
@@ -198,7 +198,7 @@ export const SquashedDiff = ({
 						: `${diff.overlappingPaths.length} files below carry`}{' '}
 					their changes too:{' '}
 					<span style={{fontFamily: CODE_FONT}}>
-						{diff.overlappingPaths.join(', ')}
+						{diff.overlappingPaths.map(repoPathLabel).join(', ')}
 					</span>
 					. Read those on the Commits view.
 				</Notice>
@@ -217,7 +217,7 @@ export const SquashedDiff = ({
 				// A file another ticket's commit also touched shows content none of
 				// this ticket's commits left behind, so there is no revision a line
 				// here belongs to and nothing written on it could be anchored.
-				const anchorable = !diff.overlappingPaths.includes(file.path);
+				const anchorable = !diff.overlappingPaths.includes(keyOf(file));
 
 				return (
 					<FileRow
