@@ -609,6 +609,74 @@ describe('review fixes', () => {
 		expect(moved!.changed).toBe(true);
 	});
 
+	it('keeps entries and fields a newer build wrote when it edits the list', () => {
+		writeProject(board, {
+			repos: [
+				{url: 'https://example.com/a.git', auth: 'token-ref'},
+				'svn://example.com/not-for-this-build',
+			],
+		});
+
+		value(
+			upsertCommitRepo({
+				repoRoot: board,
+				url: 'https://example.com/a.git',
+				branches: 'all',
+			}),
+		);
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(removeCommitRepo({repoRoot: board, repo: url}));
+
+		expect(JSON.parse(projectText(board)).repos).toEqual([
+			{
+				url: 'https://example.com/a.git',
+				auth: 'token-ref',
+				branches: 'all',
+				since: 'board',
+			},
+			'svn://example.com/not-for-this-build',
+		]);
+	});
+
+	it('records why a first clone failed, with no clone to put it in', async () => {
+		value(
+			upsertCommitRepo({
+				repoRoot: board,
+				url: `file://${path.join(makeTempDir(), 'missing')}`,
+			}),
+		);
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(value(listRepoStates(board))[0]).toMatchObject({cloned: false});
+		expect(value(listRepoStates(board))[0]!.error).toBeTruthy();
+	});
+
+	// `--deepen` extends every shallow boundary, whatever the fetch names; this
+	// pins that for a branch whose cut the default branch does not share.
+	it('deepens every branch past the window, not only the default', async () => {
+		// The branch's own history before the window, so its cut is a commit
+		// the default branch does not have.
+		git(upstream, ['checkout', '-q', '-b', 'side']);
+		commit(upstream, 's.txt', 'side, long ago', '2019-01-01T00:00:00Z');
+		commit(
+			upstream,
+			's.txt',
+			`${REF_A} first on a side branch`,
+			'2024-03-01T00:00:00Z',
+		);
+		git(upstream, ['checkout', '-q', 'main']);
+		commit(upstream, 'm.txt', 'main moves on', '2024-03-02T00:00:00Z');
+
+		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: REF_A})).map(
+				entry => entry.subject,
+			),
+		).toContain(`${REF_A} first on a side branch`);
+	});
+
 	it('reports a clones directory it cannot create rather than throwing', async () => {
 		value(upsertCommitRepo({repoRoot: board, url}));
 		const blocker = path.join(makeTempDir(), 'a-file');

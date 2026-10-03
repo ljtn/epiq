@@ -22,7 +22,9 @@ import {
 /** A transfer whose size nobody knows in advance; long, but not forever. */
 const TRANSFER_TIMEOUT_MS = 30 * 60 * 1000;
 
-const STATUS_FILE = 'epiq-repo.json';
+// Beside the clone rather than in it, so a first clone that fails — and
+// leaves no clone — still records why.
+const statusPath = (clonePath: string) => `${clonePath}.json`;
 
 /** What the clone was last fetched with, and how that went. */
 export type RepoFetchStatus = {
@@ -36,7 +38,7 @@ export type RepoFetchStatus = {
 const readStatus = (clonePath: string): RepoFetchStatus | null => {
 	try {
 		const raw = JSON.parse(
-			fs.readFileSync(path.join(clonePath, STATUS_FILE), 'utf8'),
+			fs.readFileSync(statusPath(clonePath), 'utf8'),
 		) as Partial<RepoFetchStatus>;
 
 		return {
@@ -55,10 +57,7 @@ const readStatus = (clonePath: string): RepoFetchStatus | null => {
 
 const writeStatus = (clonePath: string, status: RepoFetchStatus) => {
 	try {
-		fs.writeFileSync(
-			path.join(clonePath, STATUS_FILE),
-			JSON.stringify(status) + '\n',
-		);
+		fs.writeFileSync(statusPath(clonePath), JSON.stringify(status) + '\n');
 	} catch (error) {
 		logger.info(`[repos] could not record fetch status: ${String(error)}`);
 	}
@@ -87,7 +86,7 @@ export const listRepoStates = (repoRoot: string): Result<RepoState[]> => {
 				repo.id,
 			);
 			const cloned = fs.existsSync(clonePath);
-			const status = cloned ? readStatus(clonePath) : null;
+			const status = readStatus(clonePath);
 
 			return {
 				...repo,
@@ -148,6 +147,14 @@ const dropOtherBranches = async (clonePath: string): Promise<void> => {
  * could not be read. One commit deeper moves the cut to just outside the
  * window, where the boundary is a commit nobody asked to see.
  */
+/**
+ * The window as git reads it: UTC midnight of the day, as an epoch. A bare
+ * date is taken at the local time of day, which moves the cut with the hour
+ * the clone happened to run at.
+ */
+const shallowSince = (since: string) =>
+	`--shallow-since=@${Math.floor(Date.parse(`${since}T00:00:00Z`) / 1000)}`;
+
 const deepenPastWindow = (clonePath: string) =>
 	git(clonePath, ['fetch', '--no-tags', '--deepen=1', 'origin']);
 
@@ -185,7 +192,7 @@ const cloneRepo = async (
 
 	let cloneResult = await git(
 		clonesDir,
-		args(since ? [`--shallow-since=${since}`] : []),
+		args(since ? [shallowSince(since)] : []),
 	);
 	let windowed = since !== null;
 
@@ -204,16 +211,8 @@ const cloneRepo = async (
 		return failed(cloneResult.message);
 	}
 
-	if (windowed) {
-		const deepenResult = await deepenPastWindow(pending);
-		if (isFail(deepenResult)) {
-			fs.rmSync(pending, {recursive: true, force: true});
-			return failed(deepenResult.message);
-		}
-	}
-
-	// A bare clone records no fetch refspec, so a later fetch would update
-	// nothing.
+	// A bare clone records no fetch refspec, so a later fetch would reach only
+	// the remote's HEAD.
 	const refspecResult = await refspecFor(pending, repo.branches);
 	if (isFail(refspecResult)) {
 		fs.rmSync(pending, {recursive: true, force: true});
@@ -224,6 +223,14 @@ const cloneRepo = async (
 		cwd: pending,
 		args: ['config', 'remote.origin.fetch', refspecResult.value],
 	});
+
+	if (windowed) {
+		const deepenResult = await deepenPastWindow(pending);
+		if (isFail(deepenResult)) {
+			fs.rmSync(pending, {recursive: true, force: true});
+			return failed(deepenResult.message);
+		}
+	}
 
 	// Another process can only have got here first by breaking a lock it took
 	// for abandoned; its clone is as good as this one.
@@ -266,7 +273,7 @@ const fetchRepo = async (
 				? ['--unshallow']
 				: []
 			: previous?.since && since < previous.since
-			? [`--shallow-since=${since}`]
+			? [shallowSince(since)]
 			: [];
 
 	const fetchResult = await git(clonePath, [
@@ -379,16 +386,16 @@ const fetchOne = async (
 			: await cloneRepo(clonePath, repo, since);
 		const message = isFail(result) ? result.message.trim() : 'Fetched';
 
-		if (fs.existsSync(clonePath)) {
-			writeStatus(clonePath, {
-				fetchedAt: isFail(result) ? previous?.fetchedAt ?? null : Date.now(),
-				error: isFail(result) ? message : null,
-				branches: isFail(result)
-					? previous?.branches ?? repo.branches
-					: repo.branches,
-				since: isFail(result) ? previous?.since ?? since : since,
-			});
-		}
+		// Written whether or not a clone exists: a first clone that failed has
+		// nothing else to say why.
+		writeStatus(clonePath, {
+			fetchedAt: isFail(result) ? previous?.fetchedAt ?? null : Date.now(),
+			error: isFail(result) ? message : null,
+			branches: isFail(result)
+				? previous?.branches ?? repo.branches
+				: repo.branches,
+			since: isFail(result) ? previous?.since ?? since : since,
+		});
 
 		if (isFail(result)) {
 			logger.info(`[repos] ${repo.label}: ${message}`);
@@ -442,11 +449,13 @@ export const removeRepoClone = (input: {
 	const lock = acquireLockFile({
 		lockPath: `${clonePath}${LOCK_SUFFIX}`,
 		operation: 'remove',
+		staleAfterMs: TRANSFER_TIMEOUT_MS * 2,
 	});
 	if (!lock.acquired) return failed('Another process is fetching it');
 
 	try {
 		fs.rmSync(clonePath, {recursive: true, force: true});
+		fs.rmSync(statusPath(clonePath), {force: true});
 	} catch (error) {
 		return failed(`Could not remove the clone: ${String(error)}`);
 	} finally {

@@ -97,10 +97,28 @@ export const removeRepo = async (
 export const syncThenFetchRepos = async <T extends object>(
 	syncResult: Result<T>,
 	input: RepoRootInput = {},
+	// Past this the answer goes back without them: a first clone can outlast
+	// a client's request timeout, and the board itself has already synced.
+	budgetMs = 20_000,
 ): Promise<Result<T & {repos?: RepoFetchOutcome[]}>> => {
 	if (isFail(syncResult)) return syncResult;
 
-	const reposResult = await fetchRepos(input);
+	let timer: NodeJS.Timeout | undefined;
+	const reposResult = await Promise.race([
+		fetchRepos(input),
+		new Promise<null>(resolve => {
+			timer = setTimeout(() => resolve(null), budgetMs);
+		}),
+	]);
+	clearTimeout(timer);
+
+	if (reposResult === null) {
+		return succeeded(
+			`${syncResult.message} · still fetching other repos; epiq_repo_list shows how they stand`,
+			syncResult.value,
+		);
+	}
+
 	if (isFail(reposResult) || reposResult.value.length === 0) {
 		return syncResult;
 	}

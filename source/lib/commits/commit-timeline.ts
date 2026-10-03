@@ -45,6 +45,8 @@ const GIT_LOG_RECORD_SEP = '\x1e';
 // long enough to cover "the Commits tab opens right after the scrubber loads".
 export const FULL_TIMELINE_CACHE_TTL_MS = 5_000;
 
+const CLONE_LOG_TIMEOUT_MS = 120_000;
+
 // Per source, keyed by where it is read and what is walked.
 const fullTimelineCache = new Map<
 	string,
@@ -103,6 +105,9 @@ const readSourceLog = async (
 
 	const logResult = await execGit({
 		cwd: source.cwd,
+		// Another repo's history can be far longer than the board's own, and it
+		// was asked for in full when its window is `all`.
+		...(source.repo ? {timeoutMs: CLONE_LOG_TIMEOUT_MS} : {}),
 		args: [
 			'log',
 			...source.revisions,
@@ -113,7 +118,11 @@ const readSourceLog = async (
 				? [`--until=@${Math.floor(window.end / 1000)}`]
 				: []),
 			'--shortstat',
-			`--format=${GIT_LOG_RECORD_SEP}%H${GIT_LOG_FIELD_SEP}%at${GIT_LOG_FIELD_SEP}%an${GIT_LOG_FIELD_SEP}%ae${GIT_LOG_FIELD_SEP}%s`,
+			// The commit date only where a window is cut by it: the board's own
+			// log reads as it always has.
+			`--format=${GIT_LOG_RECORD_SEP}%H${GIT_LOG_FIELD_SEP}%at${
+				source.notBefore ? `${GIT_LOG_FIELD_SEP}%ct` : ''
+			}${GIT_LOG_FIELD_SEP}%an${GIT_LOG_FIELD_SEP}%ae${GIT_LOG_FIELD_SEP}%s`,
 		],
 	});
 
@@ -124,12 +133,17 @@ const readSourceLog = async (
 		.filter(record => record.trim().length > 0)
 		.map((record): CommitEntry | null => {
 			const [headerLine, ...statLines] = record.split('\n');
-			const [sha, atSeconds, author, authorEmail, ...subjectParts] = (
-				headerLine ?? ''
-			).split(GIT_LOG_FIELD_SEP);
+			const fields = (headerLine ?? '').split(GIT_LOG_FIELD_SEP);
+			const [sha, atSeconds] = fields;
+			const ctSeconds = source.notBefore ? fields[2] : undefined;
+			const [author, authorEmail, ...subjectParts] = fields.slice(
+				source.notBefore ? 3 : 2,
+			);
 			if (!sha || !atSeconds) return null;
 			if (source.exclude.has(sha)) return null;
-			if (source.notBefore && Number(atSeconds) * 1000 < source.notBefore) {
+			// By commit date, as the clone's own window is cut: a rebased commit
+			// keeps an old author date.
+			if (source.notBefore && Number(ctSeconds) * 1000 < source.notBefore) {
 				return null;
 			}
 
@@ -176,10 +190,6 @@ const readSourceLogs = async (
 		sources.map(source => readSourceLog(source, window)),
 	);
 
-	// A commit two sources share — a fork, or the board's own remote
-	// registered by mistake — is listed once, from the first source that has
-	// it: the board's own repo before any other.
-	const seen = new Set<string>();
 	const lists: CommitEntry[][] = [];
 	for (const [index, log] of logs.entries()) {
 		if (isFail(log)) {
@@ -188,12 +198,28 @@ const readSourceLogs = async (
 			continue;
 		}
 
-		const fresh = log.value.filter(commit => !seen.has(commit.sha));
-		for (const commit of fresh) seen.add(commit.sha);
-		lists.push(fresh);
+		lists.push(log.value);
 	}
 
 	return succeeded('Read every source', lists);
+};
+
+/**
+ * A commit two sources share — a fork, or the board's own remote registered by
+ * mistake — listed once, from the first source that has it: the board's own
+ * repo before any other. Applied after anything read off a list's own order,
+ * which still needs the commits it shares.
+ */
+const withoutShared = <T extends CommitEntry>(lists: T[][]): T[][] => {
+	if (lists.length <= 1) return lists;
+
+	const seen = new Set<string>();
+
+	return lists.map(list => {
+		const fresh = list.filter(commit => !seen.has(commit.sha));
+		for (const commit of fresh) seen.add(commit.sha);
+		return fresh;
+	});
 };
 
 /**
@@ -240,7 +266,7 @@ export const getCommitTimeline = async (
 
 	return succeeded(
 		'Computed commit timeline',
-		mergeNewestFirst(listsResult.value),
+		mergeNewestFirst(withoutShared(listsResult.value)),
 	);
 };
 
@@ -302,5 +328,8 @@ export const getCommitsForRef = async (
 		return matched;
 	});
 
-	return succeeded('Matched commits by ref', mergeNewestFirst(perSource));
+	return succeeded(
+		'Matched commits by ref',
+		mergeNewestFirst(withoutShared(perSource)),
+	);
 };

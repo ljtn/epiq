@@ -95,9 +95,10 @@ export const startGuiAutoSync = (input: {
 				return !isFail(result);
 			});
 
-			// Outside the lock: the other repos are not board state, and a first
-			// clone must not hold up every edit while it runs.
-			if (synced) await input.onReposFetch?.(REPO_FETCH_INTERVAL_MS);
+			// Outside the lock, and not awaited: the other repos are not board
+			// state, and a first clone must hold up neither an edit nor the
+			// board's next pass. Overlapping passes share one fetch.
+			if (synced) void input.onReposFetch?.(REPO_FETCH_INTERVAL_MS);
 		} finally {
 			syncing = false;
 			// Always re-arms, so a request that arrived mid-run is covered by the

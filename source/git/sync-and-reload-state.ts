@@ -19,7 +19,15 @@ import {syncEpiqWithRemote} from './sync.js';
 
 let syncAndReloadPromise: Promise<Result<boolean>> | null = null;
 
-export const syncAndReloadState = async (): Promise<Result<boolean>> => {
+export const syncAndReloadState = async ({
+	reposMinIntervalMs = 0,
+}: {
+	/**
+	 * Leave alone another repo fetched less than this long ago. Autosync passes
+	 * one; a `:sync` somebody typed fetches every repo.
+	 */
+	reposMinIntervalMs?: number;
+} = {}): Promise<Result<boolean>> => {
 	logger.debug('[sync] syncAndReloadState enter', {
 		hasPromise: Boolean(syncAndReloadPromise),
 		currentStatus: getState().syncStatus?.status,
@@ -33,7 +41,7 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 
 	logger.debug('[sync] syncAndReloadState creating promise');
 
-	syncAndReloadPromise = settleSyncAndReload().finally(() => {
+	syncAndReloadPromise = settleSyncAndReload(reposMinIntervalMs).finally(() => {
 		logger.debug('[sync] syncAndReloadState clearing promise', {
 			statusBeforeClear: getState().syncStatus?.status,
 			statusMessageBeforeClear: getState().syncStatus?.msg,
@@ -47,11 +55,13 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 
 // Callers that join an in-flight sync share this promise, so it resolves to a
 // Result even when the sync throws.
-const settleSyncAndReload = async (): Promise<Result<boolean>> => {
+const settleSyncAndReload = async (
+	reposMinIntervalMs: number,
+): Promise<Result<boolean>> => {
 	let result: Result<boolean>;
 
 	try {
-		result = await syncAndReloadStateUnsafe();
+		result = await syncAndReloadStateUnsafe(reposMinIntervalMs);
 
 		logger.debug('[sync] syncAndReloadState promise resolved', {
 			success: !isFail(result),
@@ -91,7 +101,9 @@ const settleSyncAndReload = async (): Promise<Result<boolean>> => {
 	return result;
 };
 
-const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
+const syncAndReloadStateUnsafe = async (
+	reposMinIntervalMs: number,
+): Promise<Result<boolean>> => {
 	logger.debug('[sync] syncAndReloadStateUnsafe:start', {
 		mode: getState().mode,
 		syncStatus: getState().syncStatus,
@@ -182,25 +194,18 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 		syncStatus: getState().syncStatus,
 	});
 
-	void fetchReposAfterSync(repoRoot);
+	void fetchReposAfterSync(repoRoot, reposMinIntervalMs);
 
 	return succeeded('Synced', true);
 };
-
-// The other repos move on somebody else's push, not on this board's edits, so
-// autosync's passes need not fetch them more often than this.
-const REPO_FETCH_INTERVAL_MS = 60_000;
 
 /**
  * The other repos, once the board is synced and on screen: not awaited, since
  * a first clone can take minutes and the board's status must not wait on it.
  * A repo that did not fetch is said beside that status, not instead of it.
  */
-const fetchReposAfterSync = async (repoRoot: string) => {
-	const result = await fetchCommitRepos({
-		repoRoot,
-		minIntervalMs: REPO_FETCH_INTERVAL_MS,
-	});
+const fetchReposAfterSync = async (repoRoot: string, minIntervalMs: number) => {
+	const result = await fetchCommitRepos({repoRoot, minIntervalMs});
 	const note = isFail(result) ? null : describeFetchFailures(result.value);
 	const status = getState().syncStatus;
 
