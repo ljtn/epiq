@@ -152,27 +152,36 @@ export const readCommitRepos = (repoRoot: string): Result<CommitRepo[]> => {
 	return succeeded('Read other repos', repos);
 };
 
+/** The `repos` list as written, entries this build cannot read included. */
+const readRawEntries = (project: Record<string, unknown>): unknown[] => {
+	const entries = project[REPOS_KEY];
+	return Array.isArray(entries) ? entries : [];
+};
+
+const idOfEntry = (entry: unknown): string | null => {
+	const config = parseEntry(entry);
+	return config ? repoIdOf(config.url) : null;
+};
+
 /**
  * Rewrites only the `repos` key, keeping every other key and its order — a
- * newer build's fields included. An empty list removes the key, so the file
- * goes back to exactly what an older build wrote.
+ * newer build's fields included — and every entry the edit did not touch, as
+ * it was written. An empty list removes the key, so the file goes back to
+ * exactly what an older build wrote.
  */
-const writeCommitRepos = (
+const editRawEntries = (
 	repoRoot: string,
-	repos: CommitRepoConfig[],
+	edit: (entries: unknown[]) => unknown[],
 ): Result<null> => {
 	const rawResult = readRawProject(repoRoot);
 	if (isFail(rawResult)) return failed(rawResult.message);
 
+	const entries = edit(readRawEntries(rawResult.value));
 	const next: Record<string, unknown> = {...rawResult.value};
-	if (repos.length === 0) {
+	if (entries.length === 0) {
 		delete next[REPOS_KEY];
 	} else {
-		next[REPOS_KEY] = repos.map(({url, branches, since}) => ({
-			url,
-			branches,
-			since,
-		}));
+		next[REPOS_KEY] = entries;
 	}
 
 	try {
@@ -223,11 +232,22 @@ export const upsertCommitRepo = (input: {
 		since: input.since ?? existing?.since ?? 'board',
 	};
 
-	const next = existing
-		? reposResult.value.map(repo => (repo.id === id ? config : repo))
-		: [...reposResult.value, config];
+	const writeResult = editRawEntries(input.repoRoot, entries => {
+		// The first entry for this repo takes the change, keeping any field a
+		// newer build gave it; a later duplicate is left as it was.
+		const index = entries.findIndex(entry => idOfEntry(entry) === id);
+		if (index === -1) return [...entries, config];
 
-	const writeResult = writeCommitRepos(input.repoRoot, next);
+		const written = entries[index];
+		const kept =
+			written && typeof written === 'object' && !Array.isArray(written)
+				? (written as Record<string, unknown>)
+				: {};
+
+		return entries.map((entry, at) =>
+			at === index ? {...kept, ...config} : entry,
+		);
+	});
 	if (isFail(writeResult)) return failed(writeResult.message);
 
 	return succeeded(
@@ -254,9 +274,8 @@ export const removeCommitRepo = (input: {
 	);
 	if (!match) return failed(`No repo "${target}" is registered`);
 
-	const writeResult = writeCommitRepos(
-		input.repoRoot,
-		reposResult.value.filter(repo => repo.id !== match.id),
+	const writeResult = editRawEntries(input.repoRoot, entries =>
+		entries.filter(entry => idOfEntry(entry) !== match.id),
 	);
 	if (isFail(writeResult)) return failed(writeResult.message);
 

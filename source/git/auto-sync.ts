@@ -79,7 +79,9 @@ export const autoSync = async () => {
 	});
 
 	try {
-		return await syncAndReloadState();
+		// The other repos move on somebody else's push, not on this board's
+		// edits, so a pass every few seconds need not fetch them each time.
+		return await syncAndReloadState({reposMinIntervalMs: 60_000});
 	} finally {
 		autoSyncInFlight = false;
 
