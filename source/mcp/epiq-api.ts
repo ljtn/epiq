@@ -59,3 +59,5 @@ export {
 } from './api/emails.js';
 
 export {getPersonalStats} from './api/personal-stats.js';
+
+export {addRepo, fetchRepos, listRepos, removeRepo} from './api/repos.js';

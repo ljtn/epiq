@@ -1,7 +1,13 @@
 import {execGit, readGitBlobsBatch} from '../../git/git-utils.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
-import {isPlausibleSha, RepoInput, resolveRepoRoot} from './commit-repo.js';
-import {getCommitsForRef} from './commit-timeline.js';
+import {
+	CommitInput,
+	isPlausibleSha,
+	RepoInput,
+	resolveRepoRoot,
+} from './commit-repo.js';
+import {listCommitSources, resolveCommitCwd} from './commit-sources.js';
+import {getCommitsForRef, RefCommitEntry} from './commit-timeline.js';
 
 export type CommitDiffFile = {
 	path: string;
@@ -18,6 +24,7 @@ export type CommitDiffFile = {
 
 export type CommitDiff = {
 	sha: string;
+	repo?: string;
 	files: CommitDiffFile[];
 };
 
@@ -35,11 +42,11 @@ export type CommitDiff = {
  * header off — the list the reader came from already showed it.
  */
 export const getCommitPatch = async (
-	input: RepoInput & {sha: string},
+	input: CommitInput,
 ): Promise<Result<string>> => {
 	if (!isPlausibleSha(input.sha)) return failed('Invalid commit sha');
 
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
+	const repoRootResult = await resolveCommitCwd(input);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
 	const showResult = await execGit({
@@ -247,11 +254,11 @@ const readDiffFiles = async (
 // materialized state singleton, so it is independent of any time-travel
 // checkout.
 export const getCommitDiff = async (
-	input: RepoInput & {sha: string},
+	input: CommitInput,
 ): Promise<Result<CommitDiff>> => {
 	if (!isPlausibleSha(input.sha)) return failed('Invalid commit sha');
 
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
+	const repoRootResult = await resolveCommitCwd(input);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 	const repoRoot = repoRootResult.value;
 
@@ -274,7 +281,11 @@ export const getCommitDiff = async (
 
 	const files = filesResult.value;
 
-	return succeeded('Loaded commit diff', {sha: input.sha, files});
+	return succeeded('Loaded commit diff', {
+		sha: input.sha,
+		...(input.repo ? {repo: input.repo} : {}),
+		files,
+	});
 };
 
 /**
@@ -292,14 +303,28 @@ export const getCommitDiff = async (
  * at the ticket's newest commit, since nothing after that touched it. So an
  * additions-side line transfers with no arithmetic at all.
  */
-export type SquashedDiffFile = CommitDiffFile & {sha: string};
+export type SquashedDiffFile = CommitDiffFile & {
+	sha: string;
+	/** The registered repo the file is in; absent for the board's own. */
+	repo?: string;
+};
 
 export type SquashedDiff = {
 	ref: string;
 	// The revisions compared: the oldest commit's parent, and the newest
-	// commit. Carried so a reader can reproduce the diff by hand.
+	// commit. Carried so a reader can reproduce the diff by hand. Where the
+	// ticket's commits span repos, these are the first repo's; `parts` has
+	// every one.
 	from: string;
 	to: string;
+	/** One per repo the ticket's commits are in, only when there is more than one. */
+	parts?: Array<{
+		repo?: string;
+		from: string;
+		to: string;
+		commits: number;
+		contiguous: boolean;
+	}>;
 	commits: number;
 	files: SquashedDiffFile[];
 	// Whether the ticket's commits are a contiguous run of real history. When
@@ -444,10 +469,69 @@ export const getSquashedDiffForRef = async (
 	const commitsResult = await getCommitsForRef({repoRoot, ref: input.ref});
 	if (isFail(commitsResult)) return failed(commitsResult.message);
 
-	// Newest first, as getCommitsForRef returns them.
-	const matched = commitsResult.value;
-	if (matched.length === 0) return failed('No commits reference this ticket');
+	if (commitsResult.value.length === 0) {
+		return failed('No commits reference this ticket');
+	}
 
+	const sourcesResult = await listCommitSources(repoRoot);
+	if (isFail(sourcesResult)) return failed(sourcesResult.message);
+	const cwdByRepo = new Map(
+		sourcesResult.value.map(source => [source.repo ?? '', source.cwd]),
+	);
+
+	// Each repo's history is its own: a range can only be drawn inside one.
+	const byRepo = new Map<string, RefCommitEntry[]>();
+	for (const commit of commitsResult.value) {
+		const key = commit.repo ?? '';
+		byRepo.set(key, [...(byRepo.get(key) ?? []), commit]);
+	}
+
+	const parts: Array<{repo?: string; diff: SquashedDiff}> = [];
+	for (const [key, matched] of byRepo) {
+		const cwd = cwdByRepo.get(key);
+		if (!cwd) continue;
+
+		const diffResult = await squashInRepo(cwd, input.ref, matched);
+		if (isFail(diffResult)) return failed(diffResult.message);
+
+		const repo = key || undefined;
+		parts.push({
+			repo,
+			diff: {
+				...diffResult.value,
+				files: diffResult.value.files.map(file =>
+					repo ? {...file, repo} : file,
+				),
+			},
+		});
+	}
+
+	const [first, ...rest] = parts;
+	if (!first) return failed('No commits reference this ticket');
+	if (rest.length === 0) return succeeded('Loaded squashed diff', first.diff);
+
+	return succeeded('Loaded squashed diff', {
+		...first.diff,
+		commits: parts.reduce((sum, part) => sum + part.diff.commits, 0),
+		files: parts.flatMap(part => part.diff.files),
+		contiguous: parts.every(part => part.diff.contiguous),
+		overlappingPaths: parts.flatMap(part => part.diff.overlappingPaths),
+		parts: parts.map(({repo, diff}) => ({
+			...(repo ? {repo} : {}),
+			from: diff.from,
+			to: diff.to,
+			commits: diff.commits,
+			contiguous: diff.contiguous,
+		})),
+	});
+};
+
+/** One repo's share of a ticket, `matched` newest first. */
+const squashInRepo = async (
+	repoRoot: string,
+	ref: string,
+	matched: RefCommitEntry[],
+): Promise<Result<SquashedDiff>> => {
 	const newest = matched[0]!.sha;
 
 	// From the oldest end: the first match that is on the newest's line of
@@ -492,7 +576,7 @@ export const getSquashedDiffForRef = async (
 		overlappingPaths: string[],
 	): Result<SquashedDiff> =>
 		succeeded('Loaded squashed diff', {
-			ref: input.ref.trim().toUpperCase(),
+			ref: ref.trim().toUpperCase(),
 			from,
 			to: newest,
 			// The commits this diff actually covers, which is not every commit

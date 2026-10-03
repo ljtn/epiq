@@ -327,9 +327,12 @@ export const parsePatchOutput = (stdout: string) => {
 export const scanTicketPatch = async ({
 	repoRoot,
 	shas,
+	cwdOf = () => repoRoot,
 }: {
 	repoRoot: string;
 	shas: string[];
+	/** Where a sha's patch is read, for a ticket whose commits span repos. */
+	cwdOf?: (sha: string) => string;
 }): Promise<Result<TicketPatch>> => {
 	if (shas.length === 0) {
 		return succeeded('No commits to scan', {
@@ -353,11 +356,22 @@ export const scanTicketPatch = async ({
 	let scannedCommits = 0;
 	let overBudget = false;
 
-	for (let start = 0; start < scanned.length; start += SHAS_PER_SHOW) {
-		const batch = scanned.slice(start, start + SHAS_PER_SHOW);
+	// Batches never straddle repos: one `git show` reads one repository.
+	const batches: {cwd: string; shas: string[]}[] = [];
+	for (const sha of scanned) {
+		const cwd = cwdOf(sha);
+		const last = batches[batches.length - 1];
 
+		if (last && last.cwd === cwd && last.shas.length < SHAS_PER_SHOW) {
+			last.shas.push(sha);
+		} else {
+			batches.push({cwd, shas: [sha]});
+		}
+	}
+
+	for (const {cwd, shas: batch} of batches) {
 		const showResult = await execGit({
-			cwd: repoRoot,
+			cwd,
 			args: [
 				// Otherwise a non-ASCII path arrives octal-escaped and quoted, and
 				// stops matching the paths every other git call here reports.

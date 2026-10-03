@@ -6,6 +6,7 @@
 // Every section is a pure function of the scan, so a new one is a new module
 // here and a line below — never a third walk over git.
 
+import {listCommitSources} from '../commits/commit-sources.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {deriveChangeShape} from './change-shape.js';
 import {deriveCommentDensity} from './comment-density.js';
@@ -16,12 +17,12 @@ import {scanTicketPatch} from './patch-scan.js';
 import {readRepoBaseline} from './repo-baseline.js';
 import {deriveTestSignal} from './test-signal.js';
 
-const oldestSha = (commits: StatsCommit[]): string | null =>
+const oldestCommit = (commits: StatsCommit[]): StatsCommit | null =>
 	commits.reduce<StatsCommit | null>(
 		(oldest, commit) =>
 			oldest === null || commit.time < oldest.time ? commit : oldest,
 		null,
-	)?.sha ?? null;
+	);
 
 export const deriveIssueStats = async ({
 	repoRoot,
@@ -32,17 +33,29 @@ export const deriveIssueStats = async ({
 	ref: string;
 	commits: StatsCommit[];
 }): Promise<Result<IssueStats>> => {
+	// A ticket's commits may span repos; each patch is read where it lives.
+	const sourcesResult = await listCommitSources(repoRoot);
+	if (isFail(sourcesResult)) return failed(sourcesResult.message);
+
+	const cwdByRepo = new Map(
+		sourcesResult.value.map(source => [source.repo ?? '', source.cwd]),
+	);
+	const repoBySha = new Map(commits.map(commit => [commit.sha, commit.repo]));
+	const cwdOf = (sha: string) =>
+		cwdByRepo.get(repoBySha.get(sha) ?? '') ?? repoRoot;
+
 	const patchResult = await scanTicketPatch({
 		repoRoot,
 		shas: commits.map(commit => commit.sha),
+		cwdOf,
 	});
 
 	if (isFail(patchResult)) return failed(patchResult.message);
 	const patch = patchResult.value;
 
-	const first = oldestSha(commits);
+	const first = oldestCommit(commits);
 	const baseline = first
-		? await readRepoBaseline({repoRoot, sha: first})
+		? await readRepoBaseline({repoRoot: cwdOf(first.sha), sha: first.sha})
 		: null;
 
 	return succeeded('Derived issue stats', {

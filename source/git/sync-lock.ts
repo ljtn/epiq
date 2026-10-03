@@ -245,8 +245,23 @@ export const acquireSyncLock = async ({
 	const gitDirResult = await getGitDir(worktreeRoot);
 	if (isFail(gitDirResult)) return failed(gitDirResult.message);
 
-	const lockPath = path.join(gitDirResult.value, SYNC_LOCK_FILE);
+	return succeeded(
+		'Tried the sync lock',
+		acquireLockFile({
+			lockPath: path.join(gitDirResult.value, SYNC_LOCK_FILE),
+			operation,
+		}),
+	);
+};
 
+/** The same claim over any lock file, for a directory that is not a worktree. */
+export const acquireLockFile = ({
+	lockPath,
+	operation,
+}: {
+	lockPath: string;
+	operation: string;
+}): LockOutcome => {
 	const release = () => {
 		try {
 			// Only ours: a lock we broke and then lost a race for belongs to
@@ -260,21 +275,14 @@ export const acquireSyncLock = async ({
 	};
 
 	if (write(lockPath, operation)) {
-		return succeeded('Acquired sync lock', {
-			acquired: true,
-			claim: 'clean',
-			release,
-		});
+		return {acquired: true, claim: 'clean', release};
 	}
 
 	const holder = readHolder(lockPath);
 	const claim = claimOver(holder);
 
 	if (claim === null) {
-		return succeeded('Sync lock is held', {
-			acquired: false,
-			heldBy: holder as LockHolder,
-		});
+		return {acquired: false, heldBy: holder as LockHolder};
 	}
 
 	logger.info(
@@ -290,18 +298,14 @@ export const acquireSyncLock = async ({
 	}
 
 	if (write(lockPath, operation)) {
-		return succeeded('Acquired sync lock after breaking a stale one', {
-			acquired: true,
-			claim,
-			release,
-		});
+		return {acquired: true, claim, release};
 	}
 
 	// Lost the race to whoever else was breaking the same stale lock. They hold
 	// it legitimately now, so this is a refusal, not an error.
 	const winner = readHolder(lockPath);
 
-	return succeeded('Sync lock taken by another process', {
+	return {
 		acquired: false,
 		heldBy: winner ?? {
 			pid: -1,
@@ -309,7 +313,7 @@ export const acquireSyncLock = async ({
 			startedAt: Date.now(),
 			operation: 'unknown',
 		},
-	});
+	};
 };
 
 /** Runs `fn` holding the lock, or returns null if somebody else has it. */

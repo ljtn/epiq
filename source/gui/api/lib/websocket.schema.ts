@@ -119,7 +119,21 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	}),
 	message('time-travel:scrub', z.object({targetTime: epochMs})),
 	message('time-travel:checkout-event', z.object({eventId: z.string().min(1)})),
-	message('commit:inspect', z.object({sha: z.string()})),
+	message(
+		'commit:inspect',
+		z.object({sha: z.string(), repo: z.string().max(80).optional()}),
+	),
+	bare('repos:get'),
+	bare('repos:fetch'),
+	message(
+		'repo:add',
+		z.object({
+			url: z.string().min(1).max(2000),
+			branches: z.enum(['default', 'all']).optional(),
+			since: z.string().max(20).optional(),
+		}),
+	),
+	message('repo:remove', z.object({repo: z.string().min(1).max(2000)})),
 	z.object({type: z.literal('emails:get')}),
 	message(
 		'email:link',
@@ -135,7 +149,10 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 			contributorId: z.string().min(1).optional(),
 		}),
 	),
-	message('commit:diff:get', z.object({sha: z.string()})),
+	message(
+		'commit:diff:get',
+		z.object({sha: z.string(), repo: z.string().max(80).optional()}),
+	),
 	message('issue:commits:get', z.object({issueId: id})),
 	message('issue:squashed-diff:get', z.object({issueId: id})),
 	message('issue:stats:get', z.object({issueId: id})),

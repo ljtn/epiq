@@ -30,8 +30,13 @@ import {
 	removeIssueTag,
 	reopenIssue,
 	sync,
+	addRepo,
+	fetchRepos,
+	listRepos,
+	removeRepo,
 } from '../../../mcp/epiq-api.js';
 import {
+	describeFetchFailures,
 	getCommitDiff,
 	getCommitsForRef,
 	getCommitTimeline,
@@ -95,6 +100,20 @@ const broadcastDerivedState = () => {
 		type: 'state',
 		payload: slimStateResult(deriveGuiState()),
 	});
+};
+
+/**
+ * The other repos' commits moved, or a repo left: every client asks for its
+ * commits again. They come from git, so no board state carries the change.
+ */
+const broadcastReposChanged = () => {
+	broadcastGuiMessage({type: 'repos:changed'});
+};
+
+/** After a sync, outside any lock: a first clone can take minutes. */
+export const fetchReposAndBroadcast = async (repoRoot: string) => {
+	const result = await fetchRepos({repoRoot});
+	if (!isFail(result) && result.value.length > 0) broadcastReposChanged();
 };
 
 const sendSocket = (socket: WebSocket, body: unknown) => {
@@ -370,12 +389,13 @@ export const setupWebsocket = (
 						payload: await openCommitDiffInEditor({
 							repoRoot,
 							sha: message.payload.sha,
+							repo: message.payload.repo,
 						}),
 					});
 				}
 
 				if (type === 'commit:diff:get') {
-					const {sha} = message.payload;
+					const {sha, repo} = message.payload;
 
 					// Wrapped with the sha rather than sending the Result bare: two
 					// surfaces can each have a diff request in flight for a different
@@ -383,8 +403,62 @@ export const setupWebsocket = (
 					// a failed Result carries no sha of its own to tell them apart.
 					return sendSocket(socket, {
 						type: 'commit:diff:result',
-						payload: {sha, result: await getCommitDiff({repoRoot, sha})},
+						payload: {
+							sha,
+							repo,
+							result: await getCommitDiff({repoRoot, sha, repo}),
+						},
 					});
+				}
+
+				if (type === 'repos:get') {
+					return sendSocket(socket, {
+						type: 'repos',
+						payload: await listRepos({repoRoot}),
+					});
+				}
+
+				if (type === 'repo:add' || type === 'repo:remove') {
+					const result =
+						type === 'repo:add'
+							? await addRepo({repoRoot, ...message.payload})
+							: await removeRepo({repoRoot, ...message.payload});
+
+					// The list either way, so a refused change leaves the panel
+					// showing what is configured rather than what was turned down.
+					sendSocket(socket, {
+						type: 'repos',
+						payload: isFail(result) ? await listRepos({repoRoot}) : result,
+						lastAction: {ok: !isFail(result), message: result.message},
+					});
+
+					// A removed repo's commits leave every view at once.
+					if (type === 'repo:remove' && !isFail(result)) {
+						return broadcastReposChanged();
+					}
+
+					return;
+				}
+
+				if (type === 'repos:fetch') {
+					const result = await fetchRepos({repoRoot});
+
+					sendSocket(socket, {
+						type: 'repos',
+						payload: await listRepos({repoRoot}),
+						lastAction: isFail(result)
+							? {ok: false, message: result.message}
+							: {
+									ok: result.value.every(outcome => outcome.ok),
+									message:
+										describeFetchFailures(result.value) ??
+										`Fetched ${result.value.length} repo${
+											result.value.length === 1 ? '' : 's'
+										}`,
+							  },
+					});
+
+					return broadcastReposChanged();
 				}
 
 				if (type === 'issue:commits:get') {
@@ -517,7 +591,7 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'sync') {
-					const result = await sync({repoRoot});
+					const result = await sync({repoRoot, fetchRepos: false});
 
 					sendSocket(socket, {
 						type: 'sync:result',
@@ -525,6 +599,11 @@ export const setupWebsocket = (
 					});
 
 					onStateChanged();
+
+					// Not awaited: this handler runs under the board's lock, and the
+					// fetch must not hold it.
+					if (!isFail(result)) void fetchReposAndBroadcast(repoRoot);
+
 					return sendGuiState(socket, repoRoot);
 				}
 

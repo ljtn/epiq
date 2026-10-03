@@ -3,6 +3,10 @@ import {
 	restoreNavigationAnchor,
 } from '../lib/actions/default/restore-navigation.js';
 import {bootStateFromEventLog} from '../lib/board/board-boot.js';
+import {
+	describeFetchFailures,
+	fetchCommitRepos,
+} from '../lib/commits/commit-repo-fetch.js';
 import {loadMergedEventsWithUnreadable} from '../lib/board/board-log.js';
 import {getPersistFileName, resolveActorId} from '../lib/board/board-log.js';
 import {accountFor, logSignature} from '../lib/event/log-signature.js';
@@ -161,24 +165,32 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 		return failSync(`Unable to sync state. ${syncResult.message}`);
 	}
 
-	const {stateBranchRoot, offline} = syncResult.value;
+	const {stateBranchRoot, offline, repoRoot} = syncResult.value;
 
 	const reloadResult = reloadStateFromEventLog(stateBranchRoot);
 	if (isFail(reloadResult)) return reloadResult;
+
+	// After the board, which is already on screen by now. A repo that did not
+	// fetch is said beside the board's status, not instead of it.
+	const reposResult = await fetchCommitRepos({repoRoot});
+	const fetchNote = isFail(reposResult)
+		? null
+		: describeFetchFailures(reposResult.value);
+	const synced = fetchNote ? `Synced · ${fetchNote}` : 'Synced';
 
 	patchState({
 		hasProjectDefinition: true,
 		// The reload succeeded either way; only the remote half did not.
 		syncStatus: offline
 			? {msg: 'Committed locally, offline', status: 'offline'}
-			: {msg: 'Synced', status: 'synced'},
+			: {msg: synced, status: 'synced'},
 	});
 
 	logger.debug('[sync] syncAndReloadState:done', {
 		syncStatus: getState().syncStatus,
 	});
 
-	return succeeded('Synced', true);
+	return succeeded(synced, true);
 };
 
 /**

@@ -11,7 +11,8 @@ import {
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {fileManager} from '../storage/file-manager.js';
 import {privateTempDir} from '../storage/private-temp-dir.js';
-import {isPlausibleSha, RepoInput, resolveRepoRoot} from './commit-repo.js';
+import {CommitInput, isPlausibleSha} from './commit-repo.js';
+import {resolveCommitCwd} from './commit-sources.js';
 
 // Fallback: editors highlight the +/- lines but not the code's own language.
 const openCommitAsUnifiedDiff = async (
@@ -167,11 +168,11 @@ const openCommitAsSideBySideDiffs = async (
 // Never touches the materialized state singleton, so it is independent of any
 // time-travel checkout.
 export const openCommitDiffInEditor = async (
-	input: RepoInput & {sha: string},
+	input: CommitInput,
 ): Promise<Result<true>> => {
 	if (!isPlausibleSha(input.sha)) return failed('Invalid commit sha');
 
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
+	const repoRootResult = await resolveCommitCwd(input);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 	const repoRoot = repoRootResult.value;
 

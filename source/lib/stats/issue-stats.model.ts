@@ -7,6 +7,8 @@
 
 export type StatsCommit = {
 	sha: string;
+	/** The registered repo it is in; absent for the board's own. */
+	repo?: string;
 	time: number;
 	author: string;
 	subject: string;
