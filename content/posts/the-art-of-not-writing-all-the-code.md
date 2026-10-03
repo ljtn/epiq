@@ -41,9 +41,9 @@ None of these is exotic on its own, but together they are not a mainstream solut
 - Never ask users to resolve merge conflicts
 - Several people, and agents, edit at the same time, on- or offline
 
-Agents tend to not discover unorthodox solutions when not guided by constraints, a result of no vision to determine the constraints. This highlights the need for [a vision](./vision-drift.html).
+Agents tend to not discover non-standard solutions when not guided by constraints. Constraints are derived from a vision. This highlights the need for [a vision](./vision-drift.html).
 
-Agents acting probabilistically without constraints is why if you ask for a red button, and then for a blue button, you might get two different buttons rather than a single configurable button. The agent lacks a vision for the codebase. The fundamental principles of a system benefit from being derived from a human vision.
+Agents lacking a vision for the codebase is why if you ask for a red button, and then for a blue button, you might get two different buttons rather than a single configurable button. The fundamental principles of a system benefit from being derived from a human vision.
 
 ## A blessing in disguise
 
