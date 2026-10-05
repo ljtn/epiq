@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
+import {withoutRepositoryOverrides} from '../git/git-utils.js';
 import {acquireLockFile} from '../git/sync-lock.js';
 import {
 	parseRepoAddArgs,
@@ -189,5 +190,25 @@ describe('a lock file for long work', () => {
 		expect(acquireLockFile({lockPath, operation: 'fetch'}).acquired).toBe(true);
 
 		fs.rmSync(dir, {recursive: true, force: true});
+	});
+});
+
+describe('the environment git is started with', () => {
+	// A process started from a git hook inherits these, and every call here
+	// names its repository by its working directory.
+	it('drops what would point git at another repository', () => {
+		expect(
+			withoutRepositoryOverrides({
+				PATH: '/usr/bin',
+				GIT_DIR: '/elsewhere/.git',
+				GIT_WORK_TREE: '/elsewhere',
+				GIT_INDEX_FILE: '/elsewhere/.git/index',
+				GIT_OBJECT_DIRECTORY: '/elsewhere/.git/objects',
+				GIT_ALTERNATE_OBJECT_DIRECTORIES: '/elsewhere/.git/objects',
+				GIT_COMMON_DIR: '/elsewhere/.git',
+				GIT_NAMESPACE: 'x',
+				GIT_SSH_COMMAND: 'ssh',
+			}),
+		).toEqual({PATH: '/usr/bin', GIT_SSH_COMMAND: 'ssh'});
 	});
 });

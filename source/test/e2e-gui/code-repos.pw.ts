@@ -117,3 +117,60 @@ test('a repo added from the palette brings its commits to the ticket they name',
 	expect(fs.readFileSync(projectFile, 'utf8')).toBe(before);
 	expect(pageErrors).toEqual([]);
 });
+
+// A repo listed by somebody else's commit, not added here: shown, never
+// fetched, until somebody on this machine approves it.
+test('a repo that arrived in the project file waits for approval before anything is fetched', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	const projectFile = path.join(repoRoot, '.epiq', 'project.json');
+	const before = fs.readFileSync(projectFile, 'utf8');
+
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const ref = await addTicketForRef(page, `Arrived ${stamp}`);
+	const upstream = makeUpstream(ref, `listed elsewhere ${stamp}`);
+
+	try {
+		fs.writeFileSync(
+			projectFile,
+			JSON.stringify(
+				{...JSON.parse(before), repos: [`file://${upstream}`]},
+				null,
+				2,
+			),
+		);
+
+		await openRepos(page);
+		const modal = page.getByTestId('repos-modal');
+		const row = modal.getByTestId('repo-row');
+
+		await expect(row.getByTestId('repo-status')).toContainText(
+			'waiting for approval',
+		);
+
+		await modal.getByTestId('fetch-repos').click();
+		await expect(modal.getByTestId('repos-last-action')).toContainText(
+			'waiting for approval',
+		);
+		await expect(row.getByTestId('repo-status')).toContainText(
+			'waiting for approval',
+		);
+
+		await row.getByTestId('approve-repo').click();
+		await expect(row.getByTestId('approve-repo')).toHaveCount(0);
+
+		await modal.getByTestId('fetch-repos').click();
+		await expect(row.getByTestId('repo-status')).toHaveText(/^fetched /);
+	} finally {
+		fs.writeFileSync(projectFile, before);
+		fs.rmSync(upstream, {recursive: true, force: true});
+	}
+
+	expect(pageErrors).toEqual([]);
+});

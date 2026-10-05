@@ -39,6 +39,7 @@ export const ConfigModifiers = {
 	LOG_LEVEL: 'logLevel',
 	REPO_ADD: 'repoAdd',
 	REPO_REMOVE: 'repoRemove',
+	REPO_APPROVE: 'repoApprove',
 } as const;
 
 export type ConfigModifier =
@@ -74,6 +75,7 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.LOG_LEVEL,
 	ConfigModifiers.REPO_ADD,
 	ConfigModifiers.REPO_REMOVE,
+	ConfigModifiers.REPO_APPROVE,
 ];
 
 // Which edit modifiers are valid depends on what is selected: swimlanes and

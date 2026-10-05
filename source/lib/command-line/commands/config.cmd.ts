@@ -11,7 +11,11 @@ import {setAutoSyncCommand} from '../commands/set-auto-sync.cmd.js';
 import {setEmailsCommand} from '../commands/set-emails.cmd.js';
 import {unclaimEmailCommand} from '../commands/unclaim-email.cmd.js';
 import {setLogLevelCommand} from '../commands/set-log-level.cmd.js';
-import {repoAddCommand, repoRemoveCommand} from '../commands/repo.cmd.js';
+import {
+	repoAddCommand,
+	repoApproveCommand,
+	repoRemoveCommand,
+} from '../commands/repo.cmd.js';
 
 export const configCommand = (cmdState: CommandLineInput) => {
 	const value = cmdState.inputString.trim();
@@ -99,6 +103,9 @@ export const configCommand = (cmdState: CommandLineInput) => {
 
 		case ConfigModifiers.REPO_REMOVE:
 			return repoRemoveCommand();
+
+		case ConfigModifiers.REPO_APPROVE:
+			return repoApproveCommand();
 
 		default:
 			return failed('Unknown config command');

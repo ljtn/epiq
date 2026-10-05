@@ -40,6 +40,14 @@ type Props = {
 // what a comment will later be anchored to.
 const toRowNodeId = (sha: string, index: number) => `${sha}::patch::${index}`;
 
+/**
+ * A patch line as the terminal may be handed it. The line is whatever the
+ * commit's author put in the file, and a terminal obeys an escape sequence in
+ * it — so control characters are shown as a mark, never passed through.
+ */
+const drawable = (text: string): string =>
+	expandTabs(text).replace(/[\x00-\x1f\x7f-\x9f]/g, '\ufffd');
+
 // No syntax highlighting: added, removed, context and the hunk header is what
 // a diff is, and a terminal says it in four colours without a grammar for
 // every language in the repo. `o` opens the commit in a real editor when the
@@ -319,7 +327,7 @@ export function CommitDiffUI({
 									wrap="truncate-end"
 								>
 									{padTo(
-										` ${truncateToWidth(expandTabs(row.text), textWidth)}`,
+										` ${truncateToWidth(drawable(row.text), textWidth)}`,
 										textWidth + gutterWidth + 1,
 									)}
 								</Text>
@@ -333,7 +341,7 @@ export function CommitDiffUI({
 					// number and the sign, so saying a line carries a comment costs
 					// the code none of its width.
 					const body = `${rowSign(row.kind)}${truncateToWidth(
-						expandTabs(row.text),
+						drawable(row.text),
 						textWidth,
 					)}`;
 

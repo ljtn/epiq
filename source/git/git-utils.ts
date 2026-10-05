@@ -36,6 +36,18 @@ const GIT_TIMEOUT_MS = 10_000;
  */
 const GIT_SLOW_TIMEOUT_MS = 120_000;
 
+/**
+ * The most one call may print before it is stopped. Far past any real log or
+ * diff this codebase asks for; what it bounds is a repository built to be read
+ * — another repo's clone, a pull request's history — handing back a blob or a
+ * history big enough to take the process down with it.
+ */
+const MAX_GIT_OUTPUT = 256 * 1024 * 1024;
+const MAX_GIT_STDERR = 64 * 1024;
+
+/** The largest file a diff is drawn from; a bigger one is shown as undrawable. */
+export const MAX_BLOB_BYTES = 8 * 1024 * 1024;
+
 // Matched on argv rather than declared per call site: `execGit` is reached from
 // a dozen places and the cost of forgetting one is a truncated fetch.
 const SLOW_GIT_SUBCOMMANDS = new Set([
@@ -86,8 +98,31 @@ const resolveGitBinary = (): string => {
 
 export const GIT_BIN = resolveGitBinary();
 
+// The variables that point git somewhere other than its working directory. A
+// process started from a git hook inherits them, and every call here names its
+// repository by `cwd` — left in, they would send a sync, or a fetch of another
+// repo's clone, to the repository the hook ran in.
+const REPOSITORY_OVERRIDES = [
+	'GIT_DIR',
+	'GIT_WORK_TREE',
+	'GIT_INDEX_FILE',
+	'GIT_OBJECT_DIRECTORY',
+	'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+	'GIT_COMMON_DIR',
+	'GIT_NAMESPACE',
+];
+
+export const withoutRepositoryOverrides = (
+	env: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv =>
+	Object.fromEntries(
+		Object.entries(env).filter(
+			([name]) => !REPOSITORY_OVERRIDES.includes(name),
+		),
+	);
+
 export const gitEnv = {
-	...process.env,
+	...withoutRepositoryOverrides(process.env),
 	GIT_TERMINAL_PROMPT: '0',
 	GIT_ASKPASS: 'echo',
 	// GIT_TERMINAL_PROMPT/GIT_ASKPASS only silence git's own prompts. Without
@@ -180,10 +215,23 @@ const runGit = ({
 
 		child.stdout.on('data', chunk => {
 			stdout += chunk;
+
+			if (stdout.length > MAX_GIT_OUTPUT) {
+				child.kill('SIGTERM');
+
+				const message = `git ${args.join(
+					' ',
+				)}\nOutput past ${MAX_GIT_OUTPUT} characters; stopped`;
+				if (allowFail) {
+					finish({stdout: '', stderr: message, exitCode: 1});
+				} else {
+					finish(failed(message));
+				}
+			}
 		});
 
 		child.stderr.on('data', chunk => {
-			stderr += chunk;
+			if (stderr.length < MAX_GIT_STDERR) stderr += chunk;
 		});
 
 		child.on('error', error => {
@@ -297,10 +345,21 @@ export const readGitBlobsBatch = (
 			);
 		}, GIT_TIMEOUT_MS);
 
-		child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+		let received = 0;
+		child.stdout.on('data', (chunk: Buffer) => {
+			received += chunk.length;
+			if (received > MAX_GIT_OUTPUT) {
+				child.kill('SIGTERM');
+				finish(
+					failed(`git cat-file --batch: past ${MAX_GIT_OUTPUT} bytes; stopped`),
+				);
+				return;
+			}
+			chunks.push(chunk);
+		});
 		child.stderr.setEncoding('utf8');
 		child.stderr.on('data', chunk => {
-			stderr += chunk;
+			if (stderr.length < MAX_GIT_STDERR) stderr += chunk;
 		});
 
 		child.on('error', error => finish(failed(error.message)));
@@ -343,7 +402,11 @@ export const readGitBlobsBatch = (
 				}
 
 				const size = Number(match[1]);
-				blobs.set(hash, buffer.toString('utf8', offset, offset + size));
+				// Left out past the cap rather than decoded: the reader treats a
+				// missing blob as one it will not draw.
+				if (size <= MAX_BLOB_BYTES) {
+					blobs.set(hash, buffer.toString('utf8', offset, offset + size));
+				}
 				// +1 skips the single trailing newline `--batch` appends after content.
 				offset += size + 1;
 			}

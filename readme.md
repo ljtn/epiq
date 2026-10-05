@@ -44,6 +44,8 @@ A board can link commits from other repositories too — handy when the board li
 
 or from the GUI's command palette (**Code repos**), the TUI (`:config repoAdd <url>`, `:config repoRemove <name>`) or the MCP (`epiq_repo_add`). Epiq keeps its own read-only bare clone of each under `~/.epiq-global/repos/`, fetched on sync with your usual git credentials — never on startup. `branches` is `default` (the default) or `all`; `since` is how much history to clone: `board` (since the board was created, the default), `all`, or a date. A commit shows once it is pushed and the board has synced. Commit `project.json` to share the list.
 
+Since that list arrives with the code, a repo someone else listed is **never fetched on your machine until you approve it** (the panel's Approve, or `:config repoApprove <name>`); adding a repo yourself from the GUI or TUI approves it, adding one over MCP does not. Only `https`, `http`, `ssh`, `git`, `file` and `user@host:path` URLs are accepted, never one carrying a password, and the clones run none of your git hooks.
+
 ## Terminal + Browser
 
 Epiq originated from the command line and offers a first-class terminal experience, but also features a browser interface powered by the same Git-backed event engine.
