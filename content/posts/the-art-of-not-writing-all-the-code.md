@@ -10,7 +10,7 @@ Agentic code can be thought of as a fabric. It is easily shaped and can assume a
 ![Unguided, agentic code is shapeless, like fabric.](./images/fabric-loose.svg)
 
 ## The peg fallacy
-There is a real problem with the softness of fabric alone. A natural inclination is to address the lack of structure in agentic workflows by adding tests, contracts and static analysis. However, pinning down the edges with pegs does little to enforce internal structural rigidity. Without an internal structure to apply the constraining forces upon we are still in a soft, flat mess.
+There is a real problem with the softness of fabric alone. A natural inclination is to address the lack of structure in agentic workflows by adding tests, contracts, static analysis and agent harnesses. However, pinning down the edges with pegs does little to enforce internal structural rigidity. Without an internal structure to apply the constraining forces upon we are still in a soft, flat mess.
 
 ![Pinned down by tests, but still a mess.](./images/fabric-pegged.svg)
 
