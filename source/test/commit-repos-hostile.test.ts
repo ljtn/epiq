@@ -19,6 +19,7 @@ import {
 	getRepoClonesDir,
 	MAX_REPOS,
 } from '../lib/commits/commit-repos.js';
+import {execGit} from '../git/git-utils.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {addRepo, listRepos} from '../mcp/api/repos.js';
 import {makeTempDir} from './helpers/git-repo.js';
@@ -109,6 +110,11 @@ describe('a URL from a committed file', () => {
 		['-oProxyCommand=x@host:repo', 'is an scp option'],
 		['me@-oProxyCommand=x:repo', 'is an scp host option'],
 		['https://user:hunter2@example.com/repo.git', 'commits a password'],
+		[
+			'https://github.com@evil.example/acme/widgets',
+			'passes one host off as another',
+		],
+		[`https://${'%41'.repeat(300)}@evil.example/x`, 'buries the host'],
 		['file://fileserver/share/repo', 'names a host for a file URL'],
 		['/home/me/src/repo', 'is a local path'],
 		['https://example.com/a repo', 'holds a space'],
@@ -275,6 +281,28 @@ describe('what a registered repo holds', () => {
 			isBinary: true,
 			after: '',
 		});
+	});
+});
+
+describe('a checkout that looks like a bare repo', () => {
+	// A pull request can commit `HEAD`, `objects/` and a `config` of its own at
+	// the root; in a checkout named `*.git` that is a bare repository's shape,
+	// and treating it as one would run every git call under that config.
+	it('is still read through its own .git, not the committed lookalike', async () => {
+		const checkout = path.join(makeTempDir(), 'widgets.git');
+		fs.mkdirSync(checkout);
+		git(checkout, ['init', '-q', '-b', 'main']);
+		fs.writeFileSync(path.join(checkout, 'HEAD'), 'ref: refs/heads/main\n');
+		fs.mkdirSync(path.join(checkout, 'objects'));
+		fs.writeFileSync(path.join(checkout, 'config'), '[core]\n\tbare = true\n');
+
+		const result = value(
+			await execGit({cwd: checkout, args: ['rev-parse', '--absolute-git-dir']}),
+		);
+
+		expect(fs.realpathSync(result.stdout.trim())).toBe(
+			fs.realpathSync(path.join(checkout, '.git')),
+		);
 	});
 });
 

@@ -224,13 +224,14 @@ export const ManageReposModal = ({
 									<span style={{fontSize: 12, color: GUI_THEME.primary}}>
 										{repo.label}
 									</span>
+									{/* Whole, wrapped rather than cut short: the URL is what an
+									    approval trusts, and its host is not always at the start. */}
 									<span
+										data-testid="repo-url-shown"
 										style={{
 											fontSize: TEXT.label,
 											color: GUI_THEME.dim,
-											overflow: 'hidden',
-											textOverflow: 'ellipsis',
-											whiteSpace: 'nowrap',
+											overflowWrap: 'anywhere',
 										}}
 									>
 										{repo.url}
