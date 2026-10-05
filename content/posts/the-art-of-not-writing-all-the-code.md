@@ -22,7 +22,7 @@ We'd be helped by sturdy poles to stretch the fabric into its desired shape. In 
 That's the theory. Here is how it played out on my project.
 
 ## A thousand doubts
-In the early summer of 2025 I started building [Epiq](https://ljtn.github.io/epiq/), an issue tracker that keeps its state in the repository and syncs over Git.
+In the early summer of 2025 I started building Epiq, an issue tracker that keeps its state in the repository and syncs over Git.
 
 Back then agentic workflows were but distant rumors. Hence, manual struggle with the code, endless rubber ducking sessions, and 11h meditation sessions (road trips) charred the project's architecture in the fire of a thousand doubts.
 
