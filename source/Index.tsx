@@ -21,6 +21,7 @@ ${chalk.dim('Boot in directory:')}
 
 ${chalk.dim('Launch GUI:')}
   ${chalk.cyan('$ epiq gui')}
+  ${chalk.cyan('$ epiq gui --no-open')}  ${chalk.dim('no browser')}
 
 ${chalk.dim('Act as somebody other than the configured user:')}
   ${chalk.cyan('$ epiq --as claude')}
@@ -36,6 +37,10 @@ const cli = meow(helpText, {
 		},
 		as: {
 			type: 'string',
+		},
+		open: {
+			type: 'boolean',
+			default: true,
 		},
 	},
 });
@@ -91,7 +96,10 @@ process.stdout.on('resize', () => {
 });
 
 if (command === 'gui') {
-	const guiResult = await startGui({repoRoot: process.cwd()});
+	const guiResult = await startGui({
+		repoRoot: process.cwd(),
+		open: cli.flags.open,
+	});
 
 	if (isFail(guiResult)) {
 		console.error(chalk.red(`Failed to start Epiq GUI:\n${guiResult.message}`));

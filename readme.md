@@ -109,6 +109,8 @@ Once your project is set up, you can also launch the browser user interface with
 epiq gui
 ```
 
+On a machine with no display, or with `--no-open`, it serves without opening a browser; open the URL it prints.
+
 > Setup wizard creates:
 > User config persisted in `~/.epiq-global/config.json`.
 
