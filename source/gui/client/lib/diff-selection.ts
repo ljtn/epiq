@@ -146,11 +146,13 @@ export const diffLocationFromMeta = (
 		  }
 		: null;
 
+// `start`/`end`, not `from`/`to`: those are the board's zoom window, which
+// shares this query string.
 const DIFF_LOCATION_PARAMS = [
 	'commit',
 	'file',
-	'from',
-	'to',
+	'start',
+	'end',
 	'side',
 	'endSide',
 ] as const;
@@ -161,8 +163,8 @@ export const writeDiffLocationParams = (
 ): void => {
 	params.set('commit', location.sha);
 	params.set('file', location.filePath);
-	params.set('from', String(location.start));
-	params.set('to', String(location.end));
+	params.set('start', String(location.start));
+	params.set('end', String(location.end));
 	params.set('side', location.side);
 	params.set('endSide', location.endSide);
 };
@@ -204,8 +206,8 @@ export const readDiffLocationParams = (
 ): DiffLocation | null => {
 	const sha = params.get('commit');
 	const filePath = params.get('file');
-	const start = Number(params.get('from'));
-	const end = Number(params.get('to'));
+	const start = Number(params.get('start'));
+	const end = Number(params.get('end'));
 	const side = params.get('side');
 	const endSide = params.get('endSide');
 

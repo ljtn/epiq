@@ -6,6 +6,7 @@ import {
 	findDiffCommentsForFile,
 	commentsByAnchor,
 	isAdditionsSideComment,
+	clearDiffLocationParams,
 	readDiffLocationParams,
 	readDiffViewParam,
 	writeDiffLocationParams,
@@ -22,6 +23,11 @@ import {
 	withDiffCommentNote,
 } from '../../../lib/utils/diff-comment.js';
 import {GuiComment, GuiCommitDiffFile} from './gui-state.model';
+import {
+	DEFAULT_SELECTION,
+	readSelectionParams,
+	writeSelectionParams,
+} from './board-selection';
 
 const file: GuiCommitDiffFile = {
 	path: 'source/a.ts',
@@ -205,7 +211,7 @@ describe('writeDiffLocationParams / readDiffLocationParams', () => {
 	it('reads null when the range is not numeric', () => {
 		const params = new URLSearchParams();
 		writeDiffLocationParams(params, location);
-		params.set('from', 'not-a-number');
+		params.set('start', 'not-a-number');
 
 		expect(readDiffLocationParams(params)).toBeNull();
 	});
@@ -216,6 +222,20 @@ describe('writeDiffLocationParams / readDiffLocationParams', () => {
 		params.set('side', 'sideways');
 
 		expect(readDiffLocationParams(params)).toBeNull();
+	});
+
+	// Both live in one query string: a tab change clears the diff location, and
+	// that must leave the board's zoom where it was.
+	it('shares the query with the board zoom without touching it', () => {
+		const zoom = {start: 1_000_000, end: 2_000_000};
+		const params = new URLSearchParams();
+		writeSelectionParams(params, {...DEFAULT_SELECTION, zoom});
+
+		writeDiffLocationParams(params, location);
+		expect(readSelectionParams(params)?.zoom).toEqual(zoom);
+
+		clearDiffLocationParams(params);
+		expect(readSelectionParams(params)?.zoom).toEqual(zoom);
 	});
 });
 

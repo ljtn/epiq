@@ -1,5 +1,9 @@
 import {expect, test} from './fixtures.js';
 import {trackWithWindow} from './track.js';
+import {addTicketForRef} from './ticket.js';
+import {commitLinkedFile} from './linked-commit.js';
+
+const HOUR_MS = 60 * 60 * 1000;
 
 // By accessible name, not by title: TooltipLayer takes the `title` off a
 // control while the pointer rests on it, and a click leaves the pointer here.
@@ -77,6 +81,56 @@ test('a dragged-out zoom survives opening a ticket', async ({
 
 	// The same window, not merely some window: a rebuilt query would leave Zoom
 	// unpressed, and a re-derived one could land on different bounds.
+	await expect(zoom).toHaveAttribute('aria-pressed', 'true');
+	const after = new URL(page.url()).searchParams;
+	expect(after.get('from')).toBe(from);
+	expect(after.get('to')).toBe(to);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// A log line's commit opens the Code tab on a diff link, and changing tab
+// clears that link. The zoom shares the query string with it.
+test('a zoom survives following a commit from the log and changing tab', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const ref = await addTicketForRef(page, `Zoom log target ${stamp}`);
+	const subject = `zoom log work ${stamp}`;
+	commitLinkedFile(repoRoot, ref!, subject);
+
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	const boardUrl = new URL(page.url());
+	boardUrl.search = '';
+	const from = String(stamp - HOUR_MS);
+	const to = String(stamp + HOUR_MS);
+	await page.goto(`${boardUrl}?scope=year&from=${from}&to=${to}&window=1`);
+
+	const zoom = page.getByRole('button', {name: 'Zoom', exact: true});
+	await expect(zoom).toHaveAttribute('aria-pressed', 'true');
+
+	await page.getByTestId('log-toggle').click();
+	const select = page.getByTestId('commit-select');
+	await select.click();
+	await page.getByRole('radio', {name: 'Linked', exact: true}).click();
+	await page
+		.getByTestId('event-log')
+		.getByTestId('log-line')
+		.filter({hasText: subject})
+		.first()
+		.click();
+	await expect(page).toHaveURL(/tab=code&commit=/);
+
+	await page.getByRole('button', {name: 'Overview', exact: true}).click();
+	await expect(page).toHaveURL(/tab=overview/);
+
 	await expect(zoom).toHaveAttribute('aria-pressed', 'true');
 	const after = new URL(page.url()).searchParams;
 	expect(after.get('from')).toBe(from);
