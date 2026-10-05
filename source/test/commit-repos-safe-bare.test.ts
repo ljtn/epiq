@@ -77,7 +77,6 @@ describe('a clone under safe.bareRepository=explicit', () => {
 
 		value(
 			upsertCommitRepo({
-				trust: true,
 				repoRoot: board,
 				url: `file://${upstream}`,
 			}),

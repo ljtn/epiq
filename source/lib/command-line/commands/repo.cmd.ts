@@ -5,10 +5,8 @@ import {
 	readCommitRepos,
 	removeCommitRepo,
 	removeRepoClone,
-	listRepoStates,
 	RepoBranches,
 	repoIdOf,
-	trustRepo,
 	resolveRepoRoot,
 	upsertCommitRepo,
 	type CommitRepo,
@@ -76,11 +74,9 @@ export const repoAddCommand = () => {
 	const repoRootResult = resolveRepoRoot();
 	if (isFail(repoRootResult)) return repoRootResult;
 
-	// Typed by the person at this terminal, so it approves the repo here too.
 	const result = upsertCommitRepo({
 		repoRoot: repoRootResult.value,
 		...argsResult.value,
-		trust: true,
 	});
 	if (isFail(result)) return result;
 
@@ -123,34 +119,6 @@ export const resolveRemoveTarget = (
 	return match
 		? succeeded('Resolved', match.id)
 		: failed(`No repo "${typed}" is registered`);
-};
-
-/** The repos listed but not yet approved here, by the names `repoApprove` takes. */
-export const unapprovedRepos = (): CommitRepo[] => {
-	const repoRootResult = resolveRepoRoot();
-	if (isFail(repoRootResult)) return [];
-
-	const statesResult = listRepoStates(repoRootResult.value);
-	return isFail(statesResult)
-		? []
-		: statesResult.value.filter(repo => !repo.trusted);
-};
-
-export const repoApproveCommand = () => {
-	const typed = getCmdState().commandMeta.inputString.trim();
-
-	const repoRootResult = resolveRepoRoot();
-	if (isFail(repoRootResult)) return repoRootResult;
-
-	const repos = unapprovedRepos();
-	const targetResult = resolveRemoveTarget(repos, typed);
-	if (isFail(targetResult)) return targetResult;
-
-	const repo = repos.find(candidate => candidate.id === targetResult.value)!;
-	const result = trustRepo(repoRootResult.value, repo);
-	if (isFail(result)) return result;
-
-	return succeeded(`Approved ${repo.url} — :sync fetches it`, null);
 };
 
 export const repoRemoveCommand = () => {

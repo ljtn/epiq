@@ -306,11 +306,6 @@ export const upsertCommitRepo = (input: {
 	url: string;
 	branches?: RepoBranches;
 	since?: RepoSince;
-	/**
-	 * Approve it for fetching on this machine too. Only a person's own
-	 * action passes this — see `trustRepo`.
-	 */
-	trust?: boolean;
 }): Result<CommitRepo> => {
 	const url = input.url.trim();
 	const problem = repoUrlProblem(url);
@@ -355,11 +350,6 @@ export const upsertCommitRepo = (input: {
 	});
 	if (isFail(writeResult)) return failed(writeResult.message);
 
-	if (input.trust) {
-		const trustResult = trustRepo(input.repoRoot, toRepo(config));
-		if (isFail(trustResult)) return failed(trustResult.message);
-	}
-
 	return succeeded(
 		existing
 			? `Updated ${toRepo(config).label}`
@@ -389,79 +379,7 @@ export const removeCommitRepo = (input: {
 	);
 	if (isFail(writeResult)) return failed(writeResult.message);
 
-	forgetTrust(input.repoRoot, match.id);
-
 	return succeeded(`Removed ${match.label}`, match);
-};
-
-// Which repos this machine has agreed to fetch. The list in `project.json`
-// comes with the code, so anybody who can land a commit can name a URL in it:
-// fetching on sight would send this machine, and its credentials, to any host
-// a pull request chose. A repo is fetched only once somebody here has approved
-// it — adding it from the GUI or the TUI does — and the approval is for that
-// URL exactly, so a different URL that happens to hash to the same id gets
-// none of it.
-
-const trustPath = (projectId: string) =>
-	path.join(getRepoClonesDir(projectId), 'trusted.json');
-
-const readTrust = (projectId: string): Record<string, string> => {
-	try {
-		const raw = JSON.parse(
-			fs.readFileSync(trustPath(projectId), 'utf8'),
-		) as unknown;
-
-		return raw && typeof raw === 'object' && !Array.isArray(raw)
-			? Object.fromEntries(
-					Object.entries(raw).filter(
-						(entry): entry is [string, string] => typeof entry[1] === 'string',
-					),
-			  )
-			: {};
-	} catch {
-		return {};
-	}
-};
-
-const writeTrust = (
-	projectId: string,
-	trust: Record<string, string>,
-): Result<null> => {
-	try {
-		fs.mkdirSync(getRepoClonesDir(projectId), {recursive: true});
-		fs.writeFileSync(trustPath(projectId), JSON.stringify(trust, null, 2));
-		return succeeded('Wrote trust', null);
-	} catch (error) {
-		return failed(
-			`Could not record the approval: ${
-				error instanceof Error ? error.message : String(error)
-			}`,
-		);
-	}
-};
-
-export const isRepoTrusted = (projectId: string, repo: CommitRepo): boolean =>
-	readTrust(projectId)[repo.id] === normalizeUrl(repo.url);
-
-/** Approves a repo for fetching on this machine. A person's action only. */
-export const trustRepo = (repoRoot: string, repo: CommitRepo): Result<null> => {
-	const projectResult = readRepoProject(repoRoot);
-	if (isFail(projectResult)) return failed(projectResult.message);
-
-	const {projectId} = projectResult.value;
-	return writeTrust(projectId, {
-		...readTrust(projectId),
-		[repo.id]: normalizeUrl(repo.url),
-	});
-};
-
-const forgetTrust = (repoRoot: string, repoId: string) => {
-	const projectResult = readRepoProject(repoRoot);
-	if (isFail(projectResult)) return;
-
-	const {projectId} = projectResult.value;
-	const {[repoId]: _removed, ...rest} = readTrust(projectId);
-	writeTrust(projectId, rest);
 };
 
 /**

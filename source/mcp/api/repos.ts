@@ -39,12 +39,6 @@ export const addRepo = async (
 		url: string;
 		branches?: RepoBranches;
 		since?: string;
-		/**
-		 * Approve it for fetching on this machine. The GUI passes it for a
-		 * person's click; the MCP tool never does, so text an agent was handed
-		 * cannot send this machine to a host of its choosing.
-		 */
-		trust?: boolean;
 	},
 ): Promise<Result<RepoState[]>> => {
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
@@ -55,7 +49,6 @@ export const addRepo = async (
 		url: input.url,
 		branches: input.branches,
 		since: input.since,
-		trust: input.trust,
 	});
 	if (isFail(upsertResult)) return failed(upsertResult.message);
 
@@ -66,9 +59,7 @@ export const addRepo = async (
 	if (isFail(listResult)) return failed(listResult.message);
 
 	return succeeded(
-		input.trust
-			? `${upsertResult.message}. Commit .epiq/project.json to share it; it is fetched on the next sync.`
-			: `${upsertResult.message}. Commit .epiq/project.json to share it. It is fetched once somebody approves it in the GUI (Code repos) or the TUI (:config repoApprove).`,
+		`${upsertResult.message}. Commit .epiq/project.json to share it; it is fetched on the next sync.`,
 		listResult.value,
 	);
 };

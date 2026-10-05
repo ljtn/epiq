@@ -93,7 +93,6 @@ describe('git on behalf of another repo, under a hostile environment', () => {
 			upsertCommitRepo({
 				repoRoot: board,
 				url: `file://${upstream}`,
-				trust: true,
 			}),
 		);
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
@@ -109,7 +108,6 @@ describe('git on behalf of another repo, under a hostile environment', () => {
 			upsertCommitRepo({
 				repoRoot: board,
 				url: 'https://evil.example/repo.git',
-				trust: true,
 			}),
 		);
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));

@@ -10,7 +10,6 @@ import {
 	CommitRepo,
 	getRepoClonePath,
 	getRepoClonesDir,
-	isRepoTrusted,
 	readCommitRepos,
 	readRepoProject,
 	RepoBranches,
@@ -68,8 +67,6 @@ const writeStatus = (clonePath: string, status: RepoFetchStatus) => {
 };
 
 export type RepoState = CommitRepo & {
-	/** Approved for fetching on this machine; never fetched until it is. */
-	trusted: boolean;
 	/** Whether a clone exists on this machine yet. */
 	cloned: boolean;
 	fetchedAt: number | null;
@@ -96,7 +93,6 @@ export const listRepoStates = (repoRoot: string): Result<RepoState[]> => {
 
 			return {
 				...repo,
-				trusted: isRepoTrusted(projectResult.value.projectId, repo),
 				cloned,
 				fetchedAt: status?.fetchedAt ?? null,
 				error: status?.error ?? null,
@@ -334,8 +330,6 @@ export type RepoFetchOutcome = {
 	id: string;
 	label: string;
 	ok: boolean;
-	/** Not fetched: nobody on this machine has approved it yet. */
-	awaitingApproval?: boolean;
 	/** Whether the clone's branches moved, so its commits may have. */
 	changed: boolean;
 	/** Why it failed, or that another process had the clone. */
@@ -419,13 +413,6 @@ const fetchOne = async (
 	if (!lock.acquired) return outcome(true, 'Another process is fetching it');
 
 	try {
-		if (!isRepoTrusted(projectId, repo)) {
-			return {
-				...outcome(true, 'Waiting for approval on this machine'),
-				awaitingApproval: true,
-			};
-		}
-
 		const cloned = fs.existsSync(clonePath);
 		// Read even with no clone: a first clone that failed left one.
 		const previous = readStatus(clonePath);
@@ -655,20 +642,9 @@ export const describeFetchFailures = (
 	outcomes: readonly RepoFetchOutcome[],
 ): string | null => {
 	const failedRepos = outcomes.filter(outcome => !outcome.ok);
-	const waiting = outcomes.filter(outcome => outcome.awaitingApproval);
+	if (failedRepos.length === 0) return null;
 
-	const notes = [
-		failedRepos.length > 0
-			? `could not fetch ${failedRepos
-					.map(outcome => outcome.label)
-					.join(', ')}`
-			: null,
-		waiting.length > 0
-			? `${waiting
-					.map(outcome => outcome.label)
-					.join(', ')} waiting for approval`
-			: null,
-	].filter(Boolean);
-
-	return notes.length > 0 ? notes.join(' · ') : null;
+	return `could not fetch ${failedRepos
+		.map(outcome => outcome.label)
+		.join(', ')}`;
 };

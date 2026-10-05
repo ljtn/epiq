@@ -6,22 +6,15 @@ import {
 	fetchCommitRepos,
 	getCommitDiff,
 	getCommitsForRef,
-	listRepoStates,
 	readCommitRepos,
 	repoIdOf,
 	repoUrlProblem,
 	resetCommitTimelineCacheForTests,
-	trustRepo,
 	upsertCommitRepo,
 } from '../lib/commits/commits.js';
-import {
-	getRepoClonePath,
-	getRepoClonesDir,
-	MAX_REPOS,
-} from '../lib/commits/commit-repos.js';
+import {getRepoClonePath, MAX_REPOS} from '../lib/commits/commit-repos.js';
 import {execGit} from '../git/git-utils.js';
 import {isFail, Result} from '../lib/model/result-types.js';
-import {addRepo, listRepos} from '../mcp/api/repos.js';
 import {makeTempDir} from './helpers/git-repo.js';
 
 // `project.json` arrives with the code, so its repo list is anybody's who can
@@ -150,74 +143,10 @@ describe('a URL from a committed file', () => {
 	});
 });
 
-describe('a repo nobody here approved', () => {
-	it('is listed but never fetched', async () => {
-		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		// As a teammate's commit would bring it: in the file, not added here.
-		writeProject(board, {repos: [url]});
-
-		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
-
-		expect(outcome).toMatchObject({ok: true, awaitingApproval: true});
-		expect(fs.existsSync(getRepoClonePath(PROJECT_ID, repoIdOf(url)))).toBe(
-			false,
-		);
-		expect(value(listRepoStates(board))[0]).toMatchObject({
-			trusted: false,
-			cloned: false,
-		});
-	});
-
-	it('is fetched once approved here', async () => {
-		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		writeProject(board, {repos: [url]});
-
-		const [repo] = value(readCommitRepos(board));
-		value(trustRepo(board, repo!));
-		value(await fetchCommitRepos({repoRoot: board}));
-
-		expect(
-			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})),
-		).toHaveLength(1);
-	});
-
-	it('gets no approval from another URL that shares its id', async () => {
-		writeProject(board, {repos: [url]});
-		const id = repoIdOf(url);
-
-		// What a crafted collision would leave: this id approved, for a
-		// different URL than the one now listed.
-		fs.mkdirSync(getRepoClonesDir(PROJECT_ID), {recursive: true});
-		fs.writeFileSync(
-			path.join(getRepoClonesDir(PROJECT_ID), 'trusted.json'),
-			JSON.stringify({[id]: 'https://example.com/the-one-approved'}),
-		);
-
-		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
-		expect(outcome).toMatchObject({awaitingApproval: true});
-	});
-
-	it('is not approved by an agent adding it over MCP', async () => {
-		value(await addRepo({repoRoot: board, url}));
-
-		expect(value(await listRepos({repoRoot: board}))[0]).toMatchObject({
-			trusted: false,
-		});
-	});
-
-	it('is approved by a person adding it from the GUI', async () => {
-		value(await addRepo({repoRoot: board, url, trust: true}));
-
-		expect(value(await listRepos({repoRoot: board}))[0]).toMatchObject({
-			trusted: true,
-		});
-	});
-});
-
 describe('a clone that no longer matches the list', () => {
 	it('is not fetched from wherever it now points', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url, trust: true}));
+		value(upsertCommitRepo({repoRoot: board, url}));
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
@@ -252,7 +181,7 @@ describe('what a registered repo holds', () => {
 				},
 			},
 		);
-		value(upsertCommitRepo({repoRoot: board, url, trust: true}));
+		value(upsertCommitRepo({repoRoot: board, url}));
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const [entry] = value(
@@ -271,7 +200,7 @@ describe('what a registered repo holds', () => {
 			'AAAAAAA a huge file',
 			'line\n'.repeat(2 * 1024 * 1024),
 		);
-		value(upsertCommitRepo({repoRoot: board, url, trust: true}));
+		value(upsertCommitRepo({repoRoot: board, url}));
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const diff = value(await getCommitDiff({repoRoot: board, sha}));
