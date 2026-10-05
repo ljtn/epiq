@@ -2,6 +2,7 @@ import {spawn} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
+import {getGlobalConfigDir} from '../lib/storage/global-config-dir.js';
 import {git} from './git-commands.js';
 import {ORIGIN} from './git-constants.js';
 
@@ -135,19 +136,33 @@ export const gitEnv = {
 };
 
 /**
- * `--git-dir` for a bare repository, which epiq's clones of other repos are.
- * Found by its working directory alone, a bare repository is refused outright
- * under `safe.bareRepository=explicit`; named, it is not.
+ * What every git call in one of epiq's own clones of another repo runs with —
+ * and only there, decided by where the directory is rather than by what it
+ * holds. A checkout can carry a committed `HEAD`, `objects/` and `config` at
+ * its root; naming that as a git dir would run git under a stranger's config.
  *
- * Only a directory named like one is looked at, so the common call pays for a
- * string test and no stat.
+ * `--git-dir`, because found by its working directory alone a bare
+ * repository is refused under `safe.bareRepository=explicit`. The rest
+ * because the clone's contents are its remote's: a bare repository reads
+ * `.gitattributes` from its own HEAD, which could steer a diff through the
+ * user's textconv or external diff; and the user's hooks are for their repos.
  */
-const bareGitDirArgs = (cwd: string): string[] =>
-	/\.git(\.\d+\.pending)?$/.test(cwd) &&
-	fs.existsSync(path.join(cwd, 'HEAD')) &&
-	fs.existsSync(path.join(cwd, 'objects'))
-		? ['--git-dir=.']
-		: [];
+const cloneDirArgs = (cwd: string): string[] => {
+	const clones = path.resolve(getGlobalConfigDir(), 'repos') + path.sep;
+	if (!path.resolve(cwd).startsWith(clones)) return [];
+
+	return [
+		'--git-dir=.',
+		'-c',
+		'attr.tree=refs/epiq/no-attributes',
+		'-c',
+		'core.hooksPath=/dev/null/epiq-no-hooks',
+		'-c',
+		'protocol.ext.allow=never',
+		'-c',
+		'protocol.fd.allow=never',
+	];
+};
 
 const runGit = ({
 	args: givenArgs,
@@ -161,7 +176,7 @@ const runGit = ({
 	timeoutMs?: number;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
-		const args = [...bareGitDirArgs(cwd), ...givenArgs];
+		const args = [...cloneDirArgs(cwd), ...givenArgs];
 
 		if (!fs.existsSync(cwd)) {
 			const message = `Git cwd does not exist: ${cwd}`;
@@ -319,7 +334,7 @@ export const readGitBlobsBatch = (
 
 		const child = spawn(
 			GIT_BIN,
-			[...bareGitDirArgs(cwd), 'cat-file', '--batch'],
+			[...cloneDirArgs(cwd), 'cat-file', '--batch'],
 			{
 				cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],

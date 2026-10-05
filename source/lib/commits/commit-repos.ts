@@ -67,6 +67,11 @@ export const repoUrlProblem = (url: string): string | null => {
 		return 'uses a transport epiq does not clone over';
 	}
 	if (parsed.password) return 'carries a password — use a credential helper';
+	// Over ssh the user is the login; anywhere else it is only a way to make
+	// one host read as another (`https://github.com@evil.example/…`).
+	if (parsed.username && parsed.protocol !== 'ssh:') {
+		return 'names a user before the host — leave it to a credential helper';
+	}
 
 	if (parsed.protocol === 'file:') {
 		// A file URL naming another machine is read by some platforms as a
@@ -114,11 +119,11 @@ export const repoIdOf = (url: string): string =>
 	`${labelOf(url)}-${createHash('sha1')
 		.update(normalizeUrl(url))
 		.digest('hex')
-		.slice(0, 8)}`;
+		.slice(0, 12)}`;
 
 /** The label back off an id, which carries it ahead of the URL's hash. */
 export const repoLabelOfId = (repoId: string): string =>
-	repoId.replace(/-[0-9a-f]{8}$/, '');
+	repoId.replace(/-[0-9a-f]{12}$/, '');
 
 const toRepo = (config: CommitRepoConfig): CommitRepo => ({
 	...config,
@@ -178,31 +183,30 @@ export const readCommitRepos = (repoRoot: string): Result<CommitRepo[]> => {
 
 	const seen = new Set<string>();
 	const repos: CommitRepo[] = [];
+	let unreadable = 0;
 
-	for (const entry of entries) {
+	// Looked at up to a bound, and skipped entries counted rather than each
+	// logged: this runs on every read, and the list is a committed file.
+	for (const entry of entries.slice(0, MAX_REPOS * 5)) {
 		const config = parseEntry(entry);
 		if (!config) {
-			logger.info(
-				`[repos] skipped an unreadable entry: ${JSON.stringify(entry)?.slice(
-					0,
-					200,
-				)}`,
-			);
+			unreadable++;
 			continue;
 		}
 
 		const repo = toRepo(config);
 		if (seen.has(repo.id)) continue;
 
-		if (repos.length === MAX_REPOS) {
-			logger.info(
-				`[repos] read the first ${MAX_REPOS} repos; ignored the rest`,
-			);
-			break;
-		}
+		if (repos.length === MAX_REPOS) break;
 
 		seen.add(repo.id);
 		repos.push(repo);
+	}
+
+	if (unreadable > 0 || entries.length > MAX_REPOS * 5) {
+		logger.debug(
+			`[repos] read ${repos.length} of ${entries.length} entries; ${unreadable} unreadable`,
+		);
 	}
 
 	return succeeded('Read other repos', repos);
@@ -475,7 +479,7 @@ export const getRepoClonesDir = (projectId: string): string =>
 	);
 
 /** A clone directory's name, and nothing else the sweep could be pointed at. */
-export const CLONE_DIR_NAME = /^[a-z0-9._-]+-[0-9a-f]{8}\.git$/;
+export const CLONE_DIR_NAME = /^[a-z0-9._-]+-[0-9a-f]{12}\.git$/;
 
 export const getRepoClonePath = (projectId: string, repoId: string): string =>
 	path.join(getRepoClonesDir(projectId), `${repoId}.git`);

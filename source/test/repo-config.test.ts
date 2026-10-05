@@ -62,7 +62,7 @@ describe('a repo id read back as its label', () => {
 		]) {
 			const id = repoIdOf(url);
 			expect(repoLabelOf(id)).toBe(repoLabelOfId(id));
-			expect(repoLabelOf(id)).not.toMatch(/-[0-9a-f]{8}$/);
+			expect(repoLabelOf(id)).not.toMatch(/-[0-9a-f]{12}$/);
 		}
 	});
 });

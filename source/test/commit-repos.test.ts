@@ -165,7 +165,7 @@ describe('the repos list in project.json', () => {
 		expect(repoIdOf('https://Example.com/a/one.git/')).toBe(
 			repoIdOf('https://example.com/a/one'),
 		);
-		expect(repoIdOf('https://example.com/a/one')).toMatch(/^one-[0-9a-f]{8}$/);
+		expect(repoIdOf('https://example.com/a/one')).toMatch(/^one-[0-9a-f]{12}$/);
 	});
 
 	it('refuses a local path or an unknown history window on add', () => {
