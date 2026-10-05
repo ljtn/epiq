@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {answersBoardOnScreen} from './use-board-socket';
+import {answersBoardOnScreen, boardSocketUrl} from './use-board-socket';
 
 describe('answersBoardOnScreen', () => {
 	it('takes an answer for the board being looked at', () => {
@@ -19,5 +19,19 @@ describe('answersBoardOnScreen', () => {
 	it('takes an answer that names no board at all', () => {
 		expect(answersBoardOnScreen(undefined, 'board-a')).toBe(true);
 		expect(answersBoardOnScreen(undefined, null)).toBe(true);
+	});
+});
+
+describe('boardSocketUrl', () => {
+	it('opens a secure socket from a page served over https', () => {
+		expect(boardSocketUrl({protocol: 'https:', host: 'epiq.example.com'})).toBe(
+			'wss://epiq.example.com/ws',
+		);
+	});
+
+	it('opens a plain socket from a local http page', () => {
+		expect(boardSocketUrl({protocol: 'http:', host: '127.0.0.1:3710'})).toBe(
+			'ws://127.0.0.1:3710/ws',
+		);
 	});
 });

@@ -55,6 +55,14 @@ export const answersBoardOnScreen = (
 	onScreen: string | null | undefined,
 ): boolean => answeredFor === undefined || answeredFor === onScreen;
 
+// The page's own scheme: a page served over https may not open an insecure
+// socket, and the board would render empty.
+export const boardSocketUrl = (location: {
+	protocol: string;
+	host: string;
+}): string =>
+	`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+
 export const useBoardSocket = ({
 	onMessage,
 }: {
@@ -120,7 +128,7 @@ export const useBoardSocket = ({
 	// between was created but never opened, because `issues:create:result` came
 	// back to a socket that had already gone (`8GXKQR4`).
 	useEffect(() => {
-		const socket = new WebSocket(`ws://${window.location.host}/ws`);
+		const socket = new WebSocket(boardSocketUrl(window.location));
 
 		socketRef.current = socket;
 		// Distinguishes a socket the effect is tearing down from one that dropped
