@@ -4,6 +4,7 @@ import {CommitAuthor} from '../repository/contributor-directory.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {scanCacheMs} from '../utils/cache-ttl.js';
 import {NODE_REF_LENGTH} from '../utils/node-ref.js';
+import {sanitizeInlineText} from '../utils/string.utils.js';
 import {RepoInput} from './commit-repo.js';
 import {CommitSource, listCommitSources} from './commit-sources.js';
 
@@ -84,6 +85,17 @@ export const inCommitWindow = (
 
 type Window = {start?: number; end?: number};
 
+/**
+ * Text a commit carries, as it may be drawn: whoever wrote the commit chose
+ * every byte, and a terminal obeys an escape sequence — C0 and C1 controls
+ * alike — while a bidi override makes a subject read as something else.
+ */
+const cleanText = (value: string | undefined): string =>
+	sanitizeInlineText(value).replace(
+		/[\u0080-\u009f\u202a-\u202e\u2066-\u2069]/g,
+		'',
+	);
+
 const readSourceLog = async (
 	source: CommitSource,
 	window: Window,
@@ -160,9 +172,9 @@ const readSourceLog = async (
 				sha,
 				...(source.repo ? {repo: source.repo} : {}),
 				time: Number(atSeconds) * 1000,
-				author: author ?? 'unknown',
-				authorEmail: authorEmail ?? '',
-				subject: subjectParts.join(GIT_LOG_FIELD_SEP),
+				author: cleanText(author) || 'unknown',
+				authorEmail: cleanText(authorEmail),
+				subject: cleanText(subjectParts.join(GIT_LOG_FIELD_SEP)),
 				linesChanged: insertions + deletions,
 				insertions,
 				deletions,

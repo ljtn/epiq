@@ -227,22 +227,29 @@ const readDiffFiles = async (
 
 	const blobs = blobsResult.value;
 
+	// A side the read left out was past MAX_BLOB_BYTES: declined like a binary
+	// file, rather than drawn as an empty one.
+	const unread = (blob: string | null) => blob !== null && !blobs.has(blob);
+
 	return succeeded(
 		'Read changed file contents',
-		entries.map(entry => ({
-			path: entry.path,
-			before:
-				entry.isBinary || !entry.beforeBlob
-					? ''
-					: blobs.get(entry.beforeBlob) ?? '',
-			after:
-				entry.isBinary || !entry.afterBlob
-					? ''
-					: blobs.get(entry.afterBlob) ?? '',
-			insertions: entry.insertions,
-			deletions: entry.deletions,
-			isBinary: entry.isBinary,
-		})),
+		entries.map(entry => {
+			const isBinary =
+				entry.isBinary || unread(entry.beforeBlob) || unread(entry.afterBlob);
+
+			return {
+				path: entry.path,
+				before:
+					isBinary || !entry.beforeBlob
+						? ''
+						: blobs.get(entry.beforeBlob) ?? '',
+				after:
+					isBinary || !entry.afterBlob ? '' : blobs.get(entry.afterBlob) ?? '',
+				insertions: entry.insertions,
+				deletions: entry.deletions,
+				isBinary,
+			};
+		}),
 	);
 };
 

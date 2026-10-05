@@ -131,6 +131,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 			url: z.string().min(1).max(2000),
 			branches: z.enum(['default', 'all']).optional(),
 			since: z.string().max(20).optional(),
+			trust: z.boolean().optional(),
 		}),
 	),
 	message('repo:remove', z.object({repo: z.string().min(1).max(2000)})),

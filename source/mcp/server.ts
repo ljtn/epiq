@@ -671,7 +671,7 @@ export const createMcpServer = () => {
 		'epiq_repo_add',
 		{
 			description:
-				"Register another repo by remote URL, so commits there prefixed with a ticket's ref link to it; or change an already registered repo's options. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. Edits .epiq/project.json, which needs committing to reach other clones; epiq_sync fetches it.",
+				"Register another repo by remote URL, so commits there prefixed with a ticket's ref link to it; or change an already registered repo's options. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. Edits .epiq/project.json, which needs committing to reach other clones. Nothing is fetched until a person approves the repo on this machine in the GUI (Code repos) or the TUI (:config repoApprove); epiq_sync fetches it after that.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				url: z.string().min(1).max(2000),

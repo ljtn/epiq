@@ -10,6 +10,7 @@ import {
 	CommitRepo,
 	getRepoClonePath,
 	getRepoClonesDir,
+	isRepoTrusted,
 	readCommitRepos,
 	readRepoProject,
 	RepoBranches,
@@ -67,6 +68,8 @@ const writeStatus = (clonePath: string, status: RepoFetchStatus) => {
 };
 
 export type RepoState = CommitRepo & {
+	/** Approved for fetching on this machine; never fetched until it is. */
+	trusted: boolean;
 	/** Whether a clone exists on this machine yet. */
 	cloned: boolean;
 	fetchedAt: number | null;
@@ -93,6 +96,7 @@ export const listRepoStates = (repoRoot: string): Result<RepoState[]> => {
 
 			return {
 				...repo,
+				trusted: isRepoTrusted(projectResult.value.projectId, repo),
 				cloned,
 				fetchedAt: status?.fetchedAt ?? null,
 				error: status?.error ?? null,
@@ -101,11 +105,37 @@ export const listRepoStates = (repoRoot: string): Result<RepoState[]> => {
 	);
 };
 
+/**
+ * Every git call on another repo's clone, settled here rather than by
+ * whatever the user's own config says. Their hooks are for their repos, not
+ * epiq's clones; a URL rewrite (`insteadOf`) must not reach a transport that
+ * runs a command; nothing recurses into submodules a remote declares; and a
+ * credential manager that would open a dialog from a background sync is told
+ * not to.
+ */
+const HERMETIC = [
+	'-c',
+	'core.hooksPath=/dev/null/epiq-no-hooks',
+	'-c',
+	'protocol.ext.allow=never',
+	'-c',
+	'protocol.fd.allow=never',
+	'-c',
+	'submodule.recurse=false',
+	'-c',
+	'fetch.recurseSubmodules=false',
+	'-c',
+	'credential.interactive=never',
+];
+
+const localGit = (input: {cwd: string; args: string[]; timeoutMs?: number}) =>
+	execGit({...input, args: [...HERMETIC, ...input.args]});
+
 const git = (cwd: string, args: string[]) =>
-	execGit({cwd, args, timeoutMs: TRANSFER_TIMEOUT_MS});
+	localGit({cwd, args, timeoutMs: TRANSFER_TIMEOUT_MS});
 
 const defaultBranchOf = async (clonePath: string): Promise<string | null> => {
-	const result = await execGit({
+	const result = await localGit({
 		cwd: clonePath,
 		args: ['symbolic-ref', '--short', 'HEAD'],
 	});
@@ -132,7 +162,7 @@ const dropOtherBranches = async (clonePath: string): Promise<void> => {
 	const name = await defaultBranchOf(clonePath);
 	if (!name) return;
 
-	const refsResult = await execGit({
+	const refsResult = await localGit({
 		cwd: clonePath,
 		args: ['for-each-ref', '--format=%(refname)', 'refs/heads/'],
 	});
@@ -140,7 +170,7 @@ const dropOtherBranches = async (clonePath: string): Promise<void> => {
 
 	for (const ref of refsResult.value.stdout.split('\n').filter(Boolean)) {
 		if (ref === `refs/heads/${name}`) continue;
-		await execGit({cwd: clonePath, args: ['update-ref', '-d', ref]});
+		await localGit({cwd: clonePath, args: ['update-ref', '-d', ref]});
 	}
 };
 
@@ -222,7 +252,7 @@ const cloneRepo = async (
 		return failed(refspecResult.message);
 	}
 
-	await execGit({
+	await localGit({
 		cwd: pending,
 		args: ['config', 'remote.origin.fetch', refspecResult.value],
 	});
@@ -261,7 +291,7 @@ const fetchRepo = async (
 		const refspecResult = await refspecFor(clonePath, repo.branches);
 		if (isFail(refspecResult)) return failed(refspecResult.message);
 
-		const configResult = await execGit({
+		const configResult = await localGit({
 			cwd: clonePath,
 			args: ['config', 'remote.origin.fetch', refspecResult.value],
 		});
@@ -304,6 +334,8 @@ export type RepoFetchOutcome = {
 	id: string;
 	label: string;
 	ok: boolean;
+	/** Not fetched: nobody on this machine has approved it yet. */
+	awaitingApproval?: boolean;
 	/** Whether the clone's branches moved, so its commits may have. */
 	changed: boolean;
 	/** Why it failed, or that another process had the clone. */
@@ -318,7 +350,7 @@ export type RepoFetchOutcome = {
 const refsOf = async (clonePath: string): Promise<string> => {
 	if (!fs.existsSync(clonePath)) return '';
 
-	const result = await execGit({
+	const result = await localGit({
 		cwd: clonePath,
 		args: ['for-each-ref', '--format=%(objectname) %(refname)'],
 	});
@@ -328,6 +360,24 @@ const refsOf = async (clonePath: string): Promise<string> => {
 		: '';
 
 	return `${isFail(result) ? '' : result.value.stdout}\n${shallow}`;
+};
+
+const originMatches = async (clonePath: string, url: string) => {
+	const result = await localGit({
+		cwd: clonePath,
+		args: ['config', '--get', 'remote.origin.url'],
+	});
+
+	return !isFail(result) && result.value.stdout.trim() === url;
+};
+
+/**
+ * `EPIQ_GLOBAL_DIR` can point anywhere, a repository included; there the
+ * clones would show as untracked files, one `git add -A` from being committed.
+ */
+const ignoreClonesDir = (dir: string) => {
+	const ignore = path.join(dir, '.gitignore');
+	if (!fs.existsSync(ignore)) fs.writeFileSync(ignore, '*\n');
 };
 
 const errorMessage = (error: unknown) =>
@@ -354,6 +404,7 @@ const fetchOne = async (
 
 	try {
 		fs.mkdirSync(path.dirname(clonePath), {recursive: true});
+		ignoreClonesDir(path.dirname(clonePath));
 	} catch (error) {
 		return outcome(false, errorMessage(error));
 	}
@@ -368,9 +419,25 @@ const fetchOne = async (
 	if (!lock.acquired) return outcome(true, 'Another process is fetching it');
 
 	try {
+		if (!isRepoTrusted(projectId, repo)) {
+			return {
+				...outcome(true, 'Waiting for approval on this machine'),
+				awaitingApproval: true,
+			};
+		}
+
 		const cloned = fs.existsSync(clonePath);
 		// Read even with no clone: a first clone that failed left one.
 		const previous = readStatus(clonePath);
+
+		// The clone is fetched from wherever it was cloned from, so one that
+		// names another URL than the list does is not this repo's.
+		if (cloned && !(await originMatches(clonePath, repo.url))) {
+			return outcome(
+				false,
+				'The clone on this machine points at another URL — remove the repo and add it again',
+			);
+		}
 
 		// Autosync asks often; a repo tried a moment ago, with the same options,
 		// is left alone — one that failed too, or an unreachable host is asked
@@ -390,7 +457,14 @@ const fetchOne = async (
 		const result = cloned
 			? await fetchRepo(clonePath, repo, since, cloned ? previous : null)
 			: await cloneRepo(clonePath, repo, since);
-		const message = isFail(result) ? result.message.trim() : 'Fetched';
+		// git's error carries whatever the remote said, so it is kept as text
+		// only: no control characters, and not a whole essay.
+		const message = isFail(result)
+			? result.message
+					.replace(/[\x00-\x09\x0b-\x1f\x7f-\x9f]/g, '')
+					.trim()
+					.slice(0, 2000)
+			: 'Fetched';
 
 		// Written whether or not a clone exists: a first clone that failed has
 		// nothing else to say why.
@@ -581,9 +655,20 @@ export const describeFetchFailures = (
 	outcomes: readonly RepoFetchOutcome[],
 ): string | null => {
 	const failedRepos = outcomes.filter(outcome => !outcome.ok);
-	if (failedRepos.length === 0) return null;
+	const waiting = outcomes.filter(outcome => outcome.awaitingApproval);
 
-	return `could not fetch ${failedRepos
-		.map(outcome => outcome.label)
-		.join(', ')}`;
+	const notes = [
+		failedRepos.length > 0
+			? `could not fetch ${failedRepos
+					.map(outcome => outcome.label)
+					.join(', ')}`
+			: null,
+		waiting.length > 0
+			? `${waiting
+					.map(outcome => outcome.label)
+					.join(', ')} waiting for approval`
+			: null,
+	].filter(Boolean);
+
+	return notes.length > 0 ? notes.join(' · ') : null;
 };

@@ -80,7 +80,12 @@ export const useRepos = ({
 	);
 
 	const add = useCallback(
-		(payload: {url: string; branches?: 'default' | 'all'; since?: string}) => {
+		(payload: {
+			url: string;
+			branches?: 'default' | 'all';
+			since?: string;
+			trust?: boolean;
+		}) => {
 			setState(prev => ({...prev, lastAction: null}));
 			sendRaw({type: 'repo:add', payload});
 		},

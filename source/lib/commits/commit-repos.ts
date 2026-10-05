@@ -33,17 +33,63 @@ export type CommitRepo = CommitRepoConfig & {
 
 export const REPOS_KEY = 'repos';
 
-const SCHEME_URL = /^(https?|ssh|git|file):\/\/[^\s]+$/i;
-// `user@host:path`, the form ssh remotes are usually written in.
-const SCP_URL = /^[\w.-]+@[\w.-]+:[^\s]+$/;
+const SCHEMES = new Set(['https:', 'http:', 'ssh:', 'git:', 'file:']);
+// `user@host:path`, the form ssh remotes are usually written in. Both names
+// open on a letter or digit: one opening on `-` reaches ssh as an option.
+const SCP_URL = /^[A-Za-z0-9][\w.-]*@[A-Za-z0-9][\w.-]*:[^:]+$/;
+// Visible ASCII: no spaces, no control characters to rewrite a terminal with,
+// no lookalike letters to pass one host off as another.
+const PRINTABLE = /^[\x21-\x7e]+$/;
+const MAX_URL_LENGTH = 2048;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Plain git transports only, and nothing git could read as a flag or a local
- * path. `ext::` would run a command, and a URL arrives from a committed file.
+ * Why a URL may not be registered, or null when it may. It arrives from a
+ * committed file, so it is anybody's who can open a pull request: plain git
+ * transports only, nothing git could read as a flag, nothing that runs a
+ * command (`ext::`), no local path, and no password — one in a committed URL
+ * is a leaked one, and a credential helper is where it belongs.
  */
+export const repoUrlProblem = (url: string): string | null => {
+	if (url.length > MAX_URL_LENGTH) return 'is too long';
+	if (!PRINTABLE.test(url)) return 'holds spaces or characters git would not';
+	if (url.startsWith('-')) return 'would be read as an option';
+	if (SCP_URL.test(url)) return null;
+
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return 'is not a remote URL';
+	}
+
+	if (!SCHEMES.has(parsed.protocol)) {
+		return 'uses a transport epiq does not clone over';
+	}
+	if (parsed.password) return 'carries a password — use a credential helper';
+
+	if (parsed.protocol === 'file:') {
+		// A file URL naming another machine is read by some platforms as a
+		// network share.
+		return parsed.hostname ? 'names a host in a file:// URL' : null;
+	}
+
+	if (!parsed.hostname) return 'names no host';
+	if (parsed.hostname.startsWith('-') || parsed.username.startsWith('-')) {
+		return 'would be read as an option';
+	}
+
+	return null;
+};
+
 export const isAllowedRepoUrl = (url: string): boolean =>
-	!url.startsWith('-') && (SCHEME_URL.test(url) || SCP_URL.test(url));
+	repoUrlProblem(url) === null;
+
+/**
+ * How many repos one board reads. The list is a committed file; past this, a
+ * hostile one is asking for a clone of everything, not describing a project.
+ */
+export const MAX_REPOS = 20;
 
 export const isRepoSince = (value: string): boolean =>
 	value === 'board' ||
@@ -137,7 +183,10 @@ export const readCommitRepos = (repoRoot: string): Result<CommitRepo[]> => {
 		const config = parseEntry(entry);
 		if (!config) {
 			logger.info(
-				`[repos] skipped an unreadable entry: ${JSON.stringify(entry)}`,
+				`[repos] skipped an unreadable entry: ${JSON.stringify(entry)?.slice(
+					0,
+					200,
+				)}`,
 			);
 			continue;
 		}
@@ -145,11 +194,49 @@ export const readCommitRepos = (repoRoot: string): Result<CommitRepo[]> => {
 		const repo = toRepo(config);
 		if (seen.has(repo.id)) continue;
 
+		if (repos.length === MAX_REPOS) {
+			logger.info(
+				`[repos] read the first ${MAX_REPOS} repos; ignored the rest`,
+			);
+			break;
+		}
+
 		seen.add(repo.id);
 		repos.push(repo);
 	}
 
 	return succeeded('Read other repos', repos);
+};
+
+/**
+ * The project file, if it is one this process may write. It arrives with the
+ * code, so a repository can commit it as a link — to a shell profile, say —
+ * and writing through that link would rewrite the file it points at. So: a
+ * plain file, inside the repository, or nothing.
+ */
+const writableProjectFile = (repoRoot: string): Result<string> => {
+	const target = getProjectFilePath(repoRoot);
+
+	try {
+		if (!fs.lstatSync(target).isFile()) {
+			return failed('.epiq/project.json is not a plain file; not writing it');
+		}
+
+		const root = fs.realpathSync(repoRoot);
+		const real = fs.realpathSync(target);
+		// Through a linked `.epiq` directory too: the file must be this one.
+		if (path.relative(root, real) !== path.join('.epiq', 'project.json')) {
+			return failed('.epiq/project.json resolves outside the repository');
+		}
+	} catch (error) {
+		return failed(
+			`Cannot write .epiq/project.json: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+	}
+
+	return succeeded('Writable', target);
 };
 
 /** The `repos` list as written, entries this build cannot read included. */
@@ -184,12 +271,20 @@ const editRawEntries = (
 		next[REPOS_KEY] = entries;
 	}
 
+	const targetResult = writableProjectFile(repoRoot);
+	if (isFail(targetResult)) return failed(targetResult.message);
+	const target = targetResult.value;
+
 	try {
-		fs.writeFileSync(
-			getProjectFilePath(repoRoot),
-			JSON.stringify(next, null, 2) + '\n',
-			'utf8',
-		);
+		// Beside it, then renamed over it: a rename replaces the entry itself,
+		// so a crash mid-write never leaves half a file, and nothing is written
+		// through a link.
+		const pending = `${target}.${process.pid}.tmp`;
+		fs.writeFileSync(pending, JSON.stringify(next, null, 2) + '\n', {
+			encoding: 'utf8',
+			flag: 'wx',
+		});
+		fs.renameSync(pending, target);
 	} catch (error) {
 		return failed(
 			`Failed to write .epiq/project.json: ${
@@ -207,11 +302,17 @@ export const upsertCommitRepo = (input: {
 	url: string;
 	branches?: RepoBranches;
 	since?: RepoSince;
+	/**
+	 * Approve it for fetching on this machine too. Only a person's own
+	 * action passes this — see `trustRepo`.
+	 */
+	trust?: boolean;
 }): Result<CommitRepo> => {
 	const url = input.url.trim();
-	if (!isAllowedRepoUrl(url)) {
+	const problem = repoUrlProblem(url);
+	if (problem) {
 		return failed(
-			`"${url}" is not a remote URL epiq can clone. Use https://, ssh://, git://, file:// or user@host:path.`,
+			`That URL ${problem}. Use https://, ssh://, git://, file:// or user@host:path.`,
 		);
 	}
 	if (input.since !== undefined && !isRepoSince(input.since)) {
@@ -250,6 +351,11 @@ export const upsertCommitRepo = (input: {
 	});
 	if (isFail(writeResult)) return failed(writeResult.message);
 
+	if (input.trust) {
+		const trustResult = trustRepo(input.repoRoot, toRepo(config));
+		if (isFail(trustResult)) return failed(trustResult.message);
+	}
+
 	return succeeded(
 		existing
 			? `Updated ${toRepo(config).label}`
@@ -279,7 +385,79 @@ export const removeCommitRepo = (input: {
 	);
 	if (isFail(writeResult)) return failed(writeResult.message);
 
+	forgetTrust(input.repoRoot, match.id);
+
 	return succeeded(`Removed ${match.label}`, match);
+};
+
+// Which repos this machine has agreed to fetch. The list in `project.json`
+// comes with the code, so anybody who can land a commit can name a URL in it:
+// fetching on sight would send this machine, and its credentials, to any host
+// a pull request chose. A repo is fetched only once somebody here has approved
+// it — adding it from the GUI or the TUI does — and the approval is for that
+// URL exactly, so a different URL that happens to hash to the same id gets
+// none of it.
+
+const trustPath = (projectId: string) =>
+	path.join(getRepoClonesDir(projectId), 'trusted.json');
+
+const readTrust = (projectId: string): Record<string, string> => {
+	try {
+		const raw = JSON.parse(
+			fs.readFileSync(trustPath(projectId), 'utf8'),
+		) as unknown;
+
+		return raw && typeof raw === 'object' && !Array.isArray(raw)
+			? Object.fromEntries(
+					Object.entries(raw).filter(
+						(entry): entry is [string, string] => typeof entry[1] === 'string',
+					),
+			  )
+			: {};
+	} catch {
+		return {};
+	}
+};
+
+const writeTrust = (
+	projectId: string,
+	trust: Record<string, string>,
+): Result<null> => {
+	try {
+		fs.mkdirSync(getRepoClonesDir(projectId), {recursive: true});
+		fs.writeFileSync(trustPath(projectId), JSON.stringify(trust, null, 2));
+		return succeeded('Wrote trust', null);
+	} catch (error) {
+		return failed(
+			`Could not record the approval: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+	}
+};
+
+export const isRepoTrusted = (projectId: string, repo: CommitRepo): boolean =>
+	readTrust(projectId)[repo.id] === normalizeUrl(repo.url);
+
+/** Approves a repo for fetching on this machine. A person's action only. */
+export const trustRepo = (repoRoot: string, repo: CommitRepo): Result<null> => {
+	const projectResult = readRepoProject(repoRoot);
+	if (isFail(projectResult)) return failed(projectResult.message);
+
+	const {projectId} = projectResult.value;
+	return writeTrust(projectId, {
+		...readTrust(projectId),
+		[repo.id]: normalizeUrl(repo.url),
+	});
+};
+
+const forgetTrust = (repoRoot: string, repoId: string) => {
+	const projectResult = readRepoProject(repoRoot);
+	if (isFail(projectResult)) return;
+
+	const {projectId} = projectResult.value;
+	const {[repoId]: _removed, ...rest} = readTrust(projectId);
+	writeTrust(projectId, rest);
 };
 
 /**

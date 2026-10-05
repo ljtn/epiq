@@ -75,7 +75,13 @@ describe('a clone under safe.bareRepository=explicit', () => {
 		commit(upstream, 'init.txt', 'init');
 		const sha = commit(upstream, 'up.txt', 'AAAAAAA upstream');
 
-		value(upsertCommitRepo({repoRoot: board, url: `file://${upstream}`}));
+		value(
+			upsertCommitRepo({
+				trust: true,
+				repoRoot: board,
+				url: `file://${upstream}`,
+			}),
+		);
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 		expect(outcome!.ok).toBe(true);
 
