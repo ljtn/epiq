@@ -22,7 +22,7 @@ fs.writeFileSync(
 );
 fs.chmodSync(path.join(hooksDir, 'reference-transaction'), 0o755);
 
-process.env['GIT_CONFIG_COUNT'] = '3';
+process.env['GIT_CONFIG_COUNT'] = '5';
 process.env['GIT_CONFIG_KEY_0'] = 'core.hooksPath';
 process.env['GIT_CONFIG_VALUE_0'] = hooksDir;
 process.env['GIT_CONFIG_KEY_1'] =
@@ -32,7 +32,12 @@ process.env['GIT_CONFIG_KEY_1'] =
 process.env['GIT_CONFIG_VALUE_1'] = 'https://evil.example/';
 process.env['GIT_CONFIG_KEY_2'] = 'protocol.ext.allow';
 process.env['GIT_CONFIG_VALUE_2'] = 'always';
-const {fetchCommitRepos, upsertCommitRepo} = await import(
+// Formats a user may prefer and every patch parser here would choke on.
+process.env['GIT_CONFIG_KEY_3'] = 'diff.noprefix';
+process.env['GIT_CONFIG_VALUE_3'] = 'true';
+process.env['GIT_CONFIG_KEY_4'] = 'diff.mnemonicPrefix';
+process.env['GIT_CONFIG_VALUE_4'] = 'true';
+const {fetchCommitRepos, getCommitPatch, upsertCommitRepo} = await import(
 	'../lib/commits/commits.js'
 );
 
@@ -114,5 +119,17 @@ describe('git on behalf of another repo, under a hostile environment', () => {
 
 		expect(outcome!.ok).toBe(false);
 		expect(fs.existsSync(extMarker)).toBe(false);
+	});
+
+	it('reads patches in the shape the parsers expect, whatever diff.noprefix says', async () => {
+		const board = makeBoard();
+		fs.writeFileSync(path.join(board, 'b.txt'), 'b\n');
+		git(board, ['add', 'b.txt']);
+		git(board, ['commit', '-q', '-m', 'AAAAAAA board']);
+		const sha = git(board, ['rev-parse', 'HEAD']).trim();
+
+		const patch = value(await getCommitPatch({repoRoot: board, sha}));
+
+		expect(patch).toContain('diff --git a/b.txt b/b.txt');
 	});
 });

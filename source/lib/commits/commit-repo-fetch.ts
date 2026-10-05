@@ -61,7 +61,11 @@ const readStatus = (clonePath: string): RepoFetchStatus | null => {
 
 const writeStatus = (clonePath: string, status: RepoFetchStatus) => {
 	try {
-		fs.writeFileSync(statusPath(clonePath), JSON.stringify(status) + '\n');
+		// Beside it and renamed over it: another process reads this without the
+		// clone's lock, and must never see half of it.
+		const pending = `${statusPath(clonePath)}.${process.pid}.tmp`;
+		fs.writeFileSync(pending, JSON.stringify(status) + '\n');
+		fs.renameSync(pending, statusPath(clonePath));
 	} catch (error) {
 		logger.info(`[repos] could not record fetch status: ${String(error)}`);
 	}
@@ -123,6 +127,8 @@ const HERMETIC = [
 	'fetch.recurseSubmodules=false',
 	'-c',
 	'credential.interactive=never',
+	'-c',
+	'core.longpaths=true',
 ];
 
 const localGit = (input: {cwd: string; args: string[]; timeoutMs?: number}) =>
@@ -310,6 +316,41 @@ const followDefaultBranch = async (
 		: succeeded('Followed', null);
 };
 
+/**
+ * Git's own lock files that a git process left behind. Only epiq runs git in
+ * its clones, and only while holding the clone's lock — which the caller
+ * does — so any found here belong to a git that was killed: a server shut
+ * down mid-fetch, or a fetch this module timed out. Left, every fetch after
+ * fails on them for good.
+ */
+const clearStaleGitLocks = (clonePath: string) => {
+	const visit = (dir: string, depth: number) => {
+		for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+			const full = path.join(dir, entry.name);
+
+			if (entry.isFile() && entry.name.endsWith('.lock')) {
+				fs.rmSync(full, {force: true});
+			} else if (entry.isDirectory() && depth > 0) {
+				visit(full, depth - 1);
+			}
+		}
+	};
+
+	try {
+		// The top (HEAD, config, shallow, packed-refs) and the ref tree, which
+		// is as deep as a branch name has slashes.
+		for (const name of fs.readdirSync(clonePath)) {
+			if (name.endsWith('.lock')) {
+				fs.rmSync(path.join(clonePath, name), {force: true});
+			}
+		}
+		const refs = path.join(clonePath, 'refs');
+		if (fs.existsSync(refs)) visit(refs, 16);
+	} catch (error) {
+		logger.info(`[repos] could not clear stale locks: ${String(error)}`);
+	}
+};
+
 const isShallow = (clonePath: string) =>
 	fs.existsSync(path.join(clonePath, 'shallow'));
 
@@ -483,12 +524,17 @@ const fetchOne = async (
 			previous?.attemptedAt &&
 			previous.branches === repo.branches &&
 			previous.since === since &&
+			// A clock set back would otherwise hold every fetch off until it
+			// caught up again.
+			Date.now() >= previous.attemptedAt &&
 			Date.now() - previous.attemptedAt < minIntervalMs
 		) {
 			return previous.error
 				? outcome(false, previous.error)
 				: outcome(true, 'Fetched recently');
 		}
+
+		if (cloned) clearStaleGitLocks(clonePath);
 
 		const before = await refsOf(clonePath);
 		const result = cloned
@@ -541,7 +587,8 @@ const sweepPending = (projectId: string) => {
 	if (!fs.existsSync(dir)) return;
 
 	for (const name of fs.readdirSync(dir)) {
-		const pending = /^.+\.git\.(\d+)\.pending$/.exec(name);
+		// A clone, or a status file, a process died writing.
+		const pending = /^.+\.git(?:\.json)?\.(\d+)\.(?:pending|tmp)$/.exec(name);
 		if (pending && !isAlive(Number(pending[1]))) {
 			fs.rmSync(path.join(dir, name), {recursive: true, force: true});
 		}

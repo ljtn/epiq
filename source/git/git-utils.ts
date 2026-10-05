@@ -147,6 +147,25 @@ export const gitEnv = {
  * `.gitattributes` from its own HEAD, which could steer a diff through the
  * user's textconv or external diff; and the user's hooks are for their repos.
  */
+/**
+ * The output formats every parser here assumes, whatever the user's config
+ * says. `diff.noprefix` turns `diff --git a/x b/x` into `diff --git x x`, and
+ * the patch parsers read paths off those prefixes; `log.showSignature` puts
+ * gpg's lines into a log meant for parsing.
+ */
+const STABLE_OUTPUT = [
+	'-c',
+	'diff.noprefix=false',
+	'-c',
+	'diff.mnemonicPrefix=false',
+	'-c',
+	'diff.srcPrefix=a/',
+	'-c',
+	'diff.dstPrefix=b/',
+	'-c',
+	'log.showSignature=false',
+];
+
 const cloneDirArgs = (cwd: string): string[] => {
 	if (!isCloneDir(cwd)) return [];
 
@@ -160,6 +179,10 @@ const cloneDirArgs = (cwd: string): string[] => {
 		'protocol.ext.allow=never',
 		'-c',
 		'protocol.fd.allow=never',
+		// Windows' 260-character path limit, which a pack file deep in a clone
+		// under a long home directory can pass.
+		'-c',
+		'core.longpaths=true',
 	];
 };
 
@@ -205,7 +228,7 @@ const runGit = ({
 	maxOutput?: number;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
-		const args = [...cloneDirArgs(cwd), ...givenArgs];
+		const args = [...STABLE_OUTPUT, ...cloneDirArgs(cwd), ...givenArgs];
 
 		if (!fs.existsSync(cwd)) {
 			const message = `Git cwd does not exist: ${cwd}`;
@@ -366,7 +389,7 @@ export const readGitBlobsBatch = (
 
 		const child = spawn(
 			GIT_BIN,
-			[...cloneDirArgs(cwd), 'cat-file', '--batch'],
+			[...STABLE_OUTPUT, ...cloneDirArgs(cwd), 'cat-file', '--batch'],
 			{
 				cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],

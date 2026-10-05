@@ -1,5 +1,6 @@
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {
@@ -183,6 +184,111 @@ describe('a clone that no longer matches the list', () => {
 
 		expect(outcome!.ok).toBe(true);
 		expect(fs.existsSync(marker)).toBe(true);
+	});
+});
+
+describe('a clone a killed git left behind', () => {
+	// A server shut down mid-fetch, or a fetch timed out and killed, leaves
+	// git's own lock files; each one would fail every fetch after it.
+	it('is fetched again past the locks it left', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA first');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+		fs.writeFileSync(path.join(clonePath, 'refs', 'heads', 'main.lock'), '');
+		fs.writeFileSync(path.join(clonePath, 'shallow.lock'), '');
+		commit(upstream, 'up.txt', 'AAAAAAA second');
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})),
+		).toHaveLength(2);
+	});
+});
+
+describe('a clock and a clone that move under a fetch', () => {
+	it('is not held off by a clock set back past the last fetch', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA first');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const statusFile = `${getRepoClonePath(PROJECT_ID, repoIdOf(url))}.json`;
+		const status = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+		fs.writeFileSync(
+			statusFile,
+			JSON.stringify({...status, attemptedAt: Date.now() + 3_600_000}),
+		);
+		commit(upstream, 'up.txt', 'AAAAAAA second');
+
+		const [outcome] = value(
+			await fetchCommitRepos({repoRoot: board, minIntervalMs: 60_000}),
+		);
+		expect(outcome!.changed).toBe(true);
+	});
+
+	it('answers two fetches at once with one, and another process with a skip', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA first');
+		value(upsertCommitRepo({repoRoot: board, url}));
+
+		const [first, second] = await Promise.all([
+			fetchCommitRepos({repoRoot: board}),
+			fetchCommitRepos({repoRoot: board}),
+		]);
+		expect(value(first!)[0]!.ok).toBe(true);
+		expect(value(second!)[0]!.ok).toBe(true);
+
+		// Another process mid-fetch: its lock, held by a live pid.
+		const lockPath = `${getRepoClonePath(PROJECT_ID, repoIdOf(url))}.lock`;
+		fs.writeFileSync(
+			lockPath,
+			JSON.stringify({
+				pid: process.ppid,
+				hostname: os.hostname(),
+				startedAt: Date.now(),
+				operation: 'fetch',
+			}),
+		);
+		const [skipped] = value(await fetchCommitRepos({repoRoot: board}));
+		expect(skipped).toMatchObject({ok: true, message: /Another process/});
+		fs.rmSync(lockPath);
+	});
+
+	it('reads around a clone deleted underneath it', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+		commit(board, 'b.txt', 'AAAAAAA board');
+
+		fs.rmSync(getRepoClonePath(PROJECT_ID, repoIdOf(url)), {
+			recursive: true,
+		});
+		resetCommitTimelineCacheForTests();
+
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})).map(
+				entry => entry.subject,
+			),
+		).toEqual(['AAAAAAA board']);
+	});
+
+	it('clears a project.json write a dead process left in .epiq/', () => {
+		const leftover = path.join(board, '.epiq', 'project.json.2147483646.tmp');
+		fs.writeFileSync(leftover, '{');
+
+		value(upsertCommitRepo({repoRoot: board, url}));
+
+		expect(fs.existsSync(leftover)).toBe(false);
+		expect(fs.readdirSync(path.join(board, '.epiq'))).toEqual(['project.json']);
+	});
+
+	it('keeps a clone directory name short enough for Windows', () => {
+		expect(
+			repoIdOf(`https://example.com/${'a-very-long-repository-name'.repeat(4)}`)
+				.length,
+		).toBeLessThanOrEqual(24 + 1 + 12);
 	});
 });
 

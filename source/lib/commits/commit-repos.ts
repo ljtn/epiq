@@ -115,7 +115,8 @@ const normalizeUrl = (url: string): string =>
 
 const labelOf = (url: string): string => {
 	const last = normalizeUrl(url).split(/[/:]/).filter(Boolean).pop() ?? '';
-	const slug = last.replace(/[^a-z0-9._-]/g, '-').slice(0, 40);
+	// Short: it names a directory, and Windows caps a whole path at 260.
+	const slug = last.replace(/[^a-z0-9._-]/g, '-').slice(0, 24);
 
 	return slug.replace(/^[.-]+/, '') || 'repo';
 };
@@ -248,6 +249,22 @@ const writableProjectFile = (repoRoot: string): Result<string> => {
 	return succeeded('Writable', target);
 };
 
+/** A write of project.json a process died partway through, left in `.epiq/`. */
+const sweepDeadTemps = (dir: string) => {
+	for (const name of fs.readdirSync(dir)) {
+		const match = /^project\.json\.(\d+)\.tmp$/.exec(name);
+		if (!match) continue;
+
+		try {
+			process.kill(Number(match[1]), 0);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'EPERM') {
+				fs.rmSync(path.join(dir, name), {force: true});
+			}
+		}
+	}
+};
+
 /** The `repos` list as written, entries this build cannot read included. */
 const readRawEntries = (project: Record<string, unknown>): unknown[] => {
 	const entries = project[REPOS_KEY];
@@ -283,18 +300,22 @@ const editRawEntries = (
 	const targetResult = writableProjectFile(repoRoot);
 	if (isFail(targetResult)) return failed(targetResult.message);
 	const target = targetResult.value;
+	const pending = `${target}.${process.pid}.tmp`;
 
 	try {
 		// Beside it, then renamed over it: a rename replaces the entry itself,
 		// so a crash mid-write never leaves half a file, and nothing is written
 		// through a link.
-		const pending = `${target}.${process.pid}.tmp`;
+		sweepDeadTemps(path.dirname(target));
+		fs.rmSync(pending, {force: true});
 		fs.writeFileSync(pending, JSON.stringify(next, null, 2) + '\n', {
 			encoding: 'utf8',
 			flag: 'wx',
 		});
 		fs.renameSync(pending, target);
 	} catch (error) {
+		// Never left in `.epiq/`, where it would show in `git status`.
+		fs.rmSync(pending, {force: true});
 		return failed(
 			`Failed to write .epiq/project.json: ${
 				error instanceof Error ? error.message : String(error)
