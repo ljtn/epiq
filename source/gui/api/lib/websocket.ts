@@ -441,10 +441,9 @@ export const setupWebsocket = (
 						lastAction: {ok: !isFail(result), message: result.message},
 					});
 
-					// A removed repo's commits leave every view at once.
-					if (type === 'repo:remove' && !isFail(result)) {
-						return broadcastReposChanged();
-					}
+					// A removed repo's commits leave every view at once, and a changed
+					// window or branch set reads differently from the same clone.
+					if (!isFail(result)) broadcastReposChanged();
 
 					return;
 				}

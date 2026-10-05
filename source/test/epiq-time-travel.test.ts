@@ -1528,7 +1528,7 @@ describe('epiq-time-travel', () => {
 			const result = await openCommitDiffInEditor({sha: validSha});
 
 			expect(execGit).toHaveBeenCalledWith(
-				expect.objectContaining({args: ['show', validSha]}),
+				expect.objectContaining({args: ['show', '--no-ext-diff', validSha]}),
 			);
 
 			expect(fileManager.writeToFile).toHaveBeenCalledWith(

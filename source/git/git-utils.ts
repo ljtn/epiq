@@ -148,8 +148,7 @@ export const gitEnv = {
  * user's textconv or external diff; and the user's hooks are for their repos.
  */
 const cloneDirArgs = (cwd: string): string[] => {
-	const clones = path.resolve(getGlobalConfigDir(), 'repos') + path.sep;
-	if (!path.resolve(cwd).startsWith(clones)) return [];
+	if (!isCloneDir(cwd)) return [];
 
 	return [
 		'--git-dir=.',
@@ -164,16 +163,46 @@ const cloneDirArgs = (cwd: string): string[] => {
 	];
 };
 
+// `<clones>/<project>/<repo id>.git`, or the pending directory one is cloned
+// into — exactly that shape, so a user's own repos under a global dir set to
+// somewhere they keep them are never taken for one.
+const CLONE_DIR =
+	/^[\w-]+[\\/][a-z0-9._-]+-[0-9a-f]{12}\.git(\.\d+\.pending)?$/;
+
+const realpathOr = (target: string): string => {
+	try {
+		return fs.realpathSync(target);
+	} catch {
+		return path.resolve(target);
+	}
+};
+
+/**
+ * Whether `cwd` is one of epiq's clones, judged by where it is — as written
+ * and as resolved, so a caller handing over a resolved path (`/tmp` is
+ * `/private/tmp` on macOS) still gets the clone's settings.
+ */
+const isCloneDir = (cwd: string): boolean => {
+	const clones = path.join(getGlobalConfigDir(), 'repos');
+
+	return [
+		[path.resolve(clones), path.resolve(cwd)],
+		[realpathOr(clones), realpathOr(cwd)],
+	].some(([root, dir]) => CLONE_DIR.test(path.relative(root!, dir!)));
+};
+
 const runGit = ({
 	args: givenArgs,
 	cwd,
 	allowFail,
 	timeoutMs: timeoutOverride,
+	maxOutput = MAX_GIT_OUTPUT,
 }: {
 	args: string[];
 	cwd: string;
 	allowFail: boolean;
 	timeoutMs?: number;
+	maxOutput?: number;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
 		const args = [...cloneDirArgs(cwd), ...givenArgs];
@@ -231,12 +260,12 @@ const runGit = ({
 		child.stdout.on('data', chunk => {
 			stdout += chunk;
 
-			if (stdout.length > MAX_GIT_OUTPUT) {
+			if (stdout.length > maxOutput) {
 				child.kill('SIGTERM');
 
 				const message = `git ${args.join(
 					' ',
-				)}\nOutput past ${MAX_GIT_OUTPUT} characters; stopped`;
+				)}\nOutput past ${maxOutput} characters; stopped`;
 				if (allowFail) {
 					finish({stdout: '', stderr: message, exitCode: 1});
 				} else {
@@ -298,13 +327,16 @@ export const execGit = ({
 	args,
 	cwd,
 	timeoutMs,
+	maxOutput,
 }: {
 	args: string[];
 	cwd: string;
 	/** Overrides the per-subcommand cap, for a transfer whose size is unknown. */
 	timeoutMs?: number;
+	/** A tighter output cap, for a read whose size somebody else decides. */
+	maxOutput?: number;
 }): Promise<Result<GitExecResult>> =>
-	runGit({args, cwd, allowFail: false, timeoutMs}) as Promise<
+	runGit({args, cwd, allowFail: false, timeoutMs, maxOutput}) as Promise<
 		Result<GitExecResult>
 	>;
 
