@@ -8,7 +8,7 @@ import {
 import {
 	actorIdsByIssue,
 	bucketCommitStats,
-	clampingMax,
+	logShare,
 	bucketCountForSpan,
 	bucketIssueCounts,
 	buildAxis,
@@ -351,38 +351,30 @@ describe('bucketCommitStats', () => {
 	});
 });
 
-describe('clampingMax', () => {
-	// The case it exists for, and the one a percentile cannot answer: a handful
-	// of populated buckets, one of them enormous. The 90th percentile of five
-	// values is the fifth of them — the outlier itself.
-	it('stops below the outlier even when few buckets are populated', () => {
-		expect(clampingMax([10, 12, 9, 11, 50_000])).toBe(12);
+describe('logShare', () => {
+	it('fills the track with the largest bucket and no more', () => {
+		expect(logShare(50_000, 50_000)).toBe(1);
+		expect(logShare(60_000, 50_000)).toBe(1);
 	});
 
-	it('leaves an ordinary spread alone, outlier or not', () => {
-		// Nothing here stands four times above the middle, so the scale is the
-		// largest bucket and every bar is drawn at its true share.
-		expect(clampingMax([9, 10, 11, 12])).toBe(12);
+	// Only the largest reaches the top; everything else keeps its order.
+	it('keeps every bucket below the largest apart', () => {
+		const buckets = [10, 50, 200, 1_000, 5_000, 50_000];
+		const shares = buckets.map(value => logShare(value, 50_000));
+
+		for (let at = 1; at < shares.length; at++) {
+			expect(shares[at]!).toBeGreaterThan(shares[at - 1]!);
+		}
+		expect(shares.filter(share => share === 1)).toHaveLength(1);
 	});
 
-	it('takes the body of a long tail rather than its end', () => {
-		const buckets = [...Array.from({length: 19}, (_, at) => at + 1), 50_000];
-
-		// The median of the twenty is 10, so the scale is the largest bucket at
-		// or under 40.
-		expect(clampingMax(buckets)).toBe(19);
+	it('leaves an ordinary bucket visible beside a huge one', () => {
+		expect(logShare(10, 50_000)).toBeGreaterThan(0.2);
 	});
 
-	it('ignores empty buckets and never returns zero', () => {
-		expect(clampingMax([0, 0, 0])).toBe(1);
-		expect(clampingMax([])).toBe(1);
-	});
-
-	it('is that bucket when only one has anything at all', () => {
-		expect(clampingMax([0, 7, 0])).toBe(7);
-		// Even an enormous one: with nothing to be an outlier against, it is the
-		// whole of what the window holds.
-		expect(clampingMax([50_000])).toBe(50_000);
+	it('is nothing for an empty bucket', () => {
+		expect(logShare(0, 50_000)).toBe(0);
+		expect(logShare(0, 1)).toBe(0);
 	});
 });
 
