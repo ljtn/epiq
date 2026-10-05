@@ -115,6 +115,10 @@ describe('a URL from a committed file', () => {
 		['https://exаmple.com/repo', 'hides a lookalike letter'],
 		[`https://example.com/${'a'.repeat(3000)}`, 'is far too long'],
 		['svn://example.com/repo', 'uses another transport'],
+		['file::helper', 'names a remote helper'],
+		['https::example.com/repo', 'names a remote helper'],
+		['file:relative/path', 'is ssh to a host called file'],
+		['file:/etc/repo', 'is not a file:/// URL'],
 		['ssh:///repo', 'names no host'],
 	])('refuses %j, which %s', bad => {
 		expect(repoUrlProblem(bad)).not.toBeNull();
@@ -144,7 +148,7 @@ describe('a URL from a committed file', () => {
 });
 
 describe('a clone that no longer matches the list', () => {
-	it('is not fetched from wherever it now points', async () => {
+	it('is cloned again from the listed URL, never fetched from where it points', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
 		value(upsertCommitRepo({repoRoot: board, url}));
 		value(await fetchCommitRepos({repoRoot: board}));
@@ -158,8 +162,47 @@ describe('a clone that no longer matches the list', () => {
 		]);
 
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
-		expect(outcome!.ok).toBe(false);
-		expect(outcome!.message).toMatch(/another URL/);
+
+		expect(outcome!.ok).toBe(true);
+		expect(
+			git(clonePath, ['--git-dir=.', 'config', 'remote.origin.url']).trim(),
+		).toBe(url);
+	});
+
+	it('keeps its clone when the listed URL is only respelled', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+		const marker = path.join(clonePath, 'epiq-test-marker');
+		fs.writeFileSync(marker, '');
+
+		writeProject(board, {repos: [`${url}.git/`]});
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(fs.existsSync(marker)).toBe(true);
+	});
+});
+
+describe('a remote that renames its default branch', () => {
+	it('is followed to the new name rather than failing for good', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA on master-to-be');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		git(upstream, ['branch', '-m', 'main', 'trunk']);
+		commit(upstream, 'up.txt', 'AAAAAAA after the rename');
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})).map(
+				entry => entry.subject,
+			),
+		).toContain('AAAAAAA after the rename');
 	});
 });
 

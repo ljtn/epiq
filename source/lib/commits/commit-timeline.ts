@@ -48,6 +48,13 @@ export const FULL_TIMELINE_CACHE_TTL_MS = 5_000;
 
 const CLONE_LOG_TIMEOUT_MS = 120_000;
 
+/**
+ * One clone's log, at most. Another repo's history is its owner's to make as
+ * long as they like, and twenty of them held at once would be more memory
+ * than a server has; past this a clone is left out and the reason logged.
+ */
+const CLONE_LOG_MAX_CHARS = 32 * 1024 * 1024;
+
 // Per source, keyed by where it is read and what is walked.
 const fullTimelineCache = new Map<
 	string,
@@ -124,7 +131,9 @@ const readSourceLog = async (
 		cwd: source.cwd,
 		// Another repo's history can be far longer than the board's own, and it
 		// was asked for in full when its window is `all`.
-		...(source.repo ? {timeoutMs: CLONE_LOG_TIMEOUT_MS} : {}),
+		...(source.repo
+			? {timeoutMs: CLONE_LOG_TIMEOUT_MS, maxOutput: CLONE_LOG_MAX_CHARS}
+			: {}),
 		args: [
 			'log',
 			...source.revisions,
@@ -203,9 +212,10 @@ const readSourceLogs = async (
 	if (isFail(sourcesResult)) return failed(sourcesResult.message);
 
 	const sources = sourcesResult.value;
-	const logs = await Promise.all(
-		sources.map(source => readSourceLog(source, window)),
-	);
+	// One at a time: each log is read whole into memory before it is parsed,
+	// and the clones are somebody else's size.
+	const logs: Result<CommitEntry[]>[] = [];
+	for (const source of sources) logs.push(await readSourceLog(source, window));
 
 	const lists: CommitEntry[][] = [];
 	for (const [index, log] of logs.entries()) {

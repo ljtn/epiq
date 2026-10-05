@@ -11,6 +11,7 @@ import {
 	getRepoClonePath,
 	getRepoClonesDir,
 	readCommitRepos,
+	repoIdOf,
 	readRepoProject,
 	RepoBranches,
 	sinceDate,
@@ -272,6 +273,43 @@ const cloneRepo = async (
 	return succeeded('Cloned', null);
 };
 
+/** Points HEAD and the refspec at the branch the remote now calls its default. */
+const followDefaultBranch = async (
+	clonePath: string,
+): Promise<Result<null>> => {
+	const remote = await git(clonePath, [
+		'ls-remote',
+		'--symref',
+		'origin',
+		'HEAD',
+	]);
+	if (isFail(remote)) return failed(remote.message);
+
+	const name = /^ref: refs\/heads\/(\S+)\tHEAD$/m.exec(
+		remote.value.stdout,
+	)?.[1];
+	if (!name)
+		return failed('Could not tell which branch the remote now defaults to');
+
+	const headResult = await localGit({
+		cwd: clonePath,
+		args: ['symbolic-ref', 'HEAD', `refs/heads/${name}`],
+	});
+	if (isFail(headResult)) return failed(headResult.message);
+
+	const configResult = await localGit({
+		cwd: clonePath,
+		args: [
+			'config',
+			'remote.origin.fetch',
+			`+refs/heads/${name}:refs/heads/${name}`,
+		],
+	});
+	return isFail(configResult)
+		? failed(configResult.message)
+		: succeeded('Followed', null);
+};
+
 const isShallow = (clonePath: string) =>
 	fs.existsSync(path.join(clonePath, 'shallow'));
 
@@ -305,13 +343,22 @@ const fetchRepo = async (
 			? [shallowSince(since)]
 			: [];
 
-	const fetchResult = await git(clonePath, [
-		'fetch',
-		'--prune',
-		'--no-tags',
-		...window,
-		'origin',
-	]);
+	const fetchArgs = ['fetch', '--prune', '--no-tags', ...window, 'origin'];
+	let fetchResult = await git(clonePath, fetchArgs);
+
+	// The remote renamed its default branch: the refspec still names the old
+	// one, and would go on failing for good.
+	if (
+		isFail(fetchResult) &&
+		repo.branches === 'default' &&
+		/couldn't find remote ref/i.test(fetchResult.message)
+	) {
+		const followed = await followDefaultBranch(clonePath);
+		if (isFail(followed)) return failed(followed.message);
+
+		fetchResult = await git(clonePath, fetchArgs);
+		if (!isFail(fetchResult)) await dropOtherBranches(clonePath);
+	}
 	if (isFail(fetchResult)) return failed(fetchResult.message);
 
 	if (window[0]?.startsWith('--shallow-since')) {
@@ -356,13 +403,14 @@ const refsOf = async (clonePath: string): Promise<string> => {
 	return `${isFail(result) ? '' : result.value.stdout}\n${shallow}`;
 };
 
-const originMatches = async (clonePath: string, url: string) => {
+/** Whether the clone came from this repo, spelling aside. */
+const originMatches = async (clonePath: string, repo: CommitRepo) => {
 	const result = await localGit({
 		cwd: clonePath,
 		args: ['config', '--get', 'remote.origin.url'],
 	});
 
-	return !isFail(result) && result.value.stdout.trim() === url;
+	return !isFail(result) && repoIdOf(result.value.stdout.trim()) === repo.id;
 };
 
 /**
@@ -406,25 +454,27 @@ const fetchOne = async (
 	const lock = acquireLockFile({
 		lockPath: `${clonePath}${LOCK_SUFFIX}`,
 		operation: `fetch ${repo.label}`,
-		// A clone may run that long; breaking it sooner would start a second.
-		staleAfterMs: TRANSFER_TIMEOUT_MS * 2,
+		// A clone is a few transfers of up to TRANSFER_TIMEOUT_MS each; breaking
+		// its lock sooner would start a second one beside it.
+		staleAfterMs: TRANSFER_TIMEOUT_MS * 4,
 	});
 
 	if (!lock.acquired) return outcome(true, 'Another process is fetching it');
 
 	try {
-		const cloned = fs.existsSync(clonePath);
+		let cloned = fs.existsSync(clonePath);
+
+		// A clone is fetched from wherever it was cloned from, so one that names
+		// another repo, or whose config cannot be read, is not this one's. It is
+		// epiq's own copy, so it is started over rather than reported.
+		if (cloned && !(await originMatches(clonePath, repo))) {
+			fs.rmSync(clonePath, {recursive: true, force: true});
+			fs.rmSync(statusPath(clonePath), {force: true});
+			cloned = false;
+		}
+
 		// Read even with no clone: a first clone that failed left one.
 		const previous = readStatus(clonePath);
-
-		// The clone is fetched from wherever it was cloned from, so one that
-		// names another URL than the list does is not this repo's.
-		if (cloned && !(await originMatches(clonePath, repo.url))) {
-			return outcome(
-				false,
-				'The clone on this machine points at another URL — remove the repo and add it again',
-			);
-		}
 
 		// Autosync asks often; a repo tried a moment ago, with the same options,
 		// is left alone — one that failed too, or an unreachable host is asked
@@ -517,7 +567,7 @@ export const removeRepoClone = (input: {
 	const lock = acquireLockFile({
 		lockPath: `${clonePath}${LOCK_SUFFIX}`,
 		operation: 'remove',
-		staleAfterMs: TRANSFER_TIMEOUT_MS * 2,
+		staleAfterMs: TRANSFER_TIMEOUT_MS * 4,
 	});
 	if (!lock.acquired) return failed('Another process is fetching it');
 

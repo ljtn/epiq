@@ -47,13 +47,16 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
  * Why a URL may not be registered, or null when it may. It arrives from a
  * committed file, so it is anybody's who can open a pull request: plain git
  * transports only, nothing git could read as a flag, nothing that runs a
- * command (`ext::`), no local path, and no password — one in a committed URL
- * is a leaked one, and a credential helper is where it belongs.
+ * command (`ext::` or any other `<helper>::` remote), a local path only as an
+ * explicit `file:///`, and no password — one in a committed URL is a leaked
+ * one, and a credential helper is where it belongs.
  */
 export const repoUrlProblem = (url: string): string | null => {
 	if (url.length > MAX_URL_LENGTH) return 'is too long';
 	if (!PRINTABLE.test(url)) return 'holds spaces or characters git would not';
 	if (url.startsWith('-')) return 'would be read as an option';
+	// `<transport>::<address>` hands the address to `git remote-<transport>`.
+	if (url.includes('::')) return 'names a remote helper';
 	if (SCP_URL.test(url)) return null;
 
 	let parsed: URL;
@@ -76,7 +79,9 @@ export const repoUrlProblem = (url: string): string | null => {
 	if (parsed.protocol === 'file:') {
 		// A file URL naming another machine is read by some platforms as a
 		// network share.
-		return parsed.hostname ? 'names a host in a file:// URL' : null;
+		if (parsed.hostname) return 'names a host in a file:// URL';
+		// `file:x` is not a file URL to git: it reads as ssh to a host `file`.
+		return url.startsWith('file:///') ? null : 'is not a file:/// URL';
 	}
 
 	if (!parsed.hostname) return 'names no host';

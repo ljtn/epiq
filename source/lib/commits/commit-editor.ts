@@ -19,7 +19,11 @@ const openCommitAsUnifiedDiff = async (
 	repoRoot: string,
 	sha: string,
 ): Promise<Result<true>> => {
-	const showResult = await execGit({cwd: repoRoot, args: ['show', sha]});
+	// Not the user's external diff: the commit may be another repo's.
+	const showResult = await execGit({
+		cwd: repoRoot,
+		args: ['show', '--no-ext-diff', sha],
+	});
 	if (isFail(showResult)) return failed(showResult.message);
 
 	const tmpDirResult = privateTempDir('commit-diffs');
