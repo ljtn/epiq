@@ -64,9 +64,7 @@ const SLOW_GIT_SUBCOMMANDS = new Set([
 
 const timeoutFor = (args: string[]): number => {
 	// `-c key=value` pairs precede the subcommand.
-	const subcommand = args.find(
-		(arg, index) => !arg.startsWith('-') && args[index - 1] !== '-c',
-	);
+	const subcommand = subcommandOf(args);
 
 	return subcommand && SLOW_GIT_SUBCOMMANDS.has(subcommand)
 		? GIT_SLOW_TIMEOUT_MS
@@ -166,6 +164,16 @@ const STABLE_OUTPUT = [
 	'log.showSignature=false',
 ];
 
+// Only the commands whose output is parsed: everything else — a sync's
+// fetch and push among them — runs exactly as it always has.
+const PARSED_SUBCOMMANDS = new Set(['log', 'show', 'diff']);
+
+const subcommandOf = (args: string[]): string | undefined =>
+	args.find((arg, index) => !arg.startsWith('-') && args[index - 1] !== '-c');
+
+const stableOutputFor = (args: string[]): string[] =>
+	PARSED_SUBCOMMANDS.has(subcommandOf(args) ?? '') ? STABLE_OUTPUT : [];
+
 const cloneDirArgs = (cwd: string): string[] => {
 	if (!isCloneDir(cwd)) return [];
 
@@ -228,7 +236,11 @@ const runGit = ({
 	maxOutput?: number;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
-		const args = [...STABLE_OUTPUT, ...cloneDirArgs(cwd), ...givenArgs];
+		const args = [
+			...stableOutputFor(givenArgs),
+			...cloneDirArgs(cwd),
+			...givenArgs,
+		];
 
 		if (!fs.existsSync(cwd)) {
 			const message = `Git cwd does not exist: ${cwd}`;
@@ -389,7 +401,7 @@ export const readGitBlobsBatch = (
 
 		const child = spawn(
 			GIT_BIN,
-			[...STABLE_OUTPUT, ...cloneDirArgs(cwd), 'cat-file', '--batch'],
+			[...cloneDirArgs(cwd), 'cat-file', '--batch'],
 			{
 				cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],
