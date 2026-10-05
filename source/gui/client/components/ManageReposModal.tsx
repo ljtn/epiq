@@ -13,7 +13,6 @@ type Props = {
 		url: string;
 		branches?: 'default' | 'all';
 		since?: string;
-		trust?: boolean;
 	}) => void;
 	onRemove: (repo: string) => void;
 	onFetch: () => void;
@@ -32,13 +31,6 @@ const fieldStyle: React.CSSProperties = {
 };
 
 const statusOf = (repo: GuiRepo): {text: string; color: string} => {
-	if (!repo.trusted) {
-		return {
-			text: 'waiting for approval — not fetched until you approve it here',
-			color: GUI_THEME.amber,
-		};
-	}
-
 	if (repo.error) {
 		return {
 			text: repo.error.split('\n')[0] ?? repo.error,
@@ -120,8 +112,7 @@ export const ManageReposModal = ({
 	const submit = () => {
 		if (!url.trim()) return;
 
-		// Typing a URL in and adding it is this machine's person approving it.
-		onAdd({url: url.trim(), trust: true});
+		onAdd({url: url.trim()});
 		setUrl('');
 	};
 
@@ -172,8 +163,7 @@ export const ManageReposModal = ({
 					Commits in these repos link to a ticket the same way this repo's do:
 					by the ticket's ref at the start of the subject. They are listed in{' '}
 					<code>.epiq/project.json</code> — commit it to share them — and
-					fetched on sync, once pushed. A repo somebody else listed is not
-					fetched on this machine until you approve it: check its URL first.
+					fetched on sync, once pushed.
 				</div>
 
 				<div
@@ -224,8 +214,8 @@ export const ManageReposModal = ({
 									<span style={{fontSize: 12, color: GUI_THEME.primary}}>
 										{repo.label}
 									</span>
-									{/* Whole, wrapped rather than cut short: the URL is what an
-									    approval trusts, and its host is not always at the start. */}
+									{/* Whole, wrapped rather than cut short: the host is not
+									    always at the start, and it is what says where this is. */}
 									<span
 										data-testid="repo-url-shown"
 										style={{
@@ -242,17 +232,6 @@ export const ManageReposModal = ({
 									>
 										{status.text}
 									</span>
-									{!repo.trusted && (
-										<span style={{display: 'flex', gap: 6, paddingTop: 2}}>
-											<Button
-												variant="primary"
-												testId="approve-repo"
-												onClick={() => onAdd({url: repo.url, trust: true})}
-											>
-												Approve
-											</Button>
-										</span>
-									)}
 									<span style={{display: 'flex', gap: 6, paddingTop: 2}}>
 										<select
 											data-testid="repo-branches"

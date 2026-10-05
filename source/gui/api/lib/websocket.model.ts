@@ -105,13 +105,10 @@ export type GuiMessage =
 	| {type: 'repos:get'}
 	| {
 			type: 'repo:add';
-			// `trust` approves fetching on this machine: a click on Add or
-			// Approve, never a change of options.
 			payload: {
 				url: string;
 				branches?: 'default' | 'all';
 				since?: string;
-				trust?: boolean;
 			};
 	  }
 	| {type: 'repo:remove'; payload: {repo: string}}

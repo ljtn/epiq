@@ -216,8 +216,6 @@ export type GuiRepo = {
 	branches: 'default' | 'all';
 	/** `board`, `all`, or a `YYYY-MM-DD` date. */
 	since: string;
-	/** Approved for fetching on this machine; never fetched until it is. */
-	trusted: boolean;
 	cloned: boolean;
 	fetchedAt: number | null;
 	error: string | null;

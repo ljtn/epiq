@@ -23,7 +23,6 @@ import {
 	removableNames,
 	REPO_ADD_OPTIONS,
 	resolveRemoveTarget,
-	unapprovedRepos,
 } from './commands/repo.cmd.js';
 import {emailsOf} from '../model/email-link.js';
 import {getSafeState, getState} from '../state/state.js';
@@ -574,37 +573,6 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 					minLengthForHints: 0,
 				}),
 				completionWordList: labels,
-			});
-		}
-
-		case ConfigModifiers.REPO_APPROVE: {
-			const repos = unapprovedRepos();
-			const names = removableNames(repos);
-			const typed = inputString.trim();
-
-			if (names.length === 0) {
-				return invalid({
-					message: hintAlert('every repo listed is already approved here'),
-					completionWordList: [],
-				});
-			}
-
-			// The URL is what is being trusted, so it is shown, not just the name.
-			const match = typed ? resolveRemoveTarget(repos, typed) : null;
-			if (match && !isFail(match)) {
-				const repo = repos.find(candidate => candidate.id === match.value);
-				return valid(`fetches ${repo?.url ?? typed}  ${CONFIRM_MSG}`);
-			}
-
-			return invalid({
-				message: buildOptionsHint({
-					prefix: 'approve fetching ',
-					wordList: names,
-					noOfHints: 3,
-					inputString: typed,
-					minLengthForHints: 0,
-				}),
-				completionWordList: names,
 			});
 		}
 
