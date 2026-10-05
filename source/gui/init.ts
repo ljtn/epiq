@@ -10,7 +10,7 @@ import {
 import {patchSettingsState} from '../lib/state/settings.state.js';
 import {EPIQ_VERSION} from '../version.js';
 import {launchBanner} from './launch-banner.js';
-import {openBrowser} from './open-browser.js';
+import {canOpenBrowser, openBrowser} from './open-browser.js';
 import {startGuiServer} from './api/api-server.js';
 import {
 	canonicalRepoRoot,
@@ -20,7 +20,13 @@ import {
 
 export const startGui = async (input: {
 	repoRoot: string;
+	// False for `--no-open`.
+	open?: boolean;
 }): Promise<Result<{url: string}>> => {
+	const open = (url: string) => {
+		if (input.open !== false && canOpenBrowser()) openBrowser(url);
+	};
+
 	// The GUI server process has its own settings singleton; without this it never
 	// picks up the user's config and silently falls back to $VISUAL/$EDITOR.
 	// Same as the TUI: an unresolvable environment actor is fatal, because
@@ -54,12 +60,15 @@ export const startGui = async (input: {
 			}),
 		);
 
-		openBrowser(url);
+		open(url);
 
 		return succeeded('Reused running GUI', {url});
 	}
 
-	const serverResult = await startGuiServer({...input, boardId: ''});
+	const serverResult = await startGuiServer({
+		repoRoot: input.repoRoot,
+		boardId: '',
+	});
 
 	if (isFail(serverResult)) return serverResult;
 
@@ -74,7 +83,7 @@ export const startGui = async (input: {
 		}),
 	);
 
-	openBrowser(url);
+	open(url);
 
 	return succeeded('Started GUI', {url});
 };

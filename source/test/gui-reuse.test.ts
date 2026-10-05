@@ -9,7 +9,10 @@ vi.mock('../gui/api/instance.js', async importOriginal => ({
 }));
 
 vi.mock('../gui/api/api-server.js', () => ({startGuiServer: vi.fn()}));
-vi.mock('../gui/open-browser.js', () => ({openBrowser: vi.fn()}));
+vi.mock('../gui/open-browser.js', () => ({
+	canOpenBrowser: () => true,
+	openBrowser: vi.fn(),
+}));
 vi.mock('../lib/config/actor-env.js', () => ({
 	resolveEnvActor: () => succeeded('actor', null),
 }));
@@ -90,5 +93,15 @@ describe('startGui', () => {
 		await startGui({repoRoot: `${REPO}/`});
 
 		expect(startGuiServer).not.toHaveBeenCalled();
+	});
+
+	it('opens no browser under --no-open, started or reused', async () => {
+		vi.mocked(probeGuiInstance).mockResolvedValue(null);
+		await startGui({repoRoot: REPO, open: false});
+
+		vi.mocked(probeGuiInstance).mockResolvedValue(instance(REPO));
+		await startGui({repoRoot: REPO, open: false});
+
+		expect(openBrowser).not.toHaveBeenCalled();
 	});
 });
