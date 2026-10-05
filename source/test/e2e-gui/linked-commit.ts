@@ -18,12 +18,22 @@ import path from 'node:path';
 // One identity for every commit these helpers make, and one place the cwd is
 // bound: three of them had written this out apiece.
 const gitIn =
-	(repoRoot: string) =>
+	(repoRoot: string, date?: Date) =>
 	(...args: string[]) =>
 		execFileSync(
 			'git',
 			['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.com', ...args],
-			{cwd: repoRoot, stdio: 'pipe'},
+			{
+				cwd: repoRoot,
+				stdio: 'pipe',
+				env: date
+					? {
+							...process.env,
+							GIT_AUTHOR_DATE: date.toISOString(),
+							GIT_COMMITTER_DATE: date.toISOString(),
+					  }
+					: process.env,
+			},
 		);
 
 export const linkedFileName = (ref: string): string => `notes-${ref}.txt`;
@@ -77,8 +87,9 @@ export const commitPlainFile = (
 	fileName: string,
 	subject: string,
 	contents = 'one\ntwo\n',
+	date?: Date,
 ): string => {
-	const git = gitIn(repoRoot);
+	const git = gitIn(repoRoot, date);
 
 	fs.writeFileSync(path.join(repoRoot, fileName), contents);
 	git('add', fileName);

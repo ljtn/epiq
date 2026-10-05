@@ -56,7 +56,7 @@ export {
 	isScrubbable,
 	bucketIssueCounts,
 	bucketCommitStats,
-	clampingMax,
+	logShare,
 	populatedRange,
 	hourFractionForTime,
 } from './axis';

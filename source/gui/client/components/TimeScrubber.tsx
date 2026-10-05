@@ -28,7 +28,7 @@ import {
 } from '../lib/board-selection';
 import {
 	bucketCommitStats,
-	clampingMax,
+	logShare,
 	bucketIssueCounts,
 	buildAxis,
 	isScrubbable,
@@ -817,15 +817,15 @@ export const TimeScrubber = ({
 	// Both halves of the diverging pair are measured against one scale, or a
 	// window that only deletes would draw its deletions as tall as a window that
 	// only adds draws its additions, and the two pictures would not compare.
-	// Stacked, so the bucket's whole churn is what the scale is against: measure
-	// each half separately and a bucket that both added and removed a great deal
-	// would draw past the top of the track.
+	// Stacked, so the bucket's whole churn sets the bar's height and the halves
+	// split it by their share.
 	const lineBars = useMemo(() => {
-		const max = clampingMax(
+		const max = maxOf(
 			Array.from(
 				commitStats.values(),
 				stats => stats.insertions + stats.deletions,
 			),
+			1,
 		);
 
 		// Removals first, so they are the half that touches the baseline. Only
@@ -833,11 +833,16 @@ export const TimeScrubber = ({
 		// at whatever depth the bar before it ended — and removals are both the
 		// minority share and the one that is hard to see. What was added still
 		// reads from the bar's own length.
-		return Array.from(commitStats, ([index, stats]) => ({
-			index,
-			top: stats.deletions / max,
-			bottom: stats.insertions / max,
-		})).filter(bar => bar.top + bar.bottom > 0);
+		return Array.from(commitStats, ([index, stats]) => {
+			const total = stats.insertions + stats.deletions;
+			const height = logShare(total, max);
+
+			return {
+				index,
+				top: total === 0 ? 0 : (height * stats.deletions) / total,
+				bottom: total === 0 ? 0 : (height * stats.insertions) / total,
+			};
+		}).filter(bar => bar.top + bar.bottom > 0);
 	}, [commitStats]);
 
 	const lineBarRange = useMemo(

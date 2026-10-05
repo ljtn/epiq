@@ -262,3 +262,57 @@ test('the measure and the narrowing are chosen apart, and both are remembered', 
 
 	expect(pageErrors).toEqual([]);
 });
+
+// Bucket sizes four times apart, a day apart: however large the largest, every
+// bar is a different height.
+test('line bars keep their order however large the largest bucket is', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	const DAY_MS = 24 * 60 * 60 * 1000;
+	const stamp = Date.now();
+	const first = stamp - 40 * DAY_MS;
+	const sizes = [4, 16, 64, 256, 1024, 4096];
+
+	sizes.forEach((size, at) =>
+		commitPlainFile(
+			repoRoot,
+			`sized-${stamp}-${at}.txt`,
+			`sized ${size} ${stamp}`,
+			`${Array.from({length: size}, (_, line) => `line ${line}`).join('\n')}\n`,
+			new Date(first + at * DAY_MS),
+		),
+	);
+
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	const boardUrl = new URL(page.url());
+	boardUrl.search = '';
+	const from = first - DAY_MS / 2;
+	const to = first + (sizes.length - 0.5) * DAY_MS;
+	await page.goto(`${boardUrl}?from=${from}&to=${to}`);
+
+	const select = page.getByTestId('commit-select');
+	await select.click();
+	await page.getByRole('radio', {name: 'Lines (+/-)'}).click();
+	await select.click();
+	await page.getByRole('radio', {name: 'All', exact: true}).click();
+	await expect(select).toHaveText('Lines (all)');
+
+	// offsetHeight, not the bounding box: the bars grow in under a scaleY, and a
+	// box measured mid-sweep differs bar to bar whatever the scale.
+	const heights = `[...document.querySelectorAll('[data-testid="line-bar"]')].map(bar => bar.offsetHeight)`;
+	await expect
+		.poll(async () => {
+			const drawn = (await page.evaluate(heights)) as number[];
+
+			return (
+				drawn.length === sizes.length && new Set(drawn).size === sizes.length
+			);
+		})
+		.toBe(true);
+
+	expect(pageErrors).toEqual([]);
+});
