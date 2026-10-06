@@ -1,14 +1,12 @@
 # Epiq
 
-_Issue tracking as code. Open source, distributed, local-first, and code-native._
+Epiq is a self-hosted issue tracker that allows you to review workflows in real time or after the fact via replay. It persists state as an immutable event log, versioned and synchronized via Git.
 
-**[See docs →](https://ljtn.github.io/epiq/docs.html)** 
+Most issue trackers live outside your workflow. Instead of a centralized, managed service, Epiq offers issue tracking as an integrated part of the development environment offering workflow replay and inline code-diffs, tackling the review bottleneck with time-travel, filtering, and a tight code integration.
 
-Issue tracking as an integrated part of the development environment offering workflow replay and inline code-diffs.
+**[Site →]((https://ljtn.github.io/epiq/)** 
 
-> Review workflows while keeping all state local, Git-backed, and versioned.
-
-Epiq strives to tackle the review bottleneck and make issue tracking friction free.
+> All state is kept local, Git-backed, and versioned.
 
 ![The Epiq GUI: the event log, the board and a ticket's code diff, under the time travel timeline](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/time-travel.jpeg)
 
@@ -39,14 +37,9 @@ Epiq originated from the command line and offers a first-class terminal experien
 
 ![The Epiq terminal UI: the same board rendered in a terminal, with the command palette along the bottom](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/tui.jpeg)
 
-## What is epiq?
+## How it is different
 
-Epiq is a self hosted issue tracker that allows you to review workflows in real time or after the fact via replay. It persists state as an immutable event log, versioned and synchronized via Git.
-
-Most issue trackers live outside your workflow. Instead of a centralized, managed service, Epiq keeps project state alongside your repository, where it travels with your code.
-
-These design choices result in a system that offers:
-
+Fundamental design choices gives a system with:
 - **Workflow replay**, - inspect what happened while you were away, as if it happens now
 - **Simple setup** — no accounts, SaaS, or external services required
 - **Repo-native** — your issues can live where your code lives
