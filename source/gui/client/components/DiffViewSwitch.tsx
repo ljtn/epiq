@@ -1,4 +1,8 @@
-import {segmentedButtonStyle} from '../lib/segmented.style';
+import {useDiffWrap} from '../lib/diff-wrap';
+import {fixtureWellStyle, segmentedButtonStyle} from '../lib/segmented.style';
+import {IconScrollLines} from './IconScrollLines';
+import {IconWrapLines} from './IconWrapLines';
+import {IconButton, ICON_SIZE} from './IconButton';
 
 // Which shape the Code tab draws the ticket's change in: all of it at once,
 // or the commits that made it.
@@ -30,53 +34,80 @@ export const DiffViewSwitch = ({
 	onChange: (next: boolean) => void;
 	commitCount?: number;
 	pinnedToCommits?: boolean;
-}) => (
-	<div
-		data-testid="diff-view-switch"
-		style={{display: 'flex', gap: 2, marginBottom: 10}}
-	>
-		{/* Both segments go flat while a deep link holds the view: the reader is
-		    on the commits because the link points into one, and pressing the
-		    segment they are already on must not quietly overwrite the choice
-		    this switch remembers for them. */}
-		{/* Flat first: it is the whole change at once, and the commits are how
-		    it got there. */}
-		<button
-			data-testid="diff-view-flat"
-			aria-pressed={compacted}
-			disabled={pinnedToCommits}
-			title={
-				pinnedToCommits
-					? 'Following a link into a commit — clear it to flatten'
-					: 'Every commit as one diff'
-			}
-			onClick={() => onChange(true)}
-			style={{
-				...segmentedButtonStyle(compacted),
-				...(pinnedToCommits ? {opacity: 0.35, cursor: 'default'} : {}),
-			}}
+}) => {
+	const [wrap, setWrap] = useDiffWrap();
+
+	return (
+		<div
+			data-testid="diff-view-switch"
+			style={{display: 'flex', gap: 2, marginBottom: 10}}
 		>
-			Diff
-		</button>
-		{/* Named for the tests as well as for the reader: `Commits` also reads as
-		    the name of the chart's own commit select, and a role-and-name lookup
-		    cannot tell a tab from a series. */}
-		<button
-			data-testid="diff-view-commits"
-			aria-pressed={!compacted}
-			disabled={pinnedToCommits}
-			title={
-				pinnedToCommits
-					? 'Following a link into a commit'
-					: 'Each commit and the files it changed'
-			}
-			onClick={() => onChange(false)}
-			style={{
-				...segmentedButtonStyle(!compacted),
-				...(pinnedToCommits ? {cursor: 'default'} : {}),
-			}}
-		>
-			{commitCount === undefined ? 'Commits' : `Commits (${commitCount})`}
-		</button>
-	</div>
-);
+			{/* Both segments go flat while a deep link holds the view: the reader is
+			    on the commits because the link points into one, and pressing the
+			    segment they are already on must not quietly overwrite the choice
+			    this switch remembers for them. */}
+			{/* Flat first: it is the whole change at once, and the commits are how
+			    it got there. */}
+			<button
+				data-testid="diff-view-flat"
+				aria-pressed={compacted}
+				disabled={pinnedToCommits}
+				title={
+					pinnedToCommits
+						? 'Following a link into a commit — clear it to flatten'
+						: 'Every commit as one diff'
+				}
+				onClick={() => onChange(true)}
+				style={{
+					...segmentedButtonStyle(compacted),
+					...(pinnedToCommits ? {opacity: 0.35, cursor: 'default'} : {}),
+				}}
+			>
+				Diff
+			</button>
+			{/* Named for the tests as well as for the reader: `Commits` also reads as
+			    the name of the chart's own commit select, and a role-and-name lookup
+			    cannot tell a tab from a series. */}
+			<button
+				data-testid="diff-view-commits"
+				aria-pressed={!compacted}
+				disabled={pinnedToCommits}
+				title={
+					pinnedToCommits
+						? 'Following a link into a commit'
+						: 'Each commit and the files it changed'
+				}
+				onClick={() => onChange(false)}
+				style={{
+					...segmentedButtonStyle(!compacted),
+					...(pinnedToCommits ? {cursor: 'default'} : {}),
+				}}
+			>
+				{commitCount === undefined ? 'Commits' : `Commits (${commitCount})`}
+			</button>
+			{/* Apart from the two views, at the far end: it changes how either is
+			    drawn, not which one is shown. */}
+			<div
+				data-testid="diff-wrap"
+				style={{...fixtureWellStyle, marginLeft: 'auto'}}
+			>
+				<IconButton
+					title="Long lines scroll sideways"
+					aria-label="Scroll long lines"
+					pressed={!wrap}
+					onClick={() => setWrap(false)}
+				>
+					<IconScrollLines size={ICON_SIZE} />
+				</IconButton>
+				<IconButton
+					title="Long lines wrap"
+					aria-label="Wrap long lines"
+					pressed={wrap}
+					onClick={() => setWrap(true)}
+				>
+					<IconWrapLines size={ICON_SIZE} />
+				</IconButton>
+			</div>
+		</div>
+	);
+};
