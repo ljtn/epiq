@@ -114,7 +114,7 @@ import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
 import {useSyncSettings} from './lib/use-sync-settings';
 import {useRepos} from './lib/use-repos';
-import {commitRepoKeys, withoutHiddenRepos} from './lib/commit-repo-filter';
+import {useCommitRepoFilter} from './lib/commit-repo-filter';
 import {ManageReposModal} from './components/ManageReposModal';
 import {IdentityPanel} from './components/IdentityPanel';
 import {useIssueMutations} from './lib/use-issue-mutations';
@@ -1399,27 +1399,9 @@ export const App = () => {
 		  }
 		: null;
 
-	// Which repos the Code series plots, for the chart and the log alike. Not
-	// remembered: the repos on offer are whichever the window's commits name.
-	const [hiddenCommitRepos, setHiddenCommitRepos] = useState<
-		ReadonlySet<string>
-	>(() => new Set());
-	const commitRepos = useMemo(
-		() => commitRepoKeys(history.commits),
-		[history.commits],
-	);
-	const plottedCommits = useMemo(
-		() => withoutHiddenRepos(history.commits, hiddenCommitRepos),
-		[history.commits, hiddenCommitRepos],
-	);
-	const toggleCommitRepo = useCallback((repo: string) => {
-		setHiddenCommitRepos(prev => {
-			const next = new Set(prev);
-			if (next.has(repo)) next.delete(repo);
-			else next.add(repo);
-			return next;
-		});
-	}, []);
+	// Which repos the Code series plots, for the chart and the log alike.
+	const commitRepoFilter = useCommitRepoFilter(history.commits);
+	const plottedCommits = commitRepoFilter.plotted;
 
 	const {
 		entries: logEntries,
@@ -1977,9 +1959,9 @@ export const App = () => {
 						onChangeShowCommits={setShowCommits}
 						linkedCommitsOnly={linkedCommitsOnly}
 						onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
-						commitRepos={commitRepos}
-						hiddenCommitRepos={hiddenCommitRepos}
-						onToggleCommitRepo={toggleCommitRepo}
+						commitRepos={commitRepoFilter.repos}
+						hiddenCommitRepos={commitRepoFilter.hidden}
+						onToggleCommitRepo={commitRepoFilter.toggle}
 						issueIdByRef={issueIdByRef}
 						boardIssueIdByRef={boardIssueIdByRef}
 						lanes={boardLanes}

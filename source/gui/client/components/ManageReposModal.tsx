@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {GuiRepo} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
@@ -72,8 +72,9 @@ const SinceField = ({
 					if (next === 'date') return setPicking(true);
 
 					setPicking(false);
-					onChange(next);
+					if (next !== repo.since) onChange(next);
 				}}
+				aria-label={`How much of ${repo.label} to clone`}
 				style={fieldStyle}
 			>
 				<option value="board">since the board</option>
@@ -86,8 +87,11 @@ const SinceField = ({
 					data-testid="repo-since-date"
 					type="date"
 					defaultValue={isDate ? repo.since : ''}
+					aria-label={`Clone ${repo.label} since`}
 					onBlur={event => {
-						if (DATE.test(event.target.value)) onChange(event.target.value);
+						const next = event.target.value;
+						// Leaving the field unchanged is not a change to send.
+						if (DATE.test(next) && next !== repo.since) onChange(next);
 					}}
 					style={fieldStyle}
 				/>
@@ -107,13 +111,38 @@ export const ManageReposModal = ({
 	const [armedId, setArmedId] = useState<string | null>(null);
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
 
+	// The URL sent, until its answer: cleared once it lands, kept if refused.
+	const sent = useRef<string | null>(null);
+	const urlField = useRef<HTMLInputElement>(null);
+
 	const repos = state.data ?? [];
+
+	useEffect(() => {
+		if (!state.lastAction || sent.current === null) return;
+
+		const was = sent.current;
+		sent.current = null;
+		if (state.lastAction.ok) {
+			setUrl(current => (current === was ? '' : current));
+		}
+	}, [state.lastAction]);
+
+	// Escape from anywhere while it is open, not only once focus is inside.
+	useEffect(() => {
+		const onKey = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') onClose();
+		};
+		window.addEventListener('keydown', onKey);
+		urlField.current?.focus();
+
+		return () => window.removeEventListener('keydown', onKey);
+	}, [onClose]);
 
 	const submit = () => {
 		if (!url.trim()) return;
 
+		sent.current = url;
 		onAdd({url: url.trim()});
-		setUrl('');
 	};
 
 	return (
@@ -132,10 +161,10 @@ export const ManageReposModal = ({
 		>
 			<div
 				data-testid="repos-modal"
+				role="dialog"
+				aria-modal="true"
+				aria-label="Code repos"
 				onMouseDown={event => event.stopPropagation()}
-				onKeyDown={event => {
-					if (event.key === 'Escape') onClose();
-				}}
 				style={{
 					marginTop: '-100px',
 					width: 560,
@@ -235,6 +264,7 @@ export const ManageReposModal = ({
 									<span style={{display: 'flex', gap: 6, paddingTop: 2}}>
 										<select
 											data-testid="repo-branches"
+											aria-label={`Branches of ${repo.label} to read`}
 											value={repo.branches}
 											onChange={event =>
 												onAdd({
@@ -293,6 +323,8 @@ export const ManageReposModal = ({
 				>
 					<input
 						data-testid="repo-url"
+						ref={urlField}
+						aria-label="Remote URL of a repo to add"
 						value={url}
 						onChange={event => setUrl(event.target.value)}
 						placeholder="https://… or git@host:owner/repo.git"

@@ -37,6 +37,7 @@ import {
 } from '../../../mcp/epiq-api.js';
 import {
 	describeFetchFailures,
+	REPO_UNCHANGED,
 	getCommitDiff,
 	getCommitsForRef,
 	getCommitTimeline,
@@ -484,7 +485,9 @@ export const setupWebsocket = (
 
 					// A removed repo's commits leave every view at once, and a changed
 					// window or branch set reads differently from the same clone.
-					if (!isFail(result)) broadcastReposChanged();
+					if (!isFail(result) && result.message !== REPO_UNCHANGED) {
+						broadcastReposChanged();
+					}
 
 					return;
 				}

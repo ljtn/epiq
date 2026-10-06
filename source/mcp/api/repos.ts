@@ -10,6 +10,7 @@ import {
 	listRepoStates,
 	removeCommitRepo,
 	removeRepoClone,
+	REPO_UNCHANGED,
 	RepoBranches,
 	RepoFetchOutcome,
 	RepoState,
@@ -51,6 +52,13 @@ export const addRepo = async (
 		since: input.since,
 	});
 	if (isFail(upsertResult)) return failed(upsertResult.message);
+
+	const unchangedList = listRepoStates(repoRootResult.value);
+	if (upsertResult.message === REPO_UNCHANGED) {
+		return isFail(unchangedList)
+			? failed(unchangedList.message)
+			: succeeded(REPO_UNCHANGED, unchangedList.value);
+	}
 
 	// A changed window or branch set reads differently from the same clone.
 	invalidateCommitTimelineCache();
