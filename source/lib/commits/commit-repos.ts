@@ -33,6 +33,9 @@ export type CommitRepo = CommitRepoConfig & {
 
 export const REPOS_KEY = 'repos';
 
+/** The answer to an add that names a repo already listed just so. */
+export const REPO_UNCHANGED = 'Unchanged';
+
 const SCHEMES = new Set(['https:', 'http:', 'ssh:', 'git:', 'file:']);
 // `user@host:path`, the form ssh remotes are usually written in. Both names
 // open on a letter or digit: one opening on `-` reaches ssh as an option.
@@ -357,6 +360,19 @@ export const upsertCommitRepo = (input: {
 		branches: input.branches ?? existing?.branches ?? 'default',
 		since: input.since ?? existing?.since ?? 'board',
 	};
+
+	// Nothing to write, and nothing for a reader to start over on.
+	if (
+		existing &&
+		existing.branches === config.branches &&
+		existing.since === config.since
+	) {
+		return succeeded(REPO_UNCHANGED, existing);
+	}
+
+	if (!existing && reposResult.value.length >= MAX_REPOS) {
+		return failed(`A board reads at most ${MAX_REPOS} other repos`);
+	}
 
 	const writeResult = editRawEntries(input.repoRoot, entries => {
 		// The first entry for this repo takes the change, keeping any field a

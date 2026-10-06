@@ -18,7 +18,11 @@ import {
 	resetCommitTimelineCacheForTests,
 	upsertCommitRepo,
 } from '../lib/commits/commits.js';
-import {getRepoClonePath} from '../lib/commits/commit-repos.js';
+import {
+	getRepoClonePath,
+	MAX_REPOS,
+	REPO_UNCHANGED,
+} from '../lib/commits/commit-repos.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {makeTempDir} from './helpers/git-repo.js';
@@ -197,6 +201,39 @@ describe('the repos list in project.json', () => {
 		expect(value(readCommitRepos(board))).toMatchObject([
 			{url, branches: 'all', since: 'board'},
 		]);
+	});
+});
+
+describe('an add that changes nothing, or one too many', () => {
+	it('writes nothing when the repo is already listed just so', () => {
+		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
+		const before = projectText(board);
+		const file = path.join(board, '.epiq', 'project.json');
+		const mtime = fs.statSync(file).mtimeMs;
+
+		const result = upsertCommitRepo({repoRoot: board, url, branches: 'all'});
+
+		expect(isFail(result) ? null : result.message).toBe(REPO_UNCHANGED);
+		expect(projectText(board)).toBe(before);
+		expect(fs.statSync(file).mtimeMs).toBe(mtime);
+	});
+
+	it('refuses a repo past the cap rather than listing one never read', () => {
+		writeProject(board, {
+			repos: Array.from(
+				{length: MAX_REPOS},
+				(_, index) => `https://example.com/r${index}.git`,
+			),
+		});
+
+		expect(
+			isFail(
+				upsertCommitRepo({
+					repoRoot: board,
+					url: 'https://example.com/one-more.git',
+				}),
+			),
+		).toBe(true);
 	});
 });
 

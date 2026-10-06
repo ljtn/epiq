@@ -14,6 +14,7 @@ import {isFail} from '../lib/model/result-types.js';
 import {parseGuiMessage} from '../gui/api/lib/websocket.schema.js';
 import {
 	commitRepoKeys,
+	effectiveHidden,
 	OWN_REPO,
 	withoutHiddenRepos,
 } from '../gui/client/lib/commit-repo-filter.js';
@@ -210,5 +211,21 @@ describe('the environment git is started with', () => {
 				GIT_SSH_COMMAND: 'ssh',
 			}),
 		).toEqual({PATH: '/usr/bin', GIT_SSH_COMMAND: 'ssh'});
+	});
+});
+
+describe('a repo hidden from the Code series', () => {
+	it('is shown again once its toggle is not drawn', () => {
+		// Hidden while two repos were on offer; the window now holds one.
+		expect(effectiveHidden([OWN_REPO], new Set([OWN_REPO])).size).toBe(0);
+	});
+
+	it('stays hidden while its toggle is on screen, and only it', () => {
+		expect([
+			...effectiveHidden(
+				[OWN_REPO, 'abc-111111111111'],
+				new Set([OWN_REPO, 'gone-222222222222']),
+			),
+		]).toEqual([OWN_REPO]);
 	});
 });

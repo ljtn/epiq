@@ -38,7 +38,9 @@ export const useRepos = ({
 	useEffect(() => {
 		if (!open) return;
 
-		setState(prev => ({...prev, lastAction: null}));
+		// A fetch whose answer went to a socket since lost would otherwise leave
+		// the button spinning for the life of the page.
+		setState(prev => ({...prev, lastAction: null, fetching: false}));
 		sendRaw({type: 'repos:get'});
 	}, [open, sendRaw]);
 

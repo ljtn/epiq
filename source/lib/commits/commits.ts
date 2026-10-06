@@ -22,6 +22,7 @@ export {
 	repoIdOf,
 	repoLabelOfId,
 	repoUrlProblem,
+	REPO_UNCHANGED,
 	upsertCommitRepo,
 	type CommitRepo,
 	type RepoBranches,
