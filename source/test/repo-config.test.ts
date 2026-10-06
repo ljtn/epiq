@@ -4,12 +4,13 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {withoutRepositoryOverrides} from '../git/git-utils.js';
 import {acquireLockFile} from '../git/sync-lock.js';
+import {parseRepoAddArgs} from '../lib/command-line/commands/repo.cmd.js';
 import {
-	parseRepoAddArgs,
+	findCommitRepo,
 	removableNames,
-	resolveRemoveTarget,
-} from '../lib/command-line/commands/repo.cmd.js';
-import {repoIdOf, repoLabelOfId} from '../lib/commits/commit-repos.js';
+	repoIdOf,
+	repoLabelOfId,
+} from '../lib/commits/commit-repos.js';
 import {isFail} from '../lib/model/result-types.js';
 import {parseGuiMessage} from '../gui/api/lib/websocket.schema.js';
 import {
@@ -154,16 +155,14 @@ describe(':config repoRemove names', () => {
 	});
 
 	it('refuses a label two repos share, and takes the id or the URL instead', () => {
-		expect(isFail(resolveRemoveTarget(repos, 'api'))).toBe(true);
-		expect(resolveRemoveTarget(repos, repos[1]!.id)).toMatchObject({
-			value: repos[1]!.id,
+		expect(isFail(findCommitRepo(repos, 'api'))).toBe(true);
+		expect(findCommitRepo(repos, repos[1]!.id)).toMatchObject({
+			value: repos[1],
 		});
-		expect(
-			resolveRemoveTarget(repos, 'https://b.example/y/api.git'),
-		).toMatchObject({value: repos[1]!.id});
-		expect(resolveRemoveTarget(repos, 'web')).toMatchObject({
-			value: repos[2]!.id,
+		expect(findCommitRepo(repos, 'https://b.example/y/api.git')).toMatchObject({
+			value: repos[1],
 		});
+		expect(findCommitRepo(repos, 'web')).toMatchObject({value: repos[2]});
 	});
 });
 

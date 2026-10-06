@@ -6,7 +6,7 @@
 // Every section is a pure function of the scan, so a new one is a new module
 // here and a line below — never a third walk over git.
 
-import {listCommitSources} from '../commits/commit-sources.js';
+import {listCommitSources, sourceCwdOf} from '../commits/commit-sources.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {deriveChangeShape} from './change-shape.js';
 import {deriveCommentDensity} from './comment-density.js';
@@ -37,12 +37,9 @@ export const deriveIssueStats = async ({
 	const sourcesResult = await listCommitSources(repoRoot);
 	if (isFail(sourcesResult)) return failed(sourcesResult.message);
 
-	const cwdByRepo = new Map(
-		sourcesResult.value.map(source => [source.repo ?? '', source.cwd]),
-	);
+	const cwdOfRepo = sourceCwdOf(sourcesResult.value);
 	const repoBySha = new Map(commits.map(commit => [commit.sha, commit.repo]));
-	const cwdOf = (sha: string) =>
-		cwdByRepo.get(repoBySha.get(sha) ?? '') ?? repoRoot;
+	const cwdOf = (sha: string) => cwdOfRepo(repoBySha.get(sha)) ?? repoRoot;
 
 	const patchResult = await scanTicketPatch({
 		repoRoot,

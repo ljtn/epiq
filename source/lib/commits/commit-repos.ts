@@ -400,21 +400,51 @@ export const upsertCommitRepo = (input: {
 	);
 };
 
+/** The names a repo can be called by: its label where that is unique, else its id. */
+export const removableNames = (repos: CommitRepo[]): string[] =>
+	repos.map(repo =>
+		repos.filter(other => other.label === repo.label).length === 1
+			? repo.label
+			: repo.id,
+	);
+
+/** The repo a name stands for: a unique label, an id, or a URL. */
+export const findCommitRepo = (
+	repos: CommitRepo[],
+	name: string,
+): Result<CommitRepo> => {
+	const typed = name.trim();
+	const byLabel = repos.filter(repo => repo.label === typed);
+	if (byLabel.length > 1) {
+		return failed(
+			`Several repos are called ${typed} — name one by its id or URL`,
+		);
+	}
+
+	const match =
+		byLabel[0] ??
+		repos.find(
+			repo =>
+				repo.id === typed ||
+				(isAllowedRepoUrl(typed) && repo.id === repoIdOf(typed)),
+		);
+
+	return match
+		? succeeded('Found', match)
+		: failed(`No repo "${typed}" is registered`);
+};
+
 export const removeCommitRepo = (input: {
 	repoRoot: string;
-	/** The repo's id, or its URL as written. */
+	/** A unique label, the repo's id, or its URL. */
 	repo: string;
 }): Result<CommitRepo> => {
 	const reposResult = readCommitRepos(input.repoRoot);
 	if (isFail(reposResult)) return failed(reposResult.message);
 
-	const target = input.repo.trim();
-	const match = reposResult.value.find(
-		repo =>
-			repo.id === target ||
-			(isAllowedRepoUrl(target) && repo.id === repoIdOf(target)),
-	);
-	if (!match) return failed(`No repo "${target}" is registered`);
+	const matchResult = findCommitRepo(reposResult.value, input.repo);
+	if (isFail(matchResult)) return failed(matchResult.message);
+	const match = matchResult.value;
 
 	const writeResult = editRawEntries(input.repoRoot, entries =>
 		entries.filter(entry => idOfEntry(entry) !== match.id),

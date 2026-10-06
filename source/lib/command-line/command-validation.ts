@@ -17,12 +17,11 @@ import {
 	MIN_ATTACHMENT_MAX_KB,
 } from './commands/set-attachment-max-kb.cmd.js';
 import {DEFAULT_ATTACHMENT_MAX_KB} from '../media/media-store.js';
+import {findCommitRepo, removableNames} from '../commits/commits.js';
 import {
 	parseRepoAddArgs,
 	registeredRepos,
-	removableNames,
 	REPO_ADD_OPTIONS,
-	resolveRemoveTarget,
 } from './commands/repo.cmd.js';
 import {emailsOf} from '../model/email-link.js';
 import {getSafeState, getState} from '../state/state.js';
@@ -560,7 +559,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				});
 			}
 
-			if (typed && !isFail(resolveRemoveTarget(repos, typed))) {
+			if (typed && !isFail(findCommitRepo(repos, typed))) {
 				return valid(CONFIRM_MSG);
 			}
 
