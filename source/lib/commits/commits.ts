@@ -15,9 +15,11 @@ export {
 } from './commit-repo.js';
 
 export {
+	findCommitRepo,
 	isAllowedRepoUrl,
 	isRepoSince,
 	readCommitRepos,
+	removableNames,
 	removeCommitRepo,
 	repoIdOf,
 	repoLabelOfId,
@@ -33,12 +35,18 @@ export {
 	describeFetchFailures,
 	fetchCommitRepos,
 	listRepoStates,
+	registerCommitRepo,
 	removeRepoClone,
+	unregisterCommitRepo,
 	type RepoFetchOutcome,
 	type RepoState,
 } from './commit-repo-fetch.js';
 
-export {listCommitSources, type CommitSource} from './commit-sources.js';
+export {
+	listCommitSources,
+	sourceCwdOf,
+	type CommitSource,
+} from './commit-sources.js';
 
 export {
 	FULL_TIMELINE_CACHE_TTL_MS,

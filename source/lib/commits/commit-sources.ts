@@ -104,6 +104,12 @@ export const listCommitSources = async (
 	return succeeded('Listed sources', [own, ...clones]);
 };
 
+/** Where a repo's commits are read, by its id; the board's own repo has none. */
+export const sourceCwdOf =
+	(sources: CommitSource[]) =>
+	(repo: string | undefined): string | undefined =>
+		sources.find(source => (source.repo ?? '') === (repo ?? ''))?.cwd;
+
 const hasCommit = async (cwd: string, sha: string): Promise<boolean> =>
 	!isFail(
 		await execGit({

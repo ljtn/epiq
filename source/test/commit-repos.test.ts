@@ -18,6 +18,7 @@ import {
 	resetCommitTimelineCacheForTests,
 	upsertCommitRepo,
 } from '../lib/commits/commits.js';
+import {removeRepo} from '../mcp/api/repos.js';
 import {
 	getRepoClonePath,
 	MAX_REPOS,
@@ -468,6 +469,25 @@ describe('commits from a registered repo', () => {
 
 		expect(fs.existsSync(clonePath)).toBe(false);
 		resetCommitTimelineCacheForTests();
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
+		).toHaveLength(1);
+	});
+
+	it('is removed from the MCP by its label, clone and cached commits too', async () => {
+		commit(upstream, 'up.txt', `${REF_A} upstream`);
+		const repo = value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
+		).toHaveLength(2);
+
+		value(await removeRepo({repoRoot: board, repo: repo.label}));
+
+		expect(value(readCommitRepos(board))).toEqual([]);
+		expect(fs.existsSync(getRepoClonePath(PROJECT.projectId, repo.id))).toBe(
+			false,
+		);
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
 		).toHaveLength(1);

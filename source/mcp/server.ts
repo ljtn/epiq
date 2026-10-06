@@ -642,7 +642,7 @@ export const createMcpServer = () => {
 		'epiq_sync',
 		{
 			description:
-				'Sync Epiq state with the configured Git remote (pull remote changes and push local ones). Other Epiq MCP tools only read and write local state and never sync automatically — call this on demand when you need to see or publish the latest remote changes.',
+				'Sync Epiq state with the configured Git remote (pull remote changes and push local ones), then fetch the other repos registered with epiq_repo_add. Other Epiq MCP tools only read and write local state and never sync automatically — call this on demand when you need to see or publish the latest remote changes.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),
@@ -671,7 +671,7 @@ export const createMcpServer = () => {
 		'epiq_repo_add',
 		{
 			description:
-				"Register another repo by remote URL, so commits there prefixed with a ticket's ref link to it; or change an already registered repo's options. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. Edits .epiq/project.json, which needs committing to reach other clones. epiq_sync fetches it.",
+				"Register another repo by URL (https://, ssh://, git://, user@host:path, or file:/// for a local one), so commits there prefixed with a ticket's ref link to it; or change an already registered repo's options. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. Edits .epiq/project.json, which needs committing to reach other clones. epiq_sync fetches it.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				url: z.string().min(1).max(2000),
@@ -686,7 +686,7 @@ export const createMcpServer = () => {
 		'epiq_repo_remove',
 		{
 			description:
-				"Unregister a repo by its id or URL, and delete this machine's clone of it.",
+				"Unregister a repo by its label (when no other repo shares it), id or URL, and delete this machine's clone of it.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				repo: z.string().min(1).max(2000),

@@ -7,7 +7,11 @@ import {
 	RepoInput,
 	resolveRepoRoot,
 } from './commit-repo.js';
-import {listCommitSources, resolveCommitCwd} from './commit-sources.js';
+import {
+	listCommitSources,
+	resolveCommitCwd,
+	sourceCwdOf,
+} from './commit-sources.js';
 import {
 	getCommitsForRef,
 	getRefMatchesBySource,
@@ -507,9 +511,7 @@ export const getSquashedDiffForRef = async (
 
 	const sourcesResult = await listCommitSources(repoRoot);
 	if (isFail(sourcesResult)) return failed(sourcesResult.message);
-	const cwdByRepo = new Map(
-		sourcesResult.value.map(source => [source.repo ?? '', source.cwd]),
-	);
+	const cwdOfRepo = sourceCwdOf(sourcesResult.value);
 
 	// Each repo's history is its own: a range can only be drawn inside one.
 	// In each repo's own order, which is what the range is read off.
@@ -525,7 +527,7 @@ export const getSquashedDiffForRef = async (
 
 	const parts: Array<{repo?: string; diff: SquashedDiff}> = [];
 	for (const [key, matched] of byRepo) {
-		const cwd = cwdByRepo.get(key);
+		const cwd = cwdOfRepo(key);
 		if (!cwd) continue;
 
 		const diffResult = await squashInRepo(cwd, input.ref, matched, ticketShas);

@@ -12,10 +12,13 @@ import {
 	getRepoClonePath,
 	getRepoClonesDir,
 	readCommitRepos,
+	removeCommitRepo,
 	repoIdOf,
 	readRepoProject,
 	RepoBranches,
+	REPO_UNCHANGED,
 	sinceDate,
+	upsertCommitRepo,
 } from './commit-repos.js';
 
 // epiq's own bare clones of the other repos: made and fetched on sync only,
@@ -691,6 +694,34 @@ const sweepPending = (projectId: string) => {
  * Deletes this machine's clone of a repo, once it has been unregistered. A
  * clone a fetch is using is marked instead, and that fetch deletes it.
  */
+/** Lists a repo, or changes a listed one's options; readers start over on a change. */
+export const registerCommitRepo = (
+	input: Parameters<typeof upsertCommitRepo>[0],
+): Result<CommitRepo> => {
+	const result = upsertCommitRepo(input);
+	if (!isFail(result) && result.message !== REPO_UNCHANGED) {
+		invalidateCommitTimelineCache();
+	}
+
+	return result;
+};
+
+/** Takes a repo off the list, and this machine's clone of it with it. */
+export const unregisterCommitRepo = (input: {
+	repoRoot: string;
+	repo: string;
+}): Result<CommitRepo> => {
+	const result = removeCommitRepo(input);
+	if (isFail(result)) return result;
+
+	// The registration is what counts. A clone a fetch is still writing cannot
+	// go now; that fetch deletes it when it ends.
+	removeRepoClone({repoRoot: input.repoRoot, repoId: result.value.id});
+	invalidateCommitTimelineCache();
+
+	return result;
+};
+
 export const removeRepoClone = (input: {
 	repoRoot: string;
 	repoId: string;

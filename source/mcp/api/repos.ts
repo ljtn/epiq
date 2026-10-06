@@ -6,16 +6,14 @@
 import {
 	describeFetchFailures,
 	fetchCommitRepos,
-	invalidateCommitTimelineCache,
 	listRepoStates,
-	removeCommitRepo,
-	removeRepoClone,
+	registerCommitRepo,
 	REPO_UNCHANGED,
 	RepoBranches,
 	RepoFetchOutcome,
 	RepoState,
 	resolveRepoRoot,
-	upsertCommitRepo,
+	unregisterCommitRepo,
 } from '../../lib/commits/commits.js';
 import {
 	failed,
@@ -45,31 +43,23 @@ export const addRepo = async (
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
-	const upsertResult = upsertCommitRepo({
+	const addResult = registerCommitRepo({
 		repoRoot: repoRootResult.value,
 		url: input.url,
 		branches: input.branches,
 		since: input.since,
 	});
-	if (isFail(upsertResult)) return failed(upsertResult.message);
-
-	const unchangedList = listRepoStates(repoRootResult.value);
-	if (upsertResult.message === REPO_UNCHANGED) {
-		return isFail(unchangedList)
-			? failed(unchangedList.message)
-			: succeeded(REPO_UNCHANGED, unchangedList.value);
-	}
-
-	// A changed window or branch set reads differently from the same clone.
-	invalidateCommitTimelineCache();
+	if (isFail(addResult)) return failed(addResult.message);
 
 	const listResult = listRepoStates(repoRootResult.value);
 	if (isFail(listResult)) return failed(listResult.message);
 
-	return succeeded(
-		`${upsertResult.message}. Commit .epiq/project.json to share it; it is fetched on the next sync.`,
-		listResult.value,
-	);
+	return addResult.message === REPO_UNCHANGED
+		? succeeded(REPO_UNCHANGED, listResult.value)
+		: succeeded(
+				`${addResult.message}. Commit .epiq/project.json to share it; it is fetched on the next sync.`,
+				listResult.value,
+		  );
 };
 
 export const removeRepo = async (
@@ -78,19 +68,11 @@ export const removeRepo = async (
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
-	const removeResult = removeCommitRepo({
+	const removeResult = unregisterCommitRepo({
 		repoRoot: repoRootResult.value,
 		repo: input.repo,
 	});
 	if (isFail(removeResult)) return failed(removeResult.message);
-
-	// The registration is what counts. A clone a fetch is still writing cannot
-	// go now; that fetch deletes it when it finds the repo gone.
-	removeRepoClone({
-		repoRoot: repoRootResult.value,
-		repoId: removeResult.value.id,
-	});
-	invalidateCommitTimelineCache();
 
 	const listResult = listRepoStates(repoRootResult.value);
 	if (isFail(listResult)) return failed(listResult.message);
