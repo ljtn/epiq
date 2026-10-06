@@ -237,8 +237,9 @@ describe('a clock and a clone that move under a fetch', () => {
 			fetchCommitRepos({repoRoot: board}),
 			fetchCommitRepos({repoRoot: board}),
 		]);
+		// One fetch, answered twice: the very same result.
+		expect(second).toBe(first);
 		expect(value(first!)[0]!.ok).toBe(true);
-		expect(value(second!)[0]!.ok).toBe(true);
 
 		// Another process mid-fetch: its lock, held by a live pid.
 		const lockPath = `${getRepoClonePath(PROJECT_ID, repoIdOf(url))}.lock`;

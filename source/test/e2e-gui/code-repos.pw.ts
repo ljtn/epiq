@@ -44,15 +44,27 @@ const openRepos = async (page: Page) => {
 	await expect(page.getByTestId('repos-modal')).toBeVisible();
 };
 
+/** Runs `body` with the worker's project file put back afterwards, whatever happens. */
+const withProjectFile = async (
+	repoRoot: string,
+	body: (projectFile: string, before: string) => Promise<void>,
+) => {
+	const projectFile = path.join(repoRoot, '.epiq', 'project.json');
+	const before = fs.readFileSync(projectFile, 'utf8');
+
+	try {
+		await body(projectFile, before);
+	} finally {
+		fs.writeFileSync(projectFile, before);
+	}
+};
+
 test('a repo added from the palette brings its commits to the ticket they name', async ({
 	page,
 	appUrl,
 	pageErrors,
 	repoRoot,
 }) => {
-	const projectFile = path.join(repoRoot, '.epiq', 'project.json');
-	const before = fs.readFileSync(projectFile, 'utf8');
-
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
@@ -62,7 +74,7 @@ test('a repo added from the palette brings its commits to the ticket they name',
 	const upstream = makeUpstream(ref, subject);
 	const ticketUrl = page.url();
 
-	try {
+	await withProjectFile(repoRoot, async (projectFile, before) => {
 		await openRepos(page);
 		const modal = page.getByTestId('repos-modal');
 
@@ -74,6 +86,8 @@ test('a repo added from the palette brings its commits to the ticket they name',
 		await expect(row.getByTestId('repo-status')).toHaveText(
 			'not fetched yet — sync to fetch',
 		);
+		// Cleared once the add landed.
+		await expect(modal.getByTestId('repo-url')).toHaveValue('');
 		expect(JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos).toEqual([
 			{url: `file://${upstream}`, branches: 'default', since: 'board'},
 		]);
@@ -84,11 +98,9 @@ test('a repo added from the palette brings its commits to the ticket they name',
 
 		// The ticket's Code tab, which a fetch tells to read its commits again.
 		await page.goto(ticketUrl);
-		await page
-			.getByTestId('aside-pane')
-			.getByRole('button', {name: /^Code \(1\)/})
-			.click();
-		const card = page.getByTestId('commit-card');
+		const aside = page.getByTestId('aside-pane');
+		await aside.getByRole('button', {name: /^Code \(1\)/}).click();
+		const card = aside.getByTestId('commit-card');
 		await expect(card).toHaveCount(1);
 		await expect(card).toContainText(subject);
 		await expect(card.getByTestId('commit-repo')).toHaveText(
@@ -97,9 +109,9 @@ test('a repo added from the palette brings its commits to the ticket they name',
 
 		// Its diff is read from the clone, not from the board's own repo.
 		await expect(
-			page.getByRole('button', {name: `elsewhere-${ref}.txt`}),
+			aside.getByRole('button', {name: `elsewhere-${ref}.txt`}),
 		).toBeVisible();
-		await expect(page.locator('[data-line]')).toHaveCount(2);
+		await expect(aside.locator('[data-line]')).toHaveCount(2);
 
 		await openRepos(page);
 		await row.getByTestId('remove-repo').click();
@@ -108,12 +120,140 @@ test('a repo added from the palette brings its commits to the ticket they name',
 		await expect(modal.getByTestId('repos-last-action')).toContainText(
 			'Removed',
 		);
-	} finally {
-		// Restored whatever happened above: every test in this worker reads it.
-		fs.writeFileSync(projectFile, before);
-		fs.rmSync(upstream, {recursive: true, force: true});
-	}
 
-	expect(fs.readFileSync(projectFile, 'utf8')).toBe(before);
+		// Back to the bytes it was found in, by the remove itself.
+		expect(fs.readFileSync(projectFile, 'utf8')).toBe(before);
+	});
+
+	fs.rmSync(upstream, {recursive: true, force: true});
+	expect(pageErrors).toEqual([]);
+});
+
+test("a repo that cannot be fetched says git's reason, and a refused URL keeps its text", async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await withProjectFile(repoRoot, async () => {
+		await openRepos(page);
+		const modal = page.getByTestId('repos-modal');
+
+		await modal.getByTestId('repo-url').fill('/a/local/path');
+		await modal.getByTestId('add-repo').click();
+		await expect(modal.getByTestId('repos-last-action')).toContainText(
+			'not a remote URL',
+		);
+		await expect(modal.getByTestId('repo-url')).toHaveValue('/a/local/path');
+
+		const missing = path.join(os.tmpdir(), `epiq-gui-missing-${Date.now()}`);
+		await modal.getByTestId('repo-url').fill(`file://${missing}`);
+		await modal.getByTestId('add-repo').click();
+		await modal.getByTestId('fetch-repos').click();
+
+		const status = modal.getByTestId('repo-row').getByTestId('repo-status');
+		await expect(status).not.toHaveText(/not fetched yet/);
+		await expect(status).not.toContainText('git ');
+		await expect(status).not.toContainText('-c ');
+		await expect(modal.getByTestId('repos-last-action')).toContainText(
+			'could not fetch',
+		);
+	});
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('a repo’s options are written when they change, and only then', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	const url = 'https://example.com/acme/options.git';
+
+	await withProjectFile(repoRoot, async projectFile => {
+		await openRepos(page);
+		const modal = page.getByTestId('repos-modal');
+		await modal.getByTestId('repo-url').fill(url);
+		await modal.getByTestId('add-repo').click();
+		const row = modal.getByTestId('repo-row');
+		await expect(row).toHaveCount(1);
+
+		await row.getByTestId('repo-branches').selectOption('all');
+		await expect
+			.poll(() => JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos)
+			.toEqual([{url, branches: 'all', since: 'board'}]);
+
+		await row.getByTestId('repo-since').selectOption('date');
+		const date = row.getByTestId('repo-since-date');
+		await date.fill('2025-03-01');
+		await date.blur();
+		await expect
+			.poll(() => JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos)
+			.toEqual([{url, branches: 'all', since: '2025-03-01'}]);
+
+		// Leaving the date as it is sends nothing, so nothing is written.
+		const written = fs.statSync(projectFile).mtimeMs;
+		await date.focus();
+		await date.blur();
+		await page.waitForTimeout(300);
+		expect(fs.statSync(projectFile).mtimeMs).toBe(written);
+	});
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('the Code series drops a repo whose box is unticked', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const ref = await addTicketForRef(page, `Filtered ${stamp}`);
+	const subject = `filtered work ${stamp}`;
+	const upstream = makeUpstream(ref, subject);
+	const label = path.basename(upstream).toLowerCase();
+
+	await withProjectFile(repoRoot, async () => {
+		await openRepos(page);
+		const modal = page.getByTestId('repos-modal');
+		await modal.getByTestId('repo-url').fill(`file://${upstream}`);
+		await modal.getByTestId('add-repo').click();
+		await modal.getByTestId('fetch-repos').click();
+		await expect(
+			modal.getByTestId('repo-row').getByTestId('repo-status'),
+		).toHaveText(/^fetched /);
+		await modal.getByRole('button', {name: 'close'}).click();
+
+		await page.reload();
+		await expect(page.getByTestId('board-switcher')).toContainText('Default');
+		await page.getByTestId('log-toggle').click();
+		const line = page.getByTestId('log-line').filter({hasText: subject});
+		await expect(line).toHaveCount(1);
+
+		await page.getByTestId('commit-select').click();
+		await page
+			.getByTestId('commit-repo-toggle')
+			.filter({hasText: label})
+			.click();
+		await expect(line).toHaveCount(0);
+
+		await page
+			.getByTestId('commit-repo-toggle')
+			.filter({hasText: label})
+			.click();
+		await expect(line).toHaveCount(1);
+	});
+
+	fs.rmSync(upstream, {recursive: true, force: true});
 	expect(pageErrors).toEqual([]);
 });
