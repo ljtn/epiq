@@ -372,6 +372,9 @@ export const scanTicketPatch = async ({
 	for (const {cwd, shas: batch} of batches) {
 		const showResult = await execGit({
 			cwd,
+			// The budget left, checked by git's own reader: a check after the
+			// batch arrives has already held all of it.
+			maxOutput: Math.max(1, MAX_PATCH_BYTES - bytes),
 			args: [
 				// Otherwise a non-ASCII path arrives octal-escaped and quoted, and
 				// stops matching the paths every other git call here reports.
@@ -386,7 +389,18 @@ export const scanTicketPatch = async ({
 			],
 		});
 
-		if (isFail(showResult)) return failed(showResult.message);
+		if (isFail(showResult)) {
+			if (/Output past/.test(showResult.message)) {
+				overBudget = true;
+				break;
+			}
+
+			// Another repo's clone failing costs its own commits, never the
+			// ticket's stats: the timeline reads around a broken clone too.
+			if (cwd !== repoRoot) continue;
+
+			return failed(showResult.message);
+		}
 
 		parsePatchInto(state, showResult.value.stdout);
 		bytes += showResult.value.stdout.length;

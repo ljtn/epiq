@@ -8,7 +8,11 @@ import {
 	resolveRepoRoot,
 } from './commit-repo.js';
 import {listCommitSources, resolveCommitCwd} from './commit-sources.js';
-import {getCommitsForRef, RefCommitEntry} from './commit-timeline.js';
+import {
+	getCommitsForRef,
+	getRefMatchesBySource,
+	RefCommitEntry,
+} from './commit-timeline.js';
 
 export type CommitDiffFile = {
 	path: string;
@@ -42,6 +46,8 @@ export type CommitDiff = {
  * something that is not a patch at all, and `--format=` leaves the commit
  * header off — the list the reader came from already showed it.
  */
+const MAX_PATCH_CHARS = 8 * 1024 * 1024;
+
 export const getCommitPatch = async (
 	input: CommitInput,
 ): Promise<Result<string>> => {
@@ -52,6 +58,9 @@ export const getCommitPatch = async (
 
 	const showResult = await execGit({
 		cwd: repoRootResult.value,
+		// What a terminal can page through: past this a patch is a vendored
+		// tree or a generated file, and drawing it would hold every row of it.
+		maxOutput: MAX_PATCH_CHARS,
 		args: [
 			'show',
 			'--no-ext-diff',
@@ -62,7 +71,13 @@ export const getCommitPatch = async (
 			input.sha,
 		],
 	});
-	if (isFail(showResult)) return failed(showResult.message);
+	if (isFail(showResult)) {
+		return failed(
+			/Output past/.test(showResult.message)
+				? 'This commit is too large to show here; open it in your editor'
+				: showResult.message,
+		);
+	}
 
 	return succeeded('Read commit patch', showResult.value.stdout);
 };
@@ -474,12 +489,21 @@ export const getSquashedDiffForRef = async (
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 	const repoRoot = repoRootResult.value;
 
+	// Per repo, each commit once: a fork's share is the commits only it has,
+	// so nothing is shown twice. Every repo's matches, shared ones included,
+	// count as the ticket's own when a range is judged.
+	const bySourceResult = await getRefMatchesBySource({
+		repoRoot,
+		ref: input.ref,
+	});
+	if (isFail(bySourceResult)) return failed(bySourceResult.message);
+
+	const ticketShas = new Set(
+		bySourceResult.value.flat().map(commit => commit.sha),
+	);
+
 	const commitsResult = await getCommitsForRef({repoRoot, ref: input.ref});
 	if (isFail(commitsResult)) return failed(commitsResult.message);
-
-	if (commitsResult.value.length === 0) {
-		return failed('No commits reference this ticket');
-	}
 
 	const sourcesResult = await listCommitSources(repoRoot);
 	if (isFail(sourcesResult)) return failed(sourcesResult.message);
@@ -488,12 +512,15 @@ export const getSquashedDiffForRef = async (
 	);
 
 	// Each repo's history is its own: a range can only be drawn inside one.
+	// In each repo's own order, which is what the range is read off.
 	const byRepo = new Map<string, RefCommitEntry[]>();
-	for (const commit of commitsResult.value) {
-		const key = commit.repo ?? '';
-		const list = byRepo.get(key);
-		if (list) list.push(commit);
-		else byRepo.set(key, [commit]);
+	for (const list of bySourceResult.value) {
+		const own = list.filter(commit =>
+			commitsResult.value.some(
+				kept => kept.sha === commit.sha && kept.repo === commit.repo,
+			),
+		);
+		if (own.length > 0) byRepo.set(own[0]!.repo ?? '', own);
 	}
 
 	const parts: Array<{repo?: string; diff: SquashedDiff}> = [];
@@ -501,7 +528,7 @@ export const getSquashedDiffForRef = async (
 		const cwd = cwdByRepo.get(key);
 		if (!cwd) continue;
 
-		const diffResult = await squashInRepo(cwd, input.ref, matched);
+		const diffResult = await squashInRepo(cwd, input.ref, matched, ticketShas);
 		// Another repo's clone failing costs its own files, never the board's:
 		// the timeline reads around a broken clone the same way.
 		if (isFail(diffResult)) {
@@ -552,6 +579,9 @@ const squashInRepo = async (
 	repoRoot: string,
 	ref: string,
 	matched: RefCommitEntry[],
+	// The ticket's commits in every repo: one this repo shares with another
+	// is the ticket's work in a range here too, not another ticket's.
+	ticketShas: ReadonlySet<string> = new Set(),
 ): Promise<Result<SquashedDiff>> => {
 	const newest = matched[0]!.sha;
 
@@ -578,7 +608,10 @@ const squashInRepo = async (
 	if (isFail(walkResult)) return failed(walkResult.message);
 
 	const walk = walkResult.value;
-	const matchedShas = new Set(matched.map(commit => commit.sha));
+	const matchedShas = new Set([
+		...matched.map(commit => commit.sha),
+		...ticketShas,
+	]);
 	const mine = [...walk.keys()].filter(sha => matchedShas.has(sha));
 
 	const contiguous = mine.length === walk.size;
