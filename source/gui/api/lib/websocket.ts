@@ -119,10 +119,51 @@ export const fetchReposAndBroadcast = async (
 	repoRoot: string,
 	minIntervalMs?: number,
 ) => {
-	const result = await fetchRepos({repoRoot, minIntervalMs});
-	if (!isFail(result) && result.value.some(outcome => outcome.changed)) {
-		broadcastReposChanged();
+	broadcastFetchOutcomes(await fetchRepos({repoRoot, minIntervalMs}));
+};
+
+/**
+ * Commits moved: every client asks for them again. A fetch failed or moved
+ * anything: an open repos panel asks for the list again, so a failure shows
+ * there rather than leaving it reading "not fetched yet".
+ */
+const broadcastFetchOutcomes = (
+	result: Awaited<ReturnType<typeof fetchRepos>>,
+) => {
+	if (isFail(result)) return;
+
+	if (result.value.some(outcome => outcome.changed)) broadcastReposChanged();
+	if (result.value.some(outcome => outcome.changed || !outcome.ok)) {
+		broadcastGuiMessage({type: 'repos:fetched'});
 	}
+};
+
+/** What one press of "fetch now" came to, in a line. */
+const describeFetch = (
+	outcomes: Awaited<ReturnType<typeof fetchRepos>>,
+): {ok: boolean; message: string} => {
+	if (isFail(outcomes)) return {ok: false, message: outcomes.message};
+
+	const fetched = outcomes.value.filter(
+		outcome => outcome.ok && !outcome.skipped,
+	);
+	const skipped = outcomes.value.filter(outcome => outcome.skipped);
+	const notes = [
+		fetched.length > 0
+			? `Fetched ${fetched.length} repo${fetched.length === 1 ? '' : 's'}`
+			: null,
+		skipped.length > 0
+			? `${skipped
+					.map(outcome => outcome.label)
+					.join(', ')} being fetched by another process`
+			: null,
+		describeFetchFailures(outcomes.value),
+	].filter(Boolean);
+
+	return {
+		ok: outcomes.value.every(outcome => outcome.ok && !outcome.skipped),
+		message: notes.join(' · ') || 'Nothing to fetch',
+	};
 };
 
 const sendSocket = (socket: WebSocket, body: unknown) => {
@@ -454,26 +495,10 @@ export const setupWebsocket = (
 					sendSocket(socket, {
 						type: 'repos',
 						payload: await listRepos({repoRoot}),
-						lastAction: isFail(result)
-							? {ok: false, message: result.message}
-							: {
-									ok: result.value.every(outcome => outcome.ok),
-									message:
-										describeFetchFailures(result.value) ??
-										`Fetched ${result.value.length} repo${
-											result.value.length === 1 ? '' : 's'
-										}`,
-							  },
+						lastAction: describeFetch(result),
 					});
 
-					if (
-						!isFail(result) &&
-						result.value.some(outcome => outcome.changed)
-					) {
-						broadcastReposChanged();
-					}
-
-					return;
+					return broadcastFetchOutcomes(result);
 				}
 
 				if (type === 'issue:commits:get') {

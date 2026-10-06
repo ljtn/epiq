@@ -6,7 +6,11 @@ import {scanCacheMs} from '../utils/cache-ttl.js';
 import {NODE_REF_LENGTH} from '../utils/node-ref.js';
 import {sanitizeInlineText} from '../utils/string.utils.js';
 import {RepoInput} from './commit-repo.js';
-import {CommitSource, listCommitSources} from './commit-sources.js';
+import {
+	CommitSource,
+	listCommitSources,
+	noteCloneRead,
+} from './commit-sources.js';
 
 export type CommitEntry = {
 	sha: string;
@@ -219,11 +223,20 @@ const readSourceLogs = async (
 
 	const lists: CommitEntry[][] = [];
 	for (const [index, log] of logs.entries()) {
+		const repo = sources[index]!.repo;
 		if (isFail(log)) {
-			if (!sources[index]!.repo) return failed(log.message);
+			if (!repo) return failed(log.message);
 			logger.info(`[repos] could not read a clone: ${log.message}`);
+			noteCloneRead(
+				repo,
+				/Output past/.test(log.message)
+					? 'its history is too long to read; narrow its window'
+					: 'its history could not be read',
+			);
 			continue;
 		}
+
+		if (repo) noteCloneRead(repo, null);
 
 		lists.push(log.value);
 	}

@@ -29,6 +29,19 @@ export type CommitSource = {
 
 const NOTHING: ReadonlySet<string> = new Set();
 
+// Why a clone could not be read the last time it was, by repo id: a read that
+// fails leaves the repo's commits out, and the panel says so rather than
+// showing a repo that looks fetched and holds nothing.
+const readProblems = new Map<string, string>();
+
+export const noteCloneRead = (repoId: string, problem: string | null) => {
+	if (problem) readProblems.set(repoId, problem);
+	else readProblems.delete(repoId);
+};
+
+export const cloneReadProblem = (repoId: string): string | null =>
+	readProblems.get(repoId) ?? null;
+
 /**
  * A shallow clone's boundary commits have no parent here, so git diffs them
  * against nothing and reports the whole tree as added. They are where the
