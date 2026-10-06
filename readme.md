@@ -4,7 +4,7 @@ Epiq is a self-hosted issue tracker that allows you to review workflows in real 
 
 Most issue trackers live outside your workflow. Instead of a centralized, managed service, Epiq offers issue tracking as an integrated part of the development environment offering workflow replay and inline code-diffs, tackling the review bottleneck with time-travel, filtering, and a tight code integration.
 
-**[Site →]((https://ljtn.github.io/epiq/)** 
+**[Site →](https://ljtn.github.io/epiq/)** 
 
 > All state is kept local, Git-backed, and versioned.
 
