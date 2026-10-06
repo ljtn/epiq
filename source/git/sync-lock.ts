@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -50,7 +51,16 @@ type LockHolder = {
 	hostname: string;
 	startedAt: number;
 	operation: string;
+	/**
+	 * This hold, as against another by the same process: two can share a pid
+	 * and a millisecond. Absent from a lock an older build wrote.
+	 */
+	token?: string;
 };
+
+// The holds this process has right now, by lock path. A lock naming this
+// process that is not among them is one it let go of and somebody put back.
+const heldHere = new Map<string, string>();
 
 /**
  * How the lock came to be ours, which is not the same question as whether it
@@ -196,12 +206,13 @@ const readHolder = (lockPath: string): LockHolder | null => {
  * exists and publishes a file that is already complete. The temporary name is
  * this process's own, so two of them cannot collide over it.
  */
-const write = (lockPath: string, operation: string): boolean => {
+const write = (lockPath: string, operation: string): LockHolder | null => {
 	const holder: LockHolder = {
 		pid: process.pid,
 		hostname: os.hostname(),
 		startedAt: Date.now(),
 		operation,
+		token: randomUUID(),
 	};
 
 	// Ends in `.lock` on purpose: a process killed between the write and the
@@ -219,9 +230,9 @@ const write = (lockPath: string, operation: string): boolean => {
 	try {
 		fs.writeFileSync(pending, JSON.stringify(holder));
 		fs.linkSync(pending, lockPath);
-		return true;
+		return holder;
 	} catch {
-		return false;
+		return null;
 	} finally {
 		try {
 			fs.rmSync(pending, {force: true});
@@ -268,47 +279,96 @@ export const acquireLockFile = ({
 	/** For work allowed to run longer than a sync: never broken before this. */
 	staleAfterMs?: number;
 }): LockOutcome => {
+	let mine: LockHolder | null = null;
+
 	const release = () => {
 		try {
-			// Only ours: a lock we broke and then lost a race for belongs to
-			// whoever wrote it after us.
+			// Only this hold: a lock broken and taken by another since belongs to
+			// whoever wrote it.
 			const current = readHolder(lockPath);
-			if (current && current.pid === process.pid) fs.rmSync(lockPath);
+			if (current && sameHolder(current, mine)) fs.rmSync(lockPath);
 		} catch {
 			// Releasing is best-effort. A lock left behind is recovered by the
 			// liveness check on the next attempt, which is exactly its job.
+		} finally {
+			if (heldHere.get(lockPath) === mine?.token) heldHere.delete(lockPath);
 		}
 	};
 
-	if (write(lockPath, operation)) {
-		return {acquired: true, claim: 'clean', release};
-	}
+	const take = (claim: LockClaim): LockOutcome | null => {
+		mine = write(lockPath, operation);
+		if (!mine) return null;
 
-	const holder = readHolder(lockPath);
-	const claim = claimOver(holder, staleAfterMs);
-
-	if (claim === null) {
-		return {acquired: false, heldBy: holder as LockHolder};
-	}
-
-	logger.info(
-		`Breaking an abandoned sync lock: ${
-			holder ? describeHolder(holder) : 'unreadable lock file'
-		}`,
-	);
-
-	try {
-		fs.rmSync(lockPath, {force: true});
-	} catch {
-		// Someone else broke it first; the retry below settles who wins.
-	}
-
-	if (write(lockPath, operation)) {
+		heldHere.set(lockPath, mine.token!);
 		return {acquired: true, claim, release};
+	};
+
+	// A few tries, because a lock can change hands between any two steps here.
+	for (let attempt = 0; attempt < 5; attempt++) {
+		const clean = take('clean');
+		if (clean) return clean;
+
+		let holder = readHolder(lockPath);
+
+		// Missing or unreadable at the read: its holder may have let go and
+		// another taken it in between. Read again before calling it broken —
+		// only a lock that stays unreadable is.
+		if (holder === null) {
+			if (!fs.existsSync(lockPath)) continue;
+			holder = readHolder(lockPath);
+			if (holder !== null) continue;
+			if (!fs.existsSync(lockPath)) continue;
+		}
+
+		// One naming this process that it does not hold: let go of, then put
+		// back by a breaker that judged it live. Nobody else will ever take it.
+		const orphanOfOurs =
+			holder !== null &&
+			holder.pid === process.pid &&
+			holder.hostname === os.hostname() &&
+			heldHere.get(lockPath) !== holder.token;
+
+		const claim = orphanOfOurs ? 'dead' : claimOver(holder, staleAfterMs);
+		if (claim === null) return {acquired: false, heldBy: holder as LockHolder};
+
+		logger.info(
+			`Breaking an abandoned sync lock: ${
+				holder ? describeHolder(holder) : 'unreadable lock file'
+			}`,
+		);
+
+		// Broken by moving it aside under a name of our own and checking it is
+		// the lock that was judged: a rename takes whatever is there now, and
+		// that may be a fresh lock another process wrote since the read.
+		const aside = `${lockPath}.${process.pid}.${randomUUID()}.broken.lock`;
+		try {
+			fs.renameSync(lockPath, aside);
+		} catch {
+			continue;
+		}
+
+		if (!sameHolder(readHolder(aside), holder)) {
+			// A live lock, taken by mistake: back where it was, unless the slot
+			// has been filled again meanwhile. Should its holder have let go in
+			// between, it is now an orphan of that process's, which that
+			// process reclaims above.
+			try {
+				fs.linkSync(aside, lockPath);
+			} catch {
+				// Filled: the lock now there is the one that counts.
+			}
+			fs.rmSync(aside, {force: true});
+			continue;
+		}
+
+		fs.rmSync(aside, {force: true});
+
+		const broken = take(claim);
+		if (broken) return broken;
 	}
 
-	// Lost the race to whoever else was breaking the same stale lock. They hold
-	// it legitimately now, so this is a refusal, not an error.
+	// Lost every race for it. Whoever holds it now holds it legitimately, so
+	// this is a refusal, not an error.
 	const winner = readHolder(lockPath);
 
 	return {
@@ -321,6 +381,14 @@ export const acquireLockFile = ({
 		},
 	};
 };
+
+const sameHolder = (a: LockHolder | null, b: LockHolder | null): boolean =>
+	a === null || b === null
+		? a === b
+		: a.pid === b.pid &&
+		  a.hostname === b.hostname &&
+		  a.startedAt === b.startedAt &&
+		  a.token === b.token;
 
 /** Runs `fn` holding the lock, or returns null if somebody else has it. */
 export const withSyncLock = async <T>({

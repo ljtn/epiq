@@ -415,9 +415,14 @@ export const execGit = ({
 	 */
 	forClone?: boolean;
 }): Promise<Result<GitExecResult>> =>
-	runGit({args, cwd, allowFail: false, timeoutMs, maxOutput, forClone}) as Promise<
-		Result<GitExecResult>
-	>;
+	runGit({
+		args,
+		cwd,
+		allowFail: false,
+		timeoutMs,
+		maxOutput,
+		forClone,
+	}) as Promise<Result<GitExecResult>>;
 
 export const execGitAllowFail = ({
 	args,
