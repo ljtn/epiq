@@ -1,3 +1,5 @@
+import {randomBytes} from 'node:crypto';
+import fs from 'node:fs';
 import {execGit} from '../../git/git-utils.js';
 import {logger} from '../../logger.js';
 import {CommitAuthor} from '../repository/contributor-directory.js';
@@ -59,11 +61,36 @@ const CLONE_LOG_TIMEOUT_MS = 120_000;
  */
 const CLONE_LOG_MAX_CHARS = 32 * 1024 * 1024;
 
-// Per source, keyed by where it is read and what is walked.
+// Per source, keyed by where it is read and what is walked. A clone's entry
+// is good for as long as the clone is unchanged — `version` — failures
+// included: only a fetch changes a clone, and a read past the cap would fail
+// again on every call.
 const fullTimelineCache = new Map<
 	string,
-	{fetchedAt: number; result: CommitEntry[]}
+	{fetchedAt: number; version: number | null; result: Result<CommitEntry[]>}
 >();
+
+/** When a clone's fetch status was last written, by any process. */
+const cloneVersion = (clonePath: string): number | null => {
+	try {
+		return fs.statSync(`${clonePath}.json`).mtimeMs;
+	} catch {
+		return null;
+	}
+};
+
+// A clone's history is somebody else's, and a subject can hold the record
+// and field separators: a separator only this read knows cannot be forged.
+const separatorsFor = (source: CommitSource) => {
+	const nonce = source.repo ? randomBytes(8).toString('hex') : '';
+
+	return {
+		field: `${GIT_LOG_FIELD_SEP}${nonce}`,
+		record: `${GIT_LOG_RECORD_SEP}${nonce}`,
+	};
+};
+
+const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
 // Test-only: the cache is module-level state, so it would otherwise leak
 // between `it()` blocks in the same file (unlike vi.clearAllMocks(), which
@@ -123,13 +150,18 @@ const readSourceLog = async (
 		source.exclude.size,
 	].join('\0');
 	const cached = cacheable ? fullTimelineCache.get(cacheKey) : undefined;
+	const version = source.repo ? cloneVersion(source.cwd) : null;
 
 	if (
 		cached &&
-		Date.now() - cached.fetchedAt < scanCacheMs(FULL_TIMELINE_CACHE_TTL_MS)
+		(source.repo
+			? cached.version === version
+			: Date.now() - cached.fetchedAt < scanCacheMs(FULL_TIMELINE_CACHE_TTL_MS))
 	) {
-		return succeeded('Computed commit timeline', cached.result);
+		return cached.result;
 	}
+
+	const separators = separatorsFor(source);
 
 	const logResult = await execGit({
 		cwd: source.cwd,
@@ -150,21 +182,31 @@ const readSourceLog = async (
 			'--shortstat',
 			// The commit date only where a window is cut by it: the board's own
 			// log reads as it always has.
-			`--format=${GIT_LOG_RECORD_SEP}%H${GIT_LOG_FIELD_SEP}%at${
-				source.notBefore ? `${GIT_LOG_FIELD_SEP}%ct` : ''
-			}${GIT_LOG_FIELD_SEP}%an${GIT_LOG_FIELD_SEP}%ae${GIT_LOG_FIELD_SEP}%s`,
+			`--format=${separators.record}%H${separators.field}%at${
+				source.notBefore ? `${separators.field}%ct` : ''
+			}${separators.field}%an${separators.field}%ae${separators.field}%s`,
 		],
 	});
 
-	if (isFail(logResult)) return failed(logResult.message);
+	if (isFail(logResult)) {
+		if (source.repo && cacheable) {
+			fullTimelineCache.set(cacheKey, {
+				fetchedAt: Date.now(),
+				version,
+				result: failed(logResult.message),
+			});
+		}
+		return failed(logResult.message);
+	}
 
 	const commits = logResult.value.stdout
-		.split(GIT_LOG_RECORD_SEP)
+		.split(separators.record)
 		.filter(record => record.trim().length > 0)
 		.map((record): CommitEntry | null => {
 			const [headerLine, ...statLines] = record.split('\n');
-			const fields = (headerLine ?? '').split(GIT_LOG_FIELD_SEP);
+			const fields = (headerLine ?? '').split(separators.field);
 			const [sha, atSeconds] = fields;
+			if (source.repo && !SHA.test(sha ?? '')) return null;
 			const ctSeconds = source.notBefore ? fields[2] : undefined;
 			const [author, authorEmail, ...subjectParts] = fields.slice(
 				source.notBefore ? 3 : 2,
@@ -187,7 +229,7 @@ const readSourceLog = async (
 				time: Number(atSeconds) * 1000,
 				author: cleanText(author) || 'unknown',
 				authorEmail: cleanText(authorEmail),
-				subject: cleanText(subjectParts.join(GIT_LOG_FIELD_SEP)),
+				subject: cleanText(subjectParts.join(separators.field)),
 				linesChanged: insertions + deletions,
 				insertions,
 				deletions,
@@ -197,7 +239,11 @@ const readSourceLog = async (
 		.filter(commit => inCommitWindow(commit.time, window.start, window.end));
 
 	if (cacheable) {
-		fullTimelineCache.set(cacheKey, {fetchedAt: Date.now(), result: commits});
+		fullTimelineCache.set(cacheKey, {
+			fetchedAt: Date.now(),
+			version,
+			result: succeeded('Computed commit timeline', commits),
+		});
 	}
 
 	return succeeded('Computed commit timeline', commits);
@@ -263,34 +309,17 @@ const withoutShared = <T extends CommitEntry>(lists: T[][]): T[][] => {
 };
 
 /**
- * Newest first across sources, without reordering any one of them: each list
- * keeps git's own order, which is what "the commit before this one" is read
- * from. A single source comes back exactly as git gave it.
+ * Newest first across sources, by date. A single source comes back exactly as
+ * git gave it; across several, git's order is each repo's own and says
+ * nothing about another's. Anything read off one repo's order — "the commit
+ * before this one" — is read before this.
  */
 const mergeNewestFirst = <T extends CommitEntry>(lists: T[][]): T[] => {
 	const nonEmpty = lists.filter(list => list.length > 0);
 	if (nonEmpty.length <= 1) return nonEmpty[0] ?? [];
 
-	const heads = nonEmpty.map(() => 0);
-	const merged: T[] = [];
-
-	while (true) {
-		let pick = -1;
-		let best: T | undefined;
-
-		for (const [index, list] of nonEmpty.entries()) {
-			const candidate = list[heads[index]!];
-			if (candidate && (!best || candidate.time > best.time)) {
-				pick = index;
-				best = candidate;
-			}
-		}
-
-		if (!best) return merged;
-
-		merged.push(best);
-		heads[pick]!++;
-	}
+	// Stable, so commits of one second keep their repo's order.
+	return nonEmpty.flat().sort((a, b) => b.time - a.time);
 };
 
 // Pure read of the *code* history, safe mid-scrub: the board's own repo and
@@ -319,9 +348,14 @@ export const getCommitTimeline = async (
 // commit — i.e. no other ticket's commit sits between them.
 export type RefCommitEntry = CommitEntry & {precedingSha: string | null};
 
-export const getCommitsForRef = async (
+/**
+ * A ticket's commits per source, each in its own repo's order, before a commit
+ * two sources share is listed once: a fork's share of a ticket is read off its
+ * own history, shared commits included.
+ */
+export const getRefMatchesBySource = async (
 	input: RepoInput & {ref: string},
-): Promise<Result<RefCommitEntry[]>> => {
+): Promise<Result<RefCommitEntry[][]>> => {
 	const ref = input.ref.trim();
 	if (!ref) return failed('ref must not be empty');
 
@@ -348,28 +382,38 @@ export const getCommitsForRef = async (
 
 	// Per source, in git log's order — so all[i + 1] is exactly the commit
 	// immediately before all[i] in that repo's real history, matched or not.
-	const perSource = listsResult.value.map(all => {
-		const matched: RefCommitEntry[] = [];
+	return succeeded(
+		'Matched commits by ref',
+		listsResult.value.map(all => {
+			const matched: RefCommitEntry[] = [];
 
-		for (const [index, commit] of all.entries()) {
-			if (!matches(commit)) continue;
+			for (const [index, commit] of all.entries()) {
+				if (!matches(commit)) continue;
 
-			const precedingCommit = all[index + 1];
+				const precedingCommit = all[index + 1];
 
-			matched.push({
-				...commit,
-				precedingSha:
-					precedingCommit && matches(precedingCommit)
-						? precedingCommit.sha
-						: null,
-			});
-		}
+				matched.push({
+					...commit,
+					precedingSha:
+						precedingCommit && matches(precedingCommit)
+							? precedingCommit.sha
+							: null,
+				});
+			}
 
-		return matched;
-	});
+			return matched;
+		}),
+	);
+};
+
+export const getCommitsForRef = async (
+	input: RepoInput & {ref: string},
+): Promise<Result<RefCommitEntry[]>> => {
+	const bySource = await getRefMatchesBySource(input);
+	if (isFail(bySource)) return failed(bySource.message);
 
 	return succeeded(
 		'Matched commits by ref',
-		mergeNewestFirst(withoutShared(perSource)),
+		mergeNewestFirst(withoutShared(bySource.value)),
 	);
 };
