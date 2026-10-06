@@ -34,32 +34,10 @@ import {
 	mutedStyle,
 	ScopeSelect,
 } from './ScrubberSelects';
+import {fixtureWellStyle} from '../lib/segmented.style';
 
 // Borderless, marked the way Tabs marks the open tab. The icon toggles below
 // keep their box: they carry no label, so the border is what holds their shape.
-
-// A fixture on this bar: a well the controls that are not about the chart sit
-// in — the panel toggles at one end, the transport at the other. Both outlive
-// the charts, which is what the well says and what a bare icon among the chart
-// buttons did not.
-//
-// The gap is a sliver of the well's own ground, for a pair of switches in one
-// fixture rather than one control with two halves: at a pixel the rounded
-// grounds swallow it, past two it stops reading as a pair.
-const fixtureWellStyle: React.CSSProperties = {
-	display: 'inline-flex',
-	alignItems: 'center',
-	gap: 2,
-	padding: 1,
-	borderRadius: 6,
-	background: GUI_THEME.panel2,
-	// Longhand, because the transport's well turns its colour off and React
-	// warns — rightly — about a shorthand and a longhand for the same value
-	// meeting on a rerender.
-	borderWidth: 1,
-	borderStyle: 'solid',
-	borderColor: GUI_THEME.line,
-};
 
 // The two panel toggles and the transport all sit in one family: a panel, a
 // hairline and a glyph. Nothing here is the brightest thing on the bar.

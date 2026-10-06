@@ -7,6 +7,7 @@ import {
 	MultiFileDiff,
 	SelectedLineRange,
 } from '@pierre/diffs/react';
+import {useDiffWrap} from '../lib/diff-wrap';
 import {GUI_THEME} from '../lib/gui-theme';
 import {CODE_FONT, CODE_TEXT_VARS} from '../lib/code-text.style';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
@@ -95,37 +96,43 @@ const FileDiffViewInner = <LAnnotation = undefined,>({
 	 * whose render props close over nothing.
 	 */
 	renderKey?: string;
-}) => (
-	<div style={DIFF_BOX_STYLE}>
-		<MultiFileDiff
-			{...toDiffFileInput(file)}
-			// Back to the main thread where the pool turned out not to be one.
-			// Slower, and the only alternative is a diff that never draws — see
-			// lib/diffs-worker-pool.
-			disableWorkerPool={!useDiffWorkersUsable()}
-			options={{
-				diffStyle,
-				theme: PIERRE_THEME,
-				enableLineSelection: onSelectionEnd !== undefined,
-				controlledSelection: onSelectionEnd !== undefined,
-				onLineSelectionEnd: onSelectionEnd,
-				// Signals a line is selectable before the user has tried dragging —
-				// otherwise the whole selection/comment feature is invisible until
-				// discovered by accident.
-				lineHoverHighlight: onSelectionEnd !== undefined ? 'both' : 'disabled',
-				// Keeps the file's name against the top of the panel for as long as
-				// any of its diff is on screen. A commit opens every file it touched
-				// into one column, so without this a scrolled-to hunk belongs to
-				// whichever name has already gone past.
-				stickyHeader: true,
-			}}
-			selectedLines={selectedLines}
-			lineAnnotations={lineAnnotations}
-			renderAnnotation={renderAnnotation}
-			renderCustomHeader={renderCustomHeader}
-		/>
-	</div>
-);
+}) => {
+	const [wrap] = useDiffWrap();
+
+	return (
+		<div style={DIFF_BOX_STYLE}>
+			<MultiFileDiff
+				{...toDiffFileInput(file)}
+				// Back to the main thread where the pool turned out not to be one.
+				// Slower, and the only alternative is a diff that never draws — see
+				// lib/diffs-worker-pool.
+				disableWorkerPool={!useDiffWorkersUsable()}
+				options={{
+					diffStyle,
+					theme: PIERRE_THEME,
+					enableLineSelection: onSelectionEnd !== undefined,
+					controlledSelection: onSelectionEnd !== undefined,
+					onLineSelectionEnd: onSelectionEnd,
+					// Signals a line is selectable before the user has tried dragging —
+					// otherwise the whole selection/comment feature is invisible until
+					// discovered by accident.
+					lineHoverHighlight:
+						onSelectionEnd !== undefined ? 'both' : 'disabled',
+					// Keeps the file's name against the top of the panel for as long as
+					// any of its diff is on screen. A commit opens every file it touched
+					// into one column, so without this a scrolled-to hunk belongs to
+					// whichever name has already gone past.
+					stickyHeader: true,
+					overflow: wrap ? 'wrap' : 'scroll',
+				}}
+				selectedLines={selectedLines}
+				lineAnnotations={lineAnnotations}
+				renderAnnotation={renderAnnotation}
+				renderCustomHeader={renderCustomHeader}
+			/>
+		</div>
+	);
+};
 
 // What a selection is, for comparison: two line numbers and the sides they
 // belong to. Compared by value because it is rebuilt from URL params on every

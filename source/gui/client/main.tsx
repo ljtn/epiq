@@ -3,6 +3,7 @@ import {WorkerPoolContextProvider} from '@pierre/diffs/react';
 import {BrowserRouter, Navigate, Route, Routes} from 'react-router-dom';
 import {App} from './App';
 import {LogWindow} from './components/LogWindow';
+import {DiffWrapProvider} from './lib/diff-wrap';
 import {LOG_WINDOW_PATH} from './lib/log-window';
 import {
 	DIFF_WORKER_HIGHLIGHTER_OPTIONS,
@@ -21,7 +22,9 @@ const board = (
 		poolOptions={DIFF_WORKER_POOL_OPTIONS}
 		highlighterOptions={DIFF_WORKER_HIGHLIGHTER_OPTIONS}
 	>
-		<App />
+		<DiffWrapProvider>
+			<App />
+		</DiffWrapProvider>
 	</WorkerPoolContextProvider>
 );
 
