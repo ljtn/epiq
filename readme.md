@@ -4,17 +4,17 @@ _Issue tracking as code. Open source, distributed, local-first, and code-native.
 
 **[See docs →](https://ljtn.github.io/epiq/docs.html)** 
 
-Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
+Issue tracking as an integrated part of the development environment offering workflow replay and inline code-diffs.
 
-> Kanban to review workflows in your terminal or in your browser - while keeping all state local, Git-backed, and versioned.
+> Review workflows while keeping all state local, Git-backed, and versioned.
 
-With great attention to user ergonomics and developer experience, epiq strives to make project management painless and friction free.
+Epiq strives to tackle the review bottleneck and make issue tracking friction free.
 
 ![The Epiq GUI: the event log, the board and a ticket's code diff, under the time travel timeline](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/time-travel.jpeg)
 
 ## Audit the workflow
 
-Agents now run whole sprints unattended. Because state is a full event log, you can replay the board to find out what moved when, who moved it, and what changed along the way.
+Agents now run whole sprints unattended. Because state is an event log, you can replay the board to find out what moved when, who moved it, and what changed along the way.
 
 ## Code, linked to tickets
 
