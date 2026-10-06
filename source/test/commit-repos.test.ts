@@ -740,10 +740,18 @@ describe('review fixes', () => {
 		const [first] = value(await fetchCommitRepos({repoRoot: board}));
 		expect(first!.ok).toBe(false);
 
+		// No second try: the status keeps the first attempt's time.
+		const [repo] = value(readCommitRepos(board));
+		const status = `${getRepoClonePath('board-under-test', repo!.id)}.json`;
+		const attempted = JSON.parse(fs.readFileSync(status, 'utf8')).attemptedAt;
+
 		const [throttled] = value(
 			await fetchCommitRepos({repoRoot: board, minIntervalMs: 60_000}),
 		);
 		expect(throttled).toMatchObject({ok: false, message: first!.message});
+		expect(JSON.parse(fs.readFileSync(status, 'utf8')).attemptedAt).toBe(
+			attempted,
+		);
 	});
 
 	it('reads a changed window at once, not after the cache ages out', async () => {

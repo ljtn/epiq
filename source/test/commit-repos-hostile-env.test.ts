@@ -132,4 +132,24 @@ describe('git on behalf of another repo, under a hostile environment', () => {
 
 		expect(patch).toContain('diff --git a/b.txt b/b.txt');
 	});
+
+	it('reads a clone’s patches in that shape too', async () => {
+		const board = makeBoard();
+		const upstream = fs.mkdtempSync(path.join(scratch, 'up-'));
+		git(upstream, ['init', '-q', '-b', 'main']);
+		fs.writeFileSync(path.join(upstream, 'u'), 'u\n');
+		git(upstream, ['add', '-A']);
+		git(upstream, ['commit', '-q', '-m', 'init']);
+		fs.writeFileSync(path.join(upstream, 'c.txt'), 'c\n');
+		git(upstream, ['add', '-A']);
+		git(upstream, ['commit', '-q', '-m', 'AAAAAAA upstream']);
+		const sha = git(upstream, ['rev-parse', 'HEAD']).trim();
+
+		value(upsertCommitRepo({repoRoot: board, url: `file://${upstream}`}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const patch = value(await getCommitPatch({repoRoot: board, sha}));
+
+		expect(patch).toContain('diff --git a/c.txt b/c.txt');
+	});
 });
