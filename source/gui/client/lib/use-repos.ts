@@ -52,6 +52,12 @@ export const useRepos = ({
 				return;
 			}
 
+			// A fetch somewhere failed or moved a repo: the list's statuses moved.
+			if (message.type === 'repos:fetched') {
+				if (open) sendRaw({type: 'repos:get'});
+				return;
+			}
+
 			if (message.type !== 'repos') return;
 
 			const value = getResultValue<GuiRepo[]>(message.payload);

@@ -134,18 +134,6 @@ export const gitEnv = {
 };
 
 /**
- * What every git call in one of epiq's own clones of another repo runs with —
- * and only there, decided by where the directory is rather than by what it
- * holds. A checkout can carry a committed `HEAD`, `objects/` and `config` at
- * its root; naming that as a git dir would run git under a stranger's config.
- *
- * `--git-dir`, because found by its working directory alone a bare
- * repository is refused under `safe.bareRepository=explicit`. The rest
- * because the clone's contents are its remote's: a bare repository reads
- * `.gitattributes` from its own HEAD, which could steer a diff through the
- * user's textconv or external diff; and the user's hooks are for their repos.
- */
-/**
  * The output formats every parser here assumes, whatever the user's config
  * says. `diff.noprefix` turns `diff --git a/x b/x` into `diff --git x x`, and
  * the patch parsers read paths off those prefixes; `log.showSignature` puts
@@ -164,8 +152,7 @@ const STABLE_OUTPUT = [
 	'log.showSignature=false',
 ];
 
-// Only the commands whose output is parsed: everything else — a sync's
-// fetch and push among them — runs exactly as it always has.
+// Only the commands whose output is parsed; no other call's argv changes.
 const PARSED_SUBCOMMANDS = new Set(['log', 'show', 'diff']);
 
 const subcommandOf = (args: string[]): string | undefined =>
@@ -174,25 +161,31 @@ const subcommandOf = (args: string[]): string | undefined =>
 const stableOutputFor = (args: string[]): string[] =>
 	PARSED_SUBCOMMANDS.has(subcommandOf(args) ?? '') ? STABLE_OUTPUT : [];
 
-const cloneDirArgs = (cwd: string): string[] => {
-	if (!isCloneDir(cwd)) return [];
-
-	return [
-		'--git-dir=.',
-		'-c',
+/**
+ * What git runs with on epiq's own clones of other repos, whatever the user's
+ * config says. The clone's contents are its remote's: a bare repository reads
+ * `.gitattributes` from its HEAD, which could steer a diff through the user's
+ * textconv. The user's hooks are for their repos; a URL rewrite must not reach
+ * a transport that runs a command; nothing recurses into a remote's
+ * submodules; a credential manager must not open a dialog from a background
+ * sync; and no maintenance is left running past epiq's lock.
+ */
+export const cloneGitConfig = (): string[] =>
+	[
 		'attr.tree=refs/epiq/no-attributes',
-		'-c',
-		'core.hooksPath=/dev/null/epiq-no-hooks',
-		'-c',
+		// A directory epiq owns, never created: a fixed path like
+		// `/dev/null/x` is one anybody can create on Windows.
+		`core.hooksPath=${path.join(getGlobalConfigDir(), 'repos', '.no-hooks')}`,
 		'protocol.ext.allow=never',
-		'-c',
 		'protocol.fd.allow=never',
-		// Windows' 260-character path limit, which a pack file deep in a clone
-		// under a long home directory can pass.
-		'-c',
+		'submodule.recurse=false',
+		'fetch.recurseSubmodules=false',
+		'credential.interactive=never',
+		// Windows' 260-character limit, which a pack deep in a clone can pass.
 		'core.longpaths=true',
-	];
-};
+		'gc.auto=0',
+		'maintenance.auto=false',
+	].flatMap(setting => ['-c', setting]);
 
 // `<clones>/<project>/<repo id>.git`, or the pending directory one is cloned
 // into — exactly that shape, so a user's own repos under a global dir set to
@@ -209,11 +202,12 @@ const realpathOr = (target: string): string => {
 };
 
 /**
- * Whether `cwd` is one of epiq's clones, judged by where it is — as written
- * and as resolved, so a caller handing over a resolved path (`/tmp` is
- * `/private/tmp` on macOS) still gets the clone's settings.
+ * Whether `cwd` is one of epiq's clones, judged by where it is — never by what
+ * it holds, since a checkout can carry a committed `HEAD`, `objects/` and
+ * `config`. As written and as resolved, so a resolved path (`/tmp` is
+ * `/private/tmp` on macOS) still counts.
  */
-const isCloneDir = (cwd: string): boolean => {
+export const isCloneDir = (cwd: string): boolean => {
 	const clones = path.join(getGlobalConfigDir(), 'repos');
 
 	return [
@@ -222,23 +216,52 @@ const isCloneDir = (cwd: string): boolean => {
 	].some(([root, dir]) => CLONE_DIR.test(path.relative(root!, dir!)));
 };
 
+/**
+ * `--git-dir` names a clone, because a bare repository found by its working
+ * directory alone is refused under `safe.bareRepository=explicit`.
+ */
+const cloneDirArgs = (cwd: string): string[] =>
+	isCloneDir(cwd) ? ['--git-dir=.', ...cloneGitConfig()] : [];
+
+// git's messages read in English, which is what the recoveries match on.
+const cloneEnv = {...gitEnv, LC_ALL: 'C', LANGUAGE: ''};
+
+// Git started for a clone, killed with this process: left running, it holds
+// git's lock files in a clone the next process would take for abandoned.
+const cloneChildren = new Set<ReturnType<typeof spawn>>();
+let killsRegistered = false;
+
+const killCloneChildrenOnExit = () => {
+	if (killsRegistered) return;
+	killsRegistered = true;
+
+	process.once('exit', () => {
+		for (const child of cloneChildren) child.kill('SIGTERM');
+	});
+};
+
 const runGit = ({
 	args: givenArgs,
 	cwd,
 	allowFail,
 	timeoutMs: timeoutOverride,
 	maxOutput = MAX_GIT_OUTPUT,
+	forClone = false,
 }: {
 	args: string[];
 	cwd: string;
 	allowFail: boolean;
 	timeoutMs?: number;
 	maxOutput?: number;
+	forClone?: boolean;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
+		const inClone = isCloneDir(cwd);
+		const clone = inClone || forClone;
 		const args = [
 			...stableOutputFor(givenArgs),
-			...cloneDirArgs(cwd),
+			...(inClone ? ['--git-dir=.'] : []),
+			...(clone ? cloneGitConfig() : []),
 			...givenArgs,
 		];
 
@@ -257,8 +280,14 @@ const runGit = ({
 		const child = spawn(GIT_BIN, args, {
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe'],
-			env: gitEnv,
+			env: clone ? cloneEnv : gitEnv,
 		});
+
+		if (clone) {
+			killCloneChildrenOnExit();
+			cloneChildren.add(child);
+			child.once('close', () => cloneChildren.delete(child));
+		}
 
 		let settled = false;
 		let stdout = '';
@@ -273,20 +302,27 @@ const runGit = ({
 
 		const timeoutMs = timeoutOverride ?? timeoutFor(args);
 
-		const timeout = setTimeout(() => {
-			child.kill('SIGTERM');
-
-			const message = [
+		// Answered once the child has gone, not when it is told to: a git still
+		// running holds its lock files, and the caller lets go of the clone the
+		// moment this resolves. Forced past a grace period, and answered anyway
+		// after one more.
+		let timedOut = false;
+		const timeoutMessage = () =>
+			[
 				`git ${args.join(' ')}`,
 				`cwd=${cwd}`,
 				`Git command timed out after ${timeoutMs}ms`,
 			].join('\n');
+		const answerTimeout = () =>
+			allowFail
+				? finish({stdout, stderr: timeoutMessage(), exitCode: 124})
+				: finish(failed(timeoutMessage()));
 
-			if (allowFail) {
-				finish({stdout, stderr: message, exitCode: 124});
-			} else {
-				finish(failed(message));
-			}
+		const timeout = setTimeout(() => {
+			timedOut = true;
+			child.kill('SIGTERM');
+			setTimeout(() => child.kill('SIGKILL'), 3_000).unref();
+			setTimeout(answerTimeout, 6_000).unref();
 		}, timeoutMs);
 
 		child.stdout.setEncoding('utf8');
@@ -327,6 +363,8 @@ const runGit = ({
 		});
 
 		child.on('close', code => {
+			if (timedOut) return answerTimeout();
+
 			const exitCode = code ?? 1;
 
 			if (allowFail) {
@@ -363,6 +401,7 @@ export const execGit = ({
 	cwd,
 	timeoutMs,
 	maxOutput,
+	forClone,
 }: {
 	args: string[];
 	cwd: string;
@@ -370,8 +409,13 @@ export const execGit = ({
 	timeoutMs?: number;
 	/** A tighter output cap, for a read whose size somebody else decides. */
 	maxOutput?: number;
+	/**
+	 * Runs as git in a clone does, for a call made beside one — the clone
+	 * itself, into a directory that is not one yet.
+	 */
+	forClone?: boolean;
 }): Promise<Result<GitExecResult>> =>
-	runGit({args, cwd, allowFail: false, timeoutMs, maxOutput}) as Promise<
+	runGit({args, cwd, allowFail: false, timeoutMs, maxOutput, forClone}) as Promise<
 		Result<GitExecResult>
 	>;
 
