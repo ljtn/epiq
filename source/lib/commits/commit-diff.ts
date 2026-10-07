@@ -1,4 +1,8 @@
-import {execGit, readGitBlobsBatch} from '../../git/git-utils.js';
+import {
+	execGit,
+	isOutputOverflow,
+	readGitBlobsBatch,
+} from '../../git/git-utils.js';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {
@@ -13,9 +17,9 @@ import {
 	sourceCwdOf,
 } from './commit-sources.js';
 import {
-	getCommitsForRef,
 	getRefMatchesBySource,
 	RefCommitEntry,
+	withoutShared,
 } from './commit-timeline.js';
 
 export type CommitDiffFile = {
@@ -77,7 +81,7 @@ export const getCommitPatch = async (
 	});
 	if (isFail(showResult)) {
 		return failed(
-			/Output past/.test(showResult.message)
+			isOutputOverflow(showResult.message)
 				? 'This commit is too large to show here; open it in your editor'
 				: showResult.message,
 		);
@@ -506,9 +510,6 @@ export const getSquashedDiffForRef = async (
 		bySourceResult.value.flat().map(commit => commit.sha),
 	);
 
-	const commitsResult = await getCommitsForRef({repoRoot, ref: input.ref});
-	if (isFail(commitsResult)) return failed(commitsResult.message);
-
 	const sourcesResult = await listCommitSources(repoRoot);
 	if (isFail(sourcesResult)) return failed(sourcesResult.message);
 	const cwdOfRepo = sourceCwdOf(sourcesResult.value);
@@ -516,12 +517,7 @@ export const getSquashedDiffForRef = async (
 	// Each repo's history is its own: a range can only be drawn inside one.
 	// In each repo's own order, which is what the range is read off.
 	const byRepo = new Map<string, RefCommitEntry[]>();
-	for (const list of bySourceResult.value) {
-		const own = list.filter(commit =>
-			commitsResult.value.some(
-				kept => kept.sha === commit.sha && kept.repo === commit.repo,
-			),
-		);
+	for (const own of withoutShared(bySourceResult.value)) {
 		if (own.length > 0) byRepo.set(own[0]!.repo ?? '', own);
 	}
 
@@ -610,13 +606,15 @@ const squashInRepo = async (
 	if (isFail(walkResult)) return failed(walkResult.message);
 
 	const walk = walkResult.value;
-	const matchedShas = new Set([
-		...matched.map(commit => commit.sha),
-		...ticketShas,
-	]);
-	const mine = [...walk.keys()].filter(sha => matchedShas.has(sha));
+	const ownShas = new Set(matched.map(commit => commit.sha));
+	const matchedShas = new Set([...ownShas, ...ticketShas]);
+	// This repo's share: what it counts, anchors to and shows. A commit it
+	// shares with another repo is shown there.
+	const mine = [...walk.keys()].filter(sha => ownShas.has(sha));
+	const ticketWork = [...walk.keys()].filter(sha => matchedShas.has(sha));
 
-	const contiguous = mine.length === walk.size;
+	const contiguous = ticketWork.length === walk.size;
+	const sharesWork = ticketWork.length > mine.length;
 
 	// `mine` is newest first, so the first commit found touching a path is the
 	// last one to have touched it.
@@ -653,7 +651,7 @@ const squashInRepo = async (
 	let paths: string[] | undefined;
 	let overlappingPaths: string[] = [];
 
-	if (!contiguous) {
+	if (!contiguous || sharesWork) {
 		const ours = union(mine.map(sha => walk.get(sha) ?? new Set<string>()));
 		const theirs = union(
 			[...walk.entries()]

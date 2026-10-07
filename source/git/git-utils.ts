@@ -10,7 +10,21 @@ export type GitExecResult = {
 	stdout: string;
 	stderr: string;
 	exitCode: number;
+	/** Cut at `maxOutput`, for a caller that asked to keep what arrived. */
+	truncated?: boolean;
 };
+
+const OUTPUT_PAST = 'Output past';
+
+/** Whether a failed call was stopped for printing more than it may. */
+export const isOutputOverflow = (message: string): boolean =>
+	message.includes(OUTPUT_PAST);
+
+const TIMED_OUT = 'Git command timed out';
+
+/** Whether a failed call ran out of time, which another try may not. */
+export const isGitTimeout = (message: string): boolean =>
+	message.includes(TIMED_OUT);
 
 /**
  * A local git call against a worktree holding only `.epiq/` answers in
@@ -231,13 +245,47 @@ const cloneEnv = {...gitEnv, LC_ALL: 'C', LANGUAGE: ''};
 const cloneChildren = new Set<ReturnType<typeof spawn>>();
 let killsRegistered = false;
 
-const killCloneChildrenOnExit = () => {
+// Its own process group off Windows, so a kill reaches the helpers git starts
+// (`index-pack`, `remote-https`) as well.
+const OWN_GROUP = process.platform !== 'win32';
+
+const killClone = (child: ReturnType<typeof spawn>, signal: NodeJS.Signals) => {
+	try {
+		if (OWN_GROUP && child.pid) {
+			process.kill(-child.pid, signal);
+			return;
+		}
+	} catch {
+		// Not a group of its own, or gone already.
+	}
+	child.kill(signal);
+};
+
+const killCloneChildren = () => {
+	for (const child of cloneChildren) killClone(child, 'SIGTERM');
+};
+
+const EXIT_SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP'];
+
+const trackCloneChild = (child: ReturnType<typeof spawn>) => {
+	cloneChildren.add(child);
+	child.once('close', () => cloneChildren.delete(child));
+
 	if (killsRegistered) return;
 	killsRegistered = true;
 
-	process.once('exit', () => {
-		for (const child of cloneChildren) child.kill('SIGTERM');
-	});
+	process.once('exit', killCloneChildren);
+	for (const signal of EXIT_SIGNALS) {
+		const onSignal = () => {
+			killCloneChildren();
+			for (const other of EXIT_SIGNALS) process.off(other, onSignal);
+			// The signal's own default, unless the process handles it itself.
+			if (process.listenerCount(signal) === 0) {
+				process.kill(process.pid, signal);
+			}
+		};
+		process.once(signal, onSignal);
+	}
 };
 
 const runGit = ({
@@ -247,6 +295,7 @@ const runGit = ({
 	timeoutMs: timeoutOverride,
 	maxOutput = MAX_GIT_OUTPUT,
 	forClone = false,
+	keepPartial = false,
 }: {
 	args: string[];
 	cwd: string;
@@ -254,6 +303,7 @@ const runGit = ({
 	timeoutMs?: number;
 	maxOutput?: number;
 	forClone?: boolean;
+	keepPartial?: boolean;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
 		const inClone = isCloneDir(cwd);
@@ -281,13 +331,12 @@ const runGit = ({
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe'],
 			env: clone ? cloneEnv : gitEnv,
+			detached: clone && OWN_GROUP,
 		});
 
-		if (clone) {
-			killCloneChildrenOnExit();
-			cloneChildren.add(child);
-			child.once('close', () => cloneChildren.delete(child));
-		}
+		if (clone) trackCloneChild(child);
+		const kill = (signal: NodeJS.Signals) =>
+			clone ? killClone(child, signal) : child.kill(signal);
 
 		let settled = false;
 		let stdout = '';
@@ -311,7 +360,7 @@ const runGit = ({
 			[
 				`git ${args.join(' ')}`,
 				`cwd=${cwd}`,
-				`Git command timed out after ${timeoutMs}ms`,
+				`${TIMED_OUT} after ${timeoutMs}ms`,
 			].join('\n');
 		const answerTimeout = () =>
 			allowFail
@@ -320,8 +369,8 @@ const runGit = ({
 
 		const timeout = setTimeout(() => {
 			timedOut = true;
-			child.kill('SIGTERM');
-			setTimeout(() => child.kill('SIGKILL'), 3_000).unref();
+			kill('SIGTERM');
+			setTimeout(() => kill('SIGKILL'), 3_000).unref();
 			setTimeout(answerTimeout, 6_000).unref();
 		}, timeoutMs);
 
@@ -332,11 +381,24 @@ const runGit = ({
 			stdout += chunk;
 
 			if (stdout.length > maxOutput) {
-				child.kill('SIGTERM');
+				kill('SIGTERM');
+
+				if (keepPartial && !allowFail) {
+					const kept = stdout.slice(0, maxOutput);
+					finish(
+						succeeded('Git output cut', {
+							stdout: kept.slice(0, kept.lastIndexOf('\n') + 1),
+							stderr,
+							exitCode: 0,
+							truncated: true,
+						}),
+					);
+					return;
+				}
 
 				const message = `git ${args.join(
 					' ',
-				)}\nOutput past ${maxOutput} characters; stopped`;
+				)}\n${OUTPUT_PAST} ${maxOutput} characters; stopped`;
 				if (allowFail) {
 					finish({stdout: '', stderr: message, exitCode: 1});
 				} else {
@@ -402,6 +464,7 @@ export const execGit = ({
 	timeoutMs,
 	maxOutput,
 	forClone,
+	keepPartial,
 }: {
 	args: string[];
 	cwd: string;
@@ -414,6 +477,8 @@ export const execGit = ({
 	 * itself, into a directory that is not one yet.
 	 */
 	forClone?: boolean;
+	/** Past `maxOutput`, answers with the whole lines that arrived, marked truncated. */
+	keepPartial?: boolean;
 }): Promise<Result<GitExecResult>> =>
 	runGit({
 		args,
@@ -422,6 +487,7 @@ export const execGit = ({
 		timeoutMs,
 		maxOutput,
 		forClone,
+		keepPartial,
 	}) as Promise<Result<GitExecResult>>;
 
 export const execGitAllowFail = ({
@@ -448,15 +514,17 @@ export const readGitBlobsBatch = (
 			return;
 		}
 
+		const clone = isCloneDir(cwd);
 		const child = spawn(
 			GIT_BIN,
 			[...cloneDirArgs(cwd), 'cat-file', '--batch'],
 			{
 				cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],
-				env: gitEnv,
+				env: clone ? cloneEnv : gitEnv,
 			},
 		);
+		if (clone) trackCloneChild(child);
 
 		const chunks: Buffer[] = [];
 		let stderr = '';

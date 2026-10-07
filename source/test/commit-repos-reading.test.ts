@@ -14,12 +14,8 @@ import {
 import {getRepoClonePath} from '../lib/commits/commit-repos.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {deriveIssueStats} from '../lib/stats/issue-stats.js';
+import {scanTicketPatch} from '../lib/stats/patch-scan.js';
 import {makeTempDir} from './helpers/git-repo.js';
-
-// Reading other repos' clones, as its review found it: re-read on every call,
-// ordered by list heads, a fork's share judged on a deduplicated list, a
-// patch and a stats scan bounded only by the global cap, a record a subject
-// could forge.
 
 const REF = 'AAAAAAA';
 
@@ -168,7 +164,77 @@ describe('commits from several repos', () => {
 	});
 });
 
+describe('a fork that merged a commit the board has', () => {
+	it('counts and shows only its own commits, the merged one under the board', async () => {
+		const fork = makeTempDir();
+		git(fork, ['clone', '-q', board, '.']);
+		commit(fork, `${REF} fork first`, '2024-01-01T00:00:00Z', 'b.txt');
+		commit(board, `${REF} board`, '2024-01-02T00:00:00Z', 'a.txt');
+		git(fork, ['pull', '-q', '--no-rebase', '--no-edit', 'origin', 'main']);
+		commit(fork, `${REF} fork second`, '2024-01-03T00:00:00Z', 'b.txt');
+		value(
+			upsertCommitRepo({repoRoot: board, url: `file://${fork}`, since: 'all'}),
+		);
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const diff = value(
+			await getSquashedDiffForRef({repoRoot: board, ref: REF}),
+		);
+
+		expect(diff.parts?.map(part => part.commits)).toEqual([1, 2]);
+		expect(diff.commits).toBe(3);
+		expect(diff.files.map(file => [file.repo ?? 'board', file.path])).toEqual([
+			['board', 'a.txt'],
+			[repoIdOf(`file://${fork}`), 'b.txt'],
+		]);
+	});
+
+	it('leaves out a shared commit inside its own unbroken range', async () => {
+		commit(upstream, `${REF} first`, '2019-06-01T00:00:00Z', 'b.txt');
+		commit(upstream, `${REF} shared`, '2024-01-02T00:00:00Z', 'a.txt');
+		const fork = makeTempDir();
+		git(fork, ['clone', '-q', upstream, '.']);
+		commit(fork, `${REF} fork`, '2024-01-03T00:00:00Z', 'b.txt');
+		const forkUrl = `file://${fork}`;
+
+		// Listed first, and cut after the first commit: the shared one is its,
+		// the fork keeps the first and last.
+		value(upsertCommitRepo({repoRoot: board, url, since: '2024-01-01'}));
+		value(upsertCommitRepo({repoRoot: board, url: forkUrl, since: 'all'}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const diff = value(
+			await getSquashedDiffForRef({repoRoot: board, ref: REF}),
+		);
+
+		expect(diff.parts?.map(part => [part.commits, part.contiguous])).toEqual([
+			[1, true],
+			[2, true],
+		]);
+		expect(diff.files.map(file => [file.repo, file.path])).toEqual([
+			[repoIdOf(url), 'a.txt'],
+			[repoIdOf(forkUrl), 'b.txt'],
+		]);
+	});
+});
+
 describe('what reading a clone is bounded by', () => {
+	it('counts what arrived of a commit past the stats budget', async () => {
+		const sha = commit(
+			board,
+			`${REF} vendored`,
+			'2024-01-01T00:00:00Z',
+			'vendored.txt',
+			`${'x'.repeat(99)}\n`.repeat(700_000),
+		);
+
+		const patch = value(await scanTicketPatch({repoRoot: board, shas: [sha]}));
+
+		expect(patch.truncated).toBe(true);
+		expect(patch.insertions).toBeGreaterThan(500_000);
+		expect(patch.files.map(file => file.path)).toEqual(['vendored.txt']);
+	}, 120_000);
+
 	it('declines a patch too large for a terminal', async () => {
 		const sha = commit(
 			upstream,
