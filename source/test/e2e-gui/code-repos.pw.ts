@@ -197,12 +197,106 @@ test('a repo’s options are written when they change, and only then', async ({
 			.poll(() => JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos)
 			.toEqual([{url, branches: 'all', since: '2025-03-01'}]);
 
-		// Leaving the date as it is sends nothing, so nothing is written.
-		const written = fs.statSync(projectFile).mtimeMs;
+		// Leaving the date as it is sends nothing. A change after it is the
+		// first add the page sends, and the socket keeps their order.
+		const adds: string[] = [];
+		page.on('websocket', ws =>
+			ws.on('framesent', frame => {
+				const text = String(frame.payload);
+				if (text.includes('"repo:add"')) adds.push(text);
+			}),
+		);
+		await page.reload();
+		await openRepos(page);
 		await date.focus();
 		await date.blur();
-		await page.waitForTimeout(300);
-		expect(fs.statSync(projectFile).mtimeMs).toBe(written);
+		await row.getByTestId('repo-branches').selectOption('default');
+		await expect
+			.poll(() => JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos)
+			.toEqual([{url, branches: 'default', since: '2025-03-01'}]);
+		expect(adds).toHaveLength(1);
+		expect(adds[0]).toContain('"branches":"default"');
+	});
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('the panel keeps focus where it is put while the page redraws', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await withProjectFile(repoRoot, async () => {
+		await openRepos(page);
+		const modal = page.getByTestId('repos-modal');
+		await modal
+			.getByTestId('repo-url')
+			.fill('https://example.com/acme/focus.git');
+		await modal.getByTestId('add-repo').click();
+		const branches = modal.getByTestId('repo-branches');
+		await branches.focus();
+
+		// Another client's add: this page hears `repos:changed` and redraws.
+		const other = await page.context().newPage();
+		await other.goto(appUrl);
+		await expect(other.getByTestId('board-switcher')).toContainText('Default');
+		await openRepos(other);
+		await other
+			.getByTestId('repo-url')
+			.fill('https://example.com/acme/other.git');
+		await other.getByTestId('add-repo').click();
+		await expect(modal.getByTestId('repo-row')).toHaveCount(2);
+		await other.close();
+
+		await expect(modal.getByTestId('repo-branches').first()).toBeFocused();
+	});
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('a reconnect while the panel is open ends a fetch whose answer was lost', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	// The first socket is dropped as the fetch is asked for; later ones pass.
+	let dropped = false;
+	await page.routeWebSocket(/\/ws/, ws => {
+		const server = ws.connectToServer();
+		server.onMessage(message => ws.send(message));
+		ws.onMessage(message => {
+			if (!dropped && String(message).includes('"repos:fetch"')) {
+				dropped = true;
+				void ws.close();
+				return;
+			}
+			server.send(message);
+		});
+	});
+
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await withProjectFile(repoRoot, async () => {
+		await openRepos(page);
+		const modal = page.getByTestId('repos-modal');
+		await modal
+			.getByTestId('repo-url')
+			.fill('https://example.com/acme/reconnect.git');
+		await modal.getByTestId('add-repo').click();
+		await expect(modal.getByTestId('repo-row')).toHaveCount(1);
+
+		const fetchButton = modal.getByTestId('fetch-repos');
+		await fetchButton.click();
+		await expect.poll(() => dropped).toBe(true);
+
+		await expect(fetchButton).toHaveText('fetch now', {timeout: 15_000});
+		await expect(fetchButton).toBeEnabled();
 	});
 
 	expect(pageErrors).toEqual([]);

@@ -469,7 +469,12 @@ export const App = () => {
 	const syncSettings = useSyncSettings({open: identityOpen, sendRaw});
 	// The other repos whose commits count as the board's, behind the palette.
 	const [reposOpen, setReposOpen] = useState(false);
-	const repos = useRepos({open: reposOpen, sendRaw});
+	const repos = useRepos({open: reposOpen, sendRaw, socketEpoch});
+	const closeRepos = useCallback(() => setReposOpen(false), []);
+	const registeredRepoIds = useMemo(
+		() => repos.data?.map(repo => repo.id) ?? null,
+		[repos.data],
+	);
 	const personalStats = usePersonalStats({
 		open: identityOpen,
 		changed: contributorEmails.changed,
@@ -1400,7 +1405,10 @@ export const App = () => {
 		: null;
 
 	// Which repos the Code series plots, for the chart and the log alike.
-	const commitRepoFilter = useCommitRepoFilter(history.commits);
+	const commitRepoFilter = useCommitRepoFilter(
+		history.commits,
+		registeredRepoIds,
+	);
 	const plottedCommits = commitRepoFilter.plotted;
 
 	const {
@@ -2441,7 +2449,7 @@ export const App = () => {
 						onAdd={repos.add}
 						onRemove={repos.remove}
 						onFetch={repos.fetchNow}
-						onClose={() => setReposOpen(false)}
+						onClose={closeRepos}
 					/>
 				)}
 

@@ -75,9 +75,8 @@ describe('a lock naming this process that it does not hold', () => {
 });
 
 describe('one lock file, many processes', () => {
-	// A lock released between another's failed link and its read was taken
-	// for stale, and breaking it removed whatever lock was written there next:
-	// two holders at once (RTWMQNB).
+	// A lock let go between another's failed link and its read must not read
+	// as stale: breaking it would remove the next holder's lock.
 	it('is held by one of them at a time', async () => {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-lock-race-'));
 		const lockPath = path.join(dir, 'x.lock');

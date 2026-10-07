@@ -1,4 +1,4 @@
-import {useCallback, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useState} from 'react';
 import {GuiCommitEntry} from './gui-state.model.js';
 
 // Which repos the Code series plots. The board's own repo is the empty key,
@@ -19,17 +19,22 @@ export const commitRepoKeys = (
 	);
 };
 
+/** Whether the repo toggles are drawn: only while there is a choice. */
+export const showsRepoToggles = (keys: readonly string[]): boolean =>
+	keys.length > 1;
+
 /**
- * What is hidden in effect: only repos with a toggle on screen. The toggles
- * are drawn only while the window holds more than one repo, so a repo hidden
- * in a wider window and alone in this one would otherwise stay hidden with
- * nothing to show it again by.
+ * What is hidden in effect: only repos with a toggle on screen, so a repo
+ * hidden in a wider window and alone in this one is not hidden with nothing
+ * to show it again by.
  */
 export const effectiveHidden = (
 	keys: readonly string[],
 	hidden: ReadonlySet<string>,
 ): ReadonlySet<string> =>
-	keys.length > 1 ? new Set(keys.filter(key => hidden.has(key))) : new Set();
+	showsRepoToggles(keys)
+		? new Set(keys.filter(key => hidden.has(key)))
+		: new Set();
 
 export const withoutHiddenRepos = (
 	commits: GuiCommitEntry[],
@@ -40,12 +45,32 @@ export const withoutHiddenRepos = (
 		? commits
 		: commits.filter(commit => !hidden.has(keyOf(commit)));
 
+/** Hidden repos still registered; the board's own is always registered. */
+export const prunedHidden = (
+	hidden: ReadonlySet<string>,
+	registered: readonly string[],
+): ReadonlySet<string> => {
+	const kept = [...hidden].filter(
+		key => key === OWN_REPO || registered.includes(key),
+	);
+	return kept.length === hidden.size ? hidden : new Set(kept);
+};
+
 /**
  * The repo filter as the scrubber and the log share it. Not remembered: the
- * repos on offer are whichever the window's commits name.
+ * repos on offer are whichever the window's commits name. `registered` is the
+ * repo list when it is known: a repo removed is unhidden, so it is not hidden
+ * again if it comes back.
  */
-export const useCommitRepoFilter = (commits: GuiCommitEntry[]) => {
+export const useCommitRepoFilter = (
+	commits: GuiCommitEntry[],
+	registered: readonly string[] | null = null,
+) => {
 	const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+
+	useEffect(() => {
+		if (registered) setHidden(prev => prunedHidden(prev, registered));
+	}, [registered]);
 
 	const repos = useMemo(() => commitRepoKeys(commits), [commits]);
 	const shownHidden = useMemo(

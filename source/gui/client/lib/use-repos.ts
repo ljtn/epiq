@@ -24,9 +24,12 @@ export type ReposState = {
 export const useRepos = ({
 	open,
 	sendRaw,
+	socketEpoch,
 }: {
 	open: boolean;
 	sendRaw: (message: unknown) => void;
+	/** Bumped on each reconnect: an answer owed to the old socket never comes. */
+	socketEpoch: number;
 }) => {
 	const [state, setState] = useState<ReposState>({
 		data: null,
@@ -38,11 +41,11 @@ export const useRepos = ({
 	useEffect(() => {
 		if (!open) return;
 
-		// A fetch whose answer went to a socket since lost would otherwise leave
-		// the button spinning for the life of the page.
+		// On opening, and on a reconnect while open: a fetch whose answer went
+		// to a lost socket would otherwise leave the button spinning.
 		setState(prev => ({...prev, lastAction: null, fetching: false}));
 		sendRaw({type: 'repos:get'});
-	}, [open, sendRaw]);
+	}, [open, sendRaw, socketEpoch]);
 
 	const onMessage = useCallback(
 		(message: any) => {
