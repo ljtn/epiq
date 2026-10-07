@@ -220,6 +220,7 @@ h1 {
 
 .lead {
 	max-width: 710px;
+	text-wrap: balance;
 	margin: 0 0 28px;
 	font-size: clamp(16px, 2.2vw, 20px);
 	font-weight: 400;
