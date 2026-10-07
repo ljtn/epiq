@@ -94,15 +94,6 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: playwright-${{ runner.os }}-
 
-      # TEMPORARY (42RM3C3): which libraries the headless shell cannot find here.
-      - name: Missing browser libraries
-        run: |
-          npx playwright install chromium
-          for bin in ~/.cache/ms-playwright/chromium*/chrome-linux*/*; do
-            [ -x "$bin" ] && [ -f "$bin" ] || continue
-            echo "== $bin"; ldd "$bin" 2>/dev/null | grep "not found" || echo "   all found"
-          done
-
       - run: npm run test:gui:ci -- --shard=${{ matrix.shard }}/3
 
       # `trace: 'retain-on-failure'` writes one per failed test and the runner
