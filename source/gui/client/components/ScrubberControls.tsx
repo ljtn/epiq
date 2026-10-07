@@ -3,7 +3,9 @@
 // whole thing back. Presentational — props in, JSX out; the state behind them
 // is TimeScrubber's.
 
+import {useContext, useRef} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
+import {PanelGlowContext} from './Panel';
 import {
 	isPeriodWindow,
 	LayoutMode,
@@ -190,7 +192,7 @@ export const ScrubberControls = ({
 		>
 			{/* First on the row, ahead of the periods: what the chart is redraws it
 			    whole, where a period only says how much of it to show. */}
-			<div style={{display: 'flex', gap: 2}}>
+			<LabelledGroup label="View" style={{gap: 2}}>
 				<IconButton
 					title="Volume per period"
 					aria-label="Volume"
@@ -218,9 +220,9 @@ export const ScrubberControls = ({
 				>
 					<IconFlow size={ICON_SIZE} />
 				</IconButton>
-			</div>
+			</LabelledGroup>
 
-			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+			<LabelledGroup label="Scope">
 				{narrow ? (
 					<ScopeSelect
 						scope={scope}
@@ -281,12 +283,14 @@ export const ScrubberControls = ({
 						</button>
 					</div>
 				)}
+			</LabelledGroup>
 
-				{/* Beside the window it narrows to, rather than away with the series
-				    pickers: the buttons to its left say which window, and this says
-				    whether the board is held to it. Under "All" that window is every
-				    event there is, which narrows nothing, so it goes flat instead of
-				    pretending to. */}
+			{/* A group of one, right after the window it narrows the board to: the
+			    buttons to its left say which window, and this says whether the
+			    board is held to it. Under "All" that window is every event there
+			    is, which narrows nothing, so it goes flat instead of pretending
+			    to. */}
+			<LabelledGroup label="Narrow">
 				<SpotlightToggle
 					title={
 						ticketFocus
@@ -313,20 +317,19 @@ export const ScrubberControls = ({
 					}
 					onChange={onChangeWindowOnly}
 				/>
-			</div>
+			</LabelledGroup>
 
 			{/* The row's slack, so what the chart is drawn from and what window it
 			    spans sit at its left end, and what is picked out of that window at
 			    its right. */}
 			<div aria-hidden style={{flex: '1 1 0', minWidth: 0}} />
 
-			<div
+			<LabelledGroup
+				label="Filter"
 				style={{
-					display: 'flex',
 					// A touch closer than the row's own gap: this is one group of
 					// narrowings, and it is the row's widest at a laptop's width.
 					gap: 10,
-					alignItems: 'center',
 					// Shrinkable past its content, which is what lets the text filter
 					// in it give way on a tight row; nothing else in here can.
 					minWidth: 0,
@@ -369,17 +372,17 @@ export const ScrubberControls = ({
 				activeColor={GUI_THEME.accent}
 				onChange={onChangeAllBoards}
 			/> */}
-			</div>
+			</LabelledGroup>
 
 			{/* Last on the row, past everything that draws or narrows the window:
 			    the transport is the one thing here that starts something.
-			    
+
 			    Its two halves are one group and keep the narrowing group's own
 			    gap rather than the row's, which is deliberately twice that so the
 			    breaks *between* groups read as the wider ones. Live and play are
 			    the same question — the present or the past — and spacing them
 			    like two groups says they are two. */}
-			<span style={{display: 'inline-flex', alignItems: 'center', gap: 6}}>
+			<LabelledGroup label="Play" style={{gap: 6}}>
 				<LiveToggle
 					following={following}
 					disabled={!canFollow}
@@ -392,7 +395,89 @@ export const ScrubberControls = ({
 					playTitle={playTitle}
 					onPlay={onPlay}
 				/>
+			</LabelledGroup>
+		</div>
+	);
+};
+
+// One group of the row, named. The groups were told apart by gap width alone
+// — twenty between, six or ten within — which a reader stops seeing. The name
+// hangs in the panel's own top padding, taken out of flow so the bar is no
+// taller for it, at the group's left edge. Stretched to the row's height so
+// every name hangs at the same line, whatever its group's own height.
+//
+// Faint, and lit by the panel's own glow: the same circle of light that
+// follows the pointer along the border above it passes over the name, so the
+// two brighten and fade as one.
+const LabelledGroup = ({
+	label,
+	style,
+	children,
+}: {
+	label: string;
+	style?: React.CSSProperties;
+	children: React.ReactNode;
+}) => {
+	const glow = useContext(PanelGlowContext);
+	const labelRef = useRef<HTMLSpanElement>(null);
+	// The glow is in viewport coordinates and the gradient wants the name's
+	// own, so the name is measured on the way through. It has no ref yet on
+	// the first paint, where there is nothing lit to place either.
+	const rect = labelRef.current?.getBoundingClientRect();
+	const lightAt = rect
+		? `${glow.x - rect.left}px ${glow.y - rect.top}px`
+		: '0 0';
+
+	return (
+		<div
+			data-group-label={label}
+			style={{
+				position: 'relative',
+				display: 'flex',
+				alignItems: 'center',
+				alignSelf: 'stretch',
+				...style,
+			}}
+		>
+			<span
+				ref={labelRef}
+				aria-hidden
+				style={{
+					position: 'absolute',
+					left: 0,
+					bottom: '100%',
+					marginBottom: 3,
+					fontSize: 8,
+					lineHeight: 1,
+					letterSpacing: '0.1em',
+					textTransform: 'uppercase',
+					whiteSpace: 'nowrap',
+					pointerEvents: 'none',
+					userSelect: 'none',
+				}}
+			>
+				{/* Two copies side by side rather than one inside the other: an
+				    opacity on the faint one would cap whatever sat within it, and
+				    the lit one has to be able to reach the glow's full colour. */}
+				<span style={{color: GUI_THEME.dim, opacity: 0.6}}>{label}</span>
+				{/* The lit copy over the faint one, the glow's gradient clipped to
+				    its letters, fading in and out on the border's own clock. */}
+				<span
+					style={{
+						position: 'absolute',
+						inset: 0,
+						color: 'transparent',
+						backgroundImage: `radial-gradient(${glow.radius}px circle at ${lightAt}, ${glow.color}, transparent 100%)`,
+						WebkitBackgroundClip: 'text',
+						backgroundClip: 'text',
+						opacity: glow.strength,
+						transition: 'opacity 140ms ease',
+					}}
+				>
+					{label}
+				</span>
 			</span>
+			{children}
 		</div>
 	);
 };
