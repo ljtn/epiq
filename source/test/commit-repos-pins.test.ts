@@ -19,9 +19,6 @@ import {isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {syncThenFetchRepos} from '../mcp/api/repos.js';
 import {makeTempDir} from './helpers/git-repo.js';
 
-// Behaviour the earlier tests named without pinning: each of these goes red
-// with the line it is about taken out.
-
 const REF = 'AAAAAAA';
 const PROJECT_ID = 'pins';
 

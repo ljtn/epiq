@@ -23,6 +23,7 @@ import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {Menu, MenuItem} from './Menu';
 import {repoLabelOf} from '../lib/repo-label';
+import {showsRepoToggles} from '../lib/commit-repo-filter';
 
 // What every control wears while the socket is down.
 export const mutedStyle: React.CSSProperties = {
@@ -522,7 +523,7 @@ export const CommitSeriesGroup = ({
 							</MenuItem>
 						</div>
 
-						{repos.length > 1 && (
+						{showsRepoToggles(repos) && (
 							<>
 								<div
 									aria-hidden

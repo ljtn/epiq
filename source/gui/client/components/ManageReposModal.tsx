@@ -3,6 +3,7 @@ import {GuiRepo} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {manageRowStyle} from '../lib/manage-row.style';
+import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {ReposState} from '../lib/use-repos';
 import {Button} from './Button';
 import {IconTrash} from './IconTrash';
@@ -127,16 +128,18 @@ export const ManageReposModal = ({
 		}
 	}, [state.lastAction]);
 
-	// Escape from anywhere while it is open, not only once focus is inside.
+	// Escape from anywhere, or a click outside the panel.
+	const panel = useDismissOnOutsideClick(true, onClose);
+
+	// Focus on opening only, and back where it was on closing.
 	useEffect(() => {
-		const onKey = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') onClose();
-		};
-		window.addEventListener('keydown', onKey);
+		const before = document.activeElement;
 		urlField.current?.focus();
 
-		return () => window.removeEventListener('keydown', onKey);
-	}, [onClose]);
+		return () => {
+			if (before instanceof HTMLElement && before.isConnected) before.focus();
+		};
+	}, []);
 
 	const submit = () => {
 		if (!url.trim()) return;
@@ -157,14 +160,13 @@ export const ManageReposModal = ({
 				justifyContent: 'center',
 				zIndex: 1000,
 			}}
-			onMouseDown={onClose}
 		>
 			<div
+				ref={panel}
 				data-testid="repos-modal"
 				role="dialog"
 				aria-modal="true"
 				aria-label="Code repos"
-				onMouseDown={event => event.stopPropagation()}
 				style={{
 					marginTop: '-100px',
 					width: 560,
