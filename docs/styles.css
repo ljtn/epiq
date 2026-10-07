@@ -217,6 +217,9 @@ h1 {
 .hero h1 > span:not(.accent) {
 	display: block;
 }
+.hero h1 > .accent {
+	margin-left: 0.12em;
+}
 
 .lead {
 	max-width: 710px;
