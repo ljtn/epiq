@@ -632,6 +632,11 @@ const fetchOne = async (
 
 		const current = cloned ? readStatus(clonePath) : null;
 
+		// This process's first look: what the clone held before this fetch.
+		if (cloned && !lastSeen.has(clonePath)) {
+			lastSeen.set(clonePath, await refsOf(clonePath));
+		}
+
 		if (cloned) clearStaleGitLocks(clonePath);
 
 		const result = cloned
@@ -670,6 +675,29 @@ const fetchOne = async (
 		// Removed while this fetch held it: it goes now, rather than staying.
 		if (fs.existsSync(removalMark(clonePath))) deleteClone(clonePath);
 		lock.release();
+		deleteIfMarked(clonePath);
+	}
+};
+
+/**
+ * A remove marked the clone while somebody held it. Checked by the holder once
+ * it lets go, and by the remover once it has marked: whichever comes second
+ * finds the lock free.
+ */
+const deleteIfMarked = (clonePath: string) => {
+	if (!fs.existsSync(removalMark(clonePath))) return;
+
+	const lock = acquireLockFile({
+		lockPath: `${clonePath}${LOCK_SUFFIX}`,
+		operation: 'remove',
+		staleAfterMs: CLONE_LOCK_STALE_MS,
+	});
+	if (!lock.acquired) return;
+
+	try {
+		if (fs.existsSync(removalMark(clonePath))) deleteClone(clonePath);
+	} finally {
+		lock.release();
 	}
 };
 
@@ -690,10 +718,6 @@ const sweepPending = (projectId: string) => {
 	}
 };
 
-/**
- * Deletes this machine's clone of a repo, once it has been unregistered. A
- * clone a fetch is using is marked instead, and that fetch deletes it.
- */
 /** Lists a repo, or changes a listed one's options; readers start over on a change. */
 export const registerCommitRepo = (
 	input: Parameters<typeof upsertCommitRepo>[0],
@@ -714,14 +738,25 @@ export const unregisterCommitRepo = (input: {
 	const result = removeCommitRepo(input);
 	if (isFail(result)) return result;
 
-	// The registration is what counts. A clone a fetch is still writing cannot
-	// go now; that fetch deletes it when it ends.
-	removeRepoClone({repoRoot: input.repoRoot, repoId: result.value.id});
+	// The registration is what counts; a clone that cannot go is said so.
+	const cloneResult = removeRepoClone({
+		repoRoot: input.repoRoot,
+		repoId: result.value.id,
+	});
 	invalidateCommitTimelineCache();
 
-	return result;
+	return isFail(cloneResult)
+		? succeeded(
+				`${result.message}, but its clone stays: ${cloneResult.message}`,
+				result.value,
+		  )
+		: result;
 };
 
+/**
+ * Deletes this machine's clone of a repo, once it has been unregistered. A
+ * clone a fetch is using is marked instead, and that fetch deletes it.
+ */
 export const removeRepoClone = (input: {
 	repoRoot: string;
 	repoId: string;
@@ -748,6 +783,7 @@ export const removeRepoClone = (input: {
 	try {
 		if (!lock.acquired) {
 			fs.writeFileSync(removalMark(clonePath), '');
+			deleteIfMarked(clonePath);
 			return succeeded('Removed once its fetch ends', null);
 		}
 
@@ -859,9 +895,18 @@ export const describeFetchFailures = (
 	outcomes: readonly RepoFetchOutcome[],
 ): string | null => {
 	const failedRepos = outcomes.filter(outcome => !outcome.ok);
-	if (failedRepos.length === 0) return null;
+	const skipped = outcomes.filter(outcome => outcome.skipped);
 
-	return `could not fetch ${failedRepos
-		.map(outcome => `${outcome.label} (${outcome.message.slice(0, 80)})`)
-		.join(', ')}`;
+	const parts = [
+		failedRepos.length > 0 &&
+			`could not fetch ${failedRepos
+				.map(outcome => `${outcome.label} (${outcome.message.slice(0, 80)})`)
+				.join(', ')}`,
+		skipped.length > 0 &&
+			`another process is fetching ${skipped
+				.map(outcome => outcome.label)
+				.join(', ')}`,
+	].filter(Boolean);
+
+	return parts.length > 0 ? parts.join('; ') : null;
 };

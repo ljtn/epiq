@@ -2,8 +2,9 @@ import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
+	describeFetchFailures,
 	fetchCommitRepos,
 	getCommitsForRef,
 	listRepoStates,
@@ -16,10 +17,6 @@ import {
 import {getRepoClonePath} from '../lib/commits/commit-repos.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
-
-// The fetch module against what its review found: a shared clone deleted by a
-// list that changed under a fetch, failures reported as argv, an explicit
-// fetch answered by somebody else's throttled pass.
 
 const value = <T>(result: Result<T>): T => {
 	if (isFail(result)) throw new Error(result.message);
@@ -239,5 +236,35 @@ describe('another process on the same clone', () => {
 		}
 
 		expect(fs.existsSync(marker)).toBe(true);
+	});
+});
+
+describe('what a process is told about a clone', () => {
+	it('is changed on its first fetch that brings commits, though another process cloned it', async () => {
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+		commit(upstream, 'AAAAAAA upstream');
+
+		// A process that has never looked at the clone.
+		vi.resetModules();
+		const fresh = await import('../lib/commits/commits.js');
+		const [outcome] = value(await fresh.fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome).toMatchObject({ok: true, changed: true});
+	});
+
+	it('names a repo another process is fetching in the sync text', () => {
+		expect(
+			describeFetchFailures([
+				{
+					id: 'api-0123456789ab',
+					label: 'api',
+					ok: true,
+					changed: false,
+					skipped: true,
+					message: 'Being fetched by another process',
+				},
+			]),
+		).toBe('another process is fetching api');
 	});
 });

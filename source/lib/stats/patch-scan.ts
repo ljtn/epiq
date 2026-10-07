@@ -375,6 +375,7 @@ export const scanTicketPatch = async ({
 			// The budget left, checked by git's own reader: a check after the
 			// batch arrives has already held all of it.
 			maxOutput: Math.max(1, MAX_PATCH_BYTES - bytes),
+			keepPartial: true,
 			args: [
 				// Otherwise a non-ASCII path arrives octal-escaped and quoted, and
 				// stops matching the paths every other git call here reports.
@@ -390,11 +391,6 @@ export const scanTicketPatch = async ({
 		});
 
 		if (isFail(showResult)) {
-			if (/Output past/.test(showResult.message)) {
-				overBudget = true;
-				break;
-			}
-
 			// Another repo's clone failing costs its own commits, never the
 			// ticket's stats: the timeline reads around a broken clone too.
 			if (cwd !== repoRoot) continue;
@@ -402,11 +398,12 @@ export const scanTicketPatch = async ({
 			return failed(showResult.message);
 		}
 
+		// Past the budget, the lines that arrived are counted and the rest left.
 		parsePatchInto(state, showResult.value.stdout);
 		bytes += showResult.value.stdout.length;
 		scannedCommits += batch.length;
 
-		if (bytes > MAX_PATCH_BYTES) {
+		if (showResult.value.truncated || bytes > MAX_PATCH_BYTES) {
 			overBudget = true;
 			break;
 		}

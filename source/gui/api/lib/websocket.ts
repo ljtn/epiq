@@ -148,15 +148,9 @@ const describeFetch = (
 	const fetched = outcomes.value.filter(
 		outcome => outcome.ok && !outcome.skipped,
 	);
-	const skipped = outcomes.value.filter(outcome => outcome.skipped);
 	const notes = [
 		fetched.length > 0
 			? `Fetched ${fetched.length} repo${fetched.length === 1 ? '' : 's'}`
-			: null,
-		skipped.length > 0
-			? `${skipped
-					.map(outcome => outcome.label)
-					.join(', ')} being fetched by another process`
 			: null,
 		describeFetchFailures(outcomes.value),
 	].filter(Boolean);

@@ -1,6 +1,6 @@
 import {randomBytes} from 'node:crypto';
 import fs from 'node:fs';
-import {execGit} from '../../git/git-utils.js';
+import {execGit, isGitTimeout, isOutputOverflow} from '../../git/git-utils.js';
 import {logger} from '../../logger.js';
 import {CommitAuthor} from '../repository/contributor-directory.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
@@ -189,7 +189,8 @@ const readSourceLog = async (
 	});
 
 	if (isFail(logResult)) {
-		if (source.repo && cacheable) {
+		// A read that ran out of time under load is tried again on the next.
+		if (source.repo && cacheable && !isGitTimeout(logResult.message)) {
 			fullTimelineCache.set(cacheKey, {
 				fetchedAt: Date.now(),
 				version,
@@ -275,7 +276,7 @@ const readSourceLogs = async (
 			logger.info(`[repos] could not read a clone: ${log.message}`);
 			noteCloneRead(
 				repo,
-				/Output past/.test(log.message)
+				isOutputOverflow(log.message)
 					? 'its history is too long to read; narrow its window'
 					: 'its history could not be read',
 			);
@@ -296,7 +297,7 @@ const readSourceLogs = async (
  * repo before any other. Applied after anything read off a list's own order,
  * which still needs the commits it shares.
  */
-const withoutShared = <T extends CommitEntry>(lists: T[][]): T[][] => {
+export const withoutShared = <T extends CommitEntry>(lists: T[][]): T[][] => {
 	if (lists.length <= 1) return lists;
 
 	const seen = new Set<string>();
