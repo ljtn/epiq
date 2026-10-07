@@ -446,7 +446,7 @@ const LabelledGroup = ({
 					position: 'absolute',
 					left: 0,
 					bottom: '100%',
-					marginBottom: 6,
+					marginBottom: 4,
 					fontSize: 8,
 					lineHeight: 1,
 					letterSpacing: '0.1em',
