@@ -272,7 +272,7 @@ export const ScrubberLayout = ({
 				borderLeft: 'none',
 				borderRight: 'none',
 				borderTop: 'none',
-				padding: '24px 30px 14px',
+				padding: '20px 30px 18px',
 				// Panel clips children to keep its glow inside its rounded corners,
 				// which would lop off the overhanging hint. Safe to disable only
 				// because this panel is square.
