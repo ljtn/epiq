@@ -79,9 +79,9 @@ jobs:
       - run: npm ci
 
       # The browsers are a 100MB download, and every shard was paying for it.
-      # No `--with-deps`: the runner image already carries Chrome's system
-      # libraries, and fetching them through apt on every run stalled a shard
-      # for minutes whenever the Ubuntu mirror was slow.
+      # No `--with-deps`: the runner image carries Chrome's system libraries,
+      # and the apt step it adds is at the mercy of the Ubuntu mirror. Should the
+      # image drop them, Playwright names the missing ones as the suite starts.
       #
       # The key is the lockfile, so any dependency bump writes a new entry — but
       # the prefix restores the last one, and `install` then fetches only the
