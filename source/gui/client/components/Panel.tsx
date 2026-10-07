@@ -1,7 +1,9 @@
 import React, {
+	createContext,
 	ElementType,
 	PropsWithChildren,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from 'react';
@@ -9,6 +11,26 @@ import {GUI_THEME} from '../lib/gui-theme';
 
 // Roughly one sample per frame at 60Hz, without depending on the frame clock.
 const POINTER_SAMPLE_MS = 16;
+
+// The glow on the nearest panel's border, for anything inside it that wants
+// to light with it: where the light is, in viewport coordinates, how strong
+// it is right now, and the circle and colour it is drawn with.
+export type PanelGlow = {
+	x: number;
+	y: number;
+	// 0 to 1, what the border's own glow is multiplied by.
+	strength: number;
+	radius: number;
+	color: string;
+};
+
+export const PanelGlowContext = createContext<PanelGlow>({
+	x: 0,
+	y: 0,
+	strength: 0,
+	radius: 0,
+	color: 'transparent',
+});
 
 type PanelProps<T extends ElementType> = PropsWithChildren<{
 	as?: T;
@@ -39,7 +61,9 @@ export const Panel = <T extends ElementType = 'div'>({
 	...props
 }: PanelProps<T>) => {
 	const Component = as ?? 'div';
-	const [mouse, setMouse] = useState({x: 0, y: 0});
+	// Relative to the panel, for its own gradient, and in the viewport, for
+	// whatever inside it lights with the same glow.
+	const [mouse, setMouse] = useState({x: 0, y: 0, clientX: 0, clientY: 0});
 	const [hovered, setHovered] = useState(false);
 	// 0 beyond `proximityReach`, 1 on the panel, interpolated in between.
 	const [proximity, setProximity] = useState(0);
@@ -79,7 +103,12 @@ export const Panel = <T extends ElementType = 'div'>({
 			setProximity(
 				distance >= proximityReach ? 0 : 1 - distance / proximityReach,
 			);
-			setMouse({x: event.clientX - rect.left, y: event.clientY - rect.top});
+			setMouse({
+				x: event.clientX - rect.left,
+				y: event.clientY - rect.top,
+				clientX: event.clientX,
+				clientY: event.clientY,
+			});
 		};
 
 		window.addEventListener('mousemove', onMove);
@@ -95,6 +124,17 @@ export const Panel = <T extends ElementType = 'div'>({
 		? 1
 		: 0;
 
+	const glow = useMemo<PanelGlow>(
+		() => ({
+			x: mouse.clientX,
+			y: mouse.clientY,
+			strength: glowStrength,
+			radius: glowRadius,
+			color: glowColor,
+		}),
+		[mouse.clientX, mouse.clientY, glowStrength, glowRadius, glowColor],
+	);
+
 	return (
 		<Component
 			{...props}
@@ -104,6 +144,8 @@ export const Panel = <T extends ElementType = 'div'>({
 				setMouse({
 					x: event.clientX - rect.left,
 					y: event.clientY - rect.top,
+					clientX: event.clientX,
+					clientY: event.clientY,
 				});
 
 				props.onMouseMove?.(event);
@@ -160,7 +202,9 @@ export const Panel = <T extends ElementType = 'div'>({
 					minHeight: 0,
 				}}
 			>
-				{children}
+				<PanelGlowContext.Provider value={glow}>
+					{children}
+				</PanelGlowContext.Provider>
 			</div>
 		</Component>
 	);

@@ -54,3 +54,38 @@ test('a scope change animates each bar exactly once', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The groups on the controls row are named, in the row's order, and the names
+// hang in the panel's padding above their group rather than taking a line of
+// their own.
+test('each group on the controls row wears its name above it', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await expect(page.getByTestId('spotlight')).toBeVisible();
+
+	const groups = page.locator('[data-group-label]');
+	await expect(groups).toHaveCount(5);
+	expect(
+		await groups.evaluateAll(nodes =>
+			nodes.map(
+				node =>
+					(node as unknown as {dataset: Record<string, string>}).dataset[
+						'groupLabel'
+					],
+			),
+		),
+	).toEqual(['View', 'Scope', 'Narrow', 'Filter', 'Play']);
+
+	for (const group of await groups.all()) {
+		const box = await group.boundingBox();
+		const label = await group.locator('> span').first().boundingBox();
+		if (!box || !label) throw new Error('group or label not laid out');
+		expect(label.y + label.height).toBeLessThanOrEqual(box.y);
+	}
+
+	expect(pageErrors).toEqual([]);
+});
