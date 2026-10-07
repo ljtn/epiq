@@ -79,8 +79,9 @@ jobs:
       - run: npm ci
 
       # The browsers are a 100MB download, and every shard was paying for it.
-      # `install --with-deps` below still runs: it is what installs the system
-      # libraries, and with the browsers already here it finds nothing to fetch.
+      # No `--with-deps`: the runner image already carries Chrome's system
+      # libraries, and fetching them through apt on every run stalled a shard
+      # for minutes whenever the Ubuntu mirror was slow.
       #
       # The key is the lockfile, so any dependency bump writes a new entry — but
       # the prefix restores the last one, and `install` then fetches only the
@@ -92,6 +93,15 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: playwright-${{ runner.os }}-
+
+      # TEMPORARY (42RM3C3): which libraries the headless shell cannot find here.
+      - name: Missing browser libraries
+        run: |
+          npx playwright install chromium
+          for bin in ~/.cache/ms-playwright/chromium*/chrome-linux*/*; do
+            [ -x "$bin" ] && [ -f "$bin" ] || continue
+            echo "== $bin"; ldd "$bin" 2>/dev/null | grep "not found" || echo "   all found"
+          done
 
       - run: npm run test:gui:ci -- --shard=${{ matrix.shard }}/3
 
