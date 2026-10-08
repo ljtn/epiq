@@ -35,6 +35,8 @@
 	--cyan: #75d2fd;
 	--violet: #c6a7ff;
 	--deepBlue: #2370dc;
+	/* docs group labels: a calmer blue than --deepBlue */
+	--groupBlue: #5a82bd;
 	--shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
 	--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		"Liberation Mono", "Courier New", monospace;
@@ -1013,7 +1015,7 @@ aside:not(.docs-layout > aside) {
 	box-shadow: 0 0 10px rgba(34, 161, 220, 0.6);
 }
 .docs-side .grp {
-	color: var(--deepBlue);
+	color: var(--groupBlue);
 	text-transform: uppercase;
 	letter-spacing: 0.12em;
 	font-size: 11px;
@@ -1031,6 +1033,7 @@ aside:not(.docs-layout > aside) {
 .docs-group {
 	max-width: none;
 	margin: 12px 0 36px;
+	color: var(--groupBlue);
 }
 .docs-section {
 	padding: 0 0 52px;
