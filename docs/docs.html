@@ -59,10 +59,6 @@
 			<header class="docs-head wrap">
 				<div class="kicker">Documentation</div>
 				<h1>how it works.</h1>
-				<p class="lead">
-					This page covers installation, the core model, the terminal UI and
-					the browser GUI, synchronization, and agent integration.
-				</p>
 			</header>
 
 			<div class="wrap docs-layout">
@@ -128,57 +124,85 @@
 					<!-- Installation -->
 					<section id="install" class="docs-section">
 						<h2>Installation</h2>
+						<h3>Binary</h3>
+						<button
+							class="copy-cmd"
+							type="button"
+							data-copy="curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh"
+							aria-label="Copy curl install command"
+						>
+							<span class="copy-cmd-text">$ curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh</span>
+							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+						</button>
 						<p>
-							Epiq ships as a single binary (with an npm package alternative).
-							The binary installs to <code>~/.local/bin</code> by default.
+							Installs to <code>~/.local/bin</code>. Change that with
+							<code>EPIQ_INSTALL_DIR</code> (or <code>XDG_BIN_HOME</code>), and
+							pin a version with <code>EPIQ_VERSION=v1.0.0</code>.
 						</p>
 
-						<h3>Quick install (binary)</h3>
-						<pre
-							class="code"
-						><code><span class="g">curl</span> -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh</code></pre>
-						<p>
-							Override the location with <code>EPIQ_INSTALL_DIR</code> (or
-							<code>XDG_BIN_HOME</code>), and pin a version with
-							<code>EPIQ_VERSION=v1.0.0</code>.
-						</p>
-
-						<h3>Via npm</h3>
-						<pre
-							class="code"
-						><code><span class="g">npm</span> install --global epiq</code></pre>
+						<h3>npm</h3>
+						<button
+							class="copy-cmd"
+							type="button"
+							data-copy="npm install --global epiq"
+							aria-label="Copy npm install command"
+						>
+							<span class="copy-cmd-text">$ npm install --global epiq</span>
+							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+						</button>
 
 						<h3>Verify</h3>
-						<pre
-							class="code"
-						><code><span class="g">epiq</span> --version</code></pre>
+						<button
+							class="copy-cmd"
+							type="button"
+							data-copy="epiq --version"
+							aria-label="Copy version command"
+						>
+							<span class="copy-cmd-text">$ epiq --version</span>
+							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+						</button>
 					</section>
 
 					<!-- Getting started -->
 					<section id="getting-started" class="docs-section">
-						<h2>Getting started in two steps</h2>
-						<p>
-							Epiq lives inside a Git repository — your issues can live where
-							your code lives.
-						</p>
+						<h2>Getting started</h2>
 						<ol>
 							<li>
-								Make sure you are inside a Git repository. For collaboration,
-								use a repo with a remote (e.g. cloned from GitHub).
-								<pre class="code"><code><span class="c"># if needed</span>
-<span class="g">git</span> init</code></pre>
+								Open a Git repository, or create one. To collaborate, it needs
+								a remote.
+								<button
+									class="copy-cmd"
+									type="button"
+									data-copy="git init"
+									aria-label="Copy git init command"
+								>
+									<span class="copy-cmd-text">$ git init</span>
+									<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+								</button>
 							</li>
 							<li>
-								Run Epiq:
-								<pre class="code"><code><span class="g">epiq</span></code></pre>
+								Run Epiq. The first run opens a setup wizard.
+								<button
+									class="copy-cmd"
+									type="button"
+									data-copy="epiq"
+									aria-label="Copy epiq command"
+								>
+									<span class="copy-cmd-text">$ epiq</span>
+									<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+								</button>
 							</li>
 						</ol>
-						<p>
-							On first run this opens an interactive setup wizard that gets you
-							going in about 30 seconds. Once your project is set up, you can
-							also launch the browser GUI:
-						</p>
-						<pre class="code"><code><span class="b">epiq gui</span></code></pre>
+						<p>Then, if you like, open the browser app:</p>
+						<button
+							class="copy-cmd"
+							type="button"
+							data-copy="epiq gui"
+							aria-label="Copy epiq gui command"
+						>
+							<span class="copy-cmd-text">$ epiq gui</span>
+							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+						</button>
 
 						<div class="docs-note">
 							<strong>What gets created.</strong> The setup wizard writes user
@@ -190,30 +214,11 @@
 							<code>.epiq/log/</code>.
 						</div>
 
-						<h3>Two front ends, one board</h3>
-						<p>
-							<code>epiq</code> opens the terminal UI, <code>epiq gui</code> the
-							browser app. They are two views of the same event log in the same
-							repository — switch whenever you like, or keep both open; whatever
-							one writes, the other shows. The rest of this page is split the
-							same way: <a class="inline" href="#navigation">the terminal</a>,
-							then <a class="inline" href="#gui-board">the browser</a>.
-						</p>
 					</section>
 
 					<!-- Core concepts -->
 					<section id="concepts" class="docs-section">
 						<h2>Core concepts</h2>
-
-						<h3>The hierarchy</h3>
-						<p>
-							State is a tree of nodes. From the top down:
-							<strong>workspace</strong> → <strong>board</strong> →
-							<strong>swimlane</strong> → <strong>issue</strong>. Issues hold a
-							description, tags, assignees, comments, and a full history log.
-							Commands are <strong>context-aware</strong> — for instance
-							<code>:close</code> only exists for issues.
-						</p>
 
 						<h3>Event-sourced state</h3>
 						<p>
@@ -234,16 +239,19 @@
 						</p>
 					</section>
 
+					<div class="docs-group"><span>In the terminal (TUI)</span></div>
+
 					<!-- Navigation -->
 					<section id="navigation" class="docs-section">
 						<h2>Navigation &amp; keyboard shortcuts</h2>
 						<p>
-							Epiq is keyboard-first and vim-inspired. Navigate with arrow keys
+							The board is a tree: <strong>workspace</strong> →
+							<strong>board</strong> → <strong>swimlane</strong> →
+							<strong>issue</strong>. Navigate with arrow keys
 							or <kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd>, enter a
 							node with <kbd>Enter</kbd>, and step back out with <kbd>q</kbd> or
-							<kbd>Esc</kbd>. The two things to always remember: type
-							<kbd>:help</kbd> for help, and press <kbd>?</kbd> anytime to open
-							the command palette with every available command.
+							<kbd>Esc</kbd>. Type <kbd>:help</kbd> for help, or press
+							<kbd>?</kbd> for the command palette.
 						</p>
 
 						<table class="cmd-table">
@@ -313,12 +321,6 @@
 							</tbody>
 						</table>
 
-						<div class="docs-note">
-							<strong>Pro tip.</strong> Like any terminal, press <kbd>↑</kbd> in
-							command mode to reuse your last command — a huge time-saver for
-							repetitive tasks such as creating similar issues or tagging many
-							tickets.
-						</div>
 					</section>
 
 					<!-- Commands -->
@@ -369,8 +371,7 @@
 										>
 									</td>
 									<td>
-										Open the description of the selected issue in your preferred
-										external editor (no inline text — also bound to
+										Open the selected issue's description in your editor (also
 										<kbd>e</kbd>)
 									</td>
 								</tr>
@@ -470,9 +471,7 @@
 									</td>
 									<td>
 										Copy the selected item's ref, title, description, tags, or
-										assignees to the system clipboard (also bound to
-										<kbd>y</kbd>). Description, tags, and assignees are offered
-										when the issue has them
+										assignees (also <kbd>y</kbd>)
 									</td>
 								</tr>
 								<tr id="cmd-close">
@@ -582,8 +581,8 @@
 										>
 									</td>
 									<td>
-										Update editor, username, view, auto-sync, sync debounce, or
-										log level
+										Change a setting; see
+										<a class="inline" href="#config">Configuration</a>
 									</td>
 								</tr>
 								<tr id="cmd-init">
@@ -663,9 +662,8 @@
 					<section id="export" class="docs-section">
 						<h2>Export</h2>
 						<p>
-							Run <code>:export</code> to write the current board layout to a
-							markdown file — handy for sharing a snapshot, generating reports,
-							or feeding context to other tools.
+							Run <code>:export</code> to write the current board to a markdown
+							file.
 						</p>
 						<pre class="code"><code><span class="b">:export</span></code></pre>
 					</section>
@@ -722,6 +720,8 @@
 						</table>
 					</section>
 
+					<div class="docs-group"><span>In the browser (GUI)</span></div>
+
 					<!-- GUI -->
 					<section id="gui-board" class="docs-section">
 						<h2>The board</h2>
@@ -740,9 +740,9 @@
 							be pasted or dropped straight in.
 						</p>
 						<p>
-							The Code tab is where the ref convention pays off: every commit
-							whose subject starts with the ticket's ref shows up with its
-							diffstat and per-file diff, and any line can be commented on.
+							The Code tab lists every commit whose subject starts with the
+							ticket's ref, with its diffstat and per-file diff. Comment on any
+							line, or mark a file as reviewed.
 						</p>
 					</section>
 
@@ -755,6 +755,8 @@
 							<strong>Now</strong> brings you back.
 						</p>
 					</section>
+
+					<div class="docs-group"><span>Collaboration</span></div>
 
 					<!-- Sync -->
 					<section id="sync" class="docs-section">
@@ -773,9 +775,8 @@
 							concurrent updates predictable.
 						</p>
 						<div class="docs-note">
-							<strong>Tip.</strong> Frequent synchronization reduces divergence
-							and keeps the system predictable. Enable
-							<code>:config autoSync on</code> to sync automatically.
+							<strong>Tip.</strong> Sync often to keep divergence small, or turn
+							on <code>:config autoSync on</code>.
 						</div>
 					</section>
 
@@ -783,67 +784,77 @@
 					<section id="mcp" class="docs-section">
 						<h2>MCP &amp; agents</h2>
 						<p>
-							Epiq ships an MCP (Model Context Protocol) server via the
-							<code>epiq-mcp</code> binary, so AI agents can interact with your
-							local instance.
+							The <code>epiq-mcp</code> binary is an MCP server, so agents can
+							work your board.
 						</p>
 
 						<h3>Claude Code</h3>
+						<p>Register it for every project:</p>
+						<button
+							class="copy-cmd"
+							type="button"
+							data-copy="claude mcp add --scope user epiq -- npx -y --package=epiq epiq-mcp"
+							aria-label="Copy the MCP registration command"
+						>
+							<span class="copy-cmd-text">$ claude mcp add --scope user epiq -- npx -y --package=epiq epiq-mcp</span>
+							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+						</button>
+						<p>Or for the current project only:</p>
+						<button
+							class="copy-cmd"
+							type="button"
+							data-copy="claude mcp add epiq -- npx -y --package=epiq epiq-mcp"
+							aria-label="Copy the project MCP registration command"
+						>
+							<span class="copy-cmd-text">$ claude mcp add epiq -- npx -y --package=epiq epiq-mcp</span>
+							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+						</button>
 						<p>
-							The reliable way to register the server is with
-							<code>claude mcp add</code> — it writes the correct config for
-							you:
-						</p>
-						<pre
-							class="code"
-						><code><span class="c"># available everywhere (recommended)</span>
-<span class="g">claude</span> mcp add --scope user epiq -- npx -y --package=epiq epiq-mcp
-
-<span class="c"># or only in the current project</span>
-<span class="g">claude</span> mcp add epiq -- npx -y --package=epiq epiq-mcp</code></pre>
-						<p>
-							Verify with <code>claude mcp list</code> (it should report
-							<code>epiq … ✔ Connected</code>). MCP servers load at startup, so
-							<strong>restart Claude Code</strong> after adding the server.
+							Restart Claude Code, then check with <code>claude mcp list</code>:
+							it should report <code>epiq … ✔ Connected</code>.
 						</p>
 
 						<h3>The Epiq skill</h3>
 						<p>
-							Registering the server tells an agent <em>what it can do</em>; the
-							skill tells it <em>how to work the board</em> — use the MCP tools
-							rather than the CLI, sync on demand, keep tickets small and their
-							status current, and record the outcome as a comment. Epiq's own
-							skill lives at
+							The server tells an agent <em>what it can do</em>; the
 							<a
 								class="inline"
 								href="https://github.com/ljtn/epiq/blob/main/.claude/skills/epiq/SKILL.md"
-								>.claude/skills/epiq/SKILL.md</a
-							>. Copy it into your project's <code>.claude/skills/</code> and
-							trim the rules that are specific to this repository:
+								>skill</a
+							>
+							tells it <em>how to work the board</em>. Ask the agent to run
+							<code>epiq_skill_install</code>, or fetch it yourself:
 						</p>
-						<pre
-							class="code"
-						><code><span class="g">mkdir</span> -p .claude/skills/epiq
-<span class="g">curl</span> -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/.claude/skills/epiq/SKILL.md \
-  -o .claude/skills/epiq/SKILL.md</code></pre>
+						<button
+							class="copy-cmd"
+							type="button"
+							data-copy="curl -fsSL --create-dirs -o .claude/skills/epiq/SKILL.md https://raw.githubusercontent.com/ljtn/epiq/main/.claude/skills/epiq/SKILL.md"
+							aria-label="Copy the skill install command"
+						>
+							<span class="copy-cmd-text">$ curl -fsSL --create-dirs -o .claude/skills/epiq/SKILL.md https://raw.githubusercontent.com/ljtn/epiq/main/.claude/skills/epiq/SKILL.md</span>
+							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+						</button>
 
 						<div class="docs-note">
-							<strong>This is what fills the Commits tab.</strong> A commit links
-							to a ticket when its subject <em>starts</em> with that ticket's ref
-							— the seven characters shown on the ticket, and what
-							<code>:yank ref</code> copies:
-							<code>git commit -m "A1B2C3D fix the parser"</code>. Follow the
-							convention and the ticket gains a Commits tab with the diffstat,
-							the per-file diff, and a comment box on any line; skip it and the
-							work is done but invisible from the board.
+							<strong>Linking commits.</strong> A commit links to a ticket when
+							its subject <em>starts</em> with the ticket's ref, the seven
+							characters <code>:yank ref</code> copies:
+							<code>git commit -m "A1B2C3D fix the parser"</code>. Linked commits
+							show in the ticket's Code tab.
 						</div>
 
 						<h3>Other MCP clients</h3>
-						<p>
-							For hand-configured clients, add the following to the client's MCP
-							config file:
-						</p>
-						<pre class="code"><code>{
+						<p>Add this to the client's MCP config file:</p>
+						<div class="code-wrap">
+							<button
+								class="code-copy"
+								type="button"
+								data-copy="{&#10;  &quot;mcpServers&quot;: {&#10;    &quot;epiq&quot;: {&#10;      &quot;command&quot;: &quot;npx&quot;,&#10;      &quot;args&quot;: [&quot;-y&quot;, &quot;-p&quot;, &quot;epiq&quot;, &quot;epiq-mcp&quot;]&#10;    }&#10;  }&#10;}"
+								aria-label="Copy the MCP config"
+							>
+								Copy
+							</button>
+							<pre class="code"><code>{
   <span class="p">"mcpServers"</span>: {
     <span class="p">"epiq"</span>: {
       <span class="p">"command"</span>: <span class="g">"npx"</span>,
@@ -851,6 +862,7 @@
     }
   }
 }</code></pre>
+						</div>
 					</section>
 				</div>
 			</div>
@@ -1042,6 +1054,8 @@
 					.catch(function () {});
 			})();
 		</script>
+		<script src="./copy.js"></script>
+		<script src="./glow.js"></script>
 		<script src="./analytics.js"></script>
 	</body>
 </html>

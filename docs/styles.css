@@ -515,7 +515,8 @@ h2 {
 	padding: 12px 16px;
 	line-height: 24px;
 }
-.setup-divider {
+.setup-divider,
+.docs-group {
 	display: flex;
 	align-items: center;
 	gap: 16px;
@@ -526,7 +527,8 @@ h2 {
 	text-transform: uppercase;
 	color: var(--muted);
 }
-.setup-divider::after {
+.setup-divider::after,
+.docs-group::after {
 	content: "";
 	flex: 1;
 	height: 1px;
@@ -1025,6 +1027,11 @@ aside:not(.docs-layout > aside) {
 	min-width: 0;
 	max-width: 780px;
 }
+/* Marks where the page moves on to the next sidebar group. */
+.docs-group {
+	max-width: none;
+	margin: 12px 0 36px;
+}
 .docs-section {
 	padding: 0 0 52px;
 	scroll-margin-top: 88px;
@@ -1068,6 +1075,40 @@ aside:not(.docs-layout > aside) {
 .docs-section .code {
 	margin: 16px 0;
 	border-radius: 2px;
+}
+.docs-section .copy-cmd {
+	display: flex;
+	width: 100%;
+	margin: 16px 0;
+}
+.docs-section .copy-cmd-text {
+	flex: 1;
+}
+/* A multi-line block's copy button sits in its top-right corner. */
+.code-wrap {
+	position: relative;
+}
+.code-copy {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	padding: 6px 12px;
+	border: 1px solid var(--line);
+	border-radius: 2px;
+	background: rgba(255, 255, 255, 0.04);
+	color: var(--dim);
+	font: 12px var(--mono);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	cursor: pointer;
+	transition: color 0.15s;
+}
+.code-copy:hover,
+.code-copy:focus-visible {
+	color: var(--text);
+}
+.code-copy.copied {
+	color: var(--cyan);
 }
 
 kbd {

@@ -557,44 +557,7 @@
 			})();
 		</script>
 
-		<script>
-			document.querySelectorAll(".copy-cmd").forEach(function (el) {
-				el.addEventListener("click", function () {
-					var cmd = el.getAttribute("data-copy") || "";
-					var ico = el.querySelector(".copy-cmd-ico");
-					var label = ico ? ico.textContent : "";
-
-					function done() {
-						el.classList.add("copied");
-						if (ico) ico.textContent = "Copied";
-						setTimeout(function () {
-							el.classList.remove("copied");
-							if (ico) ico.textContent = label;
-						}, 1600);
-					}
-
-					if (navigator.clipboard && navigator.clipboard.writeText) {
-						navigator.clipboard.writeText(cmd).then(done, fallback);
-					} else {
-						fallback();
-					}
-
-					function fallback() {
-						var ta = document.createElement("textarea");
-						ta.value = cmd;
-						ta.style.position = "fixed";
-						ta.style.opacity = "0";
-						document.body.appendChild(ta);
-						ta.select();
-						try {
-							document.execCommand("copy");
-							done();
-						} catch (e) {}
-						document.body.removeChild(ta);
-					}
-				});
-			});
-		</script>
+		<script src="./copy.js"></script>
 
 		<script>
 			(function () {
