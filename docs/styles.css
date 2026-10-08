@@ -214,11 +214,30 @@ h1 {
 	line-height: 0.86;
 	max-width: 860px;
 }
-.hero h1 > span:not(.accent) {
-	display: block;
+.hero .kicker {
+	font-size: clamp(13px, 1.6vw, 16px);
+	margin-bottom: 16px;
 }
-.hero h1 > .accent {
-	margin-left: 0.12em;
+.hero .lead {
+	max-width: 860px;
+	font-size: clamp(18px, 2.6vw, 24px);
+}
+.hero .lead span {
+	color: inherit;
+	white-space: nowrap;
+}
+.hero .lead .sep {
+	margin: 0 0.3em 0 0.6em;
+	color: var(--dim);
+}
+/* On a phone the three phrases stack instead of breaking mid-phrase. */
+@media (max-width: 620px) {
+	.hero .lead span {
+		display: block;
+	}
+	.hero .lead .sep {
+		display: none;
+	}
 }
 
 .lead {
@@ -360,7 +379,7 @@ h2 {
 	/* Always a label above something, never inline in a sentence — so its own
 	   margins apply whether it is written as a div or a span. */
 	display: block;
-	color: var(--deepBlue);
+	color: var(--muted);
 	font: 12px var(--mono);
 	text-transform: uppercase;
 	letter-spacing: 0.12em;
@@ -894,10 +913,12 @@ aside:not(.docs-layout > aside) {
 	transition: border-color 0.18s ease, background 0.18s ease;
 }
 .copy-cmd:hover {
-	border-color: rgba(255, 255, 255, 0.26);
+	border-color: rgba(110, 118, 170, 0.5);
 	background: rgba(0, 0, 0, 0.5);
 }
 .copy-cmd-text {
+	color: var(--dim);
+	transition: color 0.15s;
 	font-size: 13px;
 	display: block;
 	min-width: 0;
@@ -915,7 +936,8 @@ aside:not(.docs-layout > aside) {
 	display: inline-flex;
 	align-items: center;
 	padding: 0 16px;
-	color: var(--cyan);
+	color: var(--dim);
+	transition: color 0.15s;
 	border-left: 1px solid var(--line);
 	background: rgba(255, 255, 255, 0.04);
 	font-size: 12px;
@@ -924,6 +946,12 @@ aside:not(.docs-layout > aside) {
 	white-space: nowrap;
 	min-width: 90px;
 	justify-content: center;
+}
+.copy-cmd:hover .copy-cmd-text,
+.copy-cmd:focus-visible .copy-cmd-text,
+.copy-cmd:hover .copy-cmd-ico,
+.copy-cmd:focus-visible .copy-cmd-ico {
+	color: var(--text);
 }
 .copy-cmd.copied .copy-cmd-ico {
 	color: #6ee787;
