@@ -1,8 +1,7 @@
 ---
-title: The art of not writing all the code
+title: On the soft, wet fabric of agentic code
 date: 2026-10-05
 tags: ai, agents, architecture, testing
-draft: true
 ---
 
 Agentic code can be thought of as a fabric. It is easily shaped and can assume any form with little effort, but it is hard to build something rigid out of it. While agents can produce brilliant snippets of code on par with the cutting edge of human knowledge, cohesion and consistency remain a challenge.
