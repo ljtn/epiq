@@ -470,9 +470,6 @@ h2 {
 }
 /* Get started: a note column beside a commands column, every box
    the same width and weight. */
-.install .quote {
-	margin-bottom: 72px;
-}
 .install h3 {
 	margin: 0 0 40px;
 	font-size: 28px;
@@ -636,29 +633,6 @@ img {
 }
 aside:not(.docs-layout > aside) {
 	box-shadow: 0 0 48px #4c839e55;
-}
-
-.quote {
-	padding: 42px;
-	background: linear-gradient(
-		135deg,
-		rgb(131 201 255 / 7%),
-		rgba(118, 166, 255, 0.06),
-		rgba(255, 255, 255, 0.04)
-	);
-	box-shadow: var(--shadow);
-}
-.quote p {
-	margin: 0;
-	font-size: clamp(30px, 5vw, 62px);
-	line-height: 1.02;
-	letter-spacing: -0.065em;
-}
-.quote span {
-	display: block;
-	margin-top: 20px;
-	color: var(--muted);
-	font: 14px var(--mono);
 }
 
 .footer {
@@ -1758,8 +1732,7 @@ h1,
 h2,
 h3,
 h4,
-.brand,
-.quote p {
+.brand {
 	font-family: var(--display);
 	font-weight: 500;
 }
@@ -1769,9 +1742,6 @@ h1 {
 }
 h2 {
 	letter-spacing: -0.1em;
-}
-.quote p {
-	letter-spacing: -0.06em;
 }
 .docs-section h2 {
 	letter-spacing: -0.055em;
