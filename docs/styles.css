@@ -417,7 +417,8 @@ h2 {
 }
 .card p {
 	margin: 0;
-	color: var(--muted);
+	font-size: 17px;
+	color: var(--body);
 	line-height: 1.55;
 }
 
@@ -469,7 +470,8 @@ h2 {
 .model > p {
 	max-width: 640px;
 	margin: 0 0 44px;
-	color: var(--muted);
+	font-size: 17px;
+	color: var(--body);
 	line-height: 1.58;
 }
 /* Get started: a label-and-note column beside a commands column, every box
@@ -485,7 +487,8 @@ h2 {
 .install > p {
 	max-width: 640px;
 	margin: 0 0 40px;
-	color: var(--muted);
+	font-size: 17px;
+	color: var(--body);
 	line-height: 1.58;
 }
 .setup {
@@ -573,7 +576,8 @@ h2 {
 }
 .points dd {
 	margin: 0;
-	color: var(--muted);
+	font-size: 17px;
+	color: var(--body);
 	line-height: 1.5;
 }
 
