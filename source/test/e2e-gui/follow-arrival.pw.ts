@@ -177,6 +177,12 @@ test('a popped-out log keeps following, and moves the board', async ({
 		// element's scroll geometry.
 		const PANE = `document.querySelector('[data-testid="event-log"] .epiq-log-pane')`;
 
+		// The pane mounts a beat after the toggle reports pressed, and an
+		// evaluate on a missing element throws rather than retrying.
+		await expect(
+			page.getByTestId('event-log').locator('.epiq-log-pane'),
+		).toHaveCount(1);
+
 		await expect
 			.poll(
 				async () =>
@@ -259,6 +265,10 @@ test('scrubbing and coming back leaves the log able to follow', async ({
 		await expect(live).toHaveAttribute('aria-pressed', 'true');
 
 		const PANE = `document.querySelector('[data-testid="event-log"] .epiq-log-pane')`;
+		// As above: the pane is not there the instant the toggle is pressed.
+		await expect(
+			page.getByTestId('event-log').locator('.epiq-log-pane'),
+		).toHaveCount(1);
 		await expect
 			.poll(
 				async () =>
@@ -279,6 +289,11 @@ test('scrubbing and coming back leaves the log able to follow', async ({
 		const box = await track.boundingBox();
 		if (!box) throw new Error('scrubber track is not on screen');
 		await page.mouse.click(box.x + box.width * 0.35, box.y + box.height / 2);
+		// In the past before coming back: the checkout is a round trip, and
+		// returnToLive takes a board with no "Now" button for one already live.
+		await expect(
+			page.getByRole('button', {name: 'Now', exact: true}),
+		).toBeEnabled();
 		await returnToLive(page);
 
 		await live.click();
