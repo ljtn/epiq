@@ -912,12 +912,48 @@ aside:not(.docs-layout > aside) {
 	text-align: left;
 	transition: border-color 0.18s ease, background 0.18s ease;
 }
-.copy-cmd:hover {
-	border-color: rgba(110, 118, 170, 0.5);
-	background: rgba(0, 0, 0, 0.5);
+/* Border light that follows the pointer; docs/glow.js sets --gx, --gy, --gp. */
+.copy-cmd,
+.hero-cta {
+	position: relative;
 }
+/* The light replaces the bright hover border. */
+.hero-cta:hover {
+	border-color: var(--line);
+}
+.copy-cmd::after,
+.hero-cta::after,
+.nav::after {
+	content: "";
+	position: absolute;
+	pointer-events: none;
+	opacity: calc(var(--gp, 0) * 0.41);
+	transition: opacity 140ms ease;
+	background: radial-gradient(
+		370px circle at var(--gx, -999px) var(--gy, -999px),
+		rgb(140, 176, 232),
+		transparent 100%
+	);
+}
+.copy-cmd::after,
+.hero-cta::after {
+	inset: -1px;
+	padding: 1px;
+	border-radius: inherit;
+	-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* The nav has only its bottom edge to light; --gy is measured from it. */
+.nav::after {
+	left: 0;
+	right: 0;
+	bottom: -1px;
+	height: 1px;
+}
+/* The command and its label brighten with the border light as the pointer nears. */
 .copy-cmd-text {
-	color: var(--dim);
+	color: color-mix(in srgb, var(--text) calc(var(--gp, 0) * 100%), var(--dim));
 	transition: color 0.15s;
 	font-size: 13px;
 	display: block;
@@ -936,7 +972,7 @@ aside:not(.docs-layout > aside) {
 	display: inline-flex;
 	align-items: center;
 	padding: 0 16px;
-	color: var(--dim);
+	color: color-mix(in srgb, var(--text) calc(var(--gp, 0) * 100%), var(--dim));
 	transition: color 0.15s;
 	border-left: 1px solid var(--line);
 	background: rgba(255, 255, 255, 0.04);
@@ -947,14 +983,12 @@ aside:not(.docs-layout > aside) {
 	min-width: 90px;
 	justify-content: center;
 }
-.copy-cmd:hover .copy-cmd-text,
 .copy-cmd:focus-visible .copy-cmd-text,
-.copy-cmd:hover .copy-cmd-ico,
 .copy-cmd:focus-visible .copy-cmd-ico {
 	color: var(--text);
 }
 .copy-cmd.copied .copy-cmd-ico {
-	color: #6ee787;
+	color: var(--cyan);
 }
 
 /* Active nav link */
