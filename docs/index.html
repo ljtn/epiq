@@ -448,9 +448,15 @@
 							<p>Add <a class="inline-link" href="https://github.com/ljtn/epiq/blob/main/.claude/skills/epiq/SKILL.md" rel="noopener">SKILL.md</a></p>
 						</div>
 						<div class="setup-body">
-							<pre class="code"><code><span class="g">mkdir</span> -p .claude/skills/epiq
-<span class="g">curl</span> -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/.claude/skills/epiq/SKILL.md \
-  -o .claude/skills/epiq/SKILL.md</code></pre>
+							<button
+								class="copy-cmd"
+								type="button"
+								data-copy="curl -fsSL --create-dirs -o .claude/skills/epiq/SKILL.md https://raw.githubusercontent.com/ljtn/epiq/main/.claude/skills/epiq/SKILL.md"
+								aria-label="Copy the skill install command"
+							>
+								<span class="copy-cmd-text">$ curl -fsSL --create-dirs -o .claude/skills/epiq/SKILL.md https://raw.githubusercontent.com/ljtn/epiq/main/.claude/skills/epiq/SKILL.md</span>
+								<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+							</button>
 						</div>
 					</div>
 				</div>
