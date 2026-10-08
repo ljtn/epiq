@@ -392,7 +392,8 @@ h2 {
 .section-head p {
 	max-width: 520px;
 	margin: 0;
-	/* color: var(--muted); */
+	font-size: 17px;
+	color: var(--body);
 	line-height: 1.55;
 }
 
@@ -463,33 +464,19 @@ h2 {
 /* The model, stated plainly: heading, paragraph, then the points, all on one
    left edge and no wider than a comfortable line. */
 .model h3 {
-	margin: 0 0 14px;
+	margin: 0 0 40px;
 	font-size: 28px;
 	letter-spacing: -0.03em;
 }
-.model > p {
-	max-width: 640px;
-	margin: 0 0 44px;
-	font-size: 17px;
-	color: var(--body);
-	line-height: 1.58;
-}
-/* Get started: a label-and-note column beside a commands column, every box
+/* Get started: a note column beside a commands column, every box
    the same width and weight. */
 .install .quote {
 	margin-bottom: 72px;
 }
 .install h3 {
-	margin: 0 0 14px;
+	margin: 0 0 40px;
 	font-size: 28px;
 	letter-spacing: -0.03em;
-}
-.install > p {
-	max-width: 640px;
-	margin: 0 0 40px;
-	font-size: 17px;
-	color: var(--body);
-	line-height: 1.58;
 }
 .setup {
 	display: grid;
@@ -502,19 +489,14 @@ h2 {
 	gap: 12px 40px;
 	align-items: start;
 }
-.setup-side .label {
-	font: 12px var(--mono);
-	letter-spacing: 0.12em;
-	text-transform: uppercase;
-	color: var(--deepBlue);
-	margin: 14px 0 6px;
-}
 .setup-side p {
 	margin: 0;
-	font-size: 14px;
+	padding-top: 12px;
+	font-size: 16px;
 	color: var(--muted);
 	line-height: 1.5;
 	max-width: 24ch;
+	text-wrap: balance;
 }
 .setup-body {
 	display: grid;
@@ -557,10 +539,8 @@ h2 {
 	.setup-row {
 		grid-template-columns: minmax(0, 1fr);
 	}
-	.setup-side .label {
-		margin-top: 0;
-	}
 	.setup-side p {
+		padding-top: 0;
 		max-width: none;
 	}
 }

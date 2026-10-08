@@ -136,8 +136,8 @@
 						<h2>Review What Happened While You Were Away.</h2>
 					</div>
 					<p>
-						Agents now run whole sprints unattended. Scrub the timeline to find
-						out what moved when, who moved it, and what changed along the way.
+						Scrub the timeline to find out who did what, when and why. Your
+						board is a replayable story.
 					</p>
 				</div>
 
@@ -156,8 +156,8 @@
 						<h2>Real Time Monitoring.</h2>
 					</div>
 					<p>
-						Multi agent workflows require powerful auditing. Epiq lets you stay
-						informed in real time, or replay the logs after the fact.
+						Multi agent workflows require monitoring. Epiq helps you
+						stay informed in real time, or replay the logs after the fact.
 					</p>
 				</div>
 				<div class="media-placeholder media-placeholder--log">
@@ -175,7 +175,7 @@
 					</div>
 					<p>
 						Prefix a commit with the ticket's ref and it lands in the ticket's
-						Code tab: diffstat, per-file diff, and a comment box on any line.
+						inline diff. Comment on lines, mark as reviewed.
 					</p>
 				</div>
 				<div class="media-placeholder">
@@ -194,8 +194,7 @@
 					</div>
 					<p>
 						Epiq originated as a command line tool and offers a first-class
-						terminal experience. Auto-completions and a powerful command palette
-						make for ergonomics.
+						terminal experience.
 					</p>
 				</div>
 				<div class="media-placeholder">
@@ -212,8 +211,8 @@
 						<h2>MCP + SKILL.md.</h2>
 					</div>
 					<p>
-						An agent works the board through the same log you do. The MCP
-						server gives it the tools; the skill file gives it the rules.
+						The MCP server gives your agent the tools; the skill file gives it
+						the rules.
 					</p>
 				</div>
 
@@ -221,17 +220,16 @@
 					<article class="card">
 						<h3>The MCP server</h3>
 						<p>
-							Thirty-odd tools over stdio: list, create, move, tag, comment,
-							close, sync. One server per agent session, each under its own
-							board name, so the log reads "claude/oskar moved it", not yours.
+							Thirty-odd tools to create, move, tag, comment, close and sync.
+							Each agent works under its own name, so the log shows which agent
+							did what.
 						</p>
 					</article>
 					<article class="card">
 						<h3>SKILL.md</h3>
 						<p>
-							Epiq ships a skill with sane defaults. Some of them: assume a
-							name, branch in a worktree, prefix every commit with the ticket
-							ref, close with a Solution comment, never touch the state branch.
+							Sane defaults for your agent: work in a worktree, link commits to
+							tickets, document the solution when done etc.
 						</p>
 						<a
 							class="inline-link"
@@ -249,34 +247,25 @@
 						<div class="kicker">Keyboard, Git, history</div>
 						<h2>Project Management Needs DevEx.</h2>
 					</div>
-					<p>
-						Epiq optimizes for flow: keyboard navigation, command history,
-						filters, autocompletion, and plain Git synchronization.
-					</p>
 				</div>
 
 				<div class="cards">
 					<article class="card">
 						<h3>Keyboard-centric</h3>
 						<p>
-							Navigate boards, issues, swimlanes, and contexts with vim-like
-							movement. Or cheat with arrow keys. Or launch the browser app.
+							Navigate the TUI with vim-like movement, or launch the browser app.
+							Both come with a command palette.
 						</p>
 					</article>
 					<article class="card">
 						<h3>Distributed</h3>
-						<p>
-							Epiq uses Git under the hood, with isolated worktrees and state
-							branches, so teams can collaborate without another central
-							service.
-						</p>
+						<p>Epiq uses Git under the hood. Edits are instant, online or offline.</p>
 					</article>
 					<article class="card">
 						<h3>Traceable</h3>
 						<p>
-							In an age where agents run whole sprints, ability to replay the
-							board is increasingly important to stay in the loop. Inspect what
-							happened 1h, 1 week, or one year ago.
+							The ability to replay workflows is increasingly important. Inspect
+							what happened an hour, a week, or a year ago.
 						</p>
 					</article>
 				</div>
@@ -289,8 +278,7 @@
 						<h2>Developer-Centric.</h2>
 					</div>
 					<p>
-						Epiq takes its own path. Instead of a centralized, managed service,
-						project state lives alongside your repository and travels with it.
+						Epiq refuses vendor lock-in and bloat, prioritizing ergonomics.
 					</p>
 				</div>
 
@@ -365,22 +353,10 @@
 			<section id="terminal" class="wrap model">
 				<div class="kicker">The model</div>
 				<h3>Local first. Sync at will, or automatically.</h3>
-				<p>
-					Code, plan, review, retrospect issues without context-switching. Epiq
-					keeps local interaction instant while allowing you to sync explicitly
-					or automatically.
-				</p>
 				<dl class="points">
 					<div>
-						<dt>No account required</dt>
-						<dd>Run it in any Git repository. There is nothing to sign up for.</dd>
-					</div>
-					<div>
-						<dt>Terminal-native kanban + GUI</dt>
-						<dd>
-							Manage issues directly from the command line with fast,
-							keyboard-first controls. Or run in the browser.
-						</dd>
+						<dt>No account, no server</dt>
+						<dd>All you need is Git.</dd>
 					</div>
 					<div>
 						<dt>Conflict-aware collaboration</dt>
@@ -405,17 +381,12 @@
 					<span>- probably someone</span>
 				</div>
 				<div class="kicker">Get started</div>
-				<h3>Install, open a repo, run.</h3>
-				<p>
-					Install the single binary, enter any Git repository, and run Epiq. The
-					first launch opens a setup wizard.
-				</p>
+				<h3>Install, init repo, run.</h3>
 
 				<div class="setup">
 					<div class="setup-row">
 						<div class="setup-side">
-							<div class="label">Install</div>
-							<p>The binary, or the npm package.</p>
+							<p>Install</p>
 						</div>
 						<div class="setup-body">
 							<button
@@ -440,8 +411,7 @@
 					</div>
 					<div class="setup-row">
 						<div class="setup-side">
-							<div class="label">Enter a repository</div>
-							<p>Any Git repository with a remote.</p>
+							<p>Open a Git repo with a remote</p>
 						</div>
 						<div class="setup-body">
 							<pre class="code"><code><span class="g">cd</span> your-repo</code></pre>
@@ -449,12 +419,18 @@
 					</div>
 					<div class="setup-row">
 						<div class="setup-side">
-							<div class="label">Run</div>
-							<p>In the terminal, or in the browser.</p>
+							<p>Run. First launch opens a setup wizard.</p>
 						</div>
 						<div class="setup-body">
-							<pre class="code"><code><span class="g">epiq</span>
-<span class="g">epiq</span> gui</code></pre>
+							<pre class="code"><code><span class="g">epiq</span></code></pre>
+						</div>
+					</div>
+					<div class="setup-row">
+						<div class="setup-side">
+							<p>Or open it in the browser</p>
+						</div>
+						<div class="setup-body">
+							<pre class="code"><code><span class="g">epiq</span> gui</code></pre>
 						</div>
 					</div>
 				</div>
@@ -464,11 +440,7 @@
 				<div class="setup">
 					<div class="setup-row">
 						<div class="setup-side">
-							<div class="label">Register the MCP server</div>
-							<p>
-								Claude Code shown; any MCP client works. Restart the client
-								afterwards.
-							</p>
+							<p>Register MCP, then restart the client</p>
 						</div>
 						<div class="setup-body">
 							<button
@@ -484,17 +456,7 @@
 					</div>
 					<div class="setup-row">
 						<div class="setup-side">
-							<div class="label">Add the skill</div>
-							<p>
-								Drops
-								<a
-									class="inline-link"
-									href="https://github.com/ljtn/epiq/blob/main/.claude/skills/epiq/SKILL.md"
-									rel="noopener"
-									>SKILL.md</a
-								>
-								into your project, so the agent knows the workflow.
-							</p>
+							<p>Add <a class="inline-link" href="https://github.com/ljtn/epiq/blob/main/.claude/skills/epiq/SKILL.md" rel="noopener">SKILL.md</a></p>
 						</div>
 						<div class="setup-body">
 							<pre class="code"><code><span class="g">mkdir</span> -p .claude/skills/epiq
