@@ -1037,7 +1037,7 @@ aside:not(.docs-layout > aside) {
 	scroll-margin-top: 88px;
 }
 .docs-section h2 {
-	font-size: clamp(26px, 4vw, 42px);
+	font-size: clamp(26px, 4vw, 32px);
 	line-height: 1;
 	margin: 0 0 16px;
 	letter-spacing: -0.045em;
