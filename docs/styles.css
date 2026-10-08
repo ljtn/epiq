@@ -366,7 +366,7 @@ section {
 	display: flex;
 	justify-content: space-between;
 	gap: 24px;
-	align-items: end;
+	align-items: last baseline;
 	margin-bottom: 32px;
 }
 h2 {
