@@ -82,9 +82,12 @@ test('a dragged-out zoom survives opening a ticket', async ({
 	// The same window, not merely some window: a rebuilt query would leave Zoom
 	// unpressed, and a re-derived one could land on different bounds.
 	await expect(zoom).toHaveAttribute('aria-pressed', 'true');
-	const after = new URL(page.url()).searchParams;
-	expect(after.get('from')).toBe(from);
-	expect(after.get('to')).toBe(to);
+	// Polled: the ticket route lands first, and the window is written back
+	// into its query a render later.
+	const param = (key: string) => () =>
+		new URL(page.url()).searchParams.get(key);
+	await expect.poll(param('from')).toBe(from);
+	await expect.poll(param('to')).toBe(to);
 
 	expect(pageErrors).toEqual([]);
 });
@@ -132,9 +135,12 @@ test('a zoom survives following a commit from the log and changing tab', async (
 	await expect(page).toHaveURL(/tab=overview/);
 
 	await expect(zoom).toHaveAttribute('aria-pressed', 'true');
-	const after = new URL(page.url()).searchParams;
-	expect(after.get('from')).toBe(from);
-	expect(after.get('to')).toBe(to);
+	// Polled: the ticket route lands first, and the window is written back
+	// into its query a render later.
+	const param = (key: string) => () =>
+		new URL(page.url()).searchParams.get(key);
+	await expect.poll(param('from')).toBe(from);
+	await expect.poll(param('to')).toBe(to);
 
 	expect(pageErrors).toEqual([]);
 });
