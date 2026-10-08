@@ -477,6 +477,21 @@ function absolutize(html, post) {
 
 const cdata = (s) => `<![CDATA[${s.replace(/]]>/g, "]]]]><![CDATA[>")}]]>`;
 
+function renderRedirect(post) {
+	const url = `./${post.slug}.html`;
+	return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>${esc(post.title)}</title>
+<link rel="canonical" href="${BASE_URL}/blog/${post.slug}.html" />
+<meta http-equiv="refresh" content="0; url=${url}" />
+</head>
+<body><a href="${url}">${esc(post.title)}</a></body>
+</html>
+`;
+}
+
 function renderFeed(posts) {
 	const items = posts
 		.map((post) => {
@@ -488,7 +503,7 @@ function renderFeed(posts) {
 			return `		<item>
 			<title>${esc(post.title)}</title>
 			<link>${url}</link>
-			<guid isPermaLink="true">${url}</guid>
+			${post.guid ? `<guid isPermaLink="false">${esc(post.guid)}</guid>` : `<guid isPermaLink="true">${url}</guid>`}
 			<pubDate>${rfc822(post.date)}</pubDate>
 			<dc:creator>${esc(AUTHOR)}</dc:creator>${tags}
 			<description>${esc(post.description)}</description>
@@ -570,6 +585,12 @@ function build({ quiet = false } = {}) {
 		writeFileSync(join(OUT_DIR, `${post.slug}.html`), renderPost(post, older));
 	}
 	writeFileSync(join(OUT_DIR, "feed.xml"), renderFeed(published));
+	// A renamed post leaves a redirect at each old slug.
+	for (const post of published) {
+		for (const old of (post.redirect_from || "").split(",").map((s) => s.trim()).filter(Boolean)) {
+			writeFileSync(join(OUT_DIR, `${old}.html`), renderRedirect(post));
+		}
+	}
 
 	const images = copyImages();
 

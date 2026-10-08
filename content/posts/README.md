@@ -47,6 +47,8 @@ Everything else is optional and derived when you leave it out:
 | `cover_alt` | empty — set it when the cover carries meaning |
 | `tags` | none; write them comma-separated: `tags: git, tui` |
 | `draft` | published; `draft: true` keeps it off the index and the feed |
+| `redirect_from` | nothing; old slugs, comma-separated, that redirect here after a rename |
+| `guid` | the post's URL; set it to the old URL after a rename so feed readers don't list the post again |
 
 ## Styling
 

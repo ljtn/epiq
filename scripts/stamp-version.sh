@@ -34,6 +34,8 @@ fi
 CHANGED=""
 for f in $PAGES; do
 	[ -f "$f" ] || continue
+	# A renamed post's old slug is a bare redirect page, with no nav to stamp.
+	grep -q 'http-equiv="refresh"' "$f" && continue
 	current=$(sed -n 's/.*<span class="nav-version">\([^<]*\)<\/span>.*/\1/p' "$f" | head -1)
 	if [ -z "$current" ]; then
 		echo "stamp-version: no .nav-version span in $f"
