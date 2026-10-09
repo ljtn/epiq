@@ -34,7 +34,7 @@ Trees in the forest of ideas were selected, pruned of false branches, logged, sh
 - Causal order resolution, with wall-clock tie breaks
 
 ## Constraints over slop
-None of these is exotic on its own, but one could call this architecture an _unlikely_ outcome had the workflow been 100% agentic, as anything unorthodox is punished by probabilistic models.
+None of these is exotic on its own, but together they are not a mainstream solution. Had the workflow been 100% agentic, this architecture would have been an _unlikely_ outcome, since probabilistic models punish anything unorthodox.
 
 The solution becomes more likely when revealing the constraints:
 
