@@ -66,16 +66,11 @@ Picking the right data model is not an afterthought, but a core feature of the a
 
 On this project, the data model has proven not only essential for distributed live collaboration, but has also resulted in an evolvable system. So far every new feature has been added by deriving information from the logs in a new way or by adding another event type, never by migrating existing data. When image attachments were added, for instance, all it took was another event type, which newer clients recognized, and older ones ignored. When advanced statistics were added, it was a matter of identifying derivable insights from the event log.
 
-## The art of not writing all the code
-Not all systems live under the same constraints, and other visions call for other structural poles. What remains is the need to understand the core mechanics of your architecture and never to let go of the vision.
-
-The art of not writing all the code is [knowing which parts you must write yourself, which to engage with and which to build intuition for](./cost-of-cognitive-debt.html).
+Not all systems live under the same constraints, and other visions call for other structural poles. In any event, one can expect the data model to outlive the code, and as such it must be considered a part of the internal structure.
 
 ## Back to the tipi
-Agentic workflows can help us wrap up our framing in beautiful ornaments in no time and help us pin it firmly to the ground with a thousand pegs.
+Agentic workflows can help us wrap up our framing in beautiful ornaments in no time and help us pin it firmly to the ground with a thousand pegs, but without well-understood, sturdy poles of architecture, we have nothing but a soft, formless mess. Ornate, but flat, wet and tangled.
 
-However, without well-understood, sturdy poles of architecture, we have nothing but a soft, formless mess. Ornate, but flat, wet and tangled.
-
-The remedy is what it always was: start from a vision, derive the constraints, and raise the poles.
+The art of not writing all the code is [knowing which parts you must build intuition for](./cost-of-cognitive-debt.html), starting from a vision, deriving the constraints, and raising the poles.
 
 Does this resonate with you, or do you disagree? Please share your thoughts below.
