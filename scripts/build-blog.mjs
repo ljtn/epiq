@@ -455,6 +455,25 @@ ${comments(post)}
 	});
 }
 
+/* ---------- sitemap ---------- */
+
+/* The hand-written pages carry no date; a post's is the day it was published. */
+const STATIC_PAGES = ["", "docs.html", "releases.html", "blog.html"];
+
+function renderSitemap(posts) {
+	const entries = [
+		...STATIC_PAGES.map((p) => `\t<url><loc>${BASE_URL}/${p}</loc></url>`),
+		...posts.map(
+			(p) => `\t<url><loc>${BASE_URL}/blog/${p.slug}.html</loc><lastmod>${p.date}</lastmod></url>`
+		),
+	];
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries.join("\n")}
+</urlset>
+`;
+}
+
 /* ---------- feed ---------- */
 
 const rfc822 = (iso) => new Date(iso + "T00:00:00Z").toUTCString();
@@ -585,6 +604,7 @@ function build({ quiet = false } = {}) {
 		writeFileSync(join(OUT_DIR, `${post.slug}.html`), renderPost(post, older));
 	}
 	writeFileSync(join(OUT_DIR, "feed.xml"), renderFeed(published));
+	writeFileSync(join(DOCS, "sitemap.xml"), renderSitemap(published));
 	// A renamed post leaves a redirect at each old slug.
 	for (const post of published) {
 		for (const old of (post.redirect_from || "").split(",").map((s) => s.trim()).filter(Boolean)) {
@@ -610,7 +630,7 @@ function build({ quiet = false } = {}) {
 		console.log(
 			`built ${published.length} post${published.length === 1 ? "" : "s"}` +
 				(drafts ? ` (+${drafts} draft)` : "") +
-				` + index, feed, ${images} image${images === 1 ? "" : "s"}`
+				` + index, feed, sitemap, ${images} image${images === 1 ? "" : "s"}`
 		);
 		for (const p of posts) {
 			console.log(`  ${p.date}  blog/${p.slug}.html${p.draft ? "  [draft]" : ""}`);

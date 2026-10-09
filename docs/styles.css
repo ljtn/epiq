@@ -210,7 +210,8 @@ pre {
 	align-items: center;
 	min-height: 440px;
 }
-h1 {
+h1,
+.hero-title {
 	margin: 0 0 20px;
 	font-size: clamp(52px, 8.5vw, 90px);
 	line-height: 0.86;
@@ -731,7 +732,8 @@ aside:not(.docs-layout > aside) {
 		padding-top: 52px;
 	}
 	/* Keep "Issue Tracking." on one line down to 375px-wide phones. */
-	h1 {
+	h1,
+	.hero-title {
 		font-size: clamp(40px, 12vw, 52px);
 	}
 	.cards,
@@ -1776,11 +1778,13 @@ h1,
 h2,
 h3,
 h4,
-.brand {
+.brand,
+.hero-title {
 	font-family: var(--display);
 	font-weight: 500;
 }
-h1 {
+h1,
+.hero-title {
 	letter-spacing: -0.1em;
 	line-height: 0.92;
 }

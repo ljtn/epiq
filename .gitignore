@@ -11,3 +11,6 @@ coverage
 .epiq/events/
 .epiq/log/
 .DS_Store
+
+# Playwright output from a run made with this branch checked out
+test-results

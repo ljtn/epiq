@@ -11,6 +11,7 @@
 		/>
 
 		<meta name="theme-color" content="#090a0f" />
+		<link rel="canonical" href="https://ljtn.github.io/epiq/" />
 
 		<meta property="og:title" content="Epiq — Git-native issue tracker for teams and agents" />
 		<meta
@@ -35,6 +36,25 @@
 		<link rel="alternate" type="application/rss+xml" title="Epiq blog" href="https://ljtn.github.io/epiq/blog/feed.xml" />
 		<link rel="icon" href="./favicon.ico" sizes="any" />
 		<link rel="stylesheet" href="./styles.css" />
+		<script type="application/ld+json">
+		{
+			"@context": "https://schema.org",
+			"@type": "SoftwareApplication",
+			"name": "Epiq",
+			"alternateName": "Epiq issue tracker",
+			"description": "Issue tracker for teams and agents, built on Git. Local-first, in the terminal or the browser. Replay the board to see who did what, and when.",
+			"url": "https://ljtn.github.io/epiq/",
+			"applicationCategory": "DeveloperApplication",
+			"operatingSystem": "macOS, Linux",
+			"license": "https://opensource.org/license/mit",
+			"isAccessibleForFree": true,
+			"offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+			"author": { "@type": "Person", "name": "Jonatan Lampa" },
+			"sameAs": ["https://github.com/ljtn/epiq", "https://www.npmjs.com/package/epiq"],
+			"downloadUrl": "https://github.com/ljtn/epiq/releases",
+			"screenshot": "https://ljtn.github.io/epiq/og-diff.jpeg"
+		}
+		</script>
 		<style>
 			.ab-issue {
 				background: #9e77fa;
@@ -99,8 +119,8 @@
 			<header class="hero wrap">
 				<div class="hero-grid">
 					<div>
-						<h1>Track workflows</h1>
-						<div class="kicker">Issue tracker for teams and agents, built on Git</div>
+						<p class="hero-title">Track workflows</p>
+						<h1 class="kicker">Issue tracker for teams and agents, built on Git</h1>
 						<br />
 						<p class="lead"><span>Monitor in real time</span><span class="sep">&bull;</span> <span>Step through past workflows</span><span class="sep">&bull;</span> <span>Drill into inline code diffs</span></p>
 						<div class="actions">
