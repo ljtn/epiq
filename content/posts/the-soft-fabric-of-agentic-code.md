@@ -2,7 +2,7 @@
 title: Intentionality and the soft fabric of agentic code
 date: 2026-10-05
 tags: ai, agents, architecture, testing
-redirect_from: the-art-of-not-writing-all-the-code
+redirect_from: the-art-of-not-writing-all-the-code, on-the-soft-wet-fabric-of-agentic-code
 guid: https://ljtn.github.io/epiq/blog/the-art-of-not-writing-all-the-code.html
 ---
 
