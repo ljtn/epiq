@@ -49,7 +49,7 @@ These constraints were derived from a human vision.
 
 Agents lacking a vision for the codebase is why, if you ask for a red button, and then for a blue button, you might get two different button components rather than a single configurable button. Novelty is unlikely when not guided by constraints, and without a vision, no constraints are given.
 
-## A blessing in disguise
+## Pinning it down
 
 Once the poles were in place post launch in summer 2026, a fabric factory opened its gates a meter away. Enter Claude Code. Introduced any earlier, it might have been to the detriment of the architecture As it was, the agents arrived at the precise moment when a fabric of features had a frame to stretch across.
 
