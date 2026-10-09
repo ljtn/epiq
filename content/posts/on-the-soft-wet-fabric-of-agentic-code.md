@@ -31,7 +31,9 @@ Trees in the forest of ideas were selected, pruned of false branches, logged, sh
 
 - User-scoped, append only event logs for persistence
 - Events with [CRDT](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type)-like properties, only referencing shared history
-- Causal order resolution, with wall-clock tie breaks
+- Causal order resolution, tie-broken by ULID
+
+Upon these rests every later feature.
 
 ## Constraints over slop
 None of these is exotic on its own, but together they are not a mainstream solution. Had the workflow been 100% agentic, this architecture would have been an _unlikely_ outcome, since probabilistic models punish anything unorthodox.
