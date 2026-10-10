@@ -217,12 +217,12 @@ h1,
 	line-height: 0.86;
 	max-width: 860px;
 }
-/* A sentence breaks only after its full stop, never inside it. The first is
-   the quiet setup, the second the point. */
+/* A sentence breaks only after its full stop, never inside it. The second
+   is muted so it and the kicker read as one quiet block under the first. */
 .hero-title .line {
 	display: inline-block;
 }
-.hero-title .line:first-child {
+.hero-title .line:last-child {
 	color: var(--muted);
 }
 .hero .kicker {
