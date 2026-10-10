@@ -234,7 +234,7 @@ h1,
 	white-space: nowrap;
 }
 .hero .lead .sep {
-	margin: 0 0.3em 0 0.6em;
+	margin: 0 0.54em 0 0.3em;
 	color: var(--dim);
 }
 /* Below the width where all three phrases fit one line they stack instead of
