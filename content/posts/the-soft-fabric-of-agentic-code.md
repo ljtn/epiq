@@ -45,9 +45,9 @@ The solution becomes more likely when revealing the constraints:
 - Users are never asked to resolve merge conflicts
 - Several people, and agents, might edit at the same time, on- or offline
 
-These constraints were derived from a human vision.
+These constraints were derived from a human vision. Novelty is unlikely when not guided by constraints, and without a vision, no constraints are given.
 
-Agents lacking a vision for the codebase is why, if you ask for a red button, and then for a blue button, you might get two different button components rather than a single configurable button. Novelty is unlikely when not guided by constraints, and without a vision, no constraints are given.
+Agents lacking a vision for the codebase is why, if you ask for a red button, and then for a blue button, you might get two different button components rather than a single configurable button.
 
 ## Pinning it down
 
