@@ -217,12 +217,16 @@ h1,
 	line-height: 0.86;
 	max-width: 860px;
 }
+/* A sentence breaks only after its full stop, never inside it. */
+.hero-title .line {
+	display: inline-block;
+}
 .hero .kicker {
 	font-size: clamp(13px, 1.6vw, 16px);
 	margin-bottom: 16px;
 }
 .hero .lead {
-	max-width: 860px;
+	max-width: none;
 	font-size: clamp(18px, 2.6vw, 24px);
 }
 .hero .lead span {
@@ -233,8 +237,9 @@ h1,
 	margin: 0 0.3em 0 0.6em;
 	color: var(--dim);
 }
-/* On a phone the three phrases stack instead of breaking mid-phrase. */
-@media (max-width: 620px) {
+/* Below the width where all three phrases fit one line they stack instead of
+   breaking mid-phrase. */
+@media (max-width: 1000px) {
 	.hero .lead span {
 		display: block;
 	}
