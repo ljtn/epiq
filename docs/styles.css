@@ -218,7 +218,6 @@ h1,
 	max-width: 860px;
 }
 .hero .kicker {
-	color: var(--groupBlue);
 	font-size: clamp(13px, 1.6vw, 16px);
 	margin-bottom: 16px;
 }
