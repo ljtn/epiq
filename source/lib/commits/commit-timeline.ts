@@ -1,13 +1,16 @@
 import {execGit} from '../../git/git-utils.js';
 import {CommitAuthor} from '../repository/contributor-directory.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
-import {readProjectFile} from '../project-setup/project-setup.js';
 import {scanCacheMs} from '../utils/cache-ttl.js';
 import {NODE_REF_LENGTH} from '../utils/node-ref.js';
-import {RepoInput, resolveRepoRoot} from './commit-repo.js';
+import {resolveSourceRef, SourceInput} from './commit-repo.js';
 
 export type CommitEntry = {
 	sha: string;
+	// Which source's history this commit was read from: `"self"` for the
+	// board's own repository, a registered source id otherwise. Filled by
+	// every read here; optional only so a hand-built entry keeps compiling.
+	sourceId?: string;
 	time: number;
 	author: string;
 	/**
@@ -39,8 +42,9 @@ const GIT_LOG_RECORD_SEP = '\x1e';
 export const FULL_TIMELINE_CACHE_TTL_MS = 5_000;
 
 let fullTimelineCache: {
-	repoRoot: string;
-	stateBranch: string;
+	sourceId: string;
+	gitPath: string;
+	stateBranch: string | undefined;
 	fetchedAt: number;
 	result: CommitEntry[];
 } | null = null;
@@ -69,17 +73,18 @@ export const inCommitWindow = (
 	(start === undefined || time >= Math.floor(start / 1000) * 1000) &&
 	(end === undefined || time <= end);
 
-// Pure read of the *code* repo's history, safe mid-scrub. `--not <stateBranch>`
-// is required: worktrees share one ref namespace, so epiq's own state commits
-// would otherwise appear mixed into real development history.
+// Pure read of a source's history, safe mid-scrub. For the board's own
+// repository, `--not <stateBranch>` is required: worktrees share one ref
+// namespace, so epiq's own state commits would otherwise appear mixed into
+// real development history. A registered source is read from a bare clone
+// that holds nothing else, so there is no branch to exclude there.
 export const getCommitTimeline = async (
-	input: RepoInput & {start?: number; end?: number} = {},
+	input: SourceInput & {start?: number; end?: number} = {},
 ): Promise<Result<CommitEntry[]>> => {
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
-	if (isFail(repoRootResult)) return failed(repoRootResult.message);
+	const sourceResult = resolveSourceRef(input);
+	if (isFail(sourceResult)) return failed(sourceResult.message);
 
-	const projectResult = readProjectFile(repoRootResult.value);
-	if (isFail(projectResult)) return failed(projectResult.message);
+	const source = sourceResult.value;
 
 	// Only the unwindowed call is cached — it is the expensive, frequently-
 	// repeated one (a full `--shortstat` scan of the whole history); a
@@ -90,8 +95,9 @@ export const getCommitTimeline = async (
 	if (
 		cacheable &&
 		fullTimelineCache &&
-		fullTimelineCache.repoRoot === repoRootResult.value &&
-		fullTimelineCache.stateBranch === projectResult.value.stateBranch &&
+		fullTimelineCache.sourceId === source.id &&
+		fullTimelineCache.gitPath === source.gitPath &&
+		fullTimelineCache.stateBranch === source.stateBranch &&
 		Date.now() - fullTimelineCache.fetchedAt <
 			scanCacheMs(FULL_TIMELINE_CACHE_TTL_MS)
 	) {
@@ -99,12 +105,13 @@ export const getCommitTimeline = async (
 	}
 
 	const logResult = await execGit({
-		cwd: repoRootResult.value,
+		cwd: source.gitPath,
 		args: [
 			'log',
 			'--branches',
-			'--not',
-			projectResult.value.stateBranch,
+			...(source.stateBranch !== undefined
+				? ['--not', source.stateBranch]
+				: []),
 			...(input.start !== undefined
 				? [`--since=@${Math.floor(input.start / 1000)}`]
 				: []),
@@ -134,6 +141,7 @@ export const getCommitTimeline = async (
 
 			return {
 				sha,
+				sourceId: source.id,
 				time: Number(atSeconds) * 1000,
 				author: author ?? 'unknown',
 				authorEmail: authorEmail ?? '',
@@ -148,8 +156,9 @@ export const getCommitTimeline = async (
 
 	if (cacheable) {
 		fullTimelineCache = {
-			repoRoot: repoRootResult.value,
-			stateBranch: projectResult.value.stateBranch,
+			sourceId: source.id,
+			gitPath: source.gitPath,
+			stateBranch: source.stateBranch,
 			fetchedAt: Date.now(),
 			result: commits,
 		};
@@ -169,7 +178,7 @@ export const getCommitTimeline = async (
 export type RefCommitEntry = CommitEntry & {precedingSha: string | null};
 
 export const getCommitsForRef = async (
-	input: RepoInput & {ref: string},
+	input: SourceInput & {ref: string},
 ): Promise<Result<RefCommitEntry[]>> => {
 	const ref = input.ref.trim();
 	if (!ref) return failed('ref must not be empty');
@@ -185,7 +194,10 @@ export const getCommitsForRef = async (
 		);
 	}
 
-	const timelineResult = await getCommitTimeline({repoRoot: input.repoRoot});
+	const timelineResult = await getCommitTimeline({
+		repoRoot: input.repoRoot,
+		sourceId: input.sourceId,
+	});
 	if (isFail(timelineResult)) return failed(timelineResult.message);
 
 	// Case-insensitive, matching nodeRefMatches' convention (source/lib/utils/node-ref.ts)

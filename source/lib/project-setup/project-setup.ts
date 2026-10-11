@@ -3,12 +3,18 @@ import {ulid} from 'ulid';
 import {z} from 'zod';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEpiqDirPath, getProjectFilePath} from '../storage/paths.js';
+import {SourceSpecSchema} from '../commits/sources/source-spec.js';
 
 export const DEFAULT_STATE_BRANCH = '__epiq_state__';
 const EpiqProjectSchema = z.object({
 	projectId: z.string().min(1),
 	stateBranch: z.string().min(1),
 	createdAt: z.iso.datetime(),
+	// Repositories whose code history this board watches. Optional so a
+	// project file from before this field — or from a client that does not
+	// know it — parses unchanged, and nothing about the board changes until
+	// sources are actually registered.
+	sources: z.array(SourceSpecSchema).optional(),
 });
 
 export type EpiqProject = z.infer<typeof EpiqProjectSchema>;

@@ -12,6 +12,9 @@ vi.mock('../lib/storage/paths.js', () => ({
 	// tests hand it events through the mocked loader instead, so it must find no
 	// directory — and clearTimelineCache below is what stands in for a signature.
 	getEventsDirPath: vi.fn(() => '/epiq-timeline-index-no-such-dir'),
+	// Where a registered source's bare clone lives, joined for real so the
+	// assertions about clone paths match the registry's own arithmetic.
+	getSourcesDirPath: vi.fn((root: string) => `${root}/.epiq/sources`),
 }));
 
 vi.mock('../lib/board/board-log.js', async () => ({
@@ -780,6 +783,7 @@ describe('epiq-time-travel', () => {
 			expect(result.value).toEqual([
 				{
 					sha: 'aaa111',
+					sourceId: 'self',
 					time: 1_700_000_000_000,
 					author: 'Ada',
 					authorEmail: 'ada@example.com',
@@ -790,6 +794,7 @@ describe('epiq-time-travel', () => {
 				},
 				{
 					sha: 'bbb222',
+					sourceId: 'self',
 					time: 1_700_000_100_000,
 					author: 'Grace',
 					authorEmail: 'grace@example.com',
@@ -814,6 +819,30 @@ describe('epiq-time-travel', () => {
 			expect(execGit).toHaveBeenCalledWith(
 				expect.objectContaining({
 					args: expect.arrayContaining(['--not', '__custom_state__']),
+				}),
+			);
+		});
+
+		// A registered source is a bare clone that holds nothing but code
+		// history, so there is no state branch to exclude from its log — the
+		// same read, one argument shorter.
+		it('reads a registered source from its clone with no branch to exclude', async () => {
+			vi.mocked(readProjectFile).mockReturnValue(
+				succeeded('project', {
+					stateBranch: '__epiq_state__',
+					sources: [{id: 'mirror', url: 'https://example.com/mirror.git'}],
+				} as never),
+			);
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {stdout: '', stderr: '', exitCode: 0}),
+			);
+
+			await getCommitTimeline({sourceId: 'mirror'});
+
+			expect(execGit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					cwd: '/repo/.epiq/sources/mirror.git',
+					args: expect.not.arrayContaining(['--not']),
 				}),
 			);
 		});

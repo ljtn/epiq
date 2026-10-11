@@ -14,6 +14,7 @@ export const EPIQ_DIR_NAME = '.epiq';
 export const EVENTS_DIR_NAME = 'events';
 export const MEDIA_DIR_NAME = 'media';
 export const PROJECT_FILE_NAME = 'project.json';
+export const SOURCES_DIR_NAME = 'sources';
 
 export const getEpiqDirPath = (root: string): string =>
 	path.join(root, EPIQ_DIR_NAME);
@@ -37,6 +38,16 @@ export const getEventsDirPath = (stateRoot: string): string =>
  */
 export const getMediaDirPath = (stateRoot: string): string =>
 	path.join(getEpiqDirPath(stateRoot), MEDIA_DIR_NAME);
+
+/**
+ * Epiq-managed bare clones of the repositories a board watches.
+ *
+ * Machine-local cache, never committed: `project.json` carries the URLs, and
+ * each machine materializes its own clones underneath here. Reads only —
+ * nothing in a user's own checkout is ever touched through this directory.
+ */
+export const getSourcesDirPath = (repoRoot: string): string =>
+	path.join(getEpiqDirPath(repoRoot), SOURCES_DIR_NAME);
 
 export const getExportsDirPath = (repoRoot: string): string =>
 	path.join(repoRoot, EPIQ_DIR_NAME);

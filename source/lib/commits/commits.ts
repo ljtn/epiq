@@ -8,8 +8,14 @@
 export {
 	isPlausibleSha,
 	resolveRepoRoot,
+	resolveSourceRef,
 	type RepoInput,
+	type SourceInput,
 } from './commit-repo.js';
+
+export {listSourceSpecs, type SourceRef} from './sources/registry.js';
+
+export {SELF_SOURCE_ID} from './sources/source-spec.js';
 
 export {
 	FULL_TIMELINE_CACHE_TTL_MS,

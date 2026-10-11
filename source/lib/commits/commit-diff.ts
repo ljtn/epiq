@@ -1,6 +1,6 @@
 import {execGit, readGitBlobsBatch} from '../../git/git-utils.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
-import {isPlausibleSha, RepoInput, resolveRepoRoot} from './commit-repo.js';
+import {isPlausibleSha, resolveSourceRef, SourceInput} from './commit-repo.js';
 import {getCommitsForRef} from './commit-timeline.js';
 
 export type CommitDiffFile = {
@@ -35,15 +35,15 @@ export type CommitDiff = {
  * header off — the list the reader came from already showed it.
  */
 export const getCommitPatch = async (
-	input: RepoInput & {sha: string},
+	input: SourceInput & {sha: string},
 ): Promise<Result<string>> => {
 	if (!isPlausibleSha(input.sha)) return failed('Invalid commit sha');
 
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
-	if (isFail(repoRootResult)) return failed(repoRootResult.message);
+	const sourceResult = resolveSourceRef(input);
+	if (isFail(sourceResult)) return failed(sourceResult.message);
 
 	const showResult = await execGit({
-		cwd: repoRootResult.value,
+		cwd: sourceResult.value.gitPath,
 		args: [
 			'show',
 			'--no-ext-diff',
@@ -105,13 +105,13 @@ type ChangedFileBlobs = {
 // newest. `paths`, when given, narrows the answer to those files — which is
 // how the ticket-wide diff keeps another ticket's commits out of it.
 const getChangedFileBlobs = async (
-	repoRoot: string,
+	gitPath: string,
 	from: string,
 	to: string,
 	paths?: string[],
 ): Promise<Result<ChangedFileBlobs[]>> => {
 	const diffResult = await execGit({
-		cwd: repoRoot,
+		cwd: gitPath,
 		args: [
 			'diff',
 			'--raw',
@@ -193,7 +193,7 @@ const getChangedFileBlobs = async (
 // diff and the ticket-wide one, which differ only in the revisions they asked
 // git to compare.
 const readDiffFiles = async (
-	repoRoot: string,
+	gitPath: string,
 	entries: ChangedFileBlobs[],
 ): Promise<Result<CommitDiffFile[]>> => {
 	if (entries.length > MAX_DIFF_FILES_FOR_DATA) {
@@ -214,7 +214,7 @@ const readDiffFiles = async (
 			  ),
 	);
 
-	const blobsResult = await readGitBlobsBatch(blobHashes, repoRoot);
+	const blobsResult = await readGitBlobsBatch(blobHashes, gitPath);
 	if (isFail(blobsResult)) return failed(blobsResult.message);
 
 	const blobs = blobsResult.value;
@@ -247,16 +247,16 @@ const readDiffFiles = async (
 // materialized state singleton, so it is independent of any time-travel
 // checkout.
 export const getCommitDiff = async (
-	input: RepoInput & {sha: string},
+	input: SourceInput & {sha: string},
 ): Promise<Result<CommitDiff>> => {
 	if (!isPlausibleSha(input.sha)) return failed('Invalid commit sha');
 
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
-	if (isFail(repoRootResult)) return failed(repoRootResult.message);
-	const repoRoot = repoRootResult.value;
+	const sourceResult = resolveSourceRef(input);
+	if (isFail(sourceResult)) return failed(sourceResult.message);
+	const gitPath = sourceResult.value.gitPath;
 
 	const entriesResult = await getChangedFileBlobs(
-		repoRoot,
+		gitPath,
 		`${input.sha}~1`,
 		input.sha,
 	);
@@ -269,7 +269,7 @@ export const getCommitDiff = async (
 		return failed('No changed files found for this commit');
 	}
 
-	const filesResult = await readDiffFiles(repoRoot, entriesResult.value);
+	const filesResult = await readDiffFiles(gitPath, entriesResult.value);
 	if (isFail(filesResult)) return failed(filesResult.message);
 
 	const files = filesResult.value;
@@ -326,12 +326,12 @@ const LOG_COMMIT_LINE = /^[0-9a-f]{40}$/;
  * range is a ticket's worth of history, and process start dominates.
  */
 const changedPathsByCommit = async (
-	repoRoot: string,
+	gitPath: string,
 	from: string,
 	to: string,
 ): Promise<Result<Map<string, Set<string>>>> => {
 	const logResult = await execGit({
-		cwd: repoRoot,
+		cwd: gitPath,
 		args: [
 			'log',
 			'--raw',
@@ -377,14 +377,14 @@ const union = (sets: Iterable<Set<string>>): Set<string> => {
 
 /** Whether `candidate` is on the line of history leading to `head`. */
 const isAncestor = async (
-	repoRoot: string,
+	gitPath: string,
 	candidate: string,
 	head: string,
 ): Promise<boolean> => {
 	if (candidate === head) return true;
 
 	const result = await execGit({
-		cwd: repoRoot,
+		cwd: gitPath,
 		args: ['merge-base', '--is-ancestor', candidate, head],
 	});
 
@@ -396,9 +396,9 @@ const isAncestor = async (
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 /** `<sha>~1`, or the empty tree when `sha` is a root commit and has no parent. */
-const parentOf = async (repoRoot: string, sha: string): Promise<string> => {
+const parentOf = async (gitPath: string, sha: string): Promise<string> => {
 	const result = await execGit({
-		cwd: repoRoot,
+		cwd: gitPath,
 		args: ['rev-parse', '--verify', '--quiet', `${sha}^1`],
 	});
 
@@ -435,13 +435,13 @@ const parentOf = async (repoRoot: string, sha: string): Promise<string> => {
  * two copies of one commit that merely sort next to each other.
  */
 export const getSquashedDiffForRef = async (
-	input: RepoInput & {ref: string},
+	input: SourceInput & {ref: string},
 ): Promise<Result<SquashedDiff>> => {
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
-	if (isFail(repoRootResult)) return failed(repoRootResult.message);
-	const repoRoot = repoRootResult.value;
+	const sourceResult = resolveSourceRef(input);
+	if (isFail(sourceResult)) return failed(sourceResult.message);
+	const gitPath = sourceResult.value.gitPath;
 
-	const commitsResult = await getCommitsForRef({repoRoot, ref: input.ref});
+	const commitsResult = await getCommitsForRef(input);
 	if (isFail(commitsResult)) return failed(commitsResult.message);
 
 	// Newest first, as getCommitsForRef returns them.
@@ -457,19 +457,19 @@ export const getSquashedDiffForRef = async (
 	let oldest = newest;
 	for (let index = matched.length - 1; index > 0; index--) {
 		const candidate = matched[index]!.sha;
-		if (await isAncestor(repoRoot, candidate, newest)) {
+		if (await isAncestor(gitPath, candidate, newest)) {
 			oldest = candidate;
 			break;
 		}
 	}
 
-	const from = await parentOf(repoRoot, oldest);
+	const from = await parentOf(gitPath, oldest);
 
 	// Every commit in the range, ours and anybody else's, with the paths it
 	// touched. One spawn, and it answers all three questions left: which of
 	// the matches are really on this line, whether anything else is, and what
 	// to narrow to if so.
-	const walkResult = await changedPathsByCommit(repoRoot, from, newest);
+	const walkResult = await changedPathsByCommit(gitPath, from, newest);
 	if (isFail(walkResult)) return failed(walkResult.message);
 
 	const walk = walkResult.value;
@@ -530,15 +530,10 @@ export const getSquashedDiffForRef = async (
 		overlappingPaths = [...ours].filter(path => theirs.has(path)).sort();
 	}
 
-	const entriesResult = await getChangedFileBlobs(
-		repoRoot,
-		from,
-		newest,
-		paths,
-	);
+	const entriesResult = await getChangedFileBlobs(gitPath, from, newest, paths);
 	if (isFail(entriesResult)) return failed(entriesResult.message);
 
-	const filesResult = await readDiffFiles(repoRoot, entriesResult.value);
+	const filesResult = await readDiffFiles(gitPath, entriesResult.value);
 	if (isFail(filesResult)) return failed(filesResult.message);
 
 	return answer(filesResult.value, overlappingPaths);
