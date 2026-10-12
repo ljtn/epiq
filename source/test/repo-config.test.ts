@@ -228,3 +228,44 @@ describe('a repo hidden from the Code series', () => {
 		]).toEqual([OWN_REPO]);
 	});
 });
+
+describe(':config repoAdd label', () => {
+	it('takes a label, and an empty one to go back to the basename', () => {
+		const named = parseRepoAddArgs('https://example.com/a.git label=upstream');
+		expect(isFail(named) ? null : named.value).toEqual({
+			url: 'https://example.com/a.git',
+			label: 'upstream',
+		});
+
+		const cleared = parseRepoAddArgs('https://example.com/a.git label=');
+		expect(isFail(cleared) ? null : cleared.value).toEqual({
+			url: 'https://example.com/a.git',
+			label: '',
+		});
+	});
+
+	it('refuses what is not a label', () => {
+		expect(isFail(parseRepoAddArgs('https://example.com/a.git label=UP'))).toBe(
+			true,
+		);
+		expect(isFail(parseRepoAddArgs('https://example.com/a.git label=.x'))).toBe(
+			true,
+		);
+	});
+});
+
+describe('repo:add over the socket with a label', () => {
+	it('takes one up to 24 characters', () => {
+		const url = 'https://example.com/a.git';
+		expect(
+			parseGuiMessage({type: 'repo:add', payload: {url, label: 'upstream'}}).ok,
+		).toBe(true);
+		expect(
+			parseGuiMessage({type: 'repo:add', payload: {url, label: ''}}).ok,
+		).toBe(true);
+		expect(
+			parseGuiMessage({type: 'repo:add', payload: {url, label: 'x'.repeat(25)}})
+				.ok,
+		).toBe(false);
+	});
+});

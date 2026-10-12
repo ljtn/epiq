@@ -351,3 +351,68 @@ test('the Code series drops a repo whose box is unticked', async ({
 	fs.rmSync(upstream, {recursive: true, force: true});
 	expect(pageErrors).toEqual([]);
 });
+
+test('a repo labelled in the panel is named so on its commits and in the filter', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const ref = await addTicketForRef(page, `Labelled ${stamp}`);
+	const subject = `labelled work ${stamp}`;
+	const upstream = makeUpstream(ref, subject);
+	const ticketUrl = page.url();
+
+	await withProjectFile(repoRoot, async projectFile => {
+		await openRepos(page);
+		const modal = page.getByTestId('repos-modal');
+		await modal.getByTestId('repo-url').fill(`file://${upstream}`);
+		await modal.getByTestId('add-repo').click();
+		const row = modal.getByTestId('repo-row');
+		await expect(row).toHaveCount(1);
+
+		const label = row.getByTestId('repo-label');
+		await expect(label).toHaveValue(path.basename(upstream).toLowerCase());
+		await label.fill('upstream');
+		await label.press('Enter');
+		await expect(modal.getByTestId('repos-last-action')).toHaveText(
+			/^Renamed upstream/,
+		);
+		expect(
+			JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos[0].label,
+		).toBe('upstream');
+
+		// Refused, and the field keeps what was typed.
+		await row.getByTestId('repo-label').fill('Up Stream');
+		await row.getByTestId('repo-label').press('Enter');
+		await expect(modal.getByTestId('repos-last-action')).toContainText(
+			'is not a label',
+		);
+		await expect(row.getByTestId('repo-label')).toHaveValue('Up Stream');
+		await row.getByTestId('repo-label').fill('upstream');
+
+		await modal.getByTestId('fetch-repos').click();
+		await expect(row.getByTestId('repo-status')).toHaveText(/^fetched /);
+		await modal.getByRole('button', {name: 'close'}).click();
+
+		await page.goto(ticketUrl);
+		const aside = page.getByTestId('aside-pane');
+		await aside.getByRole('button', {name: /^Code \(1\)/}).click();
+		await expect(
+			aside.getByTestId('commit-card').getByTestId('commit-repo'),
+		).toHaveText('upstream');
+
+		// And in the Code series' filter, before the panel was ever opened here.
+		await page.getByTestId('commit-select').click();
+		await expect(
+			page.getByTestId('commit-repo-toggle').filter({hasText: 'upstream'}),
+		).toHaveCount(1);
+	});
+
+	fs.rmSync(upstream, {recursive: true, force: true});
+	expect(pageErrors).toEqual([]);
+});

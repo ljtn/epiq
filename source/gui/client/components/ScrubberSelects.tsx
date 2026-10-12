@@ -22,7 +22,7 @@ import {Checkbox} from './Checkbox';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {Menu, MenuItem} from './Menu';
-import {repoLabelOf} from '../lib/repo-label';
+import {useRepoLabel} from '../lib/use-repo-label';
 import {showsRepoToggles} from '../lib/commit-repo-filter';
 
 // What every control wears while the socket is down.
@@ -430,6 +430,7 @@ export const CommitSeriesGroup = ({
 	onChangeLinkedOnly: (next: boolean) => void;
 	onChangeLinesMeasure: (next: boolean) => void;
 }) => {
+	const labelOf = useRepoLabel();
 	const usable = connected && !idle;
 
 	return (
@@ -544,7 +545,7 @@ export const CommitSeriesGroup = ({
 									{repos.map(repo => (
 										<MenuItem key={repo || 'own'}>
 											<Checkbox
-												label={repo ? repoLabelOf(repo) : 'this repo'}
+												label={repo ? labelOf(repo) : 'this repo'}
 												testId="commit-repo-toggle"
 												checked={!hiddenRepos.has(repo)}
 												activeColor={GUI_THEME.green}

@@ -114,6 +114,7 @@ import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
 import {useSyncSettings} from './lib/use-sync-settings';
 import {useRepos} from './lib/use-repos';
+import {RepoLabelsContext} from './lib/use-repo-label';
 import {useCommitRepoFilter} from './lib/commit-repo-filter';
 import {ManageReposModal} from './components/ManageReposModal';
 import {IdentityPanel} from './components/IdentityPanel';
@@ -473,6 +474,11 @@ export const App = () => {
 	const closeRepos = useCallback(() => setReposOpen(false), []);
 	const registeredRepoIds = useMemo(
 		() => repos.data?.map(repo => repo.id) ?? null,
+		[repos.data],
+	);
+	const repoLabels = useMemo(
+		() =>
+			new Map(repos.data?.map(repo => [repo.id, repo.label] as const) ?? []),
 		[repos.data],
 	);
 	const personalStats = usePersonalStats({
@@ -1831,338 +1837,339 @@ export const App = () => {
 	}
 
 	return (
-		<TicketRefLinksProvider value={ticketRefLinks}>
-			<div
-				style={{
-					height: '100vh',
-					background: GUI_THEME.bg,
-					color: GUI_THEME.primary,
-					fontFamily: UI_FONT,
-					display: 'flex',
-					flexDirection: 'column',
-				}}
-			>
-				<GlobalScrollbarStyles />
-				<TooltipLayer />
-				<TicketPreviewLayer
-					previewFor={ticketPreviewFor}
-					onHover={requestTicketPreview}
-				/>
-
-				{removeError && (
-					<ErrorToast
-						message={removeError}
-						onDismiss={() => setRemoveError(null)}
+		<RepoLabelsContext.Provider value={repoLabels}>
+			<TicketRefLinksProvider value={ticketRefLinks}>
+				<div
+					style={{
+						height: '100vh',
+						background: GUI_THEME.bg,
+						color: GUI_THEME.primary,
+						fontFamily: UI_FONT,
+						display: 'flex',
+						flexDirection: 'column',
+					}}
+				>
+					<GlobalScrollbarStyles />
+					<TooltipLayer />
+					<TicketPreviewLayer
+						previewFor={ticketPreviewFor}
+						onHover={requestTicketPreview}
 					/>
-				)}
 
-				{actionError && (
-					<ErrorToast
-						message={actionError}
-						onDismiss={() => setActionError(null)}
-					/>
-				)}
+					{removeError && (
+						<ErrorToast
+							message={removeError}
+							onDismiss={() => setRemoveError(null)}
+						/>
+					)}
 
-				{/* The instrumentation, on its own ground: the bar and the timeline
+					{actionError && (
+						<ErrorToast
+							message={actionError}
+							onDismiss={() => setActionError(null)}
+						/>
+					)}
+
+					{/* The instrumentation, on its own ground: the bar and the timeline
 				    sit below the board rather than on it, so what recedes is the
 				    room and what stays is the work. The log takes the same ground
 				    on the other axis. */}
-				<div style={{background: GUI_THEME.chrome}}>
-					{/* First thing in the window, above the topbar: a board moving on
+					<div style={{background: GUI_THEME.chrome}}>
+						{/* First thing in the window, above the topbar: a board moving on
 				    its own is a fact about the whole app, not about the column it
 				    was drawn over. Outside the dim below for the same reason the
 				    topbar is — it carries the reason and the way out. */}
-					{following && <FollowBanner />}
+						{following && <FollowBanner />}
 
-					{/* Dimmed and inert with the rest of the chrome while a movie plays:
+						{/* Dimmed and inert with the rest of the chrome while a movie plays:
 				    the board is the picture, and everything around it is the room
 				    lights. */}
-					<div style={theatre ? DIMMED_WHILE_PLAYING : undefined}>
-						<Header
-							state={state}
-							connection={
-								connected
-									? 'connected'
-									: !offline
-									? 'connecting'
-									: reconnectExhausted
-									? 'lost'
-									: 'reconnecting'
-							}
-							onReconnect={reconnectNow}
-							scrubbing={state?.timeTravel?.mode === 'scrub'}
-							syncStatus={syncStatus}
-							onOpenCommands={() => commandPalette.setOpen(true)}
-							board={
-								<Dropdown
-									testId="board-switcher"
-									value={
-										selectedBoard
-											? {
-													id: selectedBoard.id,
-													label: selectedBoard.title,
-											  }
-											: null
-									}
-									items={
-										state?.boards.map(board => ({
-											id: board.id,
-											label: board.title,
-											// As the TUI's board list says it. Every board's lanes
-											// are in the state, not just the one on screen, so this
-											// is counted here rather than asked for.
-											hint: plural(
-												board.swimlanes.reduce(
-													(total, swimlane) => total + swimlane.issues.length,
-													0,
+						<div style={theatre ? DIMMED_WHILE_PLAYING : undefined}>
+							<Header
+								state={state}
+								connection={
+									connected
+										? 'connected'
+										: !offline
+										? 'connecting'
+										: reconnectExhausted
+										? 'lost'
+										: 'reconnecting'
+								}
+								onReconnect={reconnectNow}
+								scrubbing={state?.timeTravel?.mode === 'scrub'}
+								syncStatus={syncStatus}
+								onOpenCommands={() => commandPalette.setOpen(true)}
+								board={
+									<Dropdown
+										testId="board-switcher"
+										value={
+											selectedBoard
+												? {
+														id: selectedBoard.id,
+														label: selectedBoard.title,
+												  }
+												: null
+										}
+										items={
+											state?.boards.map(board => ({
+												id: board.id,
+												label: board.title,
+												// As the TUI's board list says it. Every board's lanes
+												// are in the state, not just the one on screen, so this
+												// is counted here rather than asked for.
+												hint: plural(
+													board.swimlanes.reduce(
+														(total, swimlane) => total + swimlane.issues.length,
+														0,
+													),
+													'issue',
 												),
-												'issue',
-											),
-										})) ?? []
-									}
-									placeholder="Loading..."
-									onSelect={selectBoard}
-								/>
-							}
-							identity={{
-								open: identityOpen,
-								onToggle: () => setIdentityOpen(open => !open),
-								onDismiss: () => setIdentityOpen(false),
-								panel: (
-									<IdentityPanel
-										state={contributorEmails}
-										stats={personalStats}
-										settings={syncSettings}
-										me={state?.user ?? null}
-										onLink={contributorEmails.link}
-										onUnlink={contributorEmails.unlink}
-										onChangeSettings={syncSettings.change}
+											})) ?? []
+										}
+										placeholder="Loading..."
+										onSelect={selectBoard}
 									/>
-								),
-							}}
+								}
+								identity={{
+									open: identityOpen,
+									onToggle: () => setIdentityOpen(open => !open),
+									onDismiss: () => setIdentityOpen(false),
+									panel: (
+										<IdentityPanel
+											state={contributorEmails}
+											stats={personalStats}
+											settings={syncSettings}
+											me={state?.user ?? null}
+											onLink={contributorEmails.link}
+											onUnlink={contributorEmails.unlink}
+											onChangeSettings={syncSettings.change}
+										/>
+									),
+								}}
+							/>
+						</div>
+
+						<TimeScrubber
+							timeline={history.timeline}
+							commits={plottedCommits}
+							historyId={history.requestId}
+							boardId={selectedBoardId}
+							connected={connected}
+							socketEpoch={socketEpoch}
+							onRequestHistory={requestBoardHistory}
+							onInspectCommit={openCommitDiff}
+							onOpenIssue={id => openIssueTab(id, 'overview')}
+							highlightEventId={hoveredLogEventId}
+							timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
+							onScrub={scrubToTime}
+							onReturnToLive={returnToLive}
+							onPlayTheatre={startTheatre}
+							theatreOpen={theatre !== null}
+							logOpen={logOpen}
+							onChangeLogOpen={setLogOpen}
+							showIssues={showIssues}
+							onChangeShowIssues={setShowIssues}
+							showCommits={showCommits}
+							onChangeShowCommits={setShowCommits}
+							linkedCommitsOnly={linkedCommitsOnly}
+							onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
+							commitRepos={commitRepoFilter.repos}
+							hiddenCommitRepos={commitRepoFilter.hidden}
+							onToggleCommitRepo={commitRepoFilter.toggle}
+							issueIdByRef={issueIdByRef}
+							boardIssueIdByRef={boardIssueIdByRef}
+							lanes={boardLanes}
+							laneTitles={laneTitles}
+							issueSummaryById={issueSummaryById}
+							selection={selection}
+							onChangeSelection={changeSelection}
+							selectedIssue={
+								selectedIssue
+									? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
+									: null
+							}
+							textFilter={textFilter}
+							onChangeTextFilter={setTextFilter}
+							queryIssueIds={queryIssueIds}
+							knownIdentities={knownIdentities}
+							refreshOn={historyTick}
+							following={following}
+							onChangeFollowing={setFollowing}
 						/>
 					</div>
 
-					<TimeScrubber
-						timeline={history.timeline}
-						commits={plottedCommits}
-						historyId={history.requestId}
-						boardId={selectedBoardId}
-						connected={connected}
-						socketEpoch={socketEpoch}
-						onRequestHistory={requestBoardHistory}
-						onInspectCommit={openCommitDiff}
-						onOpenIssue={id => openIssueTab(id, 'overview')}
-						highlightEventId={hoveredLogEventId}
-						timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
-						onScrub={scrubToTime}
-						onReturnToLive={returnToLive}
-						onPlayTheatre={startTheatre}
-						theatreOpen={theatre !== null}
-						logOpen={logOpen}
-						onChangeLogOpen={setLogOpen}
-						showIssues={showIssues}
-						onChangeShowIssues={setShowIssues}
-						showCommits={showCommits}
-						onChangeShowCommits={setShowCommits}
-						linkedCommitsOnly={linkedCommitsOnly}
-						onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
-						commitRepos={commitRepoFilter.repos}
-						hiddenCommitRepos={commitRepoFilter.hidden}
-						onToggleCommitRepo={commitRepoFilter.toggle}
-						issueIdByRef={issueIdByRef}
-						boardIssueIdByRef={boardIssueIdByRef}
-						lanes={boardLanes}
-						laneTitles={laneTitles}
-						issueSummaryById={issueSummaryById}
-						selection={selection}
-						onChangeSelection={changeSelection}
-						selectedIssue={
-							selectedIssue
-								? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
-								: null
-						}
-						textFilter={textFilter}
-						onChangeTextFilter={setTextFilter}
-						queryIssueIds={queryIssueIds}
-						knownIdentities={knownIdentities}
-						refreshOn={historyTick}
-						following={following}
-						onChangeFollowing={setFollowing}
-					/>
-				</div>
-
-				{/* Dimmed while offline so the board reads as inert. The topbar stays at
+					{/* Dimmed while offline so the board reads as inert. The topbar stays at
 			    full strength: it carries the reason and the way back. */}
-				<div
-					style={{
-						display: 'flex',
-						flexDirection: asideDock === 'bottom' ? 'column' : 'row',
-						flex: 1,
-						overflow: 'hidden',
-						// A fullscreen panel is positioned against this row.
-						position: 'relative',
-						opacity: offline ? 0.55 : 1,
-						transition: 'opacity 160ms ease',
-					}}
-				>
-					{/* The log and the board are their own row inside this one, which
+					<div
+						style={{
+							display: 'flex',
+							flexDirection: asideDock === 'bottom' ? 'column' : 'row',
+							flex: 1,
+							overflow: 'hidden',
+							// A fullscreen panel is positioned against this row.
+							position: 'relative',
+							opacity: offline ? 0.55 : 1,
+							transition: 'opacity 160ms ease',
+						}}
+					>
+						{/* The log and the board are their own row inside this one, which
 					    turns into a column for a bottom-docked panel. Without it the
 					    log would stack above the board rather than beside it, as a
 					    band the crawl has no height to run in. With no log open this
 					    is one flex child holding another, which lays out exactly as
 					    the board did on its own. */}
-					<div
-						style={{
-							display: 'flex',
-							flex: 1,
-							minWidth: 0,
-							minHeight: 0,
-							overflow: 'hidden',
-						}}
-					>
-						{logReveal.mounted && !logWindow.poppedOut && (
-							<EventLog
-								revealed={logReveal.shown}
-								settled={logReveal.settled}
-								entries={logEntries}
-								moment={logMoment}
-								onHoverEvent={setHoveredLogEventId}
-								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
-								onOpen={openLogDestination}
-								at={readerAt}
-								followedLine={followedLine}
-								eventsUnlisted={eventsUnlisted}
-								onPinnedChange={setLogPinned}
-								onPopOut={logWindow.popOut}
-							/>
-						)}
-
-						{/* Vertical overflow is hidden here: the swimlanes size themselves to
-				    this box, so anything spilling out would put a second scrollbar on
-				    the page next to the columns' own. */}
-						<main
-							// The lane panel closes on a click past it, unlike the ticket
-							// panel beside it, which deliberately stays open (see
-							// details-close.pw.ts): a ticket holds a half-written
-							// description that a stray click must not throw away, and a
-							// lane's figures hold nothing at all.
-							onClick={() => {
-								clearPicked();
-								setStatsSwimlaneId(null);
-							}}
+						<div
 							style={{
-								// No inset of its own: the columns' own top edge is what lines
-								// up with the panes either side, and a lane's header carries
-								// the gap above its title itself, in the 48px row it stands in.
-								padding: `0 0 0 ${BOARD_GUTTER}px`,
+								display: 'flex',
 								flex: 1,
-								// Beside the log it has to be able to give up the width the
-								// panel takes; a flex item's default floor is its content.
 								minWidth: 0,
 								minHeight: 0,
-								display: 'flex',
-								flexDirection: 'column',
 								overflow: 'hidden',
 							}}
 						>
-							{/* Scrolling sideways is this row's job; scrolling down is each
-					    column's. Both on one element gives a page-level vertical bar
-					    alongside each column's own. */}
-							<div
+							{logReveal.mounted && !logWindow.poppedOut && (
+								<EventLog
+									revealed={logReveal.shown}
+									settled={logReveal.settled}
+									entries={logEntries}
+									moment={logMoment}
+									onHoverEvent={setHoveredLogEventId}
+									bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
+									onOpen={openLogDestination}
+									at={readerAt}
+									followedLine={followedLine}
+									eventsUnlisted={eventsUnlisted}
+									onPinnedChange={setLogPinned}
+									onPopOut={logWindow.popOut}
+								/>
+							)}
+
+							{/* Vertical overflow is hidden here: the swimlanes size themselves to
+				    this box, so anything spilling out would put a second scrollbar on
+				    the page next to the columns' own. */}
+							<main
+								// The lane panel closes on a click past it, unlike the ticket
+								// panel beside it, which deliberately stays open (see
+								// details-close.pw.ts): a ticket holds a half-written
+								// description that a stray click must not throw away, and a
+								// lane's figures hold nothing at all.
+								onClick={() => {
+									clearPicked();
+									setStatsSwimlaneId(null);
+								}}
 								style={{
-									display: 'flex',
-									gap: 8,
+									// No inset of its own: the columns' own top edge is what lines
+									// up with the panes either side, and a lane's header carries
+									// the gap above its title itself, in the 48px row it stands in.
+									padding: `0 0 0 ${BOARD_GUTTER}px`,
 									flex: 1,
+									// Beside the log it has to be able to give up the width the
+									// panel takes; a flex item's default floor is its content.
+									minWidth: 0,
 									minHeight: 0,
-									overflowX: 'auto',
-									overflowY: 'hidden',
-									// Lit, but not touchable: the board is what a movie is
-									// watched on, and the panel a click would open is closed for
-									// the duration anyway.
-									pointerEvents: theatre ? 'none' : undefined,
-									// The player floats over the board, and a column running
-									// under it would play its last cards behind the transport.
-									// Reserved rather than overlaid, so the whole picture stays
-									// in view.
-									paddingBottom: theatre ? THEATRE_PLAYER_CLEARANCE : 0,
-									transition: 'padding-bottom 240ms ease',
+									display: 'flex',
+									flexDirection: 'column',
+									overflow: 'hidden',
 								}}
 							>
-								{shownSwimlanes.map(swimlane => (
-									<SwimlaneColumn
-										key={swimlane.id}
-										swimlane={swimlane}
-										live={state?.timeTravel?.mode !== 'scrub'}
-										diffStats={refDiffStats}
-										statsOpen={statsSwimlaneId === swimlane.id}
-										onOpenStats={openSwimlaneStats}
-										selected={false}
-										selectedIssueId={selectedIssue?.id ?? null}
-										commentsByIssueId={commentsByIssueId}
-										dragOver={dragOverSwimlaneId === swimlane.id}
-										dropIndex={
-											dropTarget?.swimlaneId === swimlane.id
-												? dropTarget.index
-												: null
-										}
-										onSelectIssue={selectIssue}
-										onSelectIssueComments={selectIssueComments}
-										onSelectIssueCode={selectIssueCode}
-										isolatedTagId={isolatedTagId}
-										onFilterByTag={filterByTag}
-										onCreateIssue={openCreateIssueModal}
-										onRenameSwimlane={openRenameSwimlane}
-										onDeleteSwimlane={setDeleteSwimlaneId}
-										dropSide={
-											swimlaneDropEdge?.swimlaneId === swimlane.id
-												? swimlaneDropEdge.side
-												: null
-										}
-										onSwimlaneDragOver={(swimlaneId, side) =>
-											setSwimlaneDropEdge({swimlaneId, side})
-										}
-										onSwimlaneDragEnd={() => setSwimlaneDropEdge(null)}
-										onDropSwimlane={dropSwimlane}
-										onDropIssue={(issueId, swimlaneId, targetIndex) => {
-											const moving = pickedIssueIds.includes(issueId)
-												? pickedIssueIds
-												: [issueId];
+								{/* Scrolling sideways is this row's job; scrolling down is each
+					    column's. Both on one element gives a page-level vertical bar
+					    alongside each column's own. */}
+								<div
+									style={{
+										display: 'flex',
+										gap: 8,
+										flex: 1,
+										minHeight: 0,
+										overflowX: 'auto',
+										overflowY: 'hidden',
+										// Lit, but not touchable: the board is what a movie is
+										// watched on, and the panel a click would open is closed for
+										// the duration anyway.
+										pointerEvents: theatre ? 'none' : undefined,
+										// The player floats over the board, and a column running
+										// under it would play its last cards behind the transport.
+										// Reserved rather than overlaid, so the whole picture stays
+										// in view.
+										paddingBottom: theatre ? THEATRE_PLAYER_CLEARANCE : 0,
+										transition: 'padding-bottom 240ms ease',
+									}}
+								>
+									{shownSwimlanes.map(swimlane => (
+										<SwimlaneColumn
+											key={swimlane.id}
+											swimlane={swimlane}
+											live={state?.timeTravel?.mode !== 'scrub'}
+											diffStats={refDiffStats}
+											statsOpen={statsSwimlaneId === swimlane.id}
+											onOpenStats={openSwimlaneStats}
+											selected={false}
+											selectedIssueId={selectedIssue?.id ?? null}
+											commentsByIssueId={commentsByIssueId}
+											dragOver={dragOverSwimlaneId === swimlane.id}
+											dropIndex={
+												dropTarget?.swimlaneId === swimlane.id
+													? dropTarget.index
+													: null
+											}
+											onSelectIssue={selectIssue}
+											onSelectIssueComments={selectIssueComments}
+											onSelectIssueCode={selectIssueCode}
+											isolatedTagId={isolatedTagId}
+											onFilterByTag={filterByTag}
+											onCreateIssue={openCreateIssueModal}
+											onRenameSwimlane={openRenameSwimlane}
+											onDeleteSwimlane={setDeleteSwimlaneId}
+											dropSide={
+												swimlaneDropEdge?.swimlaneId === swimlane.id
+													? swimlaneDropEdge.side
+													: null
+											}
+											onSwimlaneDragOver={(swimlaneId, side) =>
+												setSwimlaneDropEdge({swimlaneId, side})
+											}
+											onSwimlaneDragEnd={() => setSwimlaneDropEdge(null)}
+											onDropSwimlane={dropSwimlane}
+											onDropIssue={(issueId, swimlaneId, targetIndex) => {
+												const moving = pickedIssueIds.includes(issueId)
+													? pickedIssueIds
+													: [issueId];
 
-											moveIssue(state, setState, send)(
-												moving,
-												swimlaneId,
-												targetIndex,
-											);
-											clearPicked();
-										}}
-										theatre={
-											theatre
-												? {
-														flashIssueId: playback.current?.issue ?? null,
-														flashKey: playback.current?.id ?? null,
-												  }
-												: null
-										}
-										pickedIssueIds={pickedIssueIds}
-										onDragOver={setDragOverSwimlaneId}
-										onDragOverIssue={(swimlaneId, index) =>
-											setDropTarget({swimlaneId, index})
-										}
-										onDragLeave={clearDragState}
-									/>
-								))}
+												moveIssue(state, setState, send)(
+													moving,
+													swimlaneId,
+													targetIndex,
+												);
+												clearPicked();
+											}}
+											theatre={
+												theatre
+													? {
+															flashIssueId: playback.current?.issue ?? null,
+															flashKey: playback.current?.id ?? null,
+													  }
+													: null
+											}
+											pickedIssueIds={pickedIssueIds}
+											onDragOver={setDragOverSwimlaneId}
+											onDragOverIssue={(swimlaneId, index) =>
+												setDropTarget({swimlaneId, index})
+											}
+											onDragLeave={clearDragState}
+										/>
+									))}
 
-								{/* Appends: `createSwimlane` ranks at the end, so the ghost sits
+									{/* Appends: `createSwimlane` ranks at the end, so the ghost sits
 							where the new column will actually appear. Hidden on a readonly
 							board, which also covers a scrubbed timeline. */}
-								{selectedBoard && !selectedBoard.readonly && !offline && (
-									<AddSwimlaneColumn
-										onClick={() => setCreateSwimlaneTitle('')}
-									/>
-								)}
+									{selectedBoard && !selectedBoard.readonly && !offline && (
+										<AddSwimlaneColumn
+											onClick={() => setCreateSwimlaneTitle('')}
+										/>
+									)}
 
-								{/* Grows scrollWidth by exactly what closing the panel gave back
+									{/* Grows scrollWidth by exactly what closing the panel gave back
 							in clientWidth, keeping max scrollLeft identical across
 							open/closed so the board doesn't bounce back when scrolled far
 							right. Reads the panel's persisted width directly rather than
@@ -2174,334 +2181,338 @@ export const App = () => {
 							A film closes every one of those panels, so the width has to be
 							reserved for that too — or pressing play over a board scrolled
 							hard right bounces it back by the panel's width. */}
-								{asideDock === 'right' &&
-									(theatre ||
-										(!commitDiff && !(selectedIssue && state?.user))) && (
-										<div
-											style={{width: readStoredAsideWidth(), flexShrink: 0}}
-										/>
-									)}
+									{asideDock === 'right' &&
+										(theatre ||
+											(!commitDiff && !(selectedIssue && state?.user))) && (
+											<div
+												style={{width: readStoredAsideWidth(), flexShrink: 0}}
+											/>
+										)}
 
-								{/* The page's right margin, scrolling with the columns. Constant,
+									{/* The page's right margin, scrolling with the columns. Constant,
 							so it cancels out of the invariant above. */}
-								<div style={{width: BOARD_GUTTER, flexShrink: 0}} />
-							</div>
-						</main>
-					</div>
+									<div style={{width: BOARD_GUTTER, flexShrink: 0}} />
+								</div>
+							</main>
+						</div>
 
-					{/* The side panels close for the film rather than dimming: at
+						{/* The side panels close for the film rather than dimming: at
 					    440px they are a third of the picture, and none of what they
 					    show is part of it. Closing is only visual — the ticket stays
 					    selected, and the panel is back when the player leaves. */}
-					{!theatre && commitDiff && (
-						<Aside dock={asideDock} onWidthChange={setCommitDiffPanelWidth}>
-							{({isFullscreen, toggleFullscreen}) => (
-								<DiffPanel
-									sha={commitDiff.sha}
-									files={commitDiff.files}
-									loading={commitDiff.loading}
-									error={commitDiff.error}
-									diffStyle={
-										commitDiffPanelWidth >= STACKED_DIFF_WIDTH
-											? 'split'
-											: 'unified'
-									}
-									onClose={closeCommitDiff}
-									isFullscreen={isFullscreen}
-									toggleFullscreen={toggleFullscreen}
+						{!theatre && commitDiff && (
+							<Aside dock={asideDock} onWidthChange={setCommitDiffPanelWidth}>
+								{({isFullscreen, toggleFullscreen}) => (
+									<DiffPanel
+										sha={commitDiff.sha}
+										files={commitDiff.files}
+										loading={commitDiff.loading}
+										error={commitDiff.error}
+										diffStyle={
+											commitDiffPanelWidth >= STACKED_DIFF_WIDTH
+												? 'split'
+												: 'unified'
+										}
+										onClose={closeCommitDiff}
+										isFullscreen={isFullscreen}
+										toggleFullscreen={toggleFullscreen}
+										dock={asideDock}
+										onDock={setAsideDock}
+									/>
+								)}
+							</Aside>
+						)}
+
+						{!theatre && !commitDiff && statsSwimlane && (
+							<SwimlaneStats
+								dock={asideDock}
+								swimlane={statsSwimlane}
+								state={swimlaneStats}
+								onClose={() => setStatsSwimlaneId(null)}
+							/>
+						)}
+
+						{!theatre &&
+							!commitDiff &&
+							!statsSwimlane &&
+							pickedIssues.length > 1 && (
+								<BulkDetails
 									dock={asideDock}
-									onDock={setAsideDock}
+									issues={pickedIssues}
+									knownTags={state?.tags ?? []}
+									knownAssignees={contributors}
+									tagName={bulkTagName}
+									assigneeName={bulkAssigneeName}
+									onChangeTagName={setBulkTagName}
+									onChangeAssigneeName={setBulkAssigneeName}
+									onAddTag={name => {
+										forPicked(id => addIssueTag(id, name));
+										setBulkTagName('');
+									}}
+									onRemoveTag={tagId =>
+										forPicked(id => removeIssueTag(id, tagId))
+									}
+									onAddAssignee={assigneeId =>
+										forPicked(id => addIssueAssignee(id, assigneeId))
+									}
+									onRemoveAssignee={assigneeId =>
+										forPicked(id => removeIssueAssignee(id, assigneeId))
+									}
+									onCloseIssues={() => {
+										// Skips the ones already closed: the event log would otherwise
+										// carry a second "Closed" for each of them.
+										for (const issue of pickedIssues) {
+											if (!issue.isClosed) closeIssue(issue.id);
+										}
+										clearPicked();
+									}}
+									onReopenIssues={() => {
+										for (const issue of pickedIssues) {
+											if (issue.isClosed) reopenIssue(issue.id);
+										}
+										clearPicked();
+									}}
+									onClear={clearPicked}
 								/>
 							)}
-						</Aside>
-					)}
 
-					{!theatre && !commitDiff && statsSwimlane && (
-						<SwimlaneStats
-							dock={asideDock}
-							swimlane={statsSwimlane}
-							state={swimlaneStats}
-							onClose={() => setStatsSwimlaneId(null)}
+						{!theatre &&
+							!commitDiff &&
+							!statsSwimlane &&
+							pickedIssues.length <= 1 &&
+							selectedIssue &&
+							state?.user && (
+								<IssueDetails
+									dock={asideDock}
+									onDock={setAsideDock}
+									whoAmI={state.user}
+									issue={((): GuiIssue => {
+										const base =
+											issueDetail?.issueId === selectedIssue.id
+												? {
+														...selectedIssue,
+														description: issueDetail.description,
+												  }
+												: selectedIssue;
+
+										return offline ? {...base, readonly: true} : base;
+									})()}
+									activeTab={selectedTab}
+									comments={
+										issueDetail?.issueId === selectedIssue.id
+											? issueDetail.comments
+											: []
+									}
+									onChangeTab={changeIssueDetailsTab}
+									onClose={closeIssueDetails}
+									timelineNarrowed={selection.ticketOnly}
+									timelineCapped={
+										selection.ticketOnly && !windowNamesIssues(history.timeline)
+									}
+									canNarrowTimeline={connected || selection.ticketOnly}
+									onChangeTimelineNarrowed={next =>
+										changeSelection({ticketOnly: next})
+									}
+									onEditTitle={editIssueTitle}
+									onEditDescription={editIssueDescription}
+									onAddTag={addIssueTag}
+									onRemoveTag={removeIssueTag}
+									onAddAssignee={addIssueAssignee}
+									onAddExternalAssignee={addExternalIssueAssignee}
+									onRemoveContributor={removeContributor}
+									onDeleteTag={removeTag}
+									onRemoveAssignee={removeIssueAssignee}
+									onAddComment={addIssueComment}
+									onDeleteComment={deleteIssueComment}
+									onEditComment={editIssueComment}
+									onFileTicket={fileTicketFromSelection}
+									onOpenDiffLocation={openDiffLocation}
+									diffFocus={diffFocus}
+									focusedCommentId={focusedCommentId}
+									attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
+									attachmentUploadStatus={attachmentUploadStatus}
+									onUploadAttachments={uploadIssueAttachments}
+									onDeleteAttachment={deleteIssueAttachment}
+									commits={
+										issueCommits?.issueId === selectedIssue.id
+											? issueCommits.commits
+											: []
+									}
+									// No entry for this ticket yet means its fetch is about to be
+									// sent, not that it has nothing.
+									commitsLoading={
+										issueCommits?.issueId === selectedIssue.id
+											? issueCommits.loading
+											: true
+									}
+									commitsError={
+										issueCommits?.issueId === selectedIssue.id
+											? issueCommits.error
+											: null
+									}
+									commitDiffsBySha={issueCommitDiffs}
+									onLoadCommitDiff={loadIssueCommitDiff}
+									diffView={{
+										compacted: compactedDiff,
+										onChangeCompacted: chooseDiffView,
+										squashed:
+											issueSquashedDiff?.issueId === selectedIssue.id
+												? issueSquashedDiff.diff
+												: null,
+										// No entry for this ticket yet means its fetch is about to
+										// be sent, not that it has nothing.
+										loading:
+											issueSquashedDiff?.issueId === selectedIssue.id
+												? issueSquashedDiff.loading
+												: true,
+										error:
+											issueSquashedDiff?.issueId === selectedIssue.id
+												? issueSquashedDiff.error
+												: null,
+									}}
+									stats={
+										issueStats?.issueId === selectedIssue.id
+											? issueStats.stats
+											: null
+									}
+									statsLoading={
+										issueStats?.issueId === selectedIssue.id
+											? issueStats.loading
+											: true
+									}
+									onOpenStatsFile={openStatsFile}
+									boardStats={boardStats}
+									activity={issueActivity}
+									statsError={
+										issueStats?.issueId === selectedIssue.id
+											? issueStats.error
+											: null
+									}
+									onReopenIssue={reopenIssue}
+									onCloseIssue={closeIssue}
+									knownTags={state.tags ?? []}
+									knownAssignees={contributors}
+									onOpenAssigneePicker={requestContributors}
+								/>
+							)}
+					</div>
+
+					{theatre && (
+						<TheatrePlayer
+							plan={theatre}
+							playback={playback}
+							onExit={exitTheatre}
 						/>
 					)}
 
-					{!theatre &&
-						!commitDiff &&
-						!statsSwimlane &&
-						pickedIssues.length > 1 && (
-							<BulkDetails
-								dock={asideDock}
-								issues={pickedIssues}
-								knownTags={state?.tags ?? []}
-								knownAssignees={contributors}
-								tagName={bulkTagName}
-								assigneeName={bulkAssigneeName}
-								onChangeTagName={setBulkTagName}
-								onChangeAssigneeName={setBulkAssigneeName}
-								onAddTag={name => {
-									forPicked(id => addIssueTag(id, name));
-									setBulkTagName('');
-								}}
-								onRemoveTag={tagId =>
-									forPicked(id => removeIssueTag(id, tagId))
-								}
-								onAddAssignee={assigneeId =>
-									forPicked(id => addIssueAssignee(id, assigneeId))
-								}
-								onRemoveAssignee={assigneeId =>
-									forPicked(id => removeIssueAssignee(id, assigneeId))
-								}
-								onCloseIssues={() => {
-									// Skips the ones already closed: the event log would otherwise
-									// carry a second "Closed" for each of them.
-									for (const issue of pickedIssues) {
-										if (!issue.isClosed) closeIssue(issue.id);
-									}
-									clearPicked();
-								}}
-								onReopenIssues={() => {
-									for (const issue of pickedIssues) {
-										if (issue.isClosed) reopenIssue(issue.id);
-									}
-									clearPicked();
-								}}
-								onClear={clearPicked}
-							/>
-						)}
+					{createIssueModal && (
+						<CreateNodeModal
+							eyebrow="New issue"
+							fieldLabel="title"
+							placeholder="issue name"
+							title={createIssueModal.title}
+							onChangeTitle={title =>
+								setCreateIssueModal(prev => (prev ? {...prev, title} : prev))
+							}
+							onCreate={createIssue}
+							onClose={() => setCreateIssueModal(null)}
+						/>
+					)}
 
-					{!theatre &&
-						!commitDiff &&
-						!statsSwimlane &&
-						pickedIssues.length <= 1 &&
-						selectedIssue &&
-						state?.user && (
-							<IssueDetails
-								dock={asideDock}
-								onDock={setAsideDock}
-								whoAmI={state.user}
-								issue={((): GuiIssue => {
-									const base =
-										issueDetail?.issueId === selectedIssue.id
-											? {...selectedIssue, description: issueDetail.description}
-											: selectedIssue;
+					{renameSwimlane && (
+						<CreateNodeModal
+							eyebrow="Rename swimlane"
+							fieldLabel="title"
+							placeholder="swimlane name"
+							confirmLabel="rename"
+							title={renameSwimlane.title}
+							onChangeTitle={title =>
+								setRenameSwimlane(prev => (prev ? {...prev, title} : prev))
+							}
+							onCreate={submitRenameSwimlane}
+							onClose={() => setRenameSwimlane(null)}
+						/>
+					)}
 
-									return offline ? {...base, readonly: true} : base;
-								})()}
-								activeTab={selectedTab}
-								comments={
-									issueDetail?.issueId === selectedIssue.id
-										? issueDetail.comments
-										: []
-								}
-								onChangeTab={changeIssueDetailsTab}
-								onClose={closeIssueDetails}
-								timelineNarrowed={selection.ticketOnly}
-								timelineCapped={
-									selection.ticketOnly && !windowNamesIssues(history.timeline)
-								}
-								canNarrowTimeline={connected || selection.ticketOnly}
-								onChangeTimelineNarrowed={next =>
-									changeSelection({ticketOnly: next})
-								}
-								onEditTitle={editIssueTitle}
-								onEditDescription={editIssueDescription}
-								onAddTag={addIssueTag}
-								onRemoveTag={removeIssueTag}
-								onAddAssignee={addIssueAssignee}
-								onAddExternalAssignee={addExternalIssueAssignee}
-								onRemoveContributor={removeContributor}
-								onDeleteTag={removeTag}
-								onRemoveAssignee={removeIssueAssignee}
-								onAddComment={addIssueComment}
-								onDeleteComment={deleteIssueComment}
-								onEditComment={editIssueComment}
-								onFileTicket={fileTicketFromSelection}
-								onOpenDiffLocation={openDiffLocation}
-								diffFocus={diffFocus}
-								focusedCommentId={focusedCommentId}
-								attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
-								attachmentUploadStatus={attachmentUploadStatus}
-								onUploadAttachments={uploadIssueAttachments}
-								onDeleteAttachment={deleteIssueAttachment}
-								commits={
-									issueCommits?.issueId === selectedIssue.id
-										? issueCommits.commits
-										: []
-								}
-								// No entry for this ticket yet means its fetch is about to be
-								// sent, not that it has nothing.
-								commitsLoading={
-									issueCommits?.issueId === selectedIssue.id
-										? issueCommits.loading
-										: true
-								}
-								commitsError={
-									issueCommits?.issueId === selectedIssue.id
-										? issueCommits.error
-										: null
-								}
-								commitDiffsBySha={issueCommitDiffs}
-								onLoadCommitDiff={loadIssueCommitDiff}
-								diffView={{
-									compacted: compactedDiff,
-									onChangeCompacted: chooseDiffView,
-									squashed:
-										issueSquashedDiff?.issueId === selectedIssue.id
-											? issueSquashedDiff.diff
-											: null,
-									// No entry for this ticket yet means its fetch is about to
-									// be sent, not that it has nothing.
-									loading:
-										issueSquashedDiff?.issueId === selectedIssue.id
-											? issueSquashedDiff.loading
-											: true,
-									error:
-										issueSquashedDiff?.issueId === selectedIssue.id
-											? issueSquashedDiff.error
-											: null,
-								}}
-								stats={
-									issueStats?.issueId === selectedIssue.id
-										? issueStats.stats
-										: null
-								}
-								statsLoading={
-									issueStats?.issueId === selectedIssue.id
-										? issueStats.loading
-										: true
-								}
-								onOpenStatsFile={openStatsFile}
-								boardStats={boardStats}
-								activity={issueActivity}
-								statsError={
-									issueStats?.issueId === selectedIssue.id
-										? issueStats.error
-										: null
-								}
-								onReopenIssue={reopenIssue}
-								onCloseIssue={closeIssue}
-								knownTags={state.tags ?? []}
-								knownAssignees={contributors}
-								onOpenAssigneePicker={requestContributors}
-							/>
-						)}
+					{deletingSwimlane && (
+						<ConfirmModal
+							eyebrow="Delete swimlane"
+							heading={`Delete "${deletingSwimlane.title}"?`}
+							body={
+								deletingSwimlane.issues.length > 0
+									? `This also deletes the ${
+											deletingSwimlane.issues.length
+									  } ticket${
+											deletingSwimlane.issues.length === 1 ? '' : 's'
+									  } in it. Their history stays in the event log, but they leave the board.`
+									: 'The swimlane is empty, so nothing else goes with it.'
+							}
+							confirmLabel="delete"
+							onConfirm={confirmDeleteSwimlane}
+							onClose={() => setDeleteSwimlaneId(null)}
+						/>
+					)}
+
+					{reposOpen && (
+						<ManageReposModal
+							state={repos}
+							onAdd={repos.add}
+							onRemove={repos.remove}
+							onFetch={repos.fetchNow}
+							onClose={closeRepos}
+						/>
+					)}
+
+					{createBoardTitle !== null && (
+						<CreateNodeModal
+							eyebrow="New board"
+							fieldLabel="title"
+							placeholder="board name"
+							title={createBoardTitle}
+							onChangeTitle={setCreateBoardTitle}
+							onCreate={createBoard}
+							onClose={() => setCreateBoardTitle(null)}
+						/>
+					)}
+
+					{renameBoard && (
+						<CreateNodeModal
+							eyebrow="Rename board"
+							fieldLabel="title"
+							placeholder="board name"
+							confirmLabel="rename"
+							title={renameBoard.title}
+							onChangeTitle={title =>
+								setRenameBoard(prev => (prev ? {...prev, title} : prev))
+							}
+							onCreate={submitRenameBoard}
+							onClose={() => setRenameBoard(null)}
+						/>
+					)}
+
+					{createSwimlaneTitle !== null && (
+						<CreateNodeModal
+							eyebrow="New swimlane"
+							fieldLabel="title"
+							placeholder="swimlane name"
+							title={createSwimlaneTitle}
+							onChangeTitle={setCreateSwimlaneTitle}
+							onCreate={createSwimlane}
+							onClose={() => setCreateSwimlaneTitle(null)}
+						/>
+					)}
+
+					{commandPalette.open && (
+						<CommandPalette
+							commands={commands}
+							context={commandContext}
+							recentIds={recentCommands.ids}
+							onRun={command => recentCommands.remember(command.id)}
+							onClose={() => commandPalette.setOpen(false)}
+						/>
+					)}
 				</div>
-
-				{theatre && (
-					<TheatrePlayer
-						plan={theatre}
-						playback={playback}
-						onExit={exitTheatre}
-					/>
-				)}
-
-				{createIssueModal && (
-					<CreateNodeModal
-						eyebrow="New issue"
-						fieldLabel="title"
-						placeholder="issue name"
-						title={createIssueModal.title}
-						onChangeTitle={title =>
-							setCreateIssueModal(prev => (prev ? {...prev, title} : prev))
-						}
-						onCreate={createIssue}
-						onClose={() => setCreateIssueModal(null)}
-					/>
-				)}
-
-				{renameSwimlane && (
-					<CreateNodeModal
-						eyebrow="Rename swimlane"
-						fieldLabel="title"
-						placeholder="swimlane name"
-						confirmLabel="rename"
-						title={renameSwimlane.title}
-						onChangeTitle={title =>
-							setRenameSwimlane(prev => (prev ? {...prev, title} : prev))
-						}
-						onCreate={submitRenameSwimlane}
-						onClose={() => setRenameSwimlane(null)}
-					/>
-				)}
-
-				{deletingSwimlane && (
-					<ConfirmModal
-						eyebrow="Delete swimlane"
-						heading={`Delete "${deletingSwimlane.title}"?`}
-						body={
-							deletingSwimlane.issues.length > 0
-								? `This also deletes the ${
-										deletingSwimlane.issues.length
-								  } ticket${
-										deletingSwimlane.issues.length === 1 ? '' : 's'
-								  } in it. Their history stays in the event log, but they leave the board.`
-								: 'The swimlane is empty, so nothing else goes with it.'
-						}
-						confirmLabel="delete"
-						onConfirm={confirmDeleteSwimlane}
-						onClose={() => setDeleteSwimlaneId(null)}
-					/>
-				)}
-
-				{reposOpen && (
-					<ManageReposModal
-						state={repos}
-						onAdd={repos.add}
-						onRemove={repos.remove}
-						onFetch={repos.fetchNow}
-						onClose={closeRepos}
-					/>
-				)}
-
-				{createBoardTitle !== null && (
-					<CreateNodeModal
-						eyebrow="New board"
-						fieldLabel="title"
-						placeholder="board name"
-						title={createBoardTitle}
-						onChangeTitle={setCreateBoardTitle}
-						onCreate={createBoard}
-						onClose={() => setCreateBoardTitle(null)}
-					/>
-				)}
-
-				{renameBoard && (
-					<CreateNodeModal
-						eyebrow="Rename board"
-						fieldLabel="title"
-						placeholder="board name"
-						confirmLabel="rename"
-						title={renameBoard.title}
-						onChangeTitle={title =>
-							setRenameBoard(prev => (prev ? {...prev, title} : prev))
-						}
-						onCreate={submitRenameBoard}
-						onClose={() => setRenameBoard(null)}
-					/>
-				)}
-
-				{createSwimlaneTitle !== null && (
-					<CreateNodeModal
-						eyebrow="New swimlane"
-						fieldLabel="title"
-						placeholder="swimlane name"
-						title={createSwimlaneTitle}
-						onChangeTitle={setCreateSwimlaneTitle}
-						onCreate={createSwimlane}
-						onClose={() => setCreateSwimlaneTitle(null)}
-					/>
-				)}
-
-				{commandPalette.open && (
-					<CommandPalette
-						commands={commands}
-						context={commandContext}
-						recentIds={recentCommands.ids}
-						onRun={command => recentCommands.remember(command.id)}
-						onClose={() => commandPalette.setOpen(false)}
-					/>
-				)}
-			</div>
-		</TicketRefLinksProvider>
+			</TicketRefLinksProvider>
+		</RepoLabelsContext.Provider>
 	);
 };

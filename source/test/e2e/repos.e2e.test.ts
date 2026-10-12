@@ -50,23 +50,23 @@ describe('TUI repos e2e', () => {
 
 				git(upstream, 'init -q -b main');
 				const url = `file://${upstream}`;
-				const label = path.basename(upstream).toLowerCase();
 
-				await typeCommand(tui, `:config repoAdd ${url} branches=all`);
+				// One option: the line is drawn whole only while it fits the pane.
+				await typeCommand(tui, `:config repoAdd ${url} label=mirror`);
 				await tui.waitFor(commandLineIsIdle, 5_000);
 				await until(() => projectRepos(tui.cwd) !== undefined, 5_000);
 
 				expect(projectRepos(tui.cwd)).toEqual([
-					{url, branches: 'all', since: 'board'},
+					{url, branches: 'default', since: 'board', label: 'mirror'},
 				]);
 
 				// The hint offers it by name.
 				tui.input(':config repoRemove ');
-				await tui.waitFor(label, 4_000);
+				await tui.waitFor('mirror', 4_000);
 				tui.input('\x7f'.repeat(40));
 				await tui.waitFor(commandLineIsIdle, 4_000);
 
-				await typeCommand(tui, `:config repoRemove ${label}`);
+				await typeCommand(tui, ':config repoRemove mirror');
 				await until(() => projectRepos(tui.cwd) === undefined, 5_000);
 			} finally {
 				await tui.destroy();

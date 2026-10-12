@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {GuiSquashedDiff, GuiSquashedDiffFile} from '../lib/gui-state.model';
 import {repoPathKey, repoPathLabel} from '../lib/repo-label';
+import {useRepoLabel} from '../lib/use-repo-label';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
 import {
@@ -79,6 +80,7 @@ export const SquashedDiff = ({
 	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
 }) => {
+	const labelOf = useRepoLabel();
 	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 	const {isReviewed, setReviewed} = useReviewedFiles();
 
@@ -198,7 +200,9 @@ export const SquashedDiff = ({
 						: `${diff.overlappingPaths.length} files below carry`}{' '}
 					their changes too:{' '}
 					<span style={{fontFamily: CODE_FONT}}>
-						{diff.overlappingPaths.map(repoPathLabel).join(', ')}
+						{diff.overlappingPaths
+							.map(key => repoPathLabel(key, labelOf))
+							.join(', ')}
 					</span>
 					. Read those on the Commits view.
 				</Notice>

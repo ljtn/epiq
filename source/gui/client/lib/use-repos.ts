@@ -38,6 +38,14 @@ export const useRepos = ({
 		changed: 0,
 	});
 
+	// On connecting: chips and the repo filter read labels off the list before
+	// the panel is ever opened.
+	useEffect(() => {
+		// Once per socket: the epoch moves to 1 as the first one opens.
+		if (socketEpoch === 0) return;
+		sendRaw({type: 'repos:get'});
+	}, [sendRaw, socketEpoch]);
+
 	useEffect(() => {
 		if (!open) return;
 
@@ -51,9 +59,8 @@ export const useRepos = ({
 		(message: any) => {
 			if (message.type === 'repos:changed') {
 				setState(prev => ({...prev, changed: prev.changed + 1}));
-				// A fetch that ran on another client's sync changes this panel's
-				// clone status too.
-				if (open) sendRaw({type: 'repos:get'});
+				// The list itself may have moved: a label, an option, a repo gone.
+				sendRaw({type: 'repos:get'});
 				return;
 			}
 
@@ -91,7 +98,12 @@ export const useRepos = ({
 	);
 
 	const add = useCallback(
-		(payload: {url: string; branches?: 'default' | 'all'; since?: string}) => {
+		(payload: {
+			url: string;
+			branches?: 'default' | 'all';
+			since?: string;
+			label?: string;
+		}) => {
 			setState(prev => ({...prev, lastAction: null}));
 			sendRaw({type: 'repo:add', payload});
 		},
