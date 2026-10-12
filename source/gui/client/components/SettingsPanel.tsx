@@ -25,6 +25,10 @@ import {SectionRule} from './SectionRule';
 
 export type SettingsSection = 'identity' | 'addresses' | 'sync' | 'repos';
 
+// What the panel was opened for: a section, unfolded and scrolled to, or the
+// overview — the gear — with every card folded.
+export type SettingsFocus = SettingsSection | 'overview';
+
 export type SettingsSectionSpec = {
 	id: SettingsSection;
 	title: string;
@@ -171,7 +175,7 @@ export const SettingsPanel = ({
 	onClose,
 }: {
 	// Which section the panel was opened for: unfolded and scrolled to.
-	section: SettingsSection;
+	section: SettingsFocus;
 	sections: SettingsSectionSpec[];
 	// The topbar, which this sits under: its triggers stay in reach.
 	below: React.RefObject<HTMLElement | null>;
@@ -183,7 +187,7 @@ export const SettingsPanel = ({
 	const panel = useDismissOnOutsideClick(true, onClose, keepOpenFor);
 	const scroller = useRef<HTMLDivElement | null>(null);
 	const [open, setOpen] = useState<ReadonlySet<SettingsSection>>(
-		() => new Set([section]),
+		() => new Set(section === 'overview' ? [] : [section]),
 	);
 	const [top, setTop] = useState(0);
 
@@ -199,8 +203,10 @@ export const SettingsPanel = ({
 		return () => window.removeEventListener('resize', place);
 	}, [below]);
 
-	// Asked for again while open — the other trigger — unfolds its section too.
+	// Asked for again while open — another trigger — unfolds its section too.
 	useEffect(() => {
+		if (section === 'overview') return;
+
 		setOpen(prev => (prev.has(section) ? prev : new Set([...prev, section])));
 	}, [section]);
 
@@ -211,7 +217,7 @@ export const SettingsPanel = ({
 	// also what the holding causes.
 	useEffect(() => {
 		const pane = scroller.current;
-		if (!pane) return;
+		if (!pane || section === 'overview') return;
 
 		let held = true;
 		const hold = () => {

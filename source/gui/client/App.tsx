@@ -117,7 +117,7 @@ import {useRepos} from './lib/use-repos';
 import {RepoLabelsContext} from './lib/use-repo-label';
 import {useCommitRepoFilter} from './lib/commit-repo-filter';
 import {ReposSettings} from './components/ReposSettings';
-import {SettingsPanel, SettingsSection} from './components/SettingsPanel';
+import {SettingsFocus, SettingsPanel} from './components/SettingsPanel';
 import {IdentitySettings} from './components/IdentitySettings';
 import {actorDisplay} from './lib/agent-identity';
 import {IdentityAddresses} from './components/IdentityPanel';
@@ -462,16 +462,16 @@ export const App = () => {
 
 	// The settings panel: behind the header's avatar and its repo count, and
 	// the palette. Everything it shows is fetched on opening it.
-	const [settings, setSettings] = useState<SettingsSection | null>(null);
+	const [settings, setSettings] = useState<SettingsFocus | null>(null);
 	const settingsOpen = settings !== null;
 	const closeSettings = useCallback(() => setSettings(null), []);
 	// Its triggers toggle it: open at their section, or closed from there.
-	const toggleSettings = (section: SettingsSection) =>
+	const toggleSettings = (section: SettingsFocus) =>
 		setSettings(current => (current === section ? null : section));
 	// The controls that open it, which a click on must not count as outside,
 	// and the topbar it sits under.
 	const avatarRef = useRef<HTMLDivElement | null>(null);
-	const repoCountRef = useRef<HTMLButtonElement | null>(null);
+	const gearRef = useRef<HTMLSpanElement | null>(null);
 	const topbarRef = useRef<HTMLDivElement | null>(null);
 	const contributorEmails = useContributorEmails({
 		open: settingsOpen,
@@ -1721,7 +1721,7 @@ export const App = () => {
 			createBoard: () => setCreateBoardTitle(''),
 			renameBoard: openRenameBoard,
 			openRepos: () => setSettings('repos'),
-			openSettings: () => setSettings('identity'),
+			openSettings: () => setSettings('overview'),
 			openIssue: (id: string, boardRef: string) =>
 				openIssueTab(id, 'overview', boardRef),
 			closeIssue,
@@ -1916,12 +1916,6 @@ export const App = () => {
 								scrubbing={state?.timeTravel?.mode === 'scrub'}
 								syncStatus={syncStatus}
 								onOpenCommands={() => commandPalette.setOpen(true)}
-								repos={{
-									// The board's own repo, and the linked ones.
-									count: repos.data ? repos.data.length + 1 : null,
-									onToggle: () => toggleSettings('repos'),
-									ref: repoCountRef,
-								}}
 								board={
 									<Dropdown
 										testId="board-switcher"
@@ -1953,6 +1947,10 @@ export const App = () => {
 										onSelect={selectBoard}
 									/>
 								}
+								settings={{
+									onToggle: () => toggleSettings('overview'),
+									ref: gearRef,
+								}}
 								identity={{
 									onToggle: () => toggleSettings('identity'),
 									ref: avatarRef,
@@ -2467,7 +2465,7 @@ export const App = () => {
 						<SettingsPanel
 							section={settings}
 							below={topbarRef}
-							keepOpenFor={[avatarRef, repoCountRef]}
+							keepOpenFor={[gearRef, avatarRef]}
 							onClose={closeSettings}
 							sections={[
 								{
