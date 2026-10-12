@@ -21,6 +21,7 @@ export const Dropdown = ({
 	onSelect,
 	testId,
 	portalInto,
+	width = TRIGGER_WIDTH,
 }: {
 	value?: DropdownItem | null;
 	items: DropdownItem[];
@@ -31,6 +32,8 @@ export const Dropdown = ({
 	testId?: string;
 	// Inside a modal: the panel the popover must stack above. See Menu.
 	portalInto?: () => HTMLElement | null;
+	// Narrower where the panel is: the settings panel's rows.
+	width?: number;
 }) => (
 	// Portalled: this sits in the topbar, which clips its children.
 	<Menu
@@ -38,7 +41,7 @@ export const Dropdown = ({
 		portalInto={portalInto}
 		label={value?.label ?? placeholder}
 		title={value?.label}
-		width={TRIGGER_WIDTH}
+		width={width}
 		testId={testId}
 		chevronSize={14}
 		// The header's size, not the scrubber's: this names the whole board.

@@ -269,6 +269,24 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		run: context => context.handlers.openRepos(),
 	},
 	{
+		// The same panel at its top: who the viewer is, and what this machine
+		// does on its own.
+		id: 'gui:settings',
+		title: 'Settings',
+		group: 'Board',
+		keywords: [
+			'identity',
+			'sync',
+			'autosync',
+			'git addresses',
+			'claim',
+			'profile',
+			'preferences',
+		],
+		unavailable: context => (context.connected ? null : 'Not connected'),
+		run: context => context.handlers.openSettings(),
+	},
+	{
 		// The TUI replays the log into the terminal; here it is the player that
 		// already exists, over the window the scrubber is showing.
 		id: CmdKeywords.REPLAY,

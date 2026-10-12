@@ -116,7 +116,8 @@ import {useSyncSettings} from './lib/use-sync-settings';
 import {useRepos} from './lib/use-repos';
 import {RepoLabelsContext} from './lib/use-repo-label';
 import {useCommitRepoFilter} from './lib/commit-repo-filter';
-import {ManageReposModal} from './components/ManageReposModal';
+import {ReposSettings} from './components/ReposSettings';
+import {SettingsPanel, SettingsSection} from './components/SettingsPanel';
 import {IdentityPanel} from './components/IdentityPanel';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useBoardEditing} from './lib/use-board-editing';
@@ -456,22 +457,22 @@ export const App = () => {
 		onMessage: onTicketPreviewMessage,
 	} = useTicketPreviews({state, sendRaw});
 
-	// Behind the header's avatar, which named the viewer and did nothing else.
-	const [identityOpen, setIdentityOpen] = useState(false);
+	// The settings panel: behind the header's avatar and its repo count, and
+	// the palette. Everything it shows is fetched on opening it.
+	const [settings, setSettings] = useState<SettingsSection | null>(null);
+	const settingsOpen = settings !== null;
+	const closeSettings = useCallback(() => setSettings(null), []);
 	const contributorEmails = useContributorEmails({
-		open: identityOpen,
+		open: settingsOpen,
 		sendRaw,
 	});
 	// The other two things the panel answers for: what this machine has been
 	// asked to do on its own, and what the viewer has done here. Both fetched
 	// on opening it, and the totals again after a claim — which is what moves
 	// the commit figure without the board changing at all.
-	const syncSettings = useSyncSettings({open: identityOpen, sendRaw});
-	// The other repos whose commits count as the board's, behind the header's
-	// count and the palette.
-	const [reposOpen, setReposOpen] = useState(false);
-	const repos = useRepos({open: reposOpen, sendRaw, socketEpoch});
-	const closeRepos = useCallback(() => setReposOpen(false), []);
+	const syncSettings = useSyncSettings({open: settingsOpen, sendRaw});
+	// The other repos whose commits count as the board's.
+	const repos = useRepos({open: settingsOpen, sendRaw, socketEpoch});
 	const registeredRepoIds = useMemo(
 		() => repos.data?.map(repo => repo.id) ?? null,
 		[repos.data],
@@ -482,7 +483,7 @@ export const App = () => {
 		[repos.data],
 	);
 	const personalStats = usePersonalStats({
-		open: identityOpen,
+		open: settingsOpen,
 		changed: contributorEmails.changed,
 		sendRaw,
 	});
@@ -1708,7 +1709,8 @@ export const App = () => {
 			createSwimlane: () => setCreateSwimlaneTitle(''),
 			createBoard: () => setCreateBoardTitle(''),
 			renameBoard: openRenameBoard,
-			openRepos: () => setReposOpen(true),
+			openRepos: () => setSettings('repos'),
+			openSettings: () => setSettings('identity'),
 			openIssue: (id: string, boardRef: string) =>
 				openIssueTab(id, 'overview', boardRef),
 			closeIssue,
@@ -1903,7 +1905,7 @@ export const App = () => {
 								repos={{
 									// The board's own repo, and the linked ones.
 									count: repos.data ? repos.data.length + 1 : null,
-									onOpen: () => setReposOpen(true),
+									onOpen: () => setSettings('repos'),
 								}}
 								board={
 									<Dropdown
@@ -1936,22 +1938,7 @@ export const App = () => {
 										onSelect={selectBoard}
 									/>
 								}
-								identity={{
-									open: identityOpen,
-									onToggle: () => setIdentityOpen(open => !open),
-									onDismiss: () => setIdentityOpen(false),
-									panel: (
-										<IdentityPanel
-											state={contributorEmails}
-											stats={personalStats}
-											settings={syncSettings}
-											me={state?.user ?? null}
-											onLink={contributorEmails.link}
-											onUnlink={contributorEmails.unlink}
-											onChangeSettings={syncSettings.change}
-										/>
-									),
-								}}
+								onOpenIdentity={() => setSettings('identity')}
 							/>
 						</div>
 
@@ -2458,13 +2445,23 @@ export const App = () => {
 						/>
 					)}
 
-					{reposOpen && (
-						<ManageReposModal
-							state={repos}
-							onAdd={repos.add}
-							onRemove={repos.remove}
-							onClose={closeRepos}
-						/>
+					{settings && (
+						<SettingsPanel section={settings} onClose={closeSettings}>
+							<IdentityPanel
+								state={contributorEmails}
+								stats={personalStats}
+								settings={syncSettings}
+								me={state?.user ?? null}
+								onLink={contributorEmails.link}
+								onUnlink={contributorEmails.unlink}
+								onChangeSettings={syncSettings.change}
+							/>
+							<ReposSettings
+								state={repos}
+								onAdd={repos.add}
+								onRemove={repos.remove}
+							/>
+						</SettingsPanel>
 					)}
 
 					{createBoardTitle !== null && (

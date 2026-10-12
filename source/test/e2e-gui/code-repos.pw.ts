@@ -42,7 +42,7 @@ const openRepos = async (page: Page) => {
 	await expect(page.getByTestId('command-palette')).toBeVisible();
 	await page.keyboard.type('Link repo');
 	await page.keyboard.press('Enter');
-	await expect(page.getByTestId('repos-modal')).toBeVisible();
+	await expect(page.getByTestId('settings-panel')).toBeVisible();
 };
 
 /** Opens the slot at the end of the list that takes a URL. */
@@ -86,7 +86,7 @@ test('a repo added from the palette brings its commits to the ticket they name',
 		// The header counts them, the board's own repo included.
 		await expect(page.getByTestId('linked-repos')).toHaveText('1 repo');
 		await openRepos(page);
-		const modal = page.getByTestId('repos-modal');
+		const modal = page.getByTestId('settings-panel');
 
 		// The board's own repo is shown, and is not one of the linked rows:
 		// nothing to remove, nothing to set.
@@ -166,7 +166,7 @@ test("a repo that cannot be fetched says git's reason, and a bad URL is refused 
 
 	await withProjectFile(repoRoot, async () => {
 		await openRepos(page);
-		const modal = page.getByTestId('repos-modal');
+		const modal = page.getByTestId('settings-panel');
 
 		await startLink(page);
 		// Checked as typed, by the rule the server refuses it by: nothing is
@@ -207,7 +207,7 @@ test('a repo’s options are written when they change, and only then', async ({
 
 	await withProjectFile(repoRoot, async projectFile => {
 		await openRepos(page);
-		const modal = page.getByTestId('repos-modal');
+		const modal = page.getByTestId('settings-panel');
 		await startLink(page);
 		await modal.getByTestId('repo-url').fill(url);
 		await modal.getByTestId('add-repo').click();
@@ -274,7 +274,7 @@ test('the panel keeps focus where it is put while the page redraws', async ({
 
 	await withProjectFile(repoRoot, async () => {
 		await openRepos(page);
-		const modal = page.getByTestId('repos-modal');
+		const modal = page.getByTestId('settings-panel');
 		await startLink(page);
 		await modal
 			.getByTestId('repo-url')
@@ -320,7 +320,7 @@ test('the Code series drops a repo whose box is unticked', async ({
 
 	await withProjectFile(repoRoot, async () => {
 		await openRepos(page);
-		const modal = page.getByTestId('repos-modal');
+		const modal = page.getByTestId('settings-panel');
 		await startLink(page);
 		await modal.getByTestId('repo-url').fill(`file://${upstream}`);
 		await modal.getByTestId('add-repo').click();
@@ -378,7 +378,7 @@ test('a repo labelled in the panel is named so on its commits and in the filter'
 
 	await withProjectFile(repoRoot, async projectFile => {
 		await openRepos(page);
-		const modal = page.getByTestId('repos-modal');
+		const modal = page.getByTestId('settings-panel');
 		await startLink(page);
 		await modal.getByTestId('repo-url').fill(`file://${upstream}`);
 		await modal.getByTestId('add-repo').click();

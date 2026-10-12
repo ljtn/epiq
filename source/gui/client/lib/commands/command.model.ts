@@ -73,6 +73,7 @@ export type CommandHandlers = {
 	createBoard: () => void;
 	renameBoard: () => void;
 	openRepos: () => void;
+	openSettings: () => void;
 };
 
 export type GuiCommand = {
