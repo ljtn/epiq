@@ -36,13 +36,13 @@ import {
 	removeRepo,
 } from '../../../mcp/epiq-api.js';
 import {
-	describeFetchFailures,
 	REPO_UNCHANGED,
 	getCommitDiff,
 	getCommitsForRef,
 	getCommitTimeline,
 	getSquashedDiffForRef,
 	openCommitDiffInEditor,
+	readOwnRepo,
 } from '../../../lib/commits/commits.js';
 import {
 	checkoutStateAt,
@@ -140,27 +140,6 @@ const broadcastFetchOutcomes = (
 };
 
 /** What one press of "fetch now" came to, in a line. */
-const describeFetch = (
-	outcomes: Awaited<ReturnType<typeof fetchRepos>>,
-): {ok: boolean; message: string} => {
-	if (isFail(outcomes)) return {ok: false, message: outcomes.message};
-
-	const fetched = outcomes.value.filter(
-		outcome => outcome.ok && !outcome.skipped,
-	);
-	const notes = [
-		fetched.length > 0
-			? `Fetched ${fetched.length} repo${fetched.length === 1 ? '' : 's'}`
-			: null,
-		describeFetchFailures(outcomes.value),
-	].filter(Boolean);
-
-	return {
-		ok: outcomes.value.every(outcome => outcome.ok && !outcome.skipped),
-		message: notes.join(' · ') || 'Nothing to fetch',
-	};
-};
-
 const sendSocket = (socket: WebSocket, body: unknown) => {
 	socket.send(JSON.stringify(body));
 };
@@ -457,9 +436,17 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'repos:get') {
+					// The own repo first: it is a git call, and a change handled
+					// while it ran would otherwise be sent after its answer with a
+					// list read before it — and the panel would take the stale one.
+					// The list is read in the same turn as it is sent.
+					const own = await readOwnRepo(repoRoot);
+
 					return sendSocket(socket, {
 						type: 'repos',
 						payload: await listRepos({repoRoot}),
+						// Beside the linked ones in the panel, and counted with them.
+						own,
 					});
 				}
 
@@ -484,18 +471,6 @@ export const setupWebsocket = (
 					}
 
 					return;
-				}
-
-				if (type === 'repos:fetch') {
-					const result = await fetchRepos({repoRoot});
-
-					sendSocket(socket, {
-						type: 'repos',
-						payload: await listRepos({repoRoot}),
-						lastAction: describeFetch(result),
-					});
-
-					return broadcastFetchOutcomes(result);
 				}
 
 				if (type === 'issue:commits:get') {

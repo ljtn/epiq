@@ -209,6 +209,14 @@ export type GuiSquashedDiffFile = GuiCommitDiffFile & {
 };
 
 /** Another repo whose commits count as the board's, and this machine's clone of it. */
+// The board's own repo: never registered, read from the checkout itself.
+export type GuiOwnRepo = {
+	label: string;
+	/** Its origin, or null when the checkout has none. */
+	url: string | null;
+	path: string;
+};
+
 export type GuiRepo = {
 	id: string;
 	label: string;

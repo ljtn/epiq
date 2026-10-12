@@ -124,7 +124,6 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 		z.object({sha: z.string(), repo: z.string().max(80).optional()}),
 	),
 	bare('repos:get'),
-	bare('repos:fetch'),
 	message(
 		'repo:add',
 		z.object({

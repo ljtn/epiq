@@ -1,18 +1,7 @@
 import React, {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 
-export const Button = ({
-	children,
-	variant = 'default',
-	tint,
-	held = false,
-	dense = false,
-	style,
-	onMouseEnter,
-	onMouseLeave,
-	testId,
-	...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 	// `primary` is the button that commits a form — one per row, and the only
 	// one with a body. `ghost` is what dismisses it, and what inline controls
 	// in a header or a card row take. Everything else is `default`.
@@ -36,74 +25,96 @@ export const Button = ({
 	// room; a card shows them in a column of thirty, where the row of tags is
 	// the card's height and every step of padding is paid for down the board.
 	dense?: boolean;
-}) => {
-	const [hovered, setHovered] = useState(false);
-
-	const isPrimary = variant === 'primary';
-
-	// Four steps of the same wash: resting, under the pointer, held, and held
-	// under the pointer. The border climbs faster than the fill — it is the edge
-	// that says which chip you are on, while the fill stays behind the name.
-	const wash = held ? (hovered ? '4d' : '3d') : hovered ? '2b' : '1c';
-	const edge = held ? 'ff' : hovered ? '7a' : '3d';
-
-	return (
-		<button
-			data-testid={testId}
-			{...props}
-			onMouseEnter={event => {
-				setHovered(true);
-				onMouseEnter?.(event);
-			}}
-			onMouseLeave={event => {
-				setHovered(false);
-				onMouseLeave?.(event);
-			}}
-			style={{
-				appearance: 'none',
-				WebkitAppearance: 'none',
-				background: tint
-					? `${tint}${wash}`
-					: isPrimary
-					? hovered
-						? GUI_THEME.raisedHover
-						: GUI_THEME.raised
-					: hovered
-					? GUI_THEME.hover
-					: 'transparent',
-				color: GUI_THEME.secondary,
-				border: tint
-					? `1px solid ${tint}${edge}`
-					: isPrimary
-					? `none`
-					: variant === 'ghost' && !hovered
-					? '1px solid transparent'
-					: `1px solid ${hovered ? GUI_THEME.secondary : GUI_THEME.line}`,
-				borderRadius: variant === 'chip' ? 999 : 6,
-				cursor: props.disabled ? 'default' : 'pointer',
-				// One box for every variant that draws one, so a row mixing them
-				// reads as one set of controls rather than three.
-				padding: dense
-					? '2px 8px'
-					: variant === 'ghost'
-					? '3px 6px'
-					: '5px 9px',
-				fontFamily: 'inherit',
-				fontSize: dense ? 11 : 12,
-				// One weight for every button in a row. `primary` already has a body
-				// where the others have an outline or nothing, and that is the whole
-				// difference — setting it in bold as well said the same thing twice,
-				// and at 12px read as shouting next to the two beside it.
-				fontWeight: 400,
-				lineHeight: 1,
-				transition:
-					'color 120ms ease, background 120ms ease, border-color 120ms ease',
-				outline: 'none',
-				opacity: props.disabled ? 0.7 : 1,
-				...style,
-			}}
-		>
-			{children}
-		</button>
-	);
 };
+
+// Forwards its ref: a modal that opens on one of its buttons has to focus it.
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+	(
+		{
+			children,
+			variant = 'default',
+			tint,
+			held = false,
+			dense = false,
+			style,
+			onMouseEnter,
+			onMouseLeave,
+			testId,
+			...props
+		},
+		ref,
+	) => {
+		const [hovered, setHovered] = useState(false);
+
+		const isPrimary = variant === 'primary';
+
+		// Four steps of the same wash: resting, under the pointer, held, and held
+		// under the pointer. The border climbs faster than the fill — it is the edge
+		// that says which chip you are on, while the fill stays behind the name.
+		const wash = held ? (hovered ? '4d' : '3d') : hovered ? '2b' : '1c';
+		const edge = held ? 'ff' : hovered ? '7a' : '3d';
+
+		return (
+			<button
+				ref={ref}
+				data-testid={testId}
+				{...props}
+				onMouseEnter={event => {
+					setHovered(true);
+					onMouseEnter?.(event);
+				}}
+				onMouseLeave={event => {
+					setHovered(false);
+					onMouseLeave?.(event);
+				}}
+				style={{
+					appearance: 'none',
+					WebkitAppearance: 'none',
+					background: tint
+						? `${tint}${wash}`
+						: isPrimary
+						? hovered
+							? GUI_THEME.raisedHover
+							: GUI_THEME.raised
+						: hovered
+						? GUI_THEME.hover
+						: 'transparent',
+					color: GUI_THEME.secondary,
+					border: tint
+						? `1px solid ${tint}${edge}`
+						: isPrimary
+						? `none`
+						: variant === 'ghost' && !hovered
+						? '1px solid transparent'
+						: `1px solid ${hovered ? GUI_THEME.secondary : GUI_THEME.line}`,
+					borderRadius: variant === 'chip' ? 999 : 6,
+					cursor: props.disabled ? 'default' : 'pointer',
+					// One box for every variant that draws one, so a row mixing them
+					// reads as one set of controls rather than three.
+					padding: dense
+						? '2px 8px'
+						: variant === 'ghost'
+						? '3px 6px'
+						: '5px 9px',
+					fontFamily: 'inherit',
+					fontSize: dense ? 11 : 12,
+					// One weight for every button in a row. `primary` already has a body
+					// where the others have an outline or nothing, and that is the whole
+					// difference — setting it in bold as well said the same thing twice,
+					// and at 12px read as shouting next to the two beside it.
+					fontWeight: 400,
+					lineHeight: 1,
+					transition:
+						'color 120ms ease, background 120ms ease, border-color 120ms ease',
+					outline: 'none',
+					opacity: props.disabled ? 0.7 : 1,
+					...style,
+				}}
+			>
+				{children}
+			</button>
+		);
+	},
+);
+
+Button.displayName = 'Button';

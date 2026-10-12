@@ -29,9 +29,9 @@ type HeaderProps = {
 		onDismiss: () => void;
 		panel: React.ReactNode;
 	};
-	// How many other repos' commits count as the board's, and the panel that
-	// links them. Null until the server has said, which is also before the
-	// panel could do anything.
+	// How many repos the board reads commits from, its own included, and the
+	// panel that links more. Null until the server has said, which is also
+	// before the panel could do anything.
 	repos: {count: number | null; onOpen: () => void};
 };
 
@@ -165,9 +165,9 @@ export const Header = ({
 						}}
 					>
 						{/* The one place the linked repos show before a commit of theirs
-						    does: a count, and the way to the panel. With none linked it
-						    says what the panel is for instead, since a board with no
-						    other repos would otherwise never mention that it could have. */}
+						    does: a count, and the way to the panel. The board's own repo
+						    is one of them, so it never reads as zero — and the panel it
+						    opens is where a board with one finds out it could have more. */}
 						{repos.count !== null && connection === 'connected' && (
 							<>
 								<Button
@@ -176,9 +176,7 @@ export const Header = ({
 									onClick={repos.onOpen}
 									style={{color: GUI_THEME.dim, fontSize: 11}}
 								>
-									{repos.count === 0
-										? 'link a repo'
-										: `${repos.count} repo${repos.count === 1 ? '' : 's'}`}
+									{`${repos.count} repo${repos.count === 1 ? '' : 's'}`}
 								</Button>
 								<span style={{color: GUI_THEME.dim}}>|</span>
 							</>

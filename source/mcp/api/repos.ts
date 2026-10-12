@@ -8,7 +8,6 @@ import {
 	fetchCommitRepos,
 	listRepoStates,
 	registerCommitRepo,
-	REPO_UNCHANGED,
 	RepoBranches,
 	RepoFetchOutcome,
 	RepoState,
@@ -56,12 +55,7 @@ export const addRepo = async (
 	const listResult = listRepoStates(repoRootResult.value);
 	if (isFail(listResult)) return failed(listResult.message);
 
-	return addResult.message === REPO_UNCHANGED
-		? succeeded(REPO_UNCHANGED, listResult.value)
-		: succeeded(
-				`${addResult.message}. Commit .epiq/project.json to share it; it is fetched on the next sync.`,
-				listResult.value,
-		  );
+	return succeeded(addResult.message, listResult.value);
 };
 
 export const removeRepo = async (

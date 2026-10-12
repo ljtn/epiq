@@ -8,6 +8,8 @@ export const readHandoff = (workerIndex: number): Handoff =>
 export const test = base.extend<{
 	appUrl: string;
 	repoRoot: string;
+	// Where the server keeps the seeded project's state and its clones.
+	globalDir: string;
 	// A GUI served over a directory with no epiq project.
 	bareAppUrl: string;
 	bareRepoRoot: string;
@@ -22,6 +24,10 @@ export const test = base.extend<{
 
 	repoRoot: async ({page: _}, use, testInfo) => {
 		await use(readHandoff(testInfo.parallelIndex).repoRoot);
+	},
+
+	globalDir: async ({page: _}, use, testInfo) => {
+		await use(readHandoff(testInfo.parallelIndex).globalDir);
 	},
 
 	bareAppUrl: async ({page: _}, use, testInfo) => {

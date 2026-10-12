@@ -33,6 +33,8 @@ export {
 	type RepoSince,
 } from './commit-repos.js';
 
+export {readOwnRepo, type OwnRepo} from './own-repo.js';
+
 export {
 	describeFetchFailures,
 	fetchCommitRepos,

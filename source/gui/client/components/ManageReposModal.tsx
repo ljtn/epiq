@@ -2,10 +2,13 @@ import {useEffect, useRef, useState} from 'react';
 import {GuiRepo} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {manageRowStyle} from '../lib/manage-row.style';
 import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {ReposState} from '../lib/use-repos';
+import {repoUrlProblem, REPO_URL_FORMS} from '../../../lib/commits/repo-url.js';
 import {Button} from './Button';
+import {Dropdown} from './Dropdown';
+import {Input} from './FormPrimitives';
+import {IconLock} from './IconLock';
 import {IconTrash} from './IconTrash';
 
 type Props = {
@@ -17,19 +20,61 @@ type Props = {
 		label?: string;
 	}) => void;
 	onRemove: (repo: string) => void;
-	onFetch: () => void;
 	onClose: () => void;
 };
 
-const fieldStyle: React.CSSProperties = {
-	background: GUI_THEME.bg,
-	color: GUI_THEME.primary,
-	border: `1px solid ${GUI_THEME.line}`,
-	borderRadius: 4,
-	padding: '3px 6px',
-	font: 'inherit',
+// One grid for every row: a name column as wide as a Dropdown, so the second
+// line's first control sits under the name and its second under the details.
+const ROW_PADDING = 12;
+const COLUMN_GAP = 12;
+const NAME_WIDTH = 200;
+const LINE_GAP = 8;
+// The confirm button's own red, translucent enough that the name still reads.
+const ARMED_BACKGROUND = 'rgba(255, 135, 135, 0.14)';
+
+const rowStyle = (armed: boolean): React.CSSProperties => ({
+	display: 'flex',
+	alignItems: 'center',
+	gap: COLUMN_GAP,
+	padding: `${ROW_PADDING}px ${ROW_PADDING + 2}px`,
+	borderRadius: 8,
+	background: armed ? ARMED_BACKGROUND : GUI_THEME.hover,
+	// An inset ring rather than a border, so arming a row does not reflow it.
+	boxShadow: armed ? `inset 0 0 0 1px ${GUI_THEME.red}` : undefined,
+});
+
+const lineStyle: React.CSSProperties = {
+	display: 'flex',
+	alignItems: 'center',
+	gap: COLUMN_GAP,
+	minWidth: 0,
+};
+
+const nameStyle: React.CSSProperties = {
+	width: NAME_WIDTH,
+	flexShrink: 0,
+	fontSize: TEXT.ui,
+	overflow: 'hidden',
+	textOverflow: 'ellipsis',
+	whiteSpace: 'nowrap',
+};
+
+const detailStyle: React.CSSProperties = {
 	fontSize: TEXT.meta,
-	outline: 'none',
+	color: GUI_THEME.dim,
+	whiteSpace: 'nowrap',
+	overflow: 'hidden',
+	textOverflow: 'ellipsis',
+};
+
+// The right-hand column: the lock and the trash share one box, so the rows'
+// text starts and ends in line whichever a row carries.
+const controlStyle: React.CSSProperties = {
+	display: 'flex',
+	alignItems: 'center',
+	justifyContent: 'center',
+	width: 32,
+	flexShrink: 0,
 };
 
 const statusOf = (repo: GuiRepo): {text: string; color: string} => {
@@ -40,9 +85,7 @@ const statusOf = (repo: GuiRepo): {text: string; color: string} => {
 		};
 	}
 
-	if (!repo.cloned) {
-		return {text: 'not fetched yet — sync to fetch', color: GUI_THEME.dim};
-	}
+	if (!repo.cloned) return {text: 'not fetched yet', color: GUI_THEME.dim};
 
 	return {
 		text: repo.fetchedAt ? `fetched ${timeAgo(repo.fetchedAt)}` : 'cloned',
@@ -52,9 +95,22 @@ const statusOf = (repo: GuiRepo): {text: string; color: string} => {
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+const BRANCHES = [
+	{id: 'default', label: 'default branch'},
+	{id: 'all', label: 'all branches'},
+];
+
+const SINCE = [
+	{id: 'board', label: 'since the board'},
+	{id: 'all', label: 'all history'},
+	{id: 'date', label: 'since a date'},
+];
+
 // What the repo is called, changed in place: its URL's basename unless set,
-// which is how a fork and its upstream are told apart. The row keys this on
-// the label, so one changed elsewhere replaces the field, never gets sent back.
+// which is how a fork and its upstream are told apart. Drawn as the name it
+// is until focused, so the list reads as names rather than as a form. The row
+// keys this on the label, so one changed elsewhere replaces the field, never
+// gets sent back.
 const LabelField = ({
 	repo,
 	onChange,
@@ -63,6 +119,7 @@ const LabelField = ({
 	onChange: (label: string) => void;
 }) => {
 	const [label, setLabel] = useState(repo.label);
+	const [focused, setFocused] = useState(false);
 	// What was last sent: Enter and then a blur send one change, not two, and
 	// a refused one is not raised again by every blur after.
 	const sent = useRef<string | null>(null);
@@ -78,16 +135,34 @@ const LabelField = ({
 		<input
 			data-testid="repo-label"
 			aria-label={`What to call ${repo.url}`}
+			title="What this repo is called on the board — click to change it"
 			value={label}
 			maxLength={24}
 			onChange={event => setLabel(event.target.value)}
-			onBlur={send}
+			onFocus={() => setFocused(true)}
+			onBlur={() => {
+				setFocused(false);
+				send();
+			}}
 			onKeyDown={event => {
 				if (event.key !== 'Enter') return;
 				event.preventDefault();
 				send();
 			}}
-			style={{...fieldStyle, fontSize: 12, width: 160}}
+			style={{
+				// The shorthand first: it would reset the size set after it.
+				font: 'inherit',
+				...nameStyle,
+				color: GUI_THEME.primary,
+				background: focused ? GUI_THEME.bg : 'transparent',
+				border: `1px solid ${focused ? GUI_THEME.line : 'transparent'}`,
+				borderRadius: 4,
+				// Pulled left by its own padding, so the name sits where the own
+				// repo's plain one does.
+				padding: '2px 4px',
+				marginLeft: -5,
+				outline: 'none',
+			}}
 		/>
 	);
 };
@@ -97,32 +172,30 @@ const LabelField = ({
 const SinceField = ({
 	repo,
 	onChange,
+	portalInto,
 }: {
 	repo: GuiRepo;
 	onChange: (since: string) => void;
+	portalInto: () => HTMLElement | null;
 }) => {
 	const isDate = DATE.test(repo.since);
 	const [picking, setPicking] = useState(false);
+	const selected = isDate || picking ? 'date' : repo.since;
 
 	return (
-		<span style={{display: 'flex', alignItems: 'center', gap: 4}}>
-			<select
-				data-testid="repo-since"
-				value={isDate || picking ? 'date' : repo.since}
-				onChange={event => {
-					const next = event.target.value;
+		<span style={{display: 'flex', alignItems: 'center', gap: LINE_GAP}}>
+			<Dropdown
+				testId="repo-since"
+				portalInto={portalInto}
+				value={SINCE.find(item => item.id === selected) ?? null}
+				items={SINCE}
+				onSelect={next => {
 					if (next === 'date') return setPicking(true);
 
 					setPicking(false);
 					if (next !== repo.since) onChange(next);
 				}}
-				aria-label={`How much of ${repo.label} to clone`}
-				style={fieldStyle}
-			>
-				<option value="board">since the board</option>
-				<option value="all">all history</option>
-				<option value="date">since a date</option>
-			</select>
+			/>
 
 			{(isDate || picking) && (
 				<input
@@ -135,47 +208,59 @@ const SinceField = ({
 						// Leaving the field unchanged is not a change to send.
 						if (DATE.test(next) && next !== repo.since) onChange(next);
 					}}
-					style={fieldStyle}
+					style={{
+						background: GUI_THEME.bg,
+						color: GUI_THEME.primary,
+						border: `1px solid ${GUI_THEME.line}`,
+						borderRadius: 6,
+						padding: '4px 8px',
+						font: 'inherit',
+						fontSize: TEXT.ui,
+						outline: 'none',
+					}}
 				/>
 			)}
 		</span>
 	);
 };
 
-export const ManageReposModal = ({
-	state,
-	onAdd,
-	onRemove,
-	onFetch,
-	onClose,
-}: Props) => {
+export const ManageReposModal = ({state, onAdd, onRemove, onClose}: Props) => {
+	const [adding, setAdding] = useState(false);
 	const [url, setUrl] = useState('');
+	// Two-step: the first click arms one row, the second commits it. Arming by
+	// id rather than a boolean so moving to another row cancels the first.
 	const [armedId, setArmedId] = useState<string | null>(null);
-	const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-	// The URL sent, until its answer: cleared once it lands, kept if refused.
+	// The URL sent, until its answer: the row closes once it lands, and stays
+	// with its text if refused.
 	const sent = useRef<string | null>(null);
-	const urlField = useRef<HTMLInputElement>(null);
+	const linkButton = useRef<HTMLButtonElement>(null);
 
 	const repos = state.data ?? [];
+	const typed = url.trim();
+	const problem = typed ? repoUrlProblem(typed) : null;
 
 	useEffect(() => {
 		if (!state.lastAction || sent.current === null) return;
 
-		const was = sent.current;
 		sent.current = null;
 		if (state.lastAction.ok) {
-			setUrl(current => (current === was ? '' : current));
+			setUrl('');
+			setAdding(false);
 		}
 	}, [state.lastAction]);
 
 	// Escape from anywhere, or a click outside the panel.
 	const panel = useDismissOnOutsideClick(true, onClose);
+	// The dropdowns' popovers are drawn into the panel: above it, and inside.
+	const portalInto = () => panel.current;
 
-	// Focus on opening only, and back where it was on closing.
+	// Focus on opening only — not again whenever the button comes back after
+	// an add, which would take it from wherever it had been put — and back
+	// where it was on closing.
 	useEffect(() => {
 		const before = document.activeElement;
-		urlField.current?.focus();
+		linkButton.current?.focus();
 
 		return () => {
 			if (before instanceof HTMLElement && before.isConnected) before.focus();
@@ -183,10 +268,15 @@ export const ManageReposModal = ({
 	}, []);
 
 	const submit = () => {
-		if (!url.trim()) return;
+		if (!typed || problem) return;
 
 		sent.current = url;
-		onAdd({url: url.trim()});
+		onAdd({url: typed});
+	};
+
+	const cancelAdd = () => {
+		setUrl('');
+		setAdding(false);
 	};
 
 	return (
@@ -207,10 +297,10 @@ export const ManageReposModal = ({
 				data-testid="repos-modal"
 				role="dialog"
 				aria-modal="true"
-				aria-label="Linked repos"
+				aria-label="Manage repos"
 				style={{
 					marginTop: '-100px',
-					width: 560,
+					width: 640,
 					background: GUI_THEME.panel,
 					border: `1px solid ${GUI_THEME.line}`,
 					borderRadius: 12,
@@ -228,34 +318,57 @@ export const ManageReposModal = ({
 						textTransform: 'uppercase',
 					}}
 				>
-					Linked repos
+					Manage repos
 				</div>
 
 				<div style={{fontSize: 12, color: GUI_THEME.secondary}}>
-					Commits in these repos link to a ticket the same way this repo's do:
-					by the ticket's ref at the start of the subject. They are listed in{' '}
-					<code>.epiq/project.json</code> — commit it to share them — and
-					fetched on sync, once pushed.
+					Epiq can link other repositories: their commits show on the tickets
+					they name and in the timeline.
 				</div>
 
 				<div
 					style={{
 						display: 'flex',
 						flexDirection: 'column',
-						gap: 2,
-						maxHeight: 300,
+						gap: 6,
+						maxHeight: 320,
 						overflowY: 'auto',
 					}}
 				>
-					{repos.length === 0 && state.data && (
-						<div style={{fontSize: 12, color: GUI_THEME.dim}}>
-							Only this repo's commits are read.
+					{/* The board's own repo, listed first: the one every other row is
+					    linked to. Locked, since it is read from the checkout and there
+					    is nothing to set. */}
+					{state.own && (
+						<div data-testid="own-repo-row" style={rowStyle(false)}>
+							<span style={{...lineStyle, flex: 1}}>
+								<span style={{...nameStyle, color: GUI_THEME.secondary}}>
+									{state.own.label}
+								</span>
+								<span
+									style={{
+										...detailStyle,
+										color: GUI_THEME.accent,
+										flexShrink: 0,
+									}}
+								>
+									this repo
+								</span>
+								<span style={detailStyle}>
+									{state.own.url ?? state.own.path}
+								</span>
+							</span>
+
+							<span
+								title="The board's own repo — its commits are always read"
+								style={{...controlStyle, color: GUI_THEME.dim, opacity: 0.7}}
+							>
+								<IconLock />
+							</span>
 						</div>
 					)}
 
 					{repos.map(repo => {
 						const armed = armedId === repo.id;
-						const hovered = hoveredId === repo.id;
 						const status = statusOf(repo);
 
 						return (
@@ -263,122 +376,162 @@ export const ManageReposModal = ({
 								key={repo.id}
 								data-testid="repo-row"
 								data-armed={armed ? 'true' : 'false'}
-								onMouseEnter={() => setHoveredId(repo.id)}
-								onMouseLeave={() =>
-									setHoveredId(current =>
-										current === repo.id ? null : current,
-									)
-								}
-								style={{
-									...manageRowStyle({armed, hovered}),
-									alignItems: 'start',
-								}}
+								style={rowStyle(armed)}
 							>
-								<div
+								<span
 									style={{
 										display: 'flex',
 										flexDirection: 'column',
-										gap: 4,
+										gap: LINE_GAP,
 										minWidth: 0,
 										flex: 1,
 									}}
 								>
-									<LabelField
-										key={repo.label}
-										repo={repo}
-										onChange={label => onAdd({url: repo.url, label})}
-									/>
-									{/* Whole, wrapped rather than cut short: the host is not
-									    always at the start, and it is what says where this is. */}
-									<span
-										data-testid="repo-url-shown"
-										style={{
-											fontSize: TEXT.label,
-											color: GUI_THEME.dim,
-											overflowWrap: 'anywhere',
-										}}
-									>
-										{repo.url}
+									{/* Name and where it is on the first line; what is read
+									    from it on the second, each control under a column. */}
+									<span style={lineStyle}>
+										<LabelField
+											key={repo.label}
+											repo={repo}
+											onChange={label => onAdd({url: repo.url, label})}
+										/>
+										<span
+											data-testid="repo-url-shown"
+											title={repo.url}
+											style={{...detailStyle, minWidth: 0}}
+										>
+											{repo.url}
+										</span>
+										<span
+											data-testid="repo-status"
+											style={{
+												...detailStyle,
+												color: status.color,
+												flexShrink: 0,
+												marginLeft: 'auto',
+											}}
+										>
+											{status.text}
+										</span>
 									</span>
-									<span
-										data-testid="repo-status"
-										style={{fontSize: TEXT.label, color: status.color}}
-									>
-										{status.text}
-									</span>
-									<span style={{display: 'flex', gap: 6, paddingTop: 2}}>
-										<select
-											data-testid="repo-branches"
-											aria-label={`Branches of ${repo.label} to read`}
-											value={repo.branches}
-											onChange={event =>
+									<span style={lineStyle}>
+										<Dropdown
+											testId="repo-branches"
+											portalInto={portalInto}
+											value={BRANCHES.find(item => item.id === repo.branches)}
+											items={BRANCHES}
+											onSelect={next =>
 												onAdd({
 													url: repo.url,
-													branches: event.target.value as 'default' | 'all',
+													branches: next as 'default' | 'all',
 												})
 											}
-											style={fieldStyle}
-										>
-											<option value="default">default branch</option>
-											<option value="all">all branches</option>
-										</select>
+										/>
 										<SinceField
 											repo={repo}
+											portalInto={portalInto}
 											onChange={since => onAdd({url: repo.url, since})}
 										/>
 									</span>
-								</div>
+								</span>
 
-								<Button
-									variant="ghost"
-									testId="remove-repo"
-									title={
-										armed
-											? `Click again to stop reading ${repo.label}`
-											: `Remove ${repo.label}`
-									}
-									onClick={() => {
-										if (!armed) return setArmedId(repo.id);
+								<span style={controlStyle}>
+									<Button
+										variant="ghost"
+										testId="remove-repo"
+										title={
+											armed
+												? `Click again to stop reading ${repo.label}`
+												: `Remove ${repo.label}`
+										}
+										onClick={() => {
+											if (!armed) return setArmedId(repo.id);
 
-										onRemove(repo.id);
-										setArmedId(null);
-									}}
-									style={{
-										display: 'flex',
-										alignItems: 'center',
-										gap: 6,
-										color: armed ? GUI_THEME.red : GUI_THEME.dim,
-										...(armed ? {border: `1px solid ${GUI_THEME.red}`} : {}),
-									}}
-								>
-									{armed && <span style={{fontSize: 10}}>confirm</span>}
-									<IconTrash />
-								</Button>
+											onRemove(repo.id);
+											setArmedId(null);
+										}}
+										style={{
+											display: 'flex',
+											alignItems: 'center',
+											gap: 6,
+											color: armed ? GUI_THEME.red : GUI_THEME.dim,
+											// The whole shorthand, and only when armed: Button sets
+											// `border` itself, and React warns that an element given
+											// both it and `borderColor` can drop whichever loses the
+											// race. Spreading `border: undefined` is not the other
+											// branch — that reads as "remove this style".
+											...(armed ? {border: `1px solid ${GUI_THEME.red}`} : {}),
+										}}
+									>
+										{armed && <span style={{fontSize: 10}}>confirm</span>}
+										<IconTrash />
+									</Button>
+								</span>
 							</div>
 						);
 					})}
-				</div>
 
-				<form
-					onSubmit={event => {
-						event.preventDefault();
-						submit();
-					}}
-					style={{display: 'flex', gap: 8}}
-				>
-					<input
-						data-testid="repo-url"
-						ref={urlField}
-						aria-label="Remote URL of a repo to add"
-						value={url}
-						onChange={event => setUrl(event.target.value)}
-						placeholder="https://… or git@host:owner/repo.git"
-						style={{...fieldStyle, flex: 1, padding: '6px 8px'}}
-					/>
-					<Button variant="primary" testId="add-repo" type="submit">
-						Link
-					</Button>
-				</form>
+					{/* The row being added, drawn as the row it becomes. The URL is
+					    checked as it is typed by the rule the server refuses it by,
+					    so the answer is under the field before anything is sent. */}
+					{adding && (
+						<div data-testid="add-repo-row" style={rowStyle(false)}>
+							<span
+								style={{
+									display: 'flex',
+									flexDirection: 'column',
+									gap: LINE_GAP,
+									minWidth: 0,
+									flex: 1,
+								}}
+							>
+								<span style={lineStyle}>
+									<Input
+										data-testid="repo-url"
+										aria-label="Remote URL of a repo to link"
+										value={url}
+										autoFocus
+										placeholder="https://… or git@host:owner/repo.git"
+										// The ticket panel's field at this row's type size.
+										style={{fontSize: TEXT.ui, padding: '5px 8px'}}
+										onChange={event => setUrl(event.target.value)}
+										onKeyDown={event => {
+											if (event.key === 'Enter') submit();
+											if (event.key === 'Escape') {
+												// This row's, not the panel's.
+												event.stopPropagation();
+												cancelAdd();
+											}
+										}}
+									/>
+									<Button
+										testId="add-repo"
+										disabled={!typed || problem !== null}
+										onClick={submit}
+									>
+										link
+									</Button>
+									<Button variant="ghost" onClick={cancelAdd}>
+										cancel
+									</Button>
+								</span>
+								<span
+									data-testid={problem ? 'repo-url-problem' : undefined}
+									style={{
+										...detailStyle,
+										color: problem ? GUI_THEME.red : GUI_THEME.dim,
+									}}
+								>
+									{problem ? `That URL ${problem}.` : REPO_URL_FORMS}
+								</span>
+							</span>
+
+							{/* The control column, empty: the row's text ends in line
+							    with the rows above. */}
+							<span style={controlStyle} />
+						</div>
+					)}
+				</div>
 
 				{state.lastAction && (
 					<div
@@ -392,14 +545,25 @@ export const ManageReposModal = ({
 					</div>
 				)}
 
-				<div style={{display: 'flex', justifyContent: 'space-between'}}>
-					<Button
-						testId="fetch-repos"
-						disabled={repos.length === 0 || state.fetching}
-						onClick={onFetch}
-					>
-						{state.fetching ? 'fetching…' : 'fetch now'}
-					</Button>
+				<div
+					style={{
+						display: 'flex',
+						justifyContent: 'space-between',
+						alignItems: 'center',
+					}}
+				>
+					<span>
+						{!adding && (
+							<Button
+								variant="ghost"
+								testId="link-repo"
+								ref={linkButton}
+								onClick={() => setAdding(true)}
+							>
+								+ link a repo
+							</Button>
+						)}
+					</span>
 					<Button variant="ghost" onClick={onClose}>
 						close
 					</Button>
