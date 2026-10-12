@@ -21,7 +21,7 @@ import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
-import {Menu, MenuItem} from './Menu';
+import {Menu, MenuItem, MenuSection} from './Menu';
 import {useRepoLabel} from '../lib/use-repo-label';
 import {showsRepoToggles} from '../lib/commit-repo-filter';
 
@@ -471,7 +471,8 @@ export const CommitSeriesGroup = ({
 
 				return (
 					<>
-						{/* Two groups, each labelled: the list asks two questions. */}
+						{/* Each group under its question: the list asks three. */}
+						<MenuSection label="Commits" />
 						<div
 							role="radiogroup"
 							aria-label="Which commits to plot"
@@ -496,11 +497,7 @@ export const CommitSeriesGroup = ({
 							</MenuItem>
 						</div>
 
-						<div
-							aria-hidden
-							style={{height: 1, background: GUI_THEME.line, margin: '3px 0'}}
-						/>
-
+						<MenuSection label="Bars" />
 						<div
 							role="radiogroup"
 							aria-label="What the bars measure"
@@ -526,15 +523,7 @@ export const CommitSeriesGroup = ({
 
 						{showsRepoToggles(repos) && (
 							<>
-								<div
-									aria-hidden
-									style={{
-										height: 1,
-										background: GUI_THEME.line,
-										margin: '3px 0',
-									}}
-								/>
-
+								<MenuSection label="Repos" />
 								{/* Several can be on at once, so this group stays open
 								    while it is changed. */}
 								<div
