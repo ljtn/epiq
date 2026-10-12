@@ -468,7 +468,8 @@ export const App = () => {
 	// on opening it, and the totals again after a claim — which is what moves
 	// the commit figure without the board changing at all.
 	const syncSettings = useSyncSettings({open: identityOpen, sendRaw});
-	// The other repos whose commits count as the board's, behind the palette.
+	// The other repos whose commits count as the board's, behind the header's
+	// count and the palette.
 	const [reposOpen, setReposOpen] = useState(false);
 	const repos = useRepos({open: reposOpen, sendRaw, socketEpoch});
 	const closeRepos = useCallback(() => setReposOpen(false), []);
@@ -1900,6 +1901,10 @@ export const App = () => {
 								scrubbing={state?.timeTravel?.mode === 'scrub'}
 								syncStatus={syncStatus}
 								onOpenCommands={() => commandPalette.setOpen(true)}
+								repos={{
+									count: repos.data?.length ?? null,
+									onOpen: () => setReposOpen(true),
+								}}
 								board={
 									<Dropdown
 										testId="board-switcher"

@@ -254,9 +254,17 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		// The TUI's `:config repoAdd` and `:config repoRemove`. Configuration
 		// rather than board state, so it stays open while history is scrubbed.
 		id: 'gui:repos',
-		title: 'Code repos',
+		title: 'Link repo',
 		group: 'Board',
-		keywords: ['repository', 'repositories', 'git', 'commits', 'remote'],
+		keywords: [
+			'repository',
+			'repositories',
+			'repos',
+			'linked',
+			'git',
+			'commits',
+			'remote',
+		],
 		unavailable: context => (context.connected ? null : 'Not connected'),
 		run: context => context.handlers.openRepos(),
 	},
