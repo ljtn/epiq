@@ -32,6 +32,9 @@ process.env['GIT_CONFIG_KEY_1'] =
 process.env['GIT_CONFIG_VALUE_1'] = 'https://evil.example/';
 process.env['GIT_CONFIG_KEY_2'] = 'protocol.ext.allow';
 process.env['GIT_CONFIG_VALUE_2'] = 'always';
+// Outranks any protocol.*.allow in config, so the clone's own `never` would
+// be overridden by it were it let through to the clone's git.
+process.env['GIT_ALLOW_PROTOCOL'] = 'always';
 // Formats a user may prefer and every patch parser here would choke on.
 process.env['GIT_CONFIG_KEY_3'] = 'diff.noprefix';
 process.env['GIT_CONFIG_VALUE_3'] = 'true';

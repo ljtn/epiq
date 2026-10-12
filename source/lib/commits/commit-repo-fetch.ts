@@ -14,6 +14,7 @@ import {
 	readCommitRepos,
 	removeCommitRepo,
 	repoIdOf,
+	isRepoListed,
 	readRepoProject,
 	RepoBranches,
 	REPO_RENAMED,
@@ -72,8 +73,9 @@ const readStatus = (clonePath: string): RepoFetchStatus | null => {
 const writeStatus = (clonePath: string, status: RepoFetchStatus) => {
 	try {
 		// Renamed into place: another process reads it without the clone's lock.
+		// `wx`: never through a link somebody planted under the name.
 		const pending = `${statusPath(clonePath)}.${process.pid}.tmp`;
-		fs.writeFileSync(pending, JSON.stringify(status) + '\n');
+		fs.writeFileSync(pending, JSON.stringify(status) + '\n', {flag: 'wx'});
 		fs.renameSync(pending, statusPath(clonePath));
 	} catch (error) {
 		logger.info(`[repos] could not record fetch status: ${String(error)}`);
@@ -293,6 +295,10 @@ const cloneRepo = async (
 		fs.rmSync(pending, {recursive: true, force: true});
 		return succeeded('Cloned elsewhere', null);
 	}
+	if (isLink(clonePath)) {
+		fs.rmSync(pending, {recursive: true, force: true});
+		return failed('The clone path is a link, which epiq will not use');
+	}
 
 	fs.renameSync(pending, clonePath);
 	return succeeded('Cloned', null);
@@ -510,7 +516,24 @@ const originOf = async (
  */
 const ignoreClonesDir = (dir: string) => {
 	const ignore = path.join(dir, '.gitignore');
-	if (!fs.existsSync(ignore)) fs.writeFileSync(ignore, '*\n');
+	// Looked for as a link too, and written `wx`: a dangling link planted
+	// under the name would otherwise have the file created wherever it
+	// points, as this user.
+	try {
+		if (fs.lstatSync(ignore, {throwIfNoEntry: false})) return;
+		fs.writeFileSync(ignore, '*\n', {flag: 'wx'});
+	} catch (error) {
+		logger.info(`[repos] could not write ${ignore}: ${errorMessage(error)}`);
+	}
+};
+
+/** A link where a clone or its files should be: planted, and never used. */
+const isLink = (target: string): boolean => {
+	try {
+		return fs.lstatSync(target).isSymbolicLink();
+	} catch {
+		return false;
+	}
 };
 
 const errorMessage = (error: unknown) =>
@@ -554,6 +577,7 @@ const deleteClone = (clonePath: string) => {
 const EXPLICIT_LOCK_WAIT_MS = 5_000;
 
 const fetchOne = async (
+	repoRoot: string,
 	projectId: string,
 	boardCreatedAt: string,
 	repo: CommitRepo,
@@ -589,8 +613,11 @@ const fetchOne = async (
 	const previous = readStatus(clonePath);
 	if (
 		previous?.attemptedAt &&
-		previous.branches === repo.branches &&
-		previous.since === since &&
+		// Options that changed are a reason to fetch again, unless the last
+		// attempt failed: then the remote is the reason, and changing an
+		// option on a dead one must not turn the throttle off.
+		(previous.error !== null ||
+			(previous.branches === repo.branches && previous.since === since)) &&
 		Date.now() >= previous.attemptedAt &&
 		Date.now() - previous.attemptedAt < minIntervalMs &&
 		!fs.existsSync(removalMark(clonePath))
@@ -602,6 +629,10 @@ const fetchOne = async (
 		return previous.error
 			? outcome(false, previous.error, moved)
 			: outcome(true, 'Fetched recently', moved);
+	}
+
+	if (isLink(clonePath)) {
+		return outcome(false, 'The clone path is a link, which epiq will not use');
 	}
 
 	const lock = await takeCloneLock(
@@ -618,8 +649,13 @@ const fetchOne = async (
 	}
 
 	try {
-		// A remove that found the clone in use before this fetch began.
-		if (fs.existsSync(removalMark(clonePath))) deleteClone(clonePath);
+		// A remove that found the clone in use before this fetch began, or
+		// one that landed after this pass read its list: honoured, and not
+		// undone by a clone of what it removed. A list that merely changed
+		// under the pass — a branch switch, a pull — is no remove, and the
+		// clone goes ahead: other worktrees may still list it.
+		const removed = fs.existsSync(removalMark(clonePath));
+		if (removed) deleteClone(clonePath);
 
 		let cloned = fs.existsSync(clonePath);
 
@@ -639,6 +675,10 @@ const fetchOne = async (
 		}
 
 		if (cloned) clearStaleGitLocks(clonePath);
+
+		if (!cloned && removed && !isRepoListed(repoRoot, repo.id)) {
+			return outcome(true, 'Removed before it was cloned');
+		}
 
 		const result = cloned
 			? await fetchRepo(clonePath, repo, since, current)
@@ -674,7 +714,18 @@ const fetchOne = async (
 		return outcome(false, errorMessage(error));
 	} finally {
 		// Removed while this fetch held it: it goes now, rather than staying.
-		if (fs.existsSync(removalMark(clonePath))) deleteClone(clonePath);
+		// The lock is let go whatever the delete did: one it could not finish
+		// — a file held open, a directory this user cannot write — must not
+		// leave every later fetch of this repo waiting on a lock nobody holds.
+		try {
+			if (fs.existsSync(removalMark(clonePath))) deleteClone(clonePath);
+		} catch (error) {
+			logger.info(
+				`[repos] ${repo.label}: could not delete the clone: ${errorMessage(
+					error,
+				)}`,
+			);
+		}
 		lock.release();
 		deleteIfMarked(clonePath);
 	}
@@ -695,8 +746,12 @@ const deleteIfMarked = (clonePath: string) => {
 	});
 	if (!lock.acquired) return;
 
+	// A delete that cannot finish is logged, not thrown: the mark stays for
+	// the next holder to try, and the lock is let go either way.
 	try {
 		if (fs.existsSync(removalMark(clonePath))) deleteClone(clonePath);
+	} catch (error) {
+		logger.info(`[repos] could not delete a clone: ${errorMessage(error)}`);
 	} finally {
 		lock.release();
 	}
@@ -707,7 +762,7 @@ const deleteIfMarked = (clonePath: string) => {
  * no longer listed is left alone: another worktree's branch may still list it,
  * and only an explicit remove deletes one.
  */
-const sweepPending = (projectId: string) => {
+const sweepPending = (projectId: string, listed: ReadonlySet<string>) => {
 	const dir = getRepoClonesDir(projectId);
 	if (!fs.existsSync(dir)) return;
 
@@ -715,6 +770,17 @@ const sweepPending = (projectId: string) => {
 		const pending = /^.+\.git(?:\.json)?\.(\d+)\.(?:pending|tmp)$/.exec(name);
 		if (pending && !isAlive(Number(pending[1]))) {
 			fs.rmSync(path.join(dir, name), {recursive: true, force: true});
+		}
+
+		// A remove's tombstone, once no clone stands under it and nothing
+		// lists the repo: it has outlived the pass it was left for.
+		const tombstone = /^(.+)\.git\.removed$/.exec(name);
+		if (
+			tombstone &&
+			!listed.has(tombstone[1]!) &&
+			!fs.existsSync(path.join(dir, `${tombstone[1]}.git`))
+		) {
+			fs.rmSync(path.join(dir, name), {force: true});
 		}
 	}
 };
@@ -794,6 +860,10 @@ export const removeRepoClone = (input: {
 		}
 
 		deleteClone(clonePath);
+		// Left as a tombstone for a pass that read its list before this: it
+		// would otherwise clone the repo again. A later pass sweeps it; a
+		// fetch after a re-add honours and clears it.
+		fs.writeFileSync(removalMark(clonePath), '', {flag: 'wx'});
 		return succeeded('Removed clone', null);
 	} catch (error) {
 		return failed(`Could not remove the clone: ${String(error)}`);
@@ -873,7 +943,7 @@ const fetchAll = async (
 	if (repos.length === 0) return succeeded('No other repos', []);
 
 	try {
-		sweepPending(projectId);
+		sweepPending(projectId, new Set(reposResult.value.map(repo => repo.id)));
 	} catch (error) {
 		logger.info(`[repos] sweep failed: ${String(error)}`);
 	}
@@ -884,7 +954,9 @@ const fetchAll = async (
 			...(await Promise.all(
 				repos
 					.slice(start, start + CONCURRENCY)
-					.map(repo => fetchOne(projectId, createdAt, repo, minIntervalMs)),
+					.map(repo =>
+						fetchOne(repoRoot, projectId, createdAt, repo, minIntervalMs),
+					),
 			)),
 		);
 	}

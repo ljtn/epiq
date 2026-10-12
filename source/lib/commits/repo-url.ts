@@ -26,8 +26,15 @@ export const repoUrlProblem = (url: string): string | null => {
 	if (url.length > MAX_URL_LENGTH) return 'is too long';
 	if (!PRINTABLE.test(url)) return 'holds spaces or characters git would not';
 	if (url.startsWith('-')) return 'would be read as an option';
+	// A backslash, a `#` or a `?` has no use in a clone URL, and each is read
+	// one way by the URL parser here and another by git and curl: a `\` or a
+	// `#@host` makes one host read as another while git connects elsewhere.
+	if (/[\\#?]/.test(url)) return 'holds a character a clone URL has no use for';
 	// `<transport>::<address>` hands the address to `git remote-<transport>`.
-	if (url.includes('::')) return 'names a remote helper';
+	// An IPv6 literal carries `::` inside its brackets, which is not that.
+	if (url.replace(/\[[^\]]*\]/g, '').includes('::')) {
+		return 'names a remote helper';
+	}
 	if (SCP_URL.test(url)) return null;
 
 	let parsed: URL;
@@ -36,6 +43,11 @@ export const repoUrlProblem = (url: string): string | null => {
 	} catch {
 		return 'is not a remote URL';
 	}
+
+	// Git decodes the authority before it reads it, so `%2d` is `-` to git and
+	// an option once decoded; the checks below see the encoded text. Nothing
+	// in a host or a login needs encoding.
+	if (/%/.test(authorityOf(url))) return 'percent-encodes its host';
 
 	if (!SCHEMES.has(parsed.protocol)) {
 		return 'uses a transport epiq does not clone over';
@@ -61,6 +73,15 @@ export const repoUrlProblem = (url: string): string | null => {
 	}
 
 	return null;
+};
+
+// What stands between the scheme's `//` and the path.
+const authorityOf = (url: string): string => {
+	const start = url.indexOf('//');
+	if (start === -1) return '';
+	const rest = url.slice(start + 2);
+	const end = rest.indexOf('/');
+	return end === -1 ? rest : rest.slice(0, end);
 };
 
 export const isAllowedRepoUrl = (url: string): boolean =>

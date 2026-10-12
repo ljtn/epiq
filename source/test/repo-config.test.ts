@@ -43,6 +43,15 @@ describe(':config repoAdd arguments', () => {
 		});
 	});
 
+	it('refuses a label with a second =, rather than keeping its first half, and an option said twice', () => {
+		expect(
+			isFail(parseRepoAddArgs('https://example.com/a.git label=a=b')),
+		).toBe(true);
+		expect(
+			isFail(parseRepoAddArgs('https://example.com/a.git label=a label=b')),
+		).toBe(true);
+	});
+
 	it('refuses a local path, a flag, and an option it does not know', () => {
 		expect(isFail(parseRepoAddArgs('/home/me/src/thing'))).toBe(true);
 		expect(isFail(parseRepoAddArgs('--upload-pack=x'))).toBe(true);

@@ -9,6 +9,7 @@ import {
 	unregisterCommitRepo,
 	type CommitRepo,
 } from '../../commits/commits.js';
+import {REPO_RENAMED, REPO_UNCHANGED} from '../../commits/commit-repos.js';
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 
@@ -37,13 +38,20 @@ export const parseRepoAddArgs = (input: string): Result<RepoAddArgs> => {
 	const [url = '', ...options] = input.trim().split(/\s+/).filter(Boolean);
 	if (!url) return failed('a remote URL to read commits from');
 	if (!isAllowedRepoUrl(url)) {
-		return failed('https://, ssh://, git://, file:// or user@host:path');
+		return failed('https://, ssh://, git://, file:/// or user@host:path');
 	}
 
 	const args: RepoAddArgs = {url};
+	const seen = new Set<string>();
 
 	for (const option of options) {
-		const [key, value = ''] = option.split('=');
+		// At the first `=` only: a label may carry one.
+		const split = option.indexOf('=');
+		const key = split === -1 ? option : option.slice(0, split);
+		const value = split === -1 ? '' : option.slice(split + 1);
+
+		if (seen.has(key)) return failed(`one ${key}=, not two`);
+		seen.add(key);
 
 		if (key === 'branches' && (value === 'default' || value === 'all')) {
 			args.branches = value;
@@ -84,8 +92,11 @@ export const repoAddCommand = () => {
 	});
 	if (isFail(result)) return result;
 
+	// The hint only where something was written and is to be fetched.
 	return succeeded(
-		`${result.message} — commit .epiq/project.json to share it; :sync fetches it`,
+		result.message === REPO_UNCHANGED || result.message.startsWith(REPO_RENAMED)
+			? result.message
+			: `${result.message} — commit .epiq/project.json to share it; :sync fetches it`,
 		null,
 	);
 };

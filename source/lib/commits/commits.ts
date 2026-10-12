@@ -26,6 +26,7 @@ export {
 	repoLabelOfId,
 	repoLabelsById,
 	repoUrlProblem,
+	REPO_RENAMED,
 	REPO_UNCHANGED,
 	upsertCommitRepo,
 	type CommitRepo,
