@@ -176,6 +176,38 @@ const usePortalAnchor = (
 
 // One row of a menu. Given `onSelect` it is the clickable option itself;
 // without, it frames a control of its own — a checkbox, a radio.
+/**
+ * A line between the groups of a list, carrying the question the group below
+ * answers. Decorative: each group names itself to assistive technology.
+ */
+export const MenuSection = ({label}: {label: string}) => (
+	<div
+		aria-hidden
+		style={{
+			display: 'flex',
+			alignItems: 'center',
+			gap: 6,
+			margin: '4px 0 2px',
+			padding: '0 8px',
+		}}
+	>
+		<span
+			style={{
+				fontSize: 8,
+				lineHeight: 1,
+				letterSpacing: '0.1em',
+				textTransform: 'uppercase',
+				color: GUI_THEME.dim,
+				whiteSpace: 'nowrap',
+				userSelect: 'none',
+			}}
+		>
+			{label}
+		</span>
+		<span style={{flex: 1, height: 1, background: GUI_THEME.line}} />
+	</div>
+);
+
 export const MenuItem = ({
 	children,
 	selected = false,
