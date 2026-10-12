@@ -49,7 +49,7 @@ export const IconButton = ({
 	tone?: 'quiet' | 'solid';
 } & Pick<
 	React.ButtonHTMLAttributes<HTMLButtonElement>,
-	'aria-label' | 'aria-haspopup' | 'aria-expanded'
+	'aria-label' | 'aria-haspopup' | 'aria-expanded' | 'aria-controls' | 'onBlur'
 >) => {
 	const [hovered, setHovered] = useState(false);
 	const lit = pressed === true || (hovered && !disabled);
@@ -63,6 +63,8 @@ export const IconButton = ({
 			aria-pressed={pressed}
 			aria-haspopup={rest['aria-haspopup']}
 			aria-expanded={rest['aria-expanded']}
+			aria-controls={rest['aria-controls']}
+			onBlur={rest.onBlur}
 			data-testid={testId}
 			disabled={disabled}
 			onClick={onClick}

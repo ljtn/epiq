@@ -5,6 +5,10 @@ export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
 	<input
 		{...props}
 		style={{
+			// The shorthand first: it resets the longhands after it, and a
+			// caller's spread keeps a key's first position, so a line height
+			// set by the caller would otherwise be undone by this.
+			font: 'inherit',
 			width: '100%',
 			boxSizing: 'border-box',
 			// A place to type reads as recessed: a step down from the panel it
@@ -15,7 +19,6 @@ export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
 			borderRadius: 8,
 			padding: '8px 10px',
 			outline: 'none',
-			font: 'inherit',
 			...props.style,
 		}}
 	/>
@@ -32,6 +35,7 @@ export const Textarea = React.forwardRef<
 		maxLength={props.maxLength ?? 1500}
 		{...props}
 		style={{
+			font: 'inherit',
 			width: '100%',
 			minHeight: 140,
 			boxSizing: 'border-box',
@@ -43,7 +47,6 @@ export const Textarea = React.forwardRef<
 			outline: 'none',
 			lineHeight: 1.6,
 			resize: 'vertical',
-			font: 'inherit',
 			...props.style,
 		}}
 	/>
@@ -51,9 +54,21 @@ export const Textarea = React.forwardRef<
 
 Textarea.displayName = 'Textarea';
 
-export const ActionRow = ({children}: {children: React.ReactNode}) => (
+export const ActionRow = ({
+	children,
+	style,
+}: {
+	children: React.ReactNode;
+	style?: React.CSSProperties;
+}) => (
 	<div
-		style={{display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8}}
+		style={{
+			display: 'flex',
+			justifyContent: 'flex-end',
+			gap: 8,
+			marginTop: 8,
+			...style,
+		}}
 	>
 		{children}
 	</div>

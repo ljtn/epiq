@@ -1,12 +1,10 @@
-// The settings panel's vocabulary, shared by the sections it is built from.
+// The panels' vocabulary: a card, the rows inside it, the labels over them
+// and the notes under them. The settings panel is built from these, and the
+// ticket aside's comment cards and composer stand on the same card, so the
+// two panels read as one GUI rather than two takes on a surface.
 //
-// Here rather than beside any one of them because the panel's whole claim is
-// that it is one surface: a heading, a row and a button that each section
-// wrote for itself would read as three panels stacked in a drawer.
-//
-// Set in the prose face: the panel is about the system, not the board's
-// work, and that face is what says so. Sizes are the prose scale, a step up
-// from the mono UI's so the two read at one visual size.
+// Sized on the prose scale, a step up from the mono UI's, so a label in
+// either face reads at one visual size.
 
 import {GUI_THEME, TEXT} from './gui-theme';
 

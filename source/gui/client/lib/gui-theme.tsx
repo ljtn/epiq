@@ -17,7 +17,18 @@ export const TEXT = {
 	meta: 11,
 	ui: 12,
 	prose: 13,
-	title: 18,
+	// The ticket's title: over the prose, under the band it sits beneath.
+	title: 15,
+} as const;
+
+// Prose as it is read and as it is written: the description, the comments
+// and the fields that edit them share these, so an editor opens as the same
+// text with an edge around it rather than as a different, denser thing.
+export const PROSE = {
+	fontFamily: CONTENT_FONT,
+	fontSize: TEXT.prose,
+	lineHeight: '22px',
+	letterSpacing: '0.2px',
 } as const;
 
 export const GUI_THEME = {

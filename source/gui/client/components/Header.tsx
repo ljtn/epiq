@@ -31,6 +31,7 @@ type HeaderProps = {
 		ref: React.RefObject<HTMLSpanElement | null>;
 	};
 	identity: {
+		open: boolean;
 		onToggle: () => void;
 		ref: React.RefObject<HTMLDivElement | null>;
 	};
@@ -210,6 +211,8 @@ export const Header = ({
 							title="Settings"
 							testId="open-settings"
 							pressed={settings.open}
+							aria-expanded={settings.open}
+							aria-controls="settings-panel"
 							onClick={settings.onToggle}
 						>
 							<IconGear />
@@ -224,6 +227,8 @@ export const Header = ({
 							<button
 								onClick={identity.onToggle}
 								aria-label="Your identity on this board"
+								aria-expanded={identity.open}
+								aria-controls="settings-panel"
 								style={{
 									background: 'transparent',
 									border: 'none',

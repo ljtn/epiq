@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
+import {CONTENT_FONT, GUI_THEME, PROSE, TEXT} from '../lib/gui-theme';
 import {
 	GuiContributor,
 	GuiUser,
@@ -651,11 +651,15 @@ export const IssueDetails = ({
 											saveDescription();
 										}}
 										style={{
-											font: 'inherit',
-											fontFamily: CONTENT_FONT,
-											fontSize: TEXT.prose,
+											...PROSE,
 											maxHeight: 320,
 											overflowY: 'auto',
+											// The rendered box's own place and inset, so the text
+											// stays where it was and only the ground changes: a
+											// place to type, where a moment ago it was a thing read.
+											marginTop: 8,
+											padding: '8px 10px',
+											borderRadius: 8,
 											...descriptionImages.dropStyle,
 										}}
 									/>
@@ -1081,7 +1085,7 @@ export const IssueDetails = ({
 								boxSizing: 'border-box',
 								resize: 'none',
 								overflow: 'hidden',
-								background: GUI_THEME.bg,
+								background: GUI_THEME.well,
 								color: GUI_THEME.primary,
 								border: `1px solid ${GUI_THEME.line}`,
 								borderRadius: 8,
@@ -1090,8 +1094,8 @@ export const IssueDetails = ({
 								font: 'inherit',
 								fontSize: TEXT.title,
 								fontWeight: 600,
-								lineHeight: 1.35,
-								marginBottom: inlineTitle ? 0 : 20,
+								lineHeight: 1.4,
+								marginBottom: inlineTitle ? 0 : 16,
 							}}
 						/>
 					) : (
@@ -1099,11 +1103,11 @@ export const IssueDetails = ({
 							onClick={() => !issue.readonly && setEditingTitle(true)}
 							title={inlineTitle ? issue.title : undefined}
 							style={{
-								marginBottom: inlineTitle ? 0 : 18,
+								marginBottom: inlineTitle ? 0 : 14,
 								color: GUI_THEME.primary,
 								fontSize: TEXT.title,
 								fontWeight: 600,
-								lineHeight: 1.35,
+								lineHeight: 1.4,
 								cursor: issue.readonly ? 'default' : 'text',
 								// One row shared with the ref, the age and the panel's
 								// own controls: a long title takes what is left and

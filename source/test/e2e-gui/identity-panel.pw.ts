@@ -78,9 +78,15 @@ test('the avatar opens who you are, and Escape closes it', async ({
 
 	const panel = await openPanel(page);
 	await expect(panel).toContainText(SHOWN_NAME);
+	// Focus moves into the panel, so Tab walks it rather than the page.
+	await expect(panel).toBeFocused();
 
 	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('identity-panel')).toHaveCount(0);
+	// And comes back to what opened it.
+	await expect(
+		page.locator('button[aria-label="Your identity on this board"]'),
+	).toBeFocused();
 
 	expect(pageErrors).toEqual([]);
 });

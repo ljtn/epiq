@@ -1,4 +1,5 @@
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
+import {Button} from './Button';
 
 export type TabItem<T extends string> = {
 	id: T;
@@ -22,11 +23,17 @@ export const Tabs = <T extends string>({
 	onChange,
 	showCounts = true,
 }: Props<T>) => (
+	// The same small square every control in the GUI is, the open one on the
+	// raised ground: a row of tabs reads as the row of controls it is, not as
+	// a web page's underlined links.
+	// Buttons, not ARIA tabs: a tablist promises arrow-key movement between
+	// its tabs, which these do not do, and every test reaches them as buttons.
 	<div
 		style={{
 			display: 'flex',
-			gap: 6,
+			gap: 4,
 			marginBottom: 14,
+			paddingBottom: 10,
 			borderBottom: `1px solid ${GUI_THEME.line}`,
 		}}
 	>
@@ -34,22 +41,18 @@ export const Tabs = <T extends string>({
 			const active = tab.id === activeTab;
 
 			return (
-				<button
+				<Button
 					key={tab.id}
-					type="button"
+					aria-pressed={active}
+					variant="ghost"
 					onClick={() => onChange(tab.id)}
 					style={{
-						background: 'transparent',
-						border: 'none',
-						borderBottom: `1px solid ${
-							active ? GUI_THEME.accent : 'transparent'
-						}`,
+						// Only set when on: an `undefined` here would unset the
+						// Button's own ground and let the browser's grey through.
+						...(active ? {background: GUI_THEME.raised} : {}),
 						color: active ? GUI_THEME.primary : GUI_THEME.secondary,
-						padding: '0 8px 10px',
-						marginBottom: -1,
-						font: 'inherit',
+						padding: '4px 10px',
 						fontSize: TEXT.meta,
-						cursor: 'pointer',
 					}}
 				>
 					{tab.label}
@@ -61,7 +64,7 @@ export const Tabs = <T extends string>({
 							({tab.count})
 						</span>
 					)}
-				</button>
+				</Button>
 			);
 		})}
 	</div>
