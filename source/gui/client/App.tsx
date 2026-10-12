@@ -118,6 +118,8 @@ import {RepoLabelsContext} from './lib/use-repo-label';
 import {useCommitRepoFilter} from './lib/commit-repo-filter';
 import {ReposSettings} from './components/ReposSettings';
 import {SettingsPanel, SettingsSection} from './components/SettingsPanel';
+import {IdentitySettings} from './components/IdentitySettings';
+import {actorDisplay} from './lib/agent-identity';
 import {IdentityPanel} from './components/IdentityPanel';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useBoardEditing} from './lib/use-board-editing';
@@ -462,6 +464,14 @@ export const App = () => {
 	const [settings, setSettings] = useState<SettingsSection | null>(null);
 	const settingsOpen = settings !== null;
 	const closeSettings = useCallback(() => setSettings(null), []);
+	// Its triggers toggle it: open at their section, or closed from there.
+	const toggleSettings = (section: SettingsSection) =>
+		setSettings(current => (current === section ? null : section));
+	// The controls that open it, which a click on must not count as outside,
+	// and the topbar it sits under.
+	const avatarRef = useRef<HTMLDivElement | null>(null);
+	const repoCountRef = useRef<HTMLButtonElement | null>(null);
+	const topbarRef = useRef<HTMLDivElement | null>(null);
 	const contributorEmails = useContributorEmails({
 		open: settingsOpen,
 		sendRaw,
@@ -1886,7 +1896,10 @@ export const App = () => {
 						{/* Dimmed and inert with the rest of the chrome while a movie plays:
 				    the board is the picture, and everything around it is the room
 				    lights. */}
-						<div style={theatre ? DIMMED_WHILE_PLAYING : undefined}>
+						<div
+							ref={topbarRef}
+							style={theatre ? DIMMED_WHILE_PLAYING : undefined}
+						>
 							<Header
 								state={state}
 								connection={
@@ -1905,7 +1918,8 @@ export const App = () => {
 								repos={{
 									// The board's own repo, and the linked ones.
 									count: repos.data ? repos.data.length + 1 : null,
-									onOpen: () => setSettings('repos'),
+									onToggle: () => toggleSettings('repos'),
+									ref: repoCountRef,
 								}}
 								board={
 									<Dropdown
@@ -1938,7 +1952,10 @@ export const App = () => {
 										onSelect={selectBoard}
 									/>
 								}
-								onOpenIdentity={() => setSettings('identity')}
+								identity={{
+									onToggle: () => toggleSettings('identity'),
+									ref: avatarRef,
+								}}
 							/>
 						</div>
 
@@ -2446,22 +2463,52 @@ export const App = () => {
 					)}
 
 					{settings && (
-						<SettingsPanel section={settings} onClose={closeSettings}>
-							<IdentityPanel
-								state={contributorEmails}
-								stats={personalStats}
-								settings={syncSettings}
-								me={state?.user ?? null}
-								onLink={contributorEmails.link}
-								onUnlink={contributorEmails.unlink}
-								onChangeSettings={syncSettings.change}
-							/>
-							<ReposSettings
-								state={repos}
-								onAdd={repos.add}
-								onRemove={repos.remove}
-							/>
-						</SettingsPanel>
+						<SettingsPanel
+							section={settings}
+							below={topbarRef}
+							keepOpenFor={[avatarRef, repoCountRef]}
+							onClose={closeSettings}
+							sections={[
+								{
+									id: 'identity',
+									title: state?.user
+										? actorDisplay(state.user.name).label
+										: 'Not configured',
+									scope: 'on this board',
+									content: (
+										<IdentityPanel
+											state={contributorEmails}
+											stats={personalStats}
+											onLink={contributorEmails.link}
+											onUnlink={contributorEmails.unlink}
+										/>
+									),
+								},
+								{
+									id: 'sync',
+									title: 'Auto sync',
+									scope: 'this machine',
+									content: (
+										<IdentitySettings
+											state={syncSettings}
+											onChange={syncSettings.change}
+										/>
+									),
+								},
+								{
+									id: 'repos',
+									title: 'Repos',
+									scope: 'shared with the project',
+									content: (
+										<ReposSettings
+											state={repos}
+											onAdd={repos.add}
+											onRemove={repos.remove}
+										/>
+									),
+								},
+							]}
+						/>
 					)}
 
 					{createBoardTitle !== null && (
