@@ -89,6 +89,12 @@ export const repoIdOf = (url: string): string =>
 		.digest('hex')
 		.slice(0, 12)}`;
 
+/** Whether the project file still lists the repo: read fresh, never cached. */
+export const isRepoListed = (repoRoot: string, repoId: string): boolean => {
+	const repos = readCommitRepos(repoRoot);
+	return !isFail(repos) && repos.value.some(repo => repo.id === repoId);
+};
+
 /** The label back off an id, which carries it ahead of the URL's hash. */
 export const repoLabelOfId = (repoId: string): string =>
 	repoId.replace(ID_HASH, '');

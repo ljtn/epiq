@@ -1,8 +1,22 @@
 // Starts git on behalf of a clone against a server that never answers, then
-// waits to be signalled.
+// waits to be signalled. With `with-signal-exit`, Ink's own exit handler is
+// registered first, as the TUI has it: it stands aside while another
+// listener is on the signal, which is what the clone-git handler must not be.
+import {createRequire} from 'node:module';
 import {execGit} from '../../git/git-utils.js';
 
-const [port, cwd] = process.argv.slice(2);
+const [port, cwd, listener] = process.argv.slice(2);
+
+if (listener === 'with-signal-exit') {
+	// From Ink's own entry, so its copy of signal-exit is the one found.
+	const inkRequire = createRequire(
+		createRequire(import.meta.url).resolve('ink'),
+	);
+	const signalExit = inkRequire('signal-exit') as {
+		onExit?: (handler: () => void) => void;
+	} & ((handler: () => void) => void);
+	(signalExit.onExit ?? signalExit)(() => {});
+}
 
 void execGit({
 	cwd: cwd!,

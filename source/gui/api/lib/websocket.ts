@@ -36,10 +36,11 @@ import {
 	removeRepo,
 } from '../../../mcp/epiq-api.js';
 import {
+	REPO_RENAMED,
 	REPO_UNCHANGED,
 	getCommitDiff,
-	getCommitsForRef,
 	getCommitTimeline,
+	getCommitsForRef,
 	getSquashedDiffForRef,
 	openCommitDiffInEditor,
 	readOwnRepo,
@@ -465,8 +466,13 @@ export const setupWebsocket = (
 					});
 
 					// A removed repo's commits leave every view at once, and a changed
-					// window or branch set reads differently from the same clone.
-					if (!isFail(result) && result.message !== REPO_UNCHANGED) {
+					// window or branch set reads differently from the same clone. A
+					// rename moves no commit, so nobody is asked to read again.
+					if (
+						!isFail(result) &&
+						result.message !== REPO_UNCHANGED &&
+						!result.message.startsWith(REPO_RENAMED)
+					) {
 						broadcastReposChanged();
 					}
 

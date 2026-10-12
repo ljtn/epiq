@@ -93,8 +93,11 @@ export const listCommitSources = async (
 			{
 				repo: repo.id,
 				cwd: clonePath,
-				// A bare clone's HEAD is the remote's default branch.
-				revisions: repo.branches === 'all' ? ['--branches'] : ['HEAD'],
+				// Every branch the clone holds, which under `default` is the one
+				// its refspec fetches. Not HEAD: on a remote with no commits yet
+				// HEAD is an unborn branch and `git log HEAD` fails, where
+				// `--branches` answers nothing.
+				revisions: ['--branches'],
 				exclude: shallowBoundary(clonePath),
 				...(since ? {notBefore: Date.parse(`${since}T00:00:00Z`)} : {}),
 			},

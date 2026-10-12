@@ -192,6 +192,10 @@ export const cloneGitConfig = (): string[] =>
 		`core.hooksPath=${path.join(getGlobalConfigDir(), 'repos', '.no-hooks')}`,
 		'protocol.ext.allow=never',
 		'protocol.fd.allow=never',
+		// Named, because the clone's environment turns every protocol git
+		// leaves to the user's say off, and `file` is one of those; a local
+		// path is a URL the list may carry, as `file:///` only.
+		'protocol.file.allow=always',
 		'submodule.recurse=false',
 		'fetch.recurseSubmodules=false',
 		'credential.interactive=never',
@@ -238,7 +242,18 @@ const cloneDirArgs = (cwd: string): string[] =>
 	isCloneDir(cwd) ? ['--git-dir=.', ...cloneGitConfig()] : [];
 
 // git's messages read in English, which is what the recoveries match on.
-const cloneEnv = {...gitEnv, LC_ALL: 'C', LANGUAGE: ''};
+const cloneEnv = {
+	...Object.fromEntries(
+		Object.entries(gitEnv).filter(([name]) => name !== 'GIT_ALLOW_PROTOCOL'),
+	),
+	LC_ALL: 'C',
+	LANGUAGE: '',
+	// The transports a clone may take are the config's above and nothing the
+	// user's environment says: an inherited GIT_ALLOW_PROTOCOL would override
+	// `protocol.*.allow`, and a helper the config does not name defaults to
+	// the user's say, which this turns off.
+	GIT_PROTOCOL_FROM_USER: '0',
+};
 
 // Git started for a clone, killed with this process: left running, it holds
 // git's lock files in a clone the next process would take for abandoned.
@@ -267,7 +282,18 @@ const killCloneChildren = () => {
 
 const EXIT_SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP'];
 
-const trackCloneChild = (child: ReturnType<typeof spawn>) => {
+/**
+ * Clone gits are killed with the process. Exported for the test that sends
+ * the process a signal with another listener present.
+ *
+ * On a signal: the children go, these handlers go, and the signal is raised
+ * again with them out of the way, so whoever else listens — Ink's exit
+ * handler in the TUI, nobody in the MCP server — sees it as if this had
+ * never been here. Ink's handler stands aside while another listener is
+ * registered, so one that stayed, or re-raised only when alone, left the
+ * TUI standing after its first SIGTERM.
+ */
+export const trackCloneChild = (child: ReturnType<typeof spawn>) => {
 	cloneChildren.add(child);
 	child.once('close', () => cloneChildren.delete(child));
 
@@ -275,17 +301,15 @@ const trackCloneChild = (child: ReturnType<typeof spawn>) => {
 	killsRegistered = true;
 
 	process.once('exit', killCloneChildren);
+	const handlers = new Map<NodeJS.Signals, () => void>();
 	for (const signal of EXIT_SIGNALS) {
-		const onSignal = () => {
+		handlers.set(signal, () => {
 			killCloneChildren();
-			for (const other of EXIT_SIGNALS) process.off(other, onSignal);
-			// The signal's own default, unless the process handles it itself.
-			if (process.listenerCount(signal) === 0) {
-				process.kill(process.pid, signal);
-			}
-		};
-		process.once(signal, onSignal);
+			for (const [other, handler] of handlers) process.off(other, handler);
+			process.kill(process.pid, signal);
+		});
 	}
+	for (const [signal, handler] of handlers) process.once(signal, handler);
 };
 
 const runGit = ({

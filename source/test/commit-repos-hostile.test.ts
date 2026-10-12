@@ -7,7 +7,11 @@ import {
 	fetchCommitRepos,
 	getCommitDiff,
 	getCommitsForRef,
+	getSquashedDiffForRef,
+	listRepoStates,
 	readCommitRepos,
+	removeCommitRepo,
+	removeRepoClone,
 	repoIdOf,
 	repoUrlProblem,
 	resetCommitTimelineCacheForTests,
@@ -15,6 +19,7 @@ import {
 } from '../lib/commits/commits.js';
 import {getRepoClonePath, MAX_REPOS} from '../lib/commits/commit-repos.js';
 import {execGit} from '../git/git-utils.js';
+import {acquireLockFile} from '../git/sync-lock.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
 
@@ -117,10 +122,26 @@ describe('a URL from a committed file', () => {
 		[`https://example.com/${'a'.repeat(3000)}`, 'is far too long'],
 		['svn://example.com/repo', 'uses another transport'],
 		['file::helper', 'names a remote helper'],
+		[
+			'git::https://example.com/repo',
+			'names a remote helper, and nothing else',
+		],
 		['https::example.com/repo', 'names a remote helper'],
 		['file:relative/path', 'is ssh to a host called file'],
 		['file:/etc/repo', 'is not a file:/// URL'],
 		['ssh:///repo', 'names no host'],
+		[
+			'https://github.com\\@127.0.0.1:9/x',
+			'reads as one host to the parser and connects to another',
+		],
+		['https://127.0.0.1:9#@github.com/x', 'hides the host behind a fragment'],
+		['https://127.0.0.1:9?@github.com/x', 'hides the host behind a query'],
+		[
+			'ssh://%2doProxyCommand=touch%20x/repo',
+			'puts an option in the host, encoded',
+		],
+		['ssh://%2d%2doption@host/repo', 'puts an option in the user, encoded'],
+		['https://exa%6dple.com/repo', 'encodes its host'],
 	])('refuses %j, which %s', bad => {
 		expect(repoUrlProblem(bad)).not.toBeNull();
 	});
@@ -132,6 +153,8 @@ describe('a URL from a committed file', () => {
 		'git://example.com/a/b.git',
 		'git@example.com:a/b.git',
 		'file:///srv/git/b.git',
+		'ssh://git@[::1]:2222/a/b.git',
+		'https://example.com/a%20b.git',
 	])('takes %j', good => {
 		expect(repoUrlProblem(good)).toBeNull();
 	});
@@ -145,6 +168,144 @@ describe('a URL from a committed file', () => {
 		});
 
 		expect(value(readCommitRepos(board))).toHaveLength(MAX_REPOS);
+	});
+});
+
+describe('a remote with no commits yet', () => {
+	it('reads as empty, not as unreadable', async () => {
+		const empty = makeTempDir();
+		git(empty, ['init', '-q', '-b', 'main']);
+		value(upsertCommitRepo({repoRoot: board, url: `file://${empty}`}));
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+		expect(outcome!.ok).toBe(true);
+
+		const [state] = value(listRepoStates(board));
+		expect(state!.error).toBeNull();
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})),
+		).toEqual([]);
+	});
+});
+
+describe('a squash whose only clone cannot be read', () => {
+	it('says so, rather than that nothing references the ticket', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+		// Read once, so the matches are known; then the clone's objects go
+		// from under them, as the Code tab's list beside the diff still shows.
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})),
+		).toHaveLength(1);
+		fs.rmSync(
+			path.join(getRepoClonePath(PROJECT_ID, repoIdOf(url)), 'objects'),
+			{
+				recursive: true,
+			},
+		);
+
+		const result = await getSquashedDiffForRef({
+			repoRoot: board,
+			ref: 'AAAAAAA',
+		});
+
+		expect(isFail(result)).toBe(true);
+		expect(isFail(result) ? result.message : '').toMatch(/clone/);
+	});
+});
+
+describe('a clone that cannot be deleted', () => {
+	it('is reported, and its lock let go', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+		const objects = path.join(clonePath, 'objects');
+		// A remove that found the clone busy marks it; the next fetch deletes.
+		fs.writeFileSync(`${clonePath}.removed`, '');
+		// Nothing in it can be unlinked, so the delete throws part way.
+		fs.chmodSync(objects, 0o555);
+
+		try {
+			const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+			expect(outcome!.ok).toBe(false);
+			expect(fs.existsSync(`${clonePath}.lock`)).toBe(false);
+		} finally {
+			fs.chmodSync(objects, 0o755);
+		}
+	});
+});
+
+describe('a remove that lands while a pass is waiting', () => {
+	it('is not undone by a clone of what it removed', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+
+		// Held, so the pass reads its list and then waits for the clone.
+		const held = acquireLockFile({
+			lockPath: `${clonePath}.lock`,
+			operation: 'test',
+			staleAfterMs: 60_000,
+		});
+		expect(held.acquired).toBe(true);
+
+		const pass = fetchCommitRepos({repoRoot: board});
+		await new Promise(resolve => setTimeout(resolve, 400));
+		// The remove, as the GUI and the MCP make it: off the list, and the
+		// clone marked, since the pass is taken for its holder.
+		value(removeCommitRepo({repoRoot: board, repo: url}));
+		value(removeRepoClone({repoRoot: board, repoId: repoIdOf(url)}));
+		if (held.acquired) held.release();
+
+		const [outcome] = value(await pass);
+
+		expect(outcome!.message).toBe('Removed before it was cloned');
+		expect(fs.existsSync(clonePath)).toBe(false);
+	});
+});
+
+describe('a link planted where epiq writes', () => {
+	it('is never used as the clone', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+		const elsewhere = makeTempDir();
+		fs.mkdirSync(path.dirname(clonePath), {recursive: true});
+		fs.symlinkSync(elsewhere, clonePath);
+
+		try {
+			const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+			expect(outcome!.ok).toBe(false);
+			expect(outcome!.message).toMatch(/link/);
+			expect(fs.readdirSync(elsewhere)).toEqual([]);
+		} finally {
+			fs.rmSync(clonePath, {force: true});
+		}
+	});
+
+	it('is never written through for the ignore file', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		const clonesDir = path.dirname(getRepoClonePath(PROJECT_ID, repoIdOf(url)));
+		const planted = path.join(makeTempDir(), 'planted');
+		fs.mkdirSync(clonesDir, {recursive: true});
+		const ignore = path.join(clonesDir, '.gitignore');
+		fs.rmSync(ignore, {force: true});
+		fs.symlinkSync(planted, ignore);
+
+		try {
+			value(await fetchCommitRepos({repoRoot: board}));
+
+			expect(fs.existsSync(planted)).toBe(false);
+		} finally {
+			fs.rmSync(ignore, {force: true});
+		}
 	});
 });
 

@@ -522,9 +522,16 @@ export const getSquashedDiffForRef = async (
 	}
 
 	const parts: Array<{repo?: string; diff: SquashedDiff}> = [];
+	// Repos whose share could not be read: a clone gone or broken. Said as
+	// such when nothing else is left, rather than as a ticket with no commits
+	// beside a Code tab that lists them.
+	let unread = 0;
 	for (const [key, matched] of byRepo) {
 		const cwd = cwdOfRepo(key);
-		if (!cwd) continue;
+		if (!cwd) {
+			unread += 1;
+			continue;
+		}
 
 		const diffResult = await squashInRepo(cwd, input.ref, matched, ticketShas);
 		// Another repo's clone failing costs its own files, never the board's:
@@ -532,6 +539,7 @@ export const getSquashedDiffForRef = async (
 		if (isFail(diffResult)) {
 			if (!key) return failed(diffResult.message);
 			logger.info(`[repos] could not squash ${key}: ${diffResult.message}`);
+			unread += 1;
 			continue;
 		}
 
@@ -553,7 +561,13 @@ export const getSquashedDiffForRef = async (
 	}
 
 	const [first, ...rest] = parts;
-	if (!first) return failed('No commits reference this ticket');
+	if (!first) {
+		return failed(
+			unread > 0
+				? 'The clone holding this ticket’s commits could not be read'
+				: 'No commits reference this ticket',
+		);
+	}
 	if (rest.length === 0) return succeeded('Loaded squashed diff', first.diff);
 
 	return succeeded('Loaded squashed diff', {
