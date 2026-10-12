@@ -334,18 +334,26 @@ test('the Code series drops a repo whose box is unticked', async ({
 		const line = page.getByTestId('log-line').filter({hasText: subject});
 		await expect(line).toHaveCount(1);
 
+		// The chart too, which draws the window it last asked for: the box
+		// changes what it draws of that window, not the window.
+		const bars = page.getByTestId('commit-bar');
+		await expect.poll(async () => await bars.count()).toBeGreaterThan(0);
+		const drawn = await bars.count();
+
 		await page.getByTestId('commit-select').click();
 		await page
 			.getByTestId('commit-repo-toggle')
 			.filter({hasText: label})
 			.click();
 		await expect(line).toHaveCount(0);
+		await expect.poll(async () => await bars.count()).toBeLessThan(drawn);
 
 		await page
 			.getByTestId('commit-repo-toggle')
 			.filter({hasText: label})
 			.click();
 		await expect(line).toHaveCount(1);
+		await expect.poll(async () => await bars.count()).toBe(drawn);
 	});
 
 	fs.rmSync(upstream, {recursive: true, force: true});

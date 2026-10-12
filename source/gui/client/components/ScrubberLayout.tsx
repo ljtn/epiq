@@ -649,6 +649,7 @@ export const ScrubberLayout = ({
 														color={GUI_THEME.green}
 														direction="down"
 														animate={animate}
+														testId="commit-bar"
 													/>
 												)}
 											</div>
