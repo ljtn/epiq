@@ -184,7 +184,7 @@ const LabelField = ({
 				font: 'inherit',
 				...nameStyle,
 				color: GUI_THEME.primary,
-				background: focused ? GUI_THEME.bg : 'transparent',
+				background: focused ? GUI_THEME.well : 'transparent',
 				border: `1px solid ${focused ? GUI_THEME.line : 'transparent'}`,
 				borderRadius: 6,
 				// Pulled left by its own padding, so the name sits where the own

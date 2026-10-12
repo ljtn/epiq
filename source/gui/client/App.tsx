@@ -1948,6 +1948,7 @@ export const App = () => {
 									/>
 								}
 								settings={{
+									open: settingsOpen,
 									onToggle: () => toggleSettings('overview'),
 									ref: gearRef,
 								}}

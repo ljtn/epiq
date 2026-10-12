@@ -1,6 +1,11 @@
 import {Fragment, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
-import {CARD, META, SECTION_LABEL} from '../lib/identity-panel.style';
+import {
+	CARD,
+	CARD_RADIUS,
+	META,
+	SECTION_LABEL,
+} from '../lib/identity-panel.style';
 import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {ASIDE_PADDING} from './Aside';
 import {IconButton} from './IconButton';
@@ -47,6 +52,8 @@ export const SETTINGS_WIDTH = 440;
 const Z_INDEX = 900;
 
 const CARD_PADDING = 16;
+// Inside the card's border, so the corners meet it.
+const INNER = CARD_RADIUS - 1;
 
 const SLIDE = `
 	@keyframes epiqSettingsSlide {
@@ -85,7 +92,7 @@ const Fold = ({
 					border: 'none',
 					// The card's own corners, and only the top two while the body
 					// continues under it.
-					borderRadius: open ? '9px 9px 0 0' : 9,
+					borderRadius: open ? `${INNER}px ${INNER}px 0 0` : INNER,
 					color: GUI_THEME.primary,
 					cursor: 'pointer',
 					fontFamily: 'inherit',
@@ -142,7 +149,7 @@ const Fold = ({
 						// Less below than beside: what ends a body carries padding of
 						// its own, a row's or a button's.
 						padding: `0 ${CARD_PADDING}px 12px`,
-						borderRadius: '0 0 9px 9px',
+						borderRadius: `0 0 ${INNER}px ${INNER}px`,
 						background: 'rgba(0, 0, 0, 0.12)',
 					}}
 				>
