@@ -4,7 +4,7 @@ import {
 	MIN_AUTO_SYNC_INTERVAL_MS,
 } from '../../../lib/config/auto-sync-interval.js';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {META, ROW} from '../lib/identity-panel.style';
+import {META, ROW} from '../lib/card.style';
 import {SyncSettingsState} from '../lib/use-sync-settings';
 import {Input} from './FormPrimitives';
 import {Switch} from './Switch';

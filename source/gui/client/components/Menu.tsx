@@ -83,7 +83,7 @@ export const Menu = ({
 	const listId = useId();
 	const listRef = useRef<HTMLDivElement | null>(null);
 	const triggerRef = useRef<HTMLButtonElement | null>(null);
-	const ref = useDismissOnOutsideClick(open, close, [listRef]);
+	const ref = useDismissOnOutsideClick(open, close, [listRef], {nested: true});
 	const anchor = usePortalAnchor(portal && open, triggerRef);
 
 	const popover = (

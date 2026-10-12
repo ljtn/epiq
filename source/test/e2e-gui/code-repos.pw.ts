@@ -225,6 +225,13 @@ test('a repo’s options are written when they change, and only then', async ({
 			.poll(() => JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos)
 			.toEqual([{url, branches: 'all', since: 'board'}]);
 
+		// Escape with a list open closes the list, and leaves the panel.
+		await row.getByTestId('repo-since').click();
+		await expect(page.getByTestId('repo-since-option').first()).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(page.getByTestId('repo-since-option')).toHaveCount(0);
+		await expect(modal).toBeVisible();
+
 		await row.getByTestId('repo-since').click();
 		await page
 			.getByTestId('repo-since-option')

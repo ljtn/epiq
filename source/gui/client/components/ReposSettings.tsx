@@ -3,7 +3,7 @@ import {CODE_FONT} from '../lib/code-text.style';
 import {GuiRepo} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {META, ROW} from '../lib/identity-panel.style';
+import {META, ROW} from '../lib/card.style';
 import {useArmed} from '../lib/use-armed';
 import {ReposState} from '../lib/use-repos';
 import {repoUrlProblem, REPO_URL_FORMS} from '../../../lib/commits/repo-url.js';
@@ -379,6 +379,7 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 							testId="remove-repo"
 							pressed={armed}
 							label={armed ? 'confirm' : undefined}
+							onBlur={remove.disarm}
 							title={
 								armed
 									? `Click again to stop reading ${repo.label}`

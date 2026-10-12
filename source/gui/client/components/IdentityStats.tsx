@@ -1,6 +1,6 @@
 import {GUI_THEME} from '../lib/gui-theme';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
-import {META, SECTION_HEADING} from '../lib/identity-panel.style';
+import {META, SECTION_HEADING} from '../lib/card.style';
 import {PersonalStatsState} from '../lib/use-personal-stats';
 import {Stat} from './StatRow';
 

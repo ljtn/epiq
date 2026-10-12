@@ -1,11 +1,6 @@
 import {Fragment, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
-import {
-	CARD,
-	CARD_RADIUS,
-	META,
-	SECTION_LABEL,
-} from '../lib/identity-panel.style';
+import {CARD, CARD_RADIUS, META, SECTION_LABEL} from '../lib/card.style';
 import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {ASIDE_PADDING} from './Aside';
 import {IconButton} from './IconButton';
@@ -193,6 +188,18 @@ export const SettingsPanel = ({
 }) => {
 	const panel = useDismissOnOutsideClick(true, onClose, keepOpenFor);
 	const scroller = useRef<HTMLDivElement | null>(null);
+
+	// Focus on opening, and back where it was on closing: opened from the
+	// keyboard, Tab must move through the panel rather than past it, and
+	// Escape must leave the reader where they were.
+	useEffect(() => {
+		const before = document.activeElement;
+		panel.current?.focus();
+
+		return () => {
+			if (before instanceof HTMLElement && before.isConnected) before.focus();
+		};
+	}, [panel]);
 	const [open, setOpen] = useState<ReadonlySet<SettingsSection>>(
 		() => new Set(section === 'overview' ? [] : [section]),
 	);
@@ -264,10 +271,13 @@ export const SettingsPanel = ({
 	return (
 		<div
 			ref={panel}
+			id="settings-panel"
 			data-testid="settings-panel"
 			role="dialog"
 			aria-label="Settings"
+			tabIndex={-1}
 			style={{
+				outline: 'none',
 				position: 'fixed',
 				top,
 				right: 0,

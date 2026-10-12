@@ -5,7 +5,7 @@ import ReactMarkdown, {
 } from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
-import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
+import {GUI_THEME, PROSE, TEXT} from '../lib/gui-theme';
 import {
 	remarkTicketRefs,
 	TICKET_REF_URL_PREFIX,
@@ -254,9 +254,7 @@ export const MarkdownContent = ({
 	return (
 		<div
 			style={{
-				fontFamily: CONTENT_FONT,
-				fontSize: TEXT.prose,
-				lineHeight: 1.6,
+				...PROSE,
 				color: GUI_THEME.primary,
 				wordBreak: 'break-word',
 				// Cancels the last block child's trailing bottom margin via

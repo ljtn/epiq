@@ -1949,10 +1949,13 @@ export const App = () => {
 								}
 								settings={{
 									open: settingsOpen,
-									onToggle: () => toggleSettings('overview'),
+									// Closes whatever is open, wherever it was opened from.
+									onToggle: () =>
+										setSettings(open => (open ? null : 'overview')),
 									ref: gearRef,
 								}}
 								identity={{
+									open: settingsOpen,
 									onToggle: () => toggleSettings('identity'),
 									ref: avatarRef,
 								}}

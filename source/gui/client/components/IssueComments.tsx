@@ -1,11 +1,11 @@
 import {useEffect, useRef, useState} from 'react';
-import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
+import {GUI_THEME, PROSE, TEXT} from '../lib/gui-theme';
 import {Button} from './Button';
 import {CodeSnippet} from './CodeSnippet';
-import {IconComment} from './IconComment';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
+import {CARD} from '../lib/card.style';
 import {
 	COMMENT_CARD_FOCUSED_STYLE,
 	COMMENT_CARD_STYLE,
@@ -186,41 +186,40 @@ export const IssueComments = ({
 									focused ? COMMENT_CARD_FOCUSED_STYLE : COMMENT_CARD_STYLE
 								}
 							>
-								{/* Only the header carries the icon; the body runs the card's
-							    full width underneath. */}
+								{/* One line over the body: who, and at the far end when. The
+								    body runs the card's full width underneath. */}
 								<div
 									style={{
 										display: 'flex',
 										alignItems: 'center',
 										gap: 8,
-										marginBottom: 6,
+										marginBottom: 8,
 									}}
 								>
-									<span
-										style={{
-											display: 'inline-flex',
-											color: GUI_THEME.accent,
-											flexShrink: 0,
-										}}
-									>
-										<IconComment size={12} />
-									</span>
 									<div
 										style={{
 											flex: 1,
 											minWidth: 0,
 											color: GUI_THEME.secondary,
 											fontSize: TEXT.meta,
+											overflow: 'hidden',
+											textOverflow: 'ellipsis',
+											whiteSpace: 'nowrap',
 										}}
 									>
 										{comment.author.name ?? 'unknown'}
-										{comment.createdAt && (
-											<span style={{color: GUI_THEME.dim2}}>
-												{' '}
-												· {timeAgo(comment.createdAt)}
-											</span>
-										)}
 									</div>
+									{comment.createdAt && (
+										<span
+											style={{
+												color: GUI_THEME.dim,
+												fontSize: TEXT.meta,
+												whiteSpace: 'nowrap',
+											}}
+										>
+											{timeAgo(comment.createdAt)}
+										</span>
+									)}
 
 									{!readonly &&
 										comment.author.id === whoAmI.id &&
@@ -273,10 +272,14 @@ export const IssueComments = ({
 												}
 											}}
 											style={{
-												minHeight: 45,
-												font: 'inherit',
-												fontFamily: CONTENT_FONT,
-												fontSize: TEXT.prose,
+												// In place: the card is the edge, and the text keeps
+												// the metrics it had a moment ago.
+												minHeight: 64,
+												...PROSE,
+												border: 'none',
+												borderRadius: 0,
+												background: 'transparent',
+												padding: 0,
 											}}
 										/>
 										<ActionRow>
@@ -304,7 +307,10 @@ export const IssueComments = ({
 			)}
 
 			{!readonly && (
-				<div style={{marginTop: 20}}>
+				// The composer is a card of its own: the field, and under it the
+				// row that sends what is in it, one object rather than a box with
+				// buttons floating beneath.
+				<div style={{...CARD, marginTop: 16, overflow: 'hidden'}}>
 					<Textarea
 						// Uncapped: maxLength drops a long paste's tail silently. The
 						// counter and disabled button refuse it visibly instead.
@@ -323,15 +329,24 @@ export const IssueComments = ({
 							}
 						}}
 						style={{
-							minHeight: 45,
-							font: 'inherit',
-							fontFamily: CONTENT_FONT,
-							fontSize: TEXT.prose,
+							minHeight: 64,
+							...PROSE,
+							// The card is the field's edge.
+							border: 'none',
+							borderRadius: 0,
+							background: 'transparent',
+							padding: '12px 14px',
 							...composerImages.dropStyle,
 						}}
 					/>
 
-					<ActionRow>
+					<ActionRow
+						style={{
+							marginTop: 0,
+							padding: '8px 10px',
+							borderTop: `1px solid ${GUI_THEME.line}`,
+						}}
+					>
 						{composerImages.enabled && (
 							<AddImageButton
 								testId="comment-image-input"

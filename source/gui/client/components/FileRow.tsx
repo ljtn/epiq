@@ -21,6 +21,7 @@ import {
 import {disclosureStyle} from '../lib/commit-row.style';
 import {CODE_FONT} from '../lib/code-text.style';
 import {DiffStat} from './DiffStat';
+import {Chip} from './Chip';
 import {RepoChip} from './RepoChip';
 import {SelectionComposer} from './SelectionComposer';
 
@@ -90,6 +91,7 @@ const DiffCommentAnnotation = ({
 const FileHeader = ({
 	file,
 	repo,
+	shared,
 	expanded,
 	onToggle,
 	commentCount,
@@ -98,6 +100,7 @@ const FileHeader = ({
 }: {
 	file: GuiCommitDiffFile;
 	repo?: string;
+	shared: boolean;
 	expanded: boolean;
 	onToggle: () => void;
 	commentCount: number;
@@ -148,6 +151,15 @@ const FileHeader = ({
 					{file.path}
 				</span>
 				{repo && <RepoChip repo={repo} />}
+				{shared && (
+					<Chip
+						testId="shared-file"
+						title="Another ticket's commits also changed this file between these. What is shown is both tickets' work; read it on the Commits view."
+						style={{color: GUI_THEME.amber}}
+					>
+						also other tickets
+					</Chip>
+				)}
 				{/* Findable when collapsed — otherwise a comment left on a file with
 				    several others is easy to lose track of. */}
 				{commentCount > 0 && (
@@ -212,6 +224,7 @@ export const FileRow = ({
 	reviewed,
 	onReviewed,
 	selectable = true,
+	shared = false,
 	additionsOnly = false,
 }: {
 	// The commit these lines belong to, and what a comment, a filed ticket and
@@ -237,6 +250,10 @@ export const FileRow = ({
 	// in the compacted diff that a commit from outside the ticket also touched,
 	// so the content shown is not what any of the ticket's commits left behind.
 	selectable?: boolean;
+	// Another ticket's commit also changed this file inside the compacted
+	// range, so the diff shown is not this ticket's alone: marked on the row,
+	// where the reader decides whether to go and read it commit by commit.
+	shared?: boolean;
 	// The deletions side of the compacted diff is numbered against the oldest
 	// commit's parent, which is no commit's own old side, so a selection there
 	// would record a line belonging to nothing. The additions side is exact.
@@ -336,6 +353,7 @@ export const FileRow = ({
 		expanded,
 		reviewed,
 		selectable,
+		shared,
 		additionsOnly,
 		fileComments.length,
 		note,
@@ -348,6 +366,7 @@ export const FileRow = ({
 		<FileHeader
 			file={file}
 			repo={repo}
+			shared={shared}
 			expanded={expanded}
 			onToggle={onToggle}
 			commentCount={fileComments.length}

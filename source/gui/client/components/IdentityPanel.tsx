@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {Button} from './Button';
 import {Input} from './FormPrimitives';
-import {META, ROW, SECTION_HEADING} from '../lib/identity-panel.style';
+import {META, ROW, SECTION_HEADING} from '../lib/card.style';
 import {useArmed} from '../lib/use-armed';
 import {ContributorEmailsState} from '../lib/use-contributor-emails';
 import {actorDisplay} from '../lib/agent-identity';

@@ -1,7 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {GuiSquashedDiff, GuiSquashedDiffFile} from '../lib/gui-state.model';
-import {repoPathKey, repoPathLabel} from '../lib/repo-label';
-import {useRepoLabel} from '../lib/use-repo-label';
+import {repoPathKey} from '../lib/repo-label';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
 import {
@@ -80,7 +79,6 @@ export const SquashedDiff = ({
 	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
 }) => {
-	const labelOf = useRepoLabel();
 	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 	const {isReviewed, setReviewed} = useReviewedFiles();
 
@@ -190,20 +188,16 @@ export const SquashedDiff = ({
 			</div>
 
 			{/* Said plainly rather than left to be discovered: the reader is
-			    looking at a diff that is not only this ticket's, and which files
-			    those are is the only part they can act on. */}
+			    looking at a diff that is not only this ticket's. Which files
+			    those are is said on each file's own row, where it is acted on:
+			    listed here, the paths would stand between the reader and the
+			    first file. */}
 			{!diff.contiguous && diff.overlappingPaths.length > 0 && (
 				<Notice tone="amber">
-					Another ticket&rsquo;s commits landed between these, and{' '}
+					Another ticket&rsquo;s commits landed between these;{' '}
 					{diff.overlappingPaths.length === 1
-						? 'one file below carries'
-						: `${diff.overlappingPaths.length} files below carry`}{' '}
-					their changes too:{' '}
-					<span style={{fontFamily: CODE_FONT}}>
-						{diff.overlappingPaths
-							.map(key => repoPathLabel(key, labelOf))
-							.join(', ')}
-					</span>
+						? 'one file below carries their changes too, and is marked'
+						: `${diff.overlappingPaths.length} files below carry their changes too, and are marked`}
 					. Read those on the Commits view.
 				</Notice>
 			)}
@@ -235,6 +229,7 @@ export const SquashedDiff = ({
 						onReviewed={next => reviewFile(file, next)}
 						diffStyle={diffStyle}
 						selectable={anchorable}
+						shared={!anchorable}
 						additionsOnly
 						onAddComment={anchorable ? onAddComment : undefined}
 						onFileTicket={anchorable ? onFileTicket : undefined}
