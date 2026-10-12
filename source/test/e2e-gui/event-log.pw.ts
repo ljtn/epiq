@@ -6,9 +6,9 @@ import {expect, test} from './fixtures.js';
 import {trackWithWindow} from './track.js';
 import {openBoard, returnToLive} from './live-board.js';
 
-// The log draws the commits the chart plots, and the chart opens on the ones
-// linked to a ticket. A test reading the seeded repository's own commits — none
-// of which name a ticket — has to ask for the repository first.
+// The log draws the commits the chart plots. A test reading the seeded
+// repository's own commits — none of which name a ticket — asks for the
+// repository itself rather than leaning on the opening choice.
 const showEveryCommit = async (page: Page) => {
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'All', exact: true}).click();
