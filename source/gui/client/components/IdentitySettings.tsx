@@ -4,7 +4,7 @@ import {
 	MIN_AUTO_SYNC_INTERVAL_MS,
 } from '../../../lib/config/auto-sync-interval.js';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {CARD, META, SECTION_HEADING} from '../lib/identity-panel.style';
+import {CARD, META} from '../lib/identity-panel.style';
 import {SyncSettingsState} from '../lib/use-sync-settings';
 import {Switch} from './Switch';
 
@@ -50,7 +50,6 @@ export const IdentitySettings = ({
 	if (!settings) {
 		return (
 			<>
-				<div style={SECTION_HEADING}>Auto sync</div>
 				<div style={{...META, marginTop: 0}}>
 					{state.lastError ?? 'Reading…'}
 				</div>
@@ -102,7 +101,6 @@ export const IdentitySettings = ({
 
 	return (
 		<>
-			<div style={SECTION_HEADING}>Auto sync</div>
 			<div
 				data-testid="identity-autosync"
 				style={{

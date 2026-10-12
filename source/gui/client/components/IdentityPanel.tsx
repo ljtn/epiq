@@ -1,16 +1,8 @@
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {
-	ACTION,
-	CARD,
-	META,
-	SECTION_HEADING,
-	SECTION_LABEL,
-} from '../lib/identity-panel.style';
+import {ACTION, CARD, META, SECTION_HEADING} from '../lib/identity-panel.style';
 import {ContributorEmailsState} from '../lib/use-contributor-emails';
 import {PersonalStatsState} from '../lib/use-personal-stats';
-import {SyncSettingsState} from '../lib/use-sync-settings';
 import {actorDisplay} from '../lib/agent-identity';
-import {IdentitySettings} from './IdentitySettings';
 import {IdentityStats} from './IdentityStats';
 
 // Where somebody goes when the board is calling their commits by the wrong
@@ -34,14 +26,6 @@ type Row = {
 	looksLikeYours: boolean;
 	commits: number | null;
 	names: string[];
-};
-
-// Who you are. The brightest thing here, not the biggest: everything in this
-// GUI is one size, and hierarchy is carried by how loud a thing is rather than
-// how large.
-const identity: React.CSSProperties = {
-	color: GUI_THEME.primary,
-	fontSize: TEXT.ui,
 };
 
 // The address itself, one step under the identity and well over its note.
@@ -194,22 +178,13 @@ const Section = ({
 export const IdentityPanel = ({
 	state,
 	stats,
-	settings,
-	me,
 	onLink,
 	onUnlink,
-	onChangeSettings,
 }: {
 	state: ContributorEmailsState;
 	stats: PersonalStatsState;
-	settings: SyncSettingsState;
-	me: {id: string; name: string} | null;
 	onLink: (email: string) => void;
 	onUnlink: (email: string) => void;
-	onChangeSettings: (patch: {
-		autoSync?: boolean;
-		autoSyncIntervalMs?: number;
-	}) => void;
 }) => {
 	const rows = rowsFrom(state);
 
@@ -226,18 +201,7 @@ export const IdentityPanel = ({
 	const unclaimed = free;
 
 	return (
-		<div
-			data-testid="identity-panel"
-			data-section="identity"
-			style={{paddingTop: 16}}
-		>
-			<div style={{display: 'flex', alignItems: 'baseline', gap: 9}}>
-				<span style={identity}>
-					{me ? actorDisplay(me.name).label : 'Not configured'}
-				</span>
-				<span style={SECTION_LABEL}>on this board</span>
-			</div>
-
+		<div data-testid="identity-panel">
 			{state.lastError && (
 				// Only a failure. A claim that worked shows in the list itself, and
 				// nothing else in this GUI reports its own successes back.
@@ -248,14 +212,12 @@ export const IdentityPanel = ({
 
 			<div>
 				<IdentityStats state={stats} />
-				<IdentitySettings state={settings} onChange={onChangeSettings} />
 
 				{state.scanError ? (
 					// Not the empty state: claiming from this list is the only way to
 					// link an address, so a history that could not be read has to say
-					// so rather than look like one with nothing left in it. Inside the
-					// scroller with the rest, because it replaces the addresses alone
-					// — the settings above it are nothing to do with a git scan.
+					// so rather than look like one with nothing left in it. It
+					// replaces the addresses alone: the figures above are not a scan.
 					<div style={{...META, paddingTop: 16, color: GUI_THEME.red}}>
 						{state.scanError}
 					</div>

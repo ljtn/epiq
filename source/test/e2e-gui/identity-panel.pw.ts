@@ -27,9 +27,16 @@ const openPanel = async (page: Page) => {
 		.locator('button[aria-label="Your identity on this board"]')
 		.click();
 
-	const panel = page.getByTestId('identity-panel');
-	await expect(panel).toBeVisible();
+	const panel = page.getByTestId('settings-panel');
+	await expect(panel.getByTestId('identity-panel')).toBeVisible();
 	return panel;
+};
+
+/** The sync section is folded unless the panel was opened for it. */
+const expandSync = async (page: Page) => {
+	const fold = page.getByTestId('settings-section-sync');
+	if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
+	await expect(page.getByTestId('autosync-interval')).toBeVisible();
 };
 
 /** A commit by `COMMIT_EMAIL`, and a page that can see it. */
@@ -77,9 +84,10 @@ test('a click inside the panel does not dismiss it', async ({
 }) => {
 	const panel = await openPanel(page);
 
-	// The heading, because it is inside the panel and does nothing when clicked:
-	// a button would prove the click landed but not that the panel survived it.
-	await panel.getByText('on this board').click();
+	// The figures, because they are inside the panel and do nothing when
+	// clicked: a button would prove the click landed but not that the panel
+	// survived it.
+	await panel.getByTestId('identity-stats').click();
 	await expect(panel).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
@@ -155,6 +163,7 @@ test('auto sync and its interval are editable, and survive a reload', async ({
 
 	try {
 		const panel = await openPanel(page);
+		await expandSync(page);
 		const interval = panel.getByTestId('autosync-interval');
 		await expect(interval).toBeVisible();
 
@@ -166,12 +175,14 @@ test('auto sync and its interval are editable, and survive a reload', async ({
 		// cannot overtake the write. Reloading straight away would race it.
 		await page.keyboard.press('Escape');
 		await openPanel(page);
+		await expandSync(page);
 		await expect(page.getByTestId('autosync-interval')).toHaveValue('37');
 
 		// And now the file, which is the only thing that outlives the page.
 		await page.reload();
 		await expect(page.getByTestId('board-switcher')).toContainText('Default');
 		await openPanel(page);
+		await expandSync(page);
 		await expect(page.getByTestId('autosync-interval')).toHaveValue('37');
 
 		// The floor, refused in the field rather than after a round trip, and
@@ -179,7 +190,7 @@ test('auto sync and its interval are editable, and survive a reload', async ({
 		// value nothing accepted.
 		const reopened = page.getByTestId('autosync-interval');
 		await reopened.fill('1');
-		await expect(page.getByTestId('identity-panel')).toContainText(
+		await expect(page.getByTestId('settings-panel')).toContainText(
 			'3 seconds is the shortest interval',
 		);
 		await reopened.blur();
@@ -235,6 +246,7 @@ test('a configured interval under the floor is shown, not flagged', async ({
 		await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 		const panel = await openPanel(page);
+		await expandSync(page);
 		await expect(panel.getByTestId('autosync-interval')).toHaveValue('1');
 		await expect(panel).not.toContainText('shortest interval');
 

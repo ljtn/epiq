@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import {GuiRepo} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {META, SECTION_HEADING} from '../lib/identity-panel.style';
+import {META} from '../lib/identity-panel.style';
 import {ReposState} from '../lib/use-repos';
 import {repoUrlProblem, REPO_URL_FORMS} from '../../../lib/commits/repo-url.js';
 import {Button} from './Button';
@@ -279,8 +279,7 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 
 	return (
 		<div ref={root} data-testid="repos-section" data-section="repos">
-			<div style={SECTION_HEADING}>Repos</div>
-			<div style={{...META, marginTop: 0, paddingBottom: 12}}>
+			<div style={{...META, marginTop: 0, padding: '10px 0 12px'}}>
 				Epiq can link other repositories: their commits show on the tickets they
 				name and in the timeline.
 			</div>

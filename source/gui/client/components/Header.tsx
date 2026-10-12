@@ -20,12 +20,20 @@ type HeaderProps = {
 	// what everything below is showing, the timeline included, and this is the
 	// one row that outlives every panel and collapse below it.
 	board: React.ReactNode;
-	// The avatar opens the settings panel at who the viewer is.
-	onOpenIdentity: () => void;
+	// The avatar toggles the settings panel at who the viewer is. The refs are
+	// the panel's, which must not take a click here for a click outside.
+	identity: {
+		onToggle: () => void;
+		ref: React.RefObject<HTMLDivElement | null>;
+	};
 	// How many repos the board reads commits from, its own included, and the
 	// panel section that links more. Null until the server has said, which is
 	// also before the panel could do anything.
-	repos: {count: number | null; onOpen: () => void};
+	repos: {
+		count: number | null;
+		onToggle: () => void;
+		ref: React.RefObject<HTMLButtonElement | null>;
+	};
 };
 
 export const Header = ({
@@ -36,7 +44,7 @@ export const Header = ({
 	syncStatus,
 	onOpenCommands,
 	board,
-	onOpenIdentity,
+	identity,
 	repos,
 }: HeaderProps) => {
 	const syncColor =
@@ -127,7 +135,8 @@ export const Header = ({
 								<Button
 									testId="linked-repos"
 									variant="ghost"
-									onClick={repos.onOpen}
+									ref={repos.ref}
+									onClick={repos.onToggle}
 									style={{color: GUI_THEME.dim, fontSize: 11}}
 								>
 									{`${repos.count} repo${repos.count === 1 ? '' : 's'}`}
@@ -217,9 +226,9 @@ export const Header = ({
 						// The avatar was the only thing in the GUI that named the viewer,
 						// and it did nothing. It is the obvious place to ask who the board
 						// thinks you are.
-						<div style={{position: 'relative'}}>
+						<div ref={identity.ref} style={{position: 'relative'}}>
 							<button
-								onClick={onOpenIdentity}
+								onClick={identity.onToggle}
 								aria-label="Your identity on this board"
 								style={{
 									background: 'transparent',
