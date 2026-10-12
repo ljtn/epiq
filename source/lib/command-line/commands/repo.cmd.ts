@@ -1,5 +1,6 @@
 import {
 	isAllowedRepoUrl,
+	isRepoLabel,
 	isRepoSince,
 	readCommitRepos,
 	registerCommitRepo,
@@ -11,14 +12,16 @@ import {
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 
-// `:config repoAdd <url> [branches=default|all] [since=board|all|YYYY-MM-DD]`
-// and `:config repoRemove <name>`: the TUI's way to the repos the GUI's palette
-// opens. Both edit `.epiq/project.json`; the next sync fetches.
+// `:config repoAdd <url> [branches=default|all] [since=board|all|YYYY-MM-DD]
+// [label=<name>]` and `:config repoRemove <name>`: the TUI's way to the repos
+// the GUI's palette opens. Both edit `.epiq/project.json`; the next sync
+// fetches.
 
 export type RepoAddArgs = {
 	url: string;
 	branches?: RepoBranches;
 	since?: string;
+	label?: string;
 };
 
 export const REPO_ADD_OPTIONS = [
@@ -26,6 +29,7 @@ export const REPO_ADD_OPTIONS = [
 	'branches=all',
 	'since=board',
 	'since=all',
+	'label=<name>',
 ];
 
 /** The typed line as a request, or why it is not one yet. */
@@ -45,6 +49,9 @@ export const parseRepoAddArgs = (input: string): Result<RepoAddArgs> => {
 			args.branches = value;
 		} else if (key === 'since' && isRepoSince(value)) {
 			args.since = value;
+		} else if (key === 'label' && (value === '' || isRepoLabel(value))) {
+			// `label=` alone goes back to the URL's basename.
+			args.label = value;
 		} else {
 			return failed(
 				`"${option}" is not an option: ${REPO_ADD_OPTIONS.join(', ')}`,

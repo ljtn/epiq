@@ -4,7 +4,7 @@ Epiq is a self-hosted issue tracker that allows you to review workflows in real 
 
 Most issue trackers live outside your workflow. Instead of a centralized, managed service, Epiq offers issue tracking as an integrated part of the development environment offering workflow replay and inline code-diffs, tackling the review bottleneck with time-travel, filtering, and a tight code integration.
 
-**[Site →](https://ljtn.github.io/epiq/)** 
+**[Site →](https://ljtn.github.io/epiq/)**
 
 > All state is kept local, Git-backed, and versioned.
 
@@ -42,7 +42,7 @@ A board can link commits from other repositories too — handy when the board li
 ]
 ```
 
-or from the GUI's command palette (**Code repos**), the TUI (`:config repoAdd <url>`, `:config repoRemove <name>`) or the MCP (`epiq_repo_add`). Epiq keeps its own read-only bare clone of each under `~/.epiq-global/repos/`, fetched on sync with your usual git credentials — never on startup. `branches` is `default` (the default) or `all`; `since` is how much history to clone: `board` (since the board was created, the default), `all`, or a date. A commit shows once it is pushed and the board has synced. Commit `project.json` to share the list.
+or from the GUI's command palette (**Code repos**), the TUI (`:config repoAdd <url>`, `:config repoRemove <name>`) or the MCP (`epiq_repo_add`). Epiq keeps its own read-only bare clone of each under `~/.epiq-global/repos/`, fetched on sync with your usual git credentials — never on startup. `branches` is `default` (the default) or `all`; `since` is how much history to clone: `board` (since the board was created, the default), `all`, or a date; `label` is what the repo is called on the board — its URL's basename unless set, which is how a fork and its upstream are told apart. A commit shows once it is pushed and the board has synced. Commit `project.json` to share the list.
 
 Since that list arrives with the code, it is read with care: only `https`, `http`, `ssh`, `git`, `file` and `user@host:path` URLs are accepted, never one carrying a password or a user before an http host, and git runs in the clones with none of your hooks, attribute drivers or command-running transports.
 
@@ -55,6 +55,7 @@ Epiq originated from the command line and offers a first-class terminal experien
 ## How it is different
 
 Fundamental design choices gives a system with:
+
 - **Workflow replay**, - inspect what happened while you were away, as if it happens now
 - **Simple setup** — no accounts, SaaS, or external services required
 - **Repo-native** — your issues can live where your code lives
@@ -129,7 +130,6 @@ On a machine with no display, or with `--no-open`, it serves without opening a b
 > - Updates your `.gitignore` to ignore local-only `.epiq/log/`
 >   Epiq manages a dedicated Git state branch and worktree automatically as the source of truth for synchronization.
 > - A local debug log at `.epiq/log/epiq.log` — check it first if sync, boot, or a Git operation is misbehaving.
-
 
 ---
 

@@ -14,6 +14,7 @@ type Props = {
 		url: string;
 		branches?: 'default' | 'all';
 		since?: string;
+		label?: string;
 	}) => void;
 	onRemove: (repo: string) => void;
 	onFetch: () => void;
@@ -50,6 +51,46 @@ const statusOf = (repo: GuiRepo): {text: string; color: string} => {
 };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// What the repo is called, changed in place: its URL's basename unless set,
+// which is how a fork and its upstream are told apart. The row keys this on
+// the label, so one changed elsewhere replaces the field, never gets sent back.
+const LabelField = ({
+	repo,
+	onChange,
+}: {
+	repo: GuiRepo;
+	onChange: (label: string) => void;
+}) => {
+	const [label, setLabel] = useState(repo.label);
+	// What was last sent: Enter and then a blur send one change, not two, and
+	// a refused one is not raised again by every blur after.
+	const sent = useRef<string | null>(null);
+	const send = () => {
+		const next = label.trim();
+		if (next === repo.label || next === sent.current) return;
+
+		sent.current = next;
+		onChange(next);
+	};
+
+	return (
+		<input
+			data-testid="repo-label"
+			aria-label={`What to call ${repo.url}`}
+			value={label}
+			maxLength={24}
+			onChange={event => setLabel(event.target.value)}
+			onBlur={send}
+			onKeyDown={event => {
+				if (event.key !== 'Enter') return;
+				event.preventDefault();
+				send();
+			}}
+			style={{...fieldStyle, fontSize: 12, width: 160}}
+		/>
+	);
+};
 
 // How much history is cloned: since the board was created, all of it, or
 // since a date. The date input only appears for the third.
@@ -242,9 +283,11 @@ export const ManageReposModal = ({
 										flex: 1,
 									}}
 								>
-									<span style={{fontSize: 12, color: GUI_THEME.primary}}>
-										{repo.label}
-									</span>
+									<LabelField
+										key={repo.label}
+										repo={repo}
+										onChange={label => onAdd({url: repo.url, label})}
+									/>
 									{/* Whole, wrapped rather than cut short: the host is not
 									    always at the start, and it is what says where this is. */}
 									<span

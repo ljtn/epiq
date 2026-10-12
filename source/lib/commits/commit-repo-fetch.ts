@@ -16,6 +16,7 @@ import {
 	repoIdOf,
 	readRepoProject,
 	RepoBranches,
+	REPO_RENAMED,
 	REPO_UNCHANGED,
 	sinceDate,
 	upsertCommitRepo,
@@ -723,7 +724,12 @@ export const registerCommitRepo = (
 	input: Parameters<typeof upsertCommitRepo>[0],
 ): Result<CommitRepo> => {
 	const result = upsertCommitRepo(input);
-	if (!isFail(result) && result.message !== REPO_UNCHANGED) {
+	// A rename moves no commit: the cached logs stay warm.
+	if (
+		!isFail(result) &&
+		result.message !== REPO_UNCHANGED &&
+		!result.message.startsWith(REPO_RENAMED)
+	) {
 		invalidateCommitTimelineCache();
 	}
 

@@ -13,8 +13,11 @@ export const repoPathKey = (path: string, repo?: string): string =>
 	repo ? `${repo}:${path}` : path;
 
 /** A `repoPathKey` as a reader would write it: `label/path`. */
-export const repoPathLabel = (key: string): string => {
+export const repoPathLabel = (
+	key: string,
+	labelOf: (repoId: string) => string = repoLabelOf,
+): string => {
 	const match = /^([a-z0-9._-]+-[0-9a-f]{12}):(.+)$/.exec(key);
 
-	return match ? `${repoLabelOf(match[1]!)}/${match[2]}` : key;
+	return match ? `${labelOf(match[1]!)}/${match[2]}` : key;
 };

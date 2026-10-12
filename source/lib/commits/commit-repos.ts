@@ -23,6 +23,8 @@ export type CommitRepoConfig = {
 	url: string;
 	branches: RepoBranches;
 	since: RepoSince;
+	/** What the repo is called on the board, where its URL's basename is not. */
+	label?: string;
 };
 
 export type CommitRepo = CommitRepoConfig & {
@@ -35,6 +37,8 @@ export const REPOS_KEY = 'repos';
 
 /** The answer to an add that names a repo already listed just so. */
 export const REPO_UNCHANGED = 'Unchanged';
+/** How the answer to a change of label alone opens: no commit moved. */
+export const REPO_RENAMED = 'Renamed ';
 
 const SCHEMES = new Set(['https:', 'http:', 'ssh:', 'git:', 'file:']);
 // `user@host:path`, the form ssh remotes are usually written in. Both names
@@ -45,6 +49,12 @@ const SCP_URL = /^[A-Za-z0-9][\w.-]*@[A-Za-z0-9][\w.-]*:[^:]+$/;
 const PRINTABLE = /^[\x21-\x7e]+$/;
 const MAX_URL_LENGTH = 2048;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+// A label as a derived one is cut: short, lowercase, nothing a command line
+// splits on or a chip would wrap.
+const LABEL = /^[a-z0-9][a-z0-9._-]{0,23}$/;
+// How an id ends. A label is never let look like one: a repo is named by
+// either, and a label would win.
+const ID_HASH = /-[0-9a-f]{12}$/;
 
 /**
  * Why a URL may not be registered, or null when it may. It arrives from a
@@ -109,6 +119,9 @@ export const isRepoSince = (value: string): boolean =>
 	value === 'all' ||
 	(DATE.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)));
 
+export const isRepoLabel = (value: string): boolean =>
+	LABEL.test(value) && !ID_HASH.test(value);
+
 const normalizeUrl = (url: string): string =>
 	url
 		.trim()
@@ -132,12 +145,12 @@ export const repoIdOf = (url: string): string =>
 
 /** The label back off an id, which carries it ahead of the URL's hash. */
 export const repoLabelOfId = (repoId: string): string =>
-	repoId.replace(/-[0-9a-f]{12}$/, '');
+	repoId.replace(ID_HASH, '');
 
 const toRepo = (config: CommitRepoConfig): CommitRepo => ({
 	...config,
 	id: repoIdOf(config.url),
-	label: labelOf(config.url),
+	label: config.label ?? labelOf(config.url),
 });
 
 const parseEntry = (entry: unknown): CommitRepoConfig | null => {
@@ -158,7 +171,12 @@ const parseEntry = (entry: unknown): CommitRepoConfig | null => {
 			? raw['since']
 			: 'board';
 
-	return {url, branches, since};
+	const label =
+		typeof raw['label'] === 'string' && isRepoLabel(raw['label'])
+			? raw['label']
+			: undefined;
+
+	return {url, branches, since, ...(label ? {label} : {})};
 };
 
 const readRawProject = (repoRoot: string): Result<Record<string, unknown>> => {
@@ -335,6 +353,8 @@ export const upsertCommitRepo = (input: {
 	url: string;
 	branches?: RepoBranches;
 	since?: RepoSince;
+	/** What to call it; empty goes back to the URL's basename. */
+	label?: string;
 }): Result<CommitRepo> => {
 	const url = input.url.trim();
 	const problem = repoUrlProblem(url);
@@ -348,6 +368,12 @@ export const upsertCommitRepo = (input: {
 			`"${input.since}" is not a history window: use board, all or YYYY-MM-DD.`,
 		);
 	}
+	const typedLabel = input.label?.trim();
+	if (typedLabel && !isRepoLabel(typedLabel)) {
+		return failed(
+			`"${typedLabel}" is not a label: up to 24 of a-z, 0-9, dot, dash or underscore, opening on a letter or digit.`,
+		);
+	}
 
 	const reposResult = readCommitRepos(input.repoRoot);
 	if (isFail(reposResult)) return failed(reposResult.message);
@@ -355,17 +381,41 @@ export const upsertCommitRepo = (input: {
 	const id = repoIdOf(url);
 	const existing = reposResult.value.find(repo => repo.id === id);
 
+	// Written only where it says something the URL does not; left as it is
+	// when nothing was said about it.
+	const keptLabel =
+		existing && existing.label !== labelOf(existing.url)
+			? existing.label
+			: undefined;
+	const label =
+		typedLabel === undefined
+			? keptLabel
+			: typedLabel && typedLabel !== labelOf(url)
+			? typedLabel
+			: undefined;
+
+	// The point of a label is telling two repos apart. A derived one is never
+	// refused: two forks share a basename before anybody names one.
+	if (
+		label &&
+		reposResult.value.some(repo => repo.id !== id && repo.label === label)
+	) {
+		return failed(`Another repo is already called ${label}`);
+	}
+
 	const config: CommitRepoConfig = {
 		url: existing?.url ?? url,
 		branches: input.branches ?? existing?.branches ?? 'default',
 		since: input.since ?? existing?.since ?? 'board',
+		...(label ? {label} : {}),
 	};
 
 	// Nothing to write, and nothing for a reader to start over on.
 	if (
 		existing &&
 		existing.branches === config.branches &&
-		existing.since === config.since
+		existing.since === config.since &&
+		existing.label === toRepo(config).label
 	) {
 		return succeeded(REPO_UNCHANGED, existing);
 	}
@@ -386,17 +436,37 @@ export const upsertCommitRepo = (input: {
 				? (written as Record<string, unknown>)
 				: {};
 
+		// `label` set outright: a cleared one must leave the entry.
 		return entries.map((entry, at) =>
-			at === index ? {...kept, ...config} : entry,
+			at === index ? {...kept, ...config, label: config.label} : entry,
 		);
 	});
 	if (isFail(writeResult)) return failed(writeResult.message);
 
+	const repo = toRepo(config);
+	const renamed =
+		existing &&
+		existing.branches === config.branches &&
+		existing.since === config.since;
+
 	return succeeded(
 		existing
-			? `Updated ${toRepo(config).label}`
-			: `Added ${toRepo(config).label}`,
-		toRepo(config),
+			? `${renamed ? REPO_RENAMED : 'Updated '}${repo.label}`
+			: `Added ${repo.label}`,
+		repo,
+	);
+};
+
+/** The registered repos' labels by id, for a reader that holds only ids. */
+export const repoLabelsById = (
+	repoRoot: string,
+): ReadonlyMap<string, string> => {
+	const reposResult = readCommitRepos(repoRoot);
+
+	return new Map(
+		isFail(reposResult)
+			? []
+			: reposResult.value.map(repo => [repo.id, repo.label]),
 	);
 };
 

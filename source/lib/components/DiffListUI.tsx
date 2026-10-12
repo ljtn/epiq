@@ -5,6 +5,8 @@ import {
 	RefCommitEntry,
 	getCommitsForRef,
 	repoLabelOfId,
+	repoLabelsById,
+	resolveRepoRoot,
 } from '../commits/commits.js';
 import {isFieldNode, Ticket} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -89,7 +91,12 @@ const formatChange = (commit: RefCommitEntry) =>
 type Load =
 	| {state: 'loading'}
 	| {state: 'failed'; message: string}
-	| {state: 'loaded'; commits: RefCommitEntry[]};
+	| {
+			state: 'loaded';
+			commits: RefCommitEntry[];
+			/** Registered repos' labels by id, read with the list. */
+			labels: ReadonlyMap<string, string>;
+	  };
 
 export function DiffListUI({ticket, width, height}: Props) {
 	const [load, setLoad] = useState<Load>({state: 'loading'});
@@ -108,10 +115,17 @@ export function DiffListUI({ticket, width, height}: Props) {
 			// the answer belongs to whichever ticket asked for it.
 			if (!current) return;
 
+			const rootResult = resolveRepoRoot();
 			setLoad(
 				isFail(result)
 					? {state: 'failed', message: result.message}
-					: {state: 'loaded', commits: result.value},
+					: {
+							state: 'loaded',
+							commits: result.value,
+							labels: isFail(rootResult)
+								? new Map()
+								: repoLabelsById(rootResult.value),
+					  },
 			);
 		});
 
@@ -122,6 +136,7 @@ export function DiffListUI({ticket, width, height}: Props) {
 
 	const commitNodesRef = useRef<NavNode<'FIELD'>[]>([]);
 	const commits = load.state === 'loaded' ? load.commits : null;
+	const labels = load.state === 'loaded' ? load.labels : null;
 
 	useEffect(() => {
 		detachCommitNodes(commitNodesRef.current);
@@ -227,7 +242,9 @@ export function DiffListUI({ticket, width, height}: Props) {
 								</Text>
 								{commit.repo && (
 									<Text color={theme.secondary2}>
-										{`[${repoLabelOfId(commit.repo)}] `}
+										{`[${
+											labels?.get(commit.repo) ?? repoLabelOfId(commit.repo)
+										}] `}
 									</Text>
 								)}
 								<Text color={isSelected ? theme.accent : theme.primary}>

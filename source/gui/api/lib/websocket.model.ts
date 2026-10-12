@@ -109,6 +109,7 @@ export type GuiMessage =
 				url: string;
 				branches?: 'default' | 'all';
 				since?: string;
+				label?: string;
 			};
 	  }
 	| {type: 'repo:remove'; payload: {repo: string}}

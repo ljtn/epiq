@@ -38,6 +38,7 @@ export const addRepo = async (
 		url: string;
 		branches?: RepoBranches;
 		since?: string;
+		label?: string;
 	},
 ): Promise<Result<RepoState[]>> => {
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
@@ -48,6 +49,7 @@ export const addRepo = async (
 		url: input.url,
 		branches: input.branches,
 		since: input.since,
+		label: input.label,
 	});
 	if (isFail(addResult)) return failed(addResult.message);
 

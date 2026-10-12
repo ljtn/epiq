@@ -15,6 +15,7 @@ import {
 	removeCommitRepo,
 	removeRepoClone,
 	repoIdOf,
+	repoLabelOfId,
 	resetCommitTimelineCacheForTests,
 	upsertCommitRepo,
 } from '../lib/commits/commits.js';
@@ -22,6 +23,7 @@ import {removeRepo} from '../mcp/api/repos.js';
 import {
 	getRepoClonePath,
 	MAX_REPOS,
+	REPO_RENAMED,
 	REPO_UNCHANGED,
 } from '../lib/commits/commit-repos.js';
 import {isFail, Result} from '../lib/model/result-types.js';
@@ -819,5 +821,99 @@ describe('review fixes', () => {
 		} finally {
 			process.env['EPIQ_GLOBAL_DIR'] = saved;
 		}
+	});
+});
+
+describe('a repo labelled apart from its URL', () => {
+	it('reads the label off the file, and the basename where there is none', () => {
+		writeProject(board, {
+			repos: [
+				{url: 'https://a.example/org/svc.git', label: 'upstream'},
+				{url: 'https://b.example/me/svc.git'},
+				{url: 'https://c.example/x/thing.git', label: 'Not A Label'},
+			],
+		});
+
+		expect(value(readCommitRepos(board)).map(repo => repo.label)).toEqual([
+			'upstream',
+			'svc',
+			'thing',
+		]);
+	});
+
+	it('is set, kept across an option change, and cleared back to the basename', () => {
+		const basename = repoLabelOfId(repoIdOf(url));
+
+		expect(
+			value(upsertCommitRepo({repoRoot: board, url, label: 'mirror'})),
+		).toMatchObject({label: 'mirror'});
+		expect(JSON.parse(projectText(board)).repos).toEqual([
+			{url, branches: 'default', since: 'board', label: 'mirror'},
+		]);
+
+		// Nothing said about the label: it stays.
+		expect(
+			value(upsertCommitRepo({repoRoot: board, url, branches: 'all'})),
+		).toMatchObject({label: 'mirror'});
+		expect(
+			upsertCommitRepo({repoRoot: board, url, label: 'mirror'}).message,
+		).toBe(REPO_UNCHANGED);
+
+		expect(
+			value(upsertCommitRepo({repoRoot: board, url, label: ''})),
+		).toMatchObject({label: basename});
+		expect(JSON.parse(projectText(board)).repos).toEqual([
+			{url, branches: 'all', since: 'board'},
+		]);
+
+		// The basename itself is nothing to write down.
+		expect(
+			upsertCommitRepo({repoRoot: board, url, label: basename}).message,
+		).toBe(REPO_UNCHANGED);
+	});
+
+	it('refuses a label another repo carries, and one that is not a label', () => {
+		value(
+			upsertCommitRepo({repoRoot: board, url: 'https://a.example/org/svc.git'}),
+		);
+
+		const taken = upsertCommitRepo({repoRoot: board, url, label: 'svc'});
+		expect(isFail(taken) && taken.message).toBe(
+			'Another repo is already called svc',
+		);
+		expect(
+			isFail(upsertCommitRepo({repoRoot: board, url, label: 'Up Stream'})),
+		).toBe(true);
+		expect(isFail(upsertCommitRepo({repoRoot: board, url, label: '-x'}))).toBe(
+			true,
+		);
+		// Shaped like an id, which a removal by id would then find first.
+		expect(
+			isFail(
+				upsertCommitRepo({repoRoot: board, url, label: 'svc-0123456789ab'}),
+			),
+		).toBe(true);
+		expect(value(readCommitRepos(board))).toHaveLength(1);
+	});
+
+	it('answers a change of label alone as a rename, which moves no commit', () => {
+		value(upsertCommitRepo({repoRoot: board, url}));
+
+		expect(
+			upsertCommitRepo({repoRoot: board, url, label: 'mirror'}).message,
+		).toBe(`${REPO_RENAMED}mirror`);
+		expect(
+			upsertCommitRepo({repoRoot: board, url, label: 'fork', since: 'all'})
+				.message,
+		).toBe('Updated fork');
+	});
+
+	it('is what the repo is removed by', () => {
+		value(upsertCommitRepo({repoRoot: board, url, label: 'mirror'}));
+
+		expect(value(removeCommitRepo({repoRoot: board, repo: 'mirror'})).url).toBe(
+			url,
+		);
+		expect(value(readCommitRepos(board))).toEqual([]);
 	});
 });
