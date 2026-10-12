@@ -42,17 +42,12 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await page.getByTestId('log-toggle').click();
 
-	// The opening state, which nobody has chosen: linked commits only, so the
-	// housekeeping commit is not listed until somebody asks for the repository.
+	// The opening state, which nobody has chosen: the whole repository, so a
+	// board with nothing linked to it yet still has its history beside it.
 	const lines = page.getByTestId('log-line');
 	const select = page.getByTestId('commit-select');
-	await expect(select).toHaveText('Commits (linked)');
-	await expect(lines.filter({hasText: linked})).toHaveCount(1);
-	await expect(lines.filter({hasText: plain})).toHaveCount(0);
-
-	await select.click();
-	await page.getByRole('radio', {name: 'All', exact: true}).click();
 	await expect(select).toHaveText('Commits (all)');
+	await expect(lines.filter({hasText: linked})).toHaveCount(1);
 	await expect(lines.filter({hasText: plain})).toHaveCount(1);
 
 	await select.click();
@@ -97,15 +92,9 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	const track = await trackWithWindow(page);
-	// The opening state is the narrow one, so the widening is what this walks:
+	// The opening state is the wide one, so the narrowing is what this walks:
 	// the row must be the same height either way.
-	const narrowed = (await track.boundingBox())!.height;
-
-	await page.getByTestId('commit-select').click();
-	await page.getByRole('radio', {name: 'All', exact: true}).click();
-	await expect(page.getByTestId('commit-select')).toHaveText('Commits (all)');
-
-	expect((await track.boundingBox())!.height).toBe(narrowed);
+	const wide = (await track.boundingBox())!.height;
 
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'Linked', exact: true}).click();
@@ -113,13 +102,19 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 		'Commits (linked)',
 	);
 
-	expect((await track.boundingBox())!.height).toBe(narrowed);
+	expect((await track.boundingBox())!.height).toBe(wide);
+
+	await page.getByTestId('commit-select').click();
+	await page.getByRole('radio', {name: 'All', exact: true}).click();
+	await expect(page.getByTestId('commit-select')).toHaveText('Commits (all)');
+
+	expect((await track.boundingBox())!.height).toBe(wide);
 
 	// Off is the one thing that takes the row away — for either series.
 	await page.getByTestId('show-commits').click();
 	await expect
 		.poll(async () => (await track.boundingBox())!.height)
-		.toBeLessThan(narrowed);
+		.toBeLessThan(wide);
 	const withoutCommits = (await track.boundingBox())!.height;
 
 	await page.getByTestId('show-board-events').click();
@@ -211,22 +206,22 @@ test('the measure and the narrowing are chosen apart, and both are remembered', 
 
 	await page.goto(boardUrl);
 	const select = page.getByTestId('commit-select');
-	await expect(select).toHaveText('Commits (linked)');
+	await expect(select).toHaveText('Commits (all)');
 
 	// Counting commits, a bar is one block: the stacked pair is not drawn at all.
 	await expect(page.getByTestId('line-bar')).toHaveCount(0);
 
 	await select.click();
 	await page.getByRole('radio', {name: 'Lines (+/-)'}).click();
-	await expect(select).toHaveText('Lines (linked)');
+	await expect(select).toHaveText('Lines (all)');
 	await expect
 		.poll(async () => await page.getByTestId('line-bar').count())
 		.toBeGreaterThan(0);
 
 	// The narrowing moves without taking the measure with it.
 	await select.click();
-	await page.getByRole('radio', {name: 'All', exact: true}).click();
-	await expect(select).toHaveText('Lines (all)');
+	await page.getByRole('radio', {name: 'Linked', exact: true}).click();
+	await expect(select).toHaveText('Lines (linked)');
 	await expect
 		.poll(async () => await page.getByTestId('line-bar').count())
 		.toBeGreaterThan(0);
@@ -235,7 +230,7 @@ test('the measure and the narrowing are chosen apart, and both are remembered', 
 	// drawn from the stored choice before the window it plots has arrived, so
 	// the bars are waited for rather than read off the next line.
 	await page.reload();
-	await expect(page.getByTestId('commit-select')).toHaveText('Lines (all)');
+	await expect(page.getByTestId('commit-select')).toHaveText('Lines (linked)');
 	await expect
 		.poll(async () => await page.getByTestId('line-bar').count())
 		.toBeGreaterThan(0);

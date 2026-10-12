@@ -260,13 +260,12 @@ export const App = () => {
 		SHOW_COMMITS_STORAGE_KEY,
 		true,
 	);
-	// On from the start: the chart sits under a board, and everything else drawn
-	// on it is that board's work. The repository's whole commit log is the
-	// outlier, and a reader who wants it asks for it. Persisted, so this decides
-	// the first run and nothing else.
+	// Off from the start: a new board has no tickets for a commit to be linked
+	// to, and a chart that opens empty beside a history reads as broken.
+	// Persisted, so this decides the first run and nothing else.
 	const [linkedCommitsOnly, setLinkedCommitsOnly] = usePersistedFlag(
 		LINKED_COMMITS_STORAGE_KEY,
-		true,
+		false,
 	);
 	const [commitDiff, setCommitDiff] = useState<{
 		sha: string;
