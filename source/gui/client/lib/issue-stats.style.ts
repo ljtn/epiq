@@ -62,7 +62,7 @@ export const STAT_CELL_COMPACT: React.CSSProperties = {
 	textAlign: 'left',
 	aspectRatio: 'auto',
 	padding: '10px 12px',
-	borderRadius: 8,
+	borderRadius: 6,
 };
 
 export const STAT_VALUE_COMPACT: React.CSSProperties = {

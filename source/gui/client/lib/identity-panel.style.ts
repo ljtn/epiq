@@ -38,6 +38,9 @@ export const META: React.CSSProperties = {
 	lineHeight: 1.5,
 };
 
+// The row's corner, one step past the buttons' 6: a card is a bigger thing.
+export const CARD_RADIUS = 8;
+
 /**
  * The ground a section stands on: one card per section, raised a step off
  * the panel. Everything inside it is flat, rows divided by rules, so a card
@@ -46,7 +49,7 @@ export const META: React.CSSProperties = {
 export const CARD: React.CSSProperties = {
 	background: GUI_THEME.panel2,
 	border: `1px solid ${GUI_THEME.line}`,
-	borderRadius: 10,
+	borderRadius: CARD_RADIUS,
 };
 
 /** One row of a section: a thing on the left, what can be done to it right. */

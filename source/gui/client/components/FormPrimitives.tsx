@@ -7,7 +7,9 @@ export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
 		style={{
 			width: '100%',
 			boxSizing: 'border-box',
-			background: GUI_THEME.bg,
+			// A place to type reads as recessed: a step down from the panel it
+			// sits on, not the page's black, which read as a hole in it.
+			background: GUI_THEME.well,
 			color: GUI_THEME.primary,
 			border: `1px solid ${GUI_THEME.line}`,
 			borderRadius: 8,
@@ -33,7 +35,7 @@ export const Textarea = React.forwardRef<
 			width: '100%',
 			minHeight: 140,
 			boxSizing: 'border-box',
-			background: GUI_THEME.bg,
+			background: GUI_THEME.well,
 			color: GUI_THEME.primary,
 			border: `1px solid ${GUI_THEME.line}`,
 			borderRadius: 8,

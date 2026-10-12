@@ -26,6 +26,7 @@ type HeaderProps = {
 	// viewer is. The refs are the panel's, which must not take a click here
 	// for a click outside.
 	settings: {
+		open: boolean;
 		onToggle: () => void;
 		ref: React.RefObject<HTMLSpanElement | null>;
 	};
@@ -208,6 +209,7 @@ export const Header = ({
 						<IconButton
 							title="Settings"
 							testId="open-settings"
+							pressed={settings.open}
 							onClick={settings.onToggle}
 						>
 							<IconGear />
