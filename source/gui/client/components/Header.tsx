@@ -2,6 +2,8 @@ import {GuiState} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {SyncStatus} from '../lib/gui-sync-statusmodel';
 import {Button} from './Button';
+import {IconButton} from './IconButton';
+import {IconGear} from './IconGear';
 import {CommandPaletteHint} from './CommandPaletteHint';
 import {Panel} from './Panel';
 import {User} from './User';
@@ -20,19 +22,16 @@ type HeaderProps = {
 	// what everything below is showing, the timeline included, and this is the
 	// one row that outlives every panel and collapse below it.
 	board: React.ReactNode;
-	// The avatar toggles the settings panel at who the viewer is. The refs are
-	// the panel's, which must not take a click here for a click outside.
+	// The gear toggles the settings panel; the avatar toggles it at who the
+	// viewer is. The refs are the panel's, which must not take a click here
+	// for a click outside.
+	settings: {
+		onToggle: () => void;
+		ref: React.RefObject<HTMLSpanElement | null>;
+	};
 	identity: {
 		onToggle: () => void;
 		ref: React.RefObject<HTMLDivElement | null>;
-	};
-	// How many repos the board reads commits from, its own included, and the
-	// panel section that links more. Null until the server has said, which is
-	// also before the panel could do anything.
-	repos: {
-		count: number | null;
-		onToggle: () => void;
-		ref: React.RefObject<HTMLButtonElement | null>;
 	};
 };
 
@@ -44,8 +43,8 @@ export const Header = ({
 	syncStatus,
 	onOpenCommands,
 	board,
+	settings,
 	identity,
-	repos,
 }: HeaderProps) => {
 	const syncColor =
 		syncStatus.status === 'synced'
@@ -126,25 +125,6 @@ export const Header = ({
 							whiteSpace: 'nowrap',
 						}}
 					>
-						{/* The one place the linked repos show before a commit of theirs
-						    does: a count, and the way to the panel. The board's own repo
-						    is one of them, so it never reads as zero — and the panel it
-						    opens is where a board with one finds out it could have more. */}
-						{repos.count !== null && connection === 'connected' && (
-							<>
-								<Button
-									testId="linked-repos"
-									variant="ghost"
-									ref={repos.ref}
-									onClick={repos.onToggle}
-									style={{color: GUI_THEME.dim, fontSize: 11}}
-								>
-									{`${repos.count} repo${repos.count === 1 ? '' : 's'}`}
-								</Button>
-								<span style={{color: GUI_THEME.dim}}>|</span>
-							</>
-						)}
-
 						{scrubbing && (
 							<>
 								<span style={{color: GUI_THEME.accent, fontWeight: 700}}>
@@ -221,6 +201,18 @@ export const Header = ({
 							{'v' + EPIQ_VERSION}
 						</span>
 					</div>
+
+					{/* The orthodox way in: a gear, which says "settings" where the
+					    avatar and the repo count only imply it. */}
+					<span ref={settings.ref} style={{display: 'inline-flex'}}>
+						<IconButton
+							title="Settings"
+							testId="open-settings"
+							onClick={settings.onToggle}
+						>
+							<IconGear />
+						</IconButton>
+					</span>
 
 					{state?.user && (
 						// The avatar was the only thing in the GUI that named the viewer,

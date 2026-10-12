@@ -83,10 +83,11 @@ test('a repo added from the palette brings its commits to the ticket they name',
 	const ticketUrl = page.url();
 
 	await withProjectFile(repoRoot, async (projectFile, before) => {
-		// The header counts them, the board's own repo included.
-		await expect(page.getByTestId('linked-repos')).toHaveText('1 repo');
 		await openRepos(page);
 		const modal = page.getByTestId('settings-panel');
+		// The Repos card says how many are linked, the board's own not counted.
+		const summary = page.getByTestId('settings-summary-repos');
+		await expect(summary).toHaveText('0 linked');
 
 		// The board's own repo is shown, and is not one of the linked rows:
 		// nothing to remove, nothing to set.
@@ -102,7 +103,7 @@ test('a repo added from the palette brings its commits to the ticket they name',
 
 		const row = modal.getByTestId('repo-row');
 		await expect(row).toHaveCount(1);
-		await expect(page.getByTestId('linked-repos')).toHaveText('2 repos');
+		await expect(summary).toHaveText('1 linked');
 		await expect(row.getByTestId('repo-status')).toHaveText('not fetched yet');
 		// The slot closes once the add landed.
 		await expect(modal.getByTestId('repo-url')).toHaveCount(0);
@@ -135,13 +136,14 @@ test('a repo added from the palette brings its commits to the ticket they name',
 		).toBeVisible();
 		await expect(aside.locator('[data-line]')).toHaveCount(2);
 
-		// The header's count is the other way into the panel.
-		await page.getByTestId('linked-repos').click();
+		// The gear is the other way in: the overview, with the card to unfold.
+		await page.getByTestId('open-settings').click();
 		await expect(modal).toBeVisible();
+		await page.getByTestId('settings-section-repos').click();
 		await row.getByTestId('remove-repo').click();
 		await row.getByTestId('remove-repo').click();
 		await expect(row).toHaveCount(0);
-		await expect(page.getByTestId('linked-repos')).toHaveText('1 repo');
+		await expect(summary).toHaveText('0 linked');
 		await expect(modal.getByTestId('repos-last-action')).toContainText(
 			'Removed',
 		);
