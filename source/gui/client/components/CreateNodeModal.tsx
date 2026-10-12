@@ -29,7 +29,7 @@ export const CreateNodeModal = ({
 		style={{
 			position: 'fixed',
 			inset: 0,
-			background: 'rgba(0, 0, 0, 0.25)',
+			background: GUI_THEME.scrim,
 			backdropFilter: 'blur(.5px)',
 			display: 'flex',
 			alignItems: 'center',

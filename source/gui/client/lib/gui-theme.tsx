@@ -77,6 +77,8 @@ export const GUI_THEME = {
 	amber: '#ffc078',
 	red: '#ff8787',
 	transparent: 'rgba(0, 0, 0, 0)',
+	// The dim over the page behind a modal.
+	scrim: 'rgba(0, 0, 0, 0.5)',
 };
 
 // The Board series split by what kind of change each event was. Tickets keeps
