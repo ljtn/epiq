@@ -37,9 +37,9 @@ export const effectiveHidden = (
 		: new Set();
 
 export const withoutHiddenRepos = (
-	commits: GuiCommitEntry[],
+	commits: readonly GuiCommitEntry[],
 	hidden: ReadonlySet<string>,
-): GuiCommitEntry[] =>
+): readonly GuiCommitEntry[] =>
 	// The same array back while nothing is hidden: the chart memoizes on it.
 	hidden.size === 0
 		? commits

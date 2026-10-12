@@ -75,6 +75,7 @@ import {
 import {usePersistedChoice, usePersistedFlag} from '../lib/use-persisted-flag';
 import {canPlayTimeline} from '../lib/theatre';
 import {keptCommits, linkableIssues} from '../lib/commit-link';
+import {withoutHiddenRepos} from '../lib/commit-repo-filter';
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
 import {ScatterLayer, ScatterPoint} from './ScatterCanvas';
 import {FlowHover} from './FlowCanvas';
@@ -198,8 +199,9 @@ export const TimeScrubber = ({
 	// board — the repository's.
 	linkedCommitsOnly: boolean;
 	onChangeLinkedCommitsOnly: (next: boolean) => void;
-	// Which repos the Code series plots. `commits` arrives already narrowed to
-	// them; these are for the menu that changes it.
+	// Which repos the Code series plots: the hidden ones are dropped where the
+	// commits are drawn, as the linked narrowing is, so the window keeps its
+	// scale. `commitRepos` is for the menu that changes it.
 	commitRepos: readonly string[];
 	hiddenCommitRepos: ReadonlySet<string>;
 	onToggleCommitRepo: (repo: string) => void;
@@ -684,14 +686,24 @@ export const TimeScrubber = ({
 	// ticket narrowing of events is: toggling it must not rescale the window.
 	const drawnCommits = useMemo(
 		() =>
-			keptCommits(
-				shown.commits,
-				linkedCommitsOnly,
-				ticketFocus,
-				linkedTo,
-				keptIssues,
+			withoutHiddenRepos(
+				keptCommits(
+					shown.commits,
+					linkedCommitsOnly,
+					ticketFocus,
+					linkedTo,
+					keptIssues,
+				),
+				hiddenCommitRepos,
 			),
-		[shown.commits, linkedCommitsOnly, ticketFocus, linkedTo, keptIssues],
+		[
+			shown.commits,
+			linkedCommitsOnly,
+			ticketFocus,
+			linkedTo,
+			keptIssues,
+			hiddenCommitRepos,
+		],
 	);
 	const commitStats = useMemo(
 		() => bucketCommitStats(axis, drawnCommits),

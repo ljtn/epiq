@@ -314,6 +314,7 @@ const VolumeBarsImpl = ({
 	color,
 	direction,
 	animate,
+	testId,
 }: {
 	bars: VolumeBar[];
 	bucketCount: number;
@@ -324,6 +325,7 @@ const VolumeBarsImpl = ({
 	// "up" is the issue histogram, "down" the mirrored commit one.
 	direction: 'up' | 'down';
 	animate: boolean;
+	testId?: string;
 }) => {
 	const widthPercent = 100 / bucketCount;
 	const barWidth = barWidthCss(bucketCount);
@@ -344,6 +346,7 @@ const VolumeBarsImpl = ({
 			{bars.map(({index, intensity}) => (
 				<div
 					key={index}
+					data-testid={testId}
 					style={{
 						position: 'absolute',
 						left: `${index * widthPercent}%`,

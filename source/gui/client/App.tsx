@@ -1958,7 +1958,7 @@ export const App = () => {
 
 						<TimeScrubber
 							timeline={history.timeline}
-							commits={plottedCommits}
+							commits={history.commits}
 							historyId={history.requestId}
 							boardId={selectedBoardId}
 							connected={connected}
