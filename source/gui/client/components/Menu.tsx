@@ -34,6 +34,7 @@ export const Menu = ({
 	chevronSize = 12,
 	leading,
 	portal = false,
+	portalInto,
 	open: controlledOpen,
 	onOpenChange,
 	children,
@@ -54,6 +55,11 @@ export const Menu = ({
 	leading?: React.ReactNode;
 	// Out to the body, for a trigger inside an ancestor that clips.
 	portal?: boolean;
+	// Out to this element instead: a modal's own panel, so the popover stacks
+	// above the modal and a click on it is a click inside, not a dismissal.
+	// Read when the popover is drawn, since the panel is mounted after the
+	// trigger's first render.
+	portalInto?: () => HTMLElement | null;
 	open?: boolean;
 	onOpenChange?: (open: boolean) => void;
 	children: (close: () => void) => React.ReactNode;
@@ -132,7 +138,9 @@ export const Menu = ({
 			</div>
 
 			{open &&
-				(portal ? anchor && createPortal(popover, document.body) : popover)}
+				(portal
+					? anchor && createPortal(popover, portalInto?.() ?? document.body)
+					: popover)}
 		</div>
 	);
 };

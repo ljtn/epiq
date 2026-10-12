@@ -113,8 +113,6 @@ export type GuiMessage =
 			};
 	  }
 	| {type: 'repo:remove'; payload: {repo: string}}
-	// Clones what is missing and fetches the rest — the network, on request.
-	| {type: 'repos:fetch'}
 	| {type: 'issue:commits:get'; payload: {issueId: string}}
 	| {type: 'issue:squashed-diff:get'; payload: {issueId: string}}
 	| {type: 'issue:stats:get'; payload: {issueId: string}}

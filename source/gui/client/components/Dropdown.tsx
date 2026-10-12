@@ -20,6 +20,7 @@ export const Dropdown = ({
 	placeholder = 'Select...',
 	onSelect,
 	testId,
+	portalInto,
 }: {
 	value?: DropdownItem | null;
 	items: DropdownItem[];
@@ -28,10 +29,13 @@ export const Dropdown = ({
 	// Handles for the browser tests. The trigger's text is the current
 	// selection, so selecting by text cannot address it across a change.
 	testId?: string;
+	// Inside a modal: the panel the popover must stack above. See Menu.
+	portalInto?: () => HTMLElement | null;
 }) => (
 	// Portalled: this sits in the topbar, which clips its children.
 	<Menu
 		portal
+		portalInto={portalInto}
 		label={value?.label ?? placeholder}
 		title={value?.label}
 		width={TRIGGER_WIDTH}

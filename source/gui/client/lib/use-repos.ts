@@ -4,15 +4,15 @@
 // commits is announced to every client as `repos:changed`.
 
 import {useCallback, useEffect, useState} from 'react';
-import {GuiRepo} from './gui-state.model';
+import {GuiOwnRepo, GuiRepo} from './gui-state.model';
 import {getResultValue} from './gui-state-helper';
 
 export type ReposState = {
 	data: GuiRepo[] | null;
-	/** What the last change or fetch came to, for the line under the list. */
+	/** Sent with the list on request; kept across the answers that omit it. */
+	own: GuiOwnRepo | null;
+	/** What the last change came to, for the line under the list. */
 	lastAction: {ok: boolean; message: string} | null;
-	/** A fetch somebody started from the panel is still running. */
-	fetching: boolean;
 	/**
 	 * Bumped each time another repo's commits may have moved, so whatever
 	 * draws commits asks for them again. They come from git; no board state
@@ -33,8 +33,8 @@ export const useRepos = ({
 }) => {
 	const [state, setState] = useState<ReposState>({
 		data: null,
+		own: null,
 		lastAction: null,
-		fetching: false,
 		changed: 0,
 	});
 
@@ -49,9 +49,8 @@ export const useRepos = ({
 	useEffect(() => {
 		if (!open) return;
 
-		// On opening, and on a reconnect while open: a fetch whose answer went
-		// to a lost socket would otherwise leave the button spinning.
-		setState(prev => ({...prev, lastAction: null, fetching: false}));
+		// On opening, and on a reconnect while open.
+		setState(prev => ({...prev, lastAction: null}));
 		sendRaw({type: 'repos:get'});
 	}, [open, sendRaw, socketEpoch]);
 
@@ -64,7 +63,7 @@ export const useRepos = ({
 				return;
 			}
 
-			// A fetch somewhere failed or moved a repo: the list's statuses moved.
+			// A sync's fetch failed or moved a repo: the list's statuses moved.
 			if (message.type === 'repos:fetched') {
 				if (open) sendRaw({type: 'repos:get'});
 				return;
@@ -77,9 +76,7 @@ export const useRepos = ({
 			setState(prev => ({
 				...prev,
 				data: value ?? prev.data,
-				// Only an answer to something asked of the panel ends a fetch: a
-				// refresh another client's sync set off carries no lastAction.
-				fetching: message.lastAction ? false : prev.fetching,
+				own: message.own ?? prev.own,
 				lastAction: message.lastAction
 					? {
 							ok: Boolean(message.lastAction.ok),
@@ -118,10 +115,5 @@ export const useRepos = ({
 		[sendRaw],
 	);
 
-	const fetchNow = useCallback(() => {
-		setState(prev => ({...prev, lastAction: null, fetching: true}));
-		sendRaw({type: 'repos:fetch'});
-	}, [sendRaw]);
-
-	return {...state, onMessage, add, remove, fetchNow};
+	return {...state, onMessage, add, remove};
 };

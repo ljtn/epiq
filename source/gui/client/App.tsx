@@ -1902,7 +1902,8 @@ export const App = () => {
 								syncStatus={syncStatus}
 								onOpenCommands={() => commandPalette.setOpen(true)}
 								repos={{
-									count: repos.data?.length ?? null,
+									// The board's own repo, and the linked ones.
+									count: repos.data ? repos.data.length + 1 : null,
 									onOpen: () => setReposOpen(true),
 								}}
 								board={
@@ -2463,7 +2464,6 @@ export const App = () => {
 							state={repos}
 							onAdd={repos.add}
 							onRemove={repos.remove}
-							onFetch={repos.fetchNow}
 							onClose={closeRepos}
 						/>
 					)}

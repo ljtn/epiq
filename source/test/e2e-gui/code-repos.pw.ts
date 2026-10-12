@@ -5,6 +5,7 @@ import path from 'node:path';
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 import {addTicketForRef} from './ticket.js';
+import {fetchLinkedRepos} from './linked-repos.js';
 
 // Another repo registered from the palette: fetched on request, its commits on
 // the ticket they name, and the project file left exactly as it was found once
@@ -44,6 +45,12 @@ const openRepos = async (page: Page) => {
 	await expect(page.getByTestId('repos-modal')).toBeVisible();
 };
 
+/** Opens the slot at the end of the list that takes a URL. */
+const startLink = async (page: Page) => {
+	await page.getByTestId('link-repo').click();
+	await expect(page.getByTestId('repo-url')).toBeVisible();
+};
+
 /** Runs `body` with the worker's project file put back afterwards, whatever happens. */
 const withProjectFile = async (
 	repoRoot: string,
@@ -64,6 +71,7 @@ test('a repo added from the palette brings its commits to the ticket they name',
 	appUrl,
 	pageErrors,
 	repoRoot,
+	globalDir,
 }) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -75,31 +83,42 @@ test('a repo added from the palette brings its commits to the ticket they name',
 	const ticketUrl = page.url();
 
 	await withProjectFile(repoRoot, async (projectFile, before) => {
-		// The header counts them, and with none it is the way in.
-		await expect(page.getByTestId('linked-repos')).toHaveText('link a repo');
+		// The header counts them, the board's own repo included.
+		await expect(page.getByTestId('linked-repos')).toHaveText('1 repo');
 		await openRepos(page);
 		const modal = page.getByTestId('repos-modal');
 
+		// The board's own repo is shown, and is not one of the linked rows:
+		// nothing to remove, nothing to set.
+		const own = modal.getByTestId('own-repo-row');
+		await expect(own).toContainText(path.basename(repoRoot));
+		await expect(own.getByTestId('remove-repo')).toHaveCount(0);
+		await expect(own.getByTestId('repo-label')).toHaveCount(0);
+		await expect(modal.getByTestId('repo-row')).toHaveCount(0);
+
+		await startLink(page);
 		await modal.getByTestId('repo-url').fill(`file://${upstream}`);
 		await modal.getByTestId('add-repo').click();
 
 		const row = modal.getByTestId('repo-row');
 		await expect(row).toHaveCount(1);
-		await expect(page.getByTestId('linked-repos')).toHaveText('1 repo');
-		await expect(row.getByTestId('repo-status')).toHaveText(
-			'not fetched yet — sync to fetch',
-		);
-		// Cleared once the add landed.
-		await expect(modal.getByTestId('repo-url')).toHaveValue('');
+		await expect(page.getByTestId('linked-repos')).toHaveText('2 repos');
+		await expect(row.getByTestId('repo-status')).toHaveText('not fetched yet');
+		// The slot closes once the add landed.
+		await expect(modal.getByTestId('repo-url')).toHaveCount(0);
+		await expect(modal.getByTestId('link-repo')).toBeVisible();
 		expect(JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos).toEqual([
 			{url: `file://${upstream}`, branches: 'default', since: 'board'},
 		]);
 
-		await modal.getByTestId('fetch-repos').click();
+		// Fetched as a sync would; the panel reads the clone's state on opening.
+		await fetchLinkedRepos({repoRoot, globalDir});
+		await modal.getByRole('button', {name: 'close'}).click();
+		await openRepos(page);
 		await expect(row.getByTestId('repo-status')).toHaveText(/^fetched /);
 		await modal.getByRole('button', {name: 'close'}).click();
 
-		// The ticket's Code tab, which a fetch tells to read its commits again.
+		// The ticket's Code tab reads the clone.
 		await page.goto(ticketUrl);
 		const aside = page.getByTestId('aside-pane');
 		await aside.getByRole('button', {name: /^Code \(1\)/}).click();
@@ -122,7 +141,7 @@ test('a repo added from the palette brings its commits to the ticket they name',
 		await row.getByTestId('remove-repo').click();
 		await row.getByTestId('remove-repo').click();
 		await expect(row).toHaveCount(0);
-		await expect(page.getByTestId('linked-repos')).toHaveText('link a repo');
+		await expect(page.getByTestId('linked-repos')).toHaveText('1 repo');
 		await expect(modal.getByTestId('repos-last-action')).toContainText(
 			'Removed',
 		);
@@ -135,11 +154,12 @@ test('a repo added from the palette brings its commits to the ticket they name',
 	expect(pageErrors).toEqual([]);
 });
 
-test("a repo that cannot be fetched says git's reason, and a refused URL keeps its text", async ({
+test("a repo that cannot be fetched says git's reason, and a bad URL is refused under the field", async ({
 	page,
 	appUrl,
 	pageErrors,
 	repoRoot,
+	globalDir,
 }) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -148,25 +168,28 @@ test("a repo that cannot be fetched says git's reason, and a refused URL keeps i
 		await openRepos(page);
 		const modal = page.getByTestId('repos-modal');
 
+		await startLink(page);
+		// Checked as typed, by the rule the server refuses it by: nothing is
+		// sent, and the text stays to be corrected.
 		await modal.getByTestId('repo-url').fill('/a/local/path');
-		await modal.getByTestId('add-repo').click();
-		await expect(modal.getByTestId('repos-last-action')).toContainText(
+		await expect(modal.getByTestId('repo-url-problem')).toContainText(
 			'not a remote URL',
 		);
+		await expect(modal.getByTestId('add-repo')).toBeDisabled();
 		await expect(modal.getByTestId('repo-url')).toHaveValue('/a/local/path');
 
 		const missing = path.join(os.tmpdir(), `epiq-gui-missing-${Date.now()}`);
 		await modal.getByTestId('repo-url').fill(`file://${missing}`);
 		await modal.getByTestId('add-repo').click();
-		await modal.getByTestId('fetch-repos').click();
+		await expect(modal.getByTestId('repo-row')).toHaveCount(1);
+		await fetchLinkedRepos({repoRoot, globalDir});
+		await modal.getByRole('button', {name: 'close'}).click();
+		await openRepos(page);
 
 		const status = modal.getByTestId('repo-row').getByTestId('repo-status');
 		await expect(status).not.toHaveText(/not fetched yet/);
 		await expect(status).not.toContainText('git ');
 		await expect(status).not.toContainText('-c ');
-		await expect(modal.getByTestId('repos-last-action')).toContainText(
-			'could not fetch',
-		);
 	});
 
 	expect(pageErrors).toEqual([]);
@@ -185,17 +208,26 @@ test('a repo’s options are written when they change, and only then', async ({
 	await withProjectFile(repoRoot, async projectFile => {
 		await openRepos(page);
 		const modal = page.getByTestId('repos-modal');
+		await startLink(page);
 		await modal.getByTestId('repo-url').fill(url);
 		await modal.getByTestId('add-repo').click();
 		const row = modal.getByTestId('repo-row');
 		await expect(row).toHaveCount(1);
 
-		await row.getByTestId('repo-branches').selectOption('all');
+		await row.getByTestId('repo-branches').click();
+		await page
+			.getByTestId('repo-branches-option')
+			.filter({hasText: 'all branches'})
+			.click();
 		await expect
 			.poll(() => JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos)
 			.toEqual([{url, branches: 'all', since: 'board'}]);
 
-		await row.getByTestId('repo-since').selectOption('date');
+		await row.getByTestId('repo-since').click();
+		await page
+			.getByTestId('repo-since-option')
+			.filter({hasText: 'since a date'})
+			.click();
 		const date = row.getByTestId('repo-since-date');
 		await date.fill('2025-03-01');
 		await date.blur();
@@ -216,7 +248,11 @@ test('a repo’s options are written when they change, and only then', async ({
 		await openRepos(page);
 		await date.focus();
 		await date.blur();
-		await row.getByTestId('repo-branches').selectOption('default');
+		await row.getByTestId('repo-branches').click();
+		await page
+			.getByTestId('repo-branches-option')
+			.filter({hasText: 'default branch'})
+			.click();
 		await expect
 			.poll(() => JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos)
 			.toEqual([{url, branches: 'default', since: '2025-03-01'}]);
@@ -239,6 +275,7 @@ test('the panel keeps focus where it is put while the page redraws', async ({
 	await withProjectFile(repoRoot, async () => {
 		await openRepos(page);
 		const modal = page.getByTestId('repos-modal');
+		await startLink(page);
 		await modal
 			.getByTestId('repo-url')
 			.fill('https://example.com/acme/focus.git');
@@ -251,6 +288,7 @@ test('the panel keeps focus where it is put while the page redraws', async ({
 		await other.goto(appUrl);
 		await expect(other.getByTestId('board-switcher')).toContainText('Default');
 		await openRepos(other);
+		await startLink(other);
 		await other
 			.getByTestId('repo-url')
 			.fill('https://example.com/acme/other.git');
@@ -264,55 +302,12 @@ test('the panel keeps focus where it is put while the page redraws', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-test('a reconnect while the panel is open ends a fetch whose answer was lost', async ({
-	page,
-	appUrl,
-	pageErrors,
-	repoRoot,
-}) => {
-	// The first socket is dropped as the fetch is asked for; later ones pass.
-	let dropped = false;
-	await page.routeWebSocket(/\/ws/, ws => {
-		const server = ws.connectToServer();
-		server.onMessage(message => ws.send(message));
-		ws.onMessage(message => {
-			if (!dropped && String(message).includes('"repos:fetch"')) {
-				dropped = true;
-				void ws.close();
-				return;
-			}
-			server.send(message);
-		});
-	});
-
-	await page.goto(appUrl);
-	await expect(page.getByTestId('board-switcher')).toContainText('Default');
-
-	await withProjectFile(repoRoot, async () => {
-		await openRepos(page);
-		const modal = page.getByTestId('repos-modal');
-		await modal
-			.getByTestId('repo-url')
-			.fill('https://example.com/acme/reconnect.git');
-		await modal.getByTestId('add-repo').click();
-		await expect(modal.getByTestId('repo-row')).toHaveCount(1);
-
-		const fetchButton = modal.getByTestId('fetch-repos');
-		await fetchButton.click();
-		await expect.poll(() => dropped).toBe(true);
-
-		await expect(fetchButton).toHaveText('fetch now', {timeout: 15_000});
-		await expect(fetchButton).toBeEnabled();
-	});
-
-	expect(pageErrors).toEqual([]);
-});
-
 test('the Code series drops a repo whose box is unticked', async ({
 	page,
 	appUrl,
 	pageErrors,
 	repoRoot,
+	globalDir,
 }) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -326,12 +321,11 @@ test('the Code series drops a repo whose box is unticked', async ({
 	await withProjectFile(repoRoot, async () => {
 		await openRepos(page);
 		const modal = page.getByTestId('repos-modal');
+		await startLink(page);
 		await modal.getByTestId('repo-url').fill(`file://${upstream}`);
 		await modal.getByTestId('add-repo').click();
-		await modal.getByTestId('fetch-repos').click();
-		await expect(
-			modal.getByTestId('repo-row').getByTestId('repo-status'),
-		).toHaveText(/^fetched /);
+		await expect(modal.getByTestId('repo-row')).toHaveCount(1);
+		await fetchLinkedRepos({repoRoot, globalDir});
 		await modal.getByRole('button', {name: 'close'}).click();
 
 		await page.reload();
@@ -363,6 +357,7 @@ test('a repo labelled in the panel is named so on its commits and in the filter'
 	appUrl,
 	pageErrors,
 	repoRoot,
+	globalDir,
 }) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -376,6 +371,7 @@ test('a repo labelled in the panel is named so on its commits and in the filter'
 	await withProjectFile(repoRoot, async projectFile => {
 		await openRepos(page);
 		const modal = page.getByTestId('repos-modal');
+		await startLink(page);
 		await modal.getByTestId('repo-url').fill(`file://${upstream}`);
 		await modal.getByTestId('add-repo').click();
 		const row = modal.getByTestId('repo-row');
@@ -401,8 +397,7 @@ test('a repo labelled in the panel is named so on its commits and in the filter'
 		await expect(row.getByTestId('repo-label')).toHaveValue('Up Stream');
 		await row.getByTestId('repo-label').fill('upstream');
 
-		await modal.getByTestId('fetch-repos').click();
-		await expect(row.getByTestId('repo-status')).toHaveText(/^fetched /);
+		await fetchLinkedRepos({repoRoot, globalDir});
 		await modal.getByRole('button', {name: 'close'}).click();
 
 		await page.goto(ticketUrl);

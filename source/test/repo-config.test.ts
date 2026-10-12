@@ -133,7 +133,8 @@ describe('the repo messages on the GUI socket', () => {
 
 	it('takes the bare reads', () => {
 		expect(parseGuiMessage({type: 'repos:get'}).ok).toBe(true);
-		expect(parseGuiMessage({type: 'repos:fetch'}).ok).toBe(true);
+		// Fetching is the sync's; the panel has no message for it.
+		expect(parseGuiMessage({type: 'repos:fetch'}).ok).toBe(false);
 	});
 });
 
