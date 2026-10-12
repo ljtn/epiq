@@ -1,5 +1,4 @@
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {CODE_FONT} from '../lib/code-text.style';
 import {
 	ACTION,
 	CARD,
@@ -229,29 +228,8 @@ export const IdentityPanel = ({
 	return (
 		<div
 			data-testid="identity-panel"
-			style={{
-				background: GUI_THEME.panel,
-				border: `1px solid ${GUI_THEME.edge}`,
-				borderRadius: 6,
-				padding: '16px 18px 14px',
-				width: 440,
-				// Taller than the window on any repository with a few contributors,
-				// so the rows scroll and the panel keeps its edges. The height it
-				// may take comes from the header, which knows how far down the
-				// window this sits; this only has to lay out inside it, which is
-				// what `minHeight` buys — a flex child will not shrink below its
-				// own content without it, and an unshrinkable panel still runs off
-				// the bottom however tightly it is capped.
-				display: 'flex',
-				flexDirection: 'column',
-				minHeight: 0,
-				color: GUI_THEME.primary,
-				// UI chrome, so monospace like every other label, button and tag in
-				// the GUI. Without naming one this fell back to the browser's serif
-				// and the panel read as a different application.
-				fontFamily: CODE_FONT,
-				fontSize: TEXT.ui,
-			}}
+			data-section="identity"
+			style={{paddingTop: 16}}
 		>
 			<div style={{display: 'flex', alignItems: 'baseline', gap: 9}}>
 				<span style={identity}>
@@ -268,20 +246,7 @@ export const IdentityPanel = ({
 				</div>
 			)}
 
-			{/* Everything but the line above scrolls. That line is the answer the
-			    panel is open to give, so it stays put while the rest moves under
-			    it — and on a short window there would otherwise be nothing left
-			    of the addresses at all. */}
-			<div
-				style={{
-					overflowY: 'auto',
-					minHeight: 0,
-					// Reserved rather than taken from the cards the moment the
-					// list grows: on a platform whose scrollbar occupies layout
-					// space, a row would otherwise resize as addresses arrive.
-					scrollbarGutter: 'stable',
-				}}
-			>
+			<div>
 				<IdentityStats state={stats} />
 				<IdentitySettings state={settings} onChange={onChangeSettings} />
 

@@ -68,9 +68,9 @@ test('the avatar opens who you are, and Escape closes it', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The panel is portalled out of the header to escape the clipping there, so a
-// click inside it is not a click inside the trigger. Without the panel being
-// named as inside, it closed the moment anybody used it.
+// The panel is its own root, not a descendant of the avatar that opens it, so
+// a click inside it has to be told apart from one outside. Without that it
+// closed the moment anybody used it.
 test('a click inside the panel does not dismiss it', async ({
 	page,
 	pageErrors,
@@ -92,7 +92,7 @@ test('a click inside the panel does not dismiss it', async ({
 // The seeded history holds too few addresses to overflow anything, so this
 // pins the structure that makes overflow survivable rather than an overflowing
 // list: the panel stays inside the window, the addresses sit in a region that
-// scrolls, and the line saying who you are sits outside it.
+// scrolls, and the panel's title sits outside it.
 test('the addresses scroll inside a panel that stays in the window', async ({
 	page,
 	pageErrors,
@@ -107,31 +107,30 @@ test('the addresses scroll inside a panel that stays in the window', async ({
 	const measured = await page.evaluate<{
 		bottom: number;
 		viewport: number;
+		scrollerScrolls: boolean;
 		scrollerHoldsRows: boolean;
-		scrollerHoldsHeading: boolean;
+		scrollerHoldsTitle: boolean;
 	}>(`
 		(() => {
-			const panel = document.querySelector('[data-testid="identity-panel"]');
+			const panel = document.querySelector('[data-testid="settings-panel"]');
 			const box = panel.getBoundingClientRect();
-			const scroller = [...panel.children].find(
-				child => getComputedStyle(child).overflowY === 'auto',
-			);
+			const scroller = panel.querySelector('[data-testid="settings-scroller"]');
 			const row = panel.querySelector('[data-testid^="identity-row-"]');
 
 			return {
 				bottom: Math.round(box.bottom),
 				viewport: window.innerHeight,
-				scrollerHoldsRows: Boolean(scroller && row && scroller.contains(row)),
-				scrollerHoldsHeading: Boolean(
-					scroller && scroller.textContent.includes('on this board'),
-				),
+				scrollerScrolls: getComputedStyle(scroller).overflowY === 'auto',
+				scrollerHoldsRows: Boolean(row && scroller.contains(row)),
+				scrollerHoldsTitle: scroller.textContent.includes('Settings'),
 			};
 		})()
 	`);
 
 	expect(measured.bottom).toBeLessThanOrEqual(measured.viewport);
+	expect(measured.scrollerScrolls).toBe(true);
 	expect(measured.scrollerHoldsRows).toBe(true);
-	expect(measured.scrollerHoldsHeading).toBe(false);
+	expect(measured.scrollerHoldsTitle).toBe(false);
 
 	expect(pageErrors).toEqual([]);
 });

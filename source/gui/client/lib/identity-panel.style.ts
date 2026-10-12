@@ -4,7 +4,6 @@
 // that it is one surface: a heading, a card and a button that each section
 // wrote for itself would read as three panels stacked in a popover.
 
-import {CODE_FONT} from './code-text.style';
 import {GUI_THEME, TEXT} from './gui-theme';
 
 /** One section heading, as quiet as a heading can be and still divide. */
@@ -40,7 +39,8 @@ export const ACTION: React.CSSProperties = {
 	border: `1px solid ${GUI_THEME.line}`,
 	borderRadius: 4,
 	cursor: 'pointer',
-	fontFamily: CODE_FONT,
+	// The panel's face, whichever it is: a button in a prose panel is prose.
+	fontFamily: 'inherit',
 	fontSize: TEXT.meta,
 	padding: '3px 8px',
 	whiteSpace: 'nowrap',

@@ -23,6 +23,7 @@ const handlers = (): CommandHandlers => ({
 	createBoard: vi.fn(),
 	renameBoard: vi.fn(),
 	openRepos: vi.fn(),
+	openSettings: vi.fn(),
 });
 
 const issue = (overrides: Partial<GuiIssue> = {}): GuiIssue => ({
