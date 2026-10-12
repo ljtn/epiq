@@ -4,10 +4,12 @@ import {
 	ROW,
 	STAT_CAPTION,
 	STAT_CELL,
+	STAT_CELL_COMPACT,
 	STAT_HOVER_BACKGROUND,
 	STAT_LABEL,
 	STAT_NOTE,
 	STAT_VALUE,
+	STAT_VALUE_COMPACT,
 	statValueSize,
 } from '../lib/issue-stats.style';
 
@@ -21,6 +23,8 @@ export const Stat = ({
 	note,
 	action,
 	title,
+	size = 'full',
+	testId,
 }: {
 	value: string;
 	label: string;
@@ -28,9 +32,15 @@ export const Stat = ({
 	// A control beside the label, hung off its end so the label stays centred.
 	action?: React.ReactNode;
 	title?: string;
+	// `full` is the Stats tab's square; `compact` the same figure over its
+	// label at a panel's size, where four at full size would be the loudest
+	// thing on it.
+	size?: 'full' | 'compact';
+	testId?: string;
 }) => (
 	<div
-		style={STAT_CELL}
+		data-testid={testId}
+		style={size === 'compact' ? STAT_CELL_COMPACT : STAT_CELL}
 		title={title}
 		onMouseEnter={event => {
 			event.currentTarget.style.background = STAT_HOVER_BACKGROUND;
@@ -39,7 +49,16 @@ export const Stat = ({
 			event.currentTarget.style.background = STAT_CELL.background as string;
 		}}
 	>
-		<div style={{...STAT_VALUE, fontSize: statValueSize(value), gridRow: 2}}>
+		<div
+			data-testid={testId ? `${testId}-value` : undefined}
+			style={{
+				...STAT_VALUE,
+				...(size === 'compact'
+					? STAT_VALUE_COMPACT
+					: {fontSize: statValueSize(value)}),
+				gridRow: 2,
+			}}
+		>
 			{value}
 		</div>
 		<div style={STAT_CAPTION}>

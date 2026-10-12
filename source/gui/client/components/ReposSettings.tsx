@@ -1,19 +1,23 @@
 import {useEffect, useRef, useState} from 'react';
+import {CODE_FONT} from '../lib/code-text.style';
 import {GuiRepo} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {META} from '../lib/identity-panel.style';
+import {META, ROW} from '../lib/identity-panel.style';
+import {useArmed} from '../lib/use-armed';
 import {ReposState} from '../lib/use-repos';
 import {repoUrlProblem, REPO_URL_FORMS} from '../../../lib/commits/repo-url.js';
 import {Button} from './Button';
+import {Chip} from './Chip';
 import {Dropdown} from './Dropdown';
 import {Input} from './FormPrimitives';
+import {IconButton} from './IconButton';
 import {IconLock} from './IconLock';
 import {IconTrash} from './IconTrash';
 
 // The repos the board reads commits from, as a section of the settings panel:
 // its own first and locked, then the linked ones, then the row that links
-// another.
+// another. Rows, not cards — the section is the card.
 
 type Props = {
 	state: ReposState;
@@ -26,26 +30,30 @@ type Props = {
 	onRemove: (repo: string) => void;
 };
 
-const ROW_PADDING = 12;
-const COLUMN_GAP = 12;
-const LINE_GAP = 8;
-// Two of these and a gap fit the panel's width with the row's padding taken.
+// Two of these and a gap fit the card's width with its padding taken.
 const CONTROL_WIDTH = 170;
+const LINE_GAP = 8;
 // The confirm button's own red, translucent enough that the name still reads.
 const ARMED_BACKGROUND = 'rgba(255, 135, 135, 0.14)';
 
 const rowStyle = (armed: boolean): React.CSSProperties => ({
-	display: 'flex',
+	...ROW,
 	alignItems: 'flex-start',
-	gap: COLUMN_GAP,
-	padding: `${ROW_PADDING}px ${ROW_PADDING + 2}px`,
-	borderRadius: 8,
-	background: armed ? ARMED_BACKGROUND : GUI_THEME.hover,
-	// An inset ring rather than a border, so arming a row does not reflow it.
-	boxShadow: armed ? `inset 0 0 0 1px ${GUI_THEME.red}` : undefined,
+	padding: '12px 0',
+	// Arming washes the row and pulls it out to the card's edge, so the wash
+	// has edges of its own rather than stopping at the text.
+	...(armed
+		? {
+				background: ARMED_BACKGROUND,
+				boxShadow: `inset 0 0 0 1px ${GUI_THEME.red}`,
+				borderRadius: 8,
+				margin: '0 -8px',
+				padding: '12px 8px',
+		  }
+		: {}),
 });
 
-// The row's text: one line under another, each a flex line of its own.
+// The row's text: one line under another.
 const linesStyle: React.CSSProperties = {
 	display: 'flex',
 	flexDirection: 'column',
@@ -57,20 +65,23 @@ const linesStyle: React.CSSProperties = {
 const lineStyle: React.CSSProperties = {
 	display: 'flex',
 	alignItems: 'center',
-	gap: COLUMN_GAP,
+	gap: 10,
 	minWidth: 0,
 };
 
 const nameStyle: React.CSSProperties = {
 	flex: 1,
 	minWidth: 0,
-	fontSize: TEXT.ui,
+	fontSize: TEXT.prose,
+	fontWeight: 500,
 	overflow: 'hidden',
 	textOverflow: 'ellipsis',
 	whiteSpace: 'nowrap',
 };
 
-const detailStyle: React.CSSProperties = {
+// Where a repo is: a URL or a path, which are code and set in the code face.
+const whereStyle: React.CSSProperties = {
+	fontFamily: CODE_FONT,
 	fontSize: TEXT.meta,
 	color: GUI_THEME.dim,
 	whiteSpace: 'nowrap',
@@ -84,7 +95,8 @@ const controlStyle: React.CSSProperties = {
 	display: 'flex',
 	alignItems: 'center',
 	justifyContent: 'center',
-	width: 32,
+	width: 28,
+	height: 24,
 	flexShrink: 0,
 };
 
@@ -116,6 +128,13 @@ const SINCE = [
 	{id: 'all', label: 'all history'},
 	{id: 'date', label: 'since a date'},
 ];
+
+// The shared field at the panel's type size and corner.
+const FIELD: React.CSSProperties = {
+	borderRadius: 6,
+	padding: '6px 10px',
+	fontSize: TEXT.prose,
+};
 
 // What the repo is called, changed in place: its URL's basename unless set,
 // which is how a fork and its upstream are told apart. Drawn as the name it
@@ -167,11 +186,11 @@ const LabelField = ({
 				color: GUI_THEME.primary,
 				background: focused ? GUI_THEME.bg : 'transparent',
 				border: `1px solid ${focused ? GUI_THEME.line : 'transparent'}`,
-				borderRadius: 4,
+				borderRadius: 6,
 				// Pulled left by its own padding, so the name sits where the own
 				// repo's plain one does.
-				padding: '2px 4px',
-				marginLeft: -5,
+				padding: '2px 6px',
+				marginLeft: -7,
 				outline: 'none',
 			}}
 		/>
@@ -210,7 +229,7 @@ const SinceField = ({
 			/>
 
 			{(isDate || picking) && (
-				<input
+				<Input
 					data-testid="repo-since-date"
 					type="date"
 					defaultValue={isDate ? repo.since : ''}
@@ -221,14 +240,10 @@ const SinceField = ({
 						if (DATE.test(next) && next !== repo.since) onChange(next);
 					}}
 					style={{
-						background: GUI_THEME.bg,
-						color: GUI_THEME.primary,
-						border: `1px solid ${GUI_THEME.line}`,
-						borderRadius: 6,
+						...FIELD,
+						width: 'auto',
 						padding: '4px 8px',
-						font: 'inherit',
 						fontSize: TEXT.ui,
-						outline: 'none',
 					}}
 				/>
 			)}
@@ -239,9 +254,8 @@ const SinceField = ({
 export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 	const [adding, setAdding] = useState(false);
 	const [url, setUrl] = useState('');
-	// Two-step: the first click arms one row, the second commits it. Arming by
-	// id rather than a boolean so moving to another row cancels the first.
-	const [armedId, setArmedId] = useState<string | null>(null);
+	// Removing cannot be taken back, so it takes two clicks.
+	const remove = useArmed<string>();
 
 	// The URL sent, until its answer: the row closes once it lands, and stays
 	// with its text if refused.
@@ -278,220 +292,179 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 	};
 
 	return (
-		<div ref={root} data-testid="repos-section" data-section="repos">
-			<div style={{...META, marginTop: 0, padding: '10px 0 12px'}}>
-				Epiq can link other repositories: their commits show on the tickets they
-				name and in the timeline.
+		<div ref={root} data-testid="repos-section">
+			<div style={{...META, marginTop: 0, padding: '12px 0 2px'}}>
+				Commits from a linked repo show on the tickets they name and in the
+				timeline. The list is kept in the project file, so it reaches everyone.
 			</div>
 
-			<div style={{display: 'flex', flexDirection: 'column', gap: 6}}>
-				{/* The board's own repo, listed first: the one every other row is
-				    linked to. Locked, since it is read from the checkout and there
-				    is nothing to set. */}
-				{state.own && (
-					<div data-testid="own-repo-row" style={rowStyle(false)}>
-						<span style={linesStyle}>
-							<span style={lineStyle}>
-								<span style={{...nameStyle, color: GUI_THEME.secondary}}>
-									{state.own.label}
-								</span>
-								<span
-									style={{
-										...detailStyle,
-										color: GUI_THEME.accent,
-										flexShrink: 0,
-									}}
-								>
-									this repo
-								</span>
-							</span>
-							<span style={detailStyle} title={state.own.url ?? state.own.path}>
-								{state.own.url ?? state.own.path}
-							</span>
+			{/* The board's own repo, listed first: the one every other row is
+			    linked to. Locked, since it is read from the checkout and there
+			    is nothing to set. */}
+			{state.own && (
+				<div data-testid="own-repo-row" style={rowStyle(false)}>
+					<span style={linesStyle}>
+						<span style={lineStyle}>
+							<span style={nameStyle}>{state.own.label}</span>
+							<Chip>this repo</Chip>
 						</span>
-
-						<span
-							title="The board's own repo — its commits are always read"
-							style={{...controlStyle, color: GUI_THEME.dim, opacity: 0.7}}
-						>
-							<IconLock />
+						<span style={whereStyle} title={state.own.url ?? state.own.path}>
+							{state.own.url ?? state.own.path}
 						</span>
-					</div>
-				)}
+					</span>
 
-				{repos.map(repo => {
-					const armed = armedId === repo.id;
-					const status = statusOf(repo);
+					<span
+						title="The board's own repo — its commits are always read"
+						style={{...controlStyle, color: GUI_THEME.dim}}
+					>
+						<IconLock />
+					</span>
+				</div>
+			)}
 
-					return (
-						<div
-							key={repo.id}
-							data-testid="repo-row"
-							data-armed={armed ? 'true' : 'false'}
-							style={rowStyle(armed)}
-						>
-							<span style={linesStyle}>
-								{/* The name and how it stands; where it is; what is read
-								    from it. Three lines, since the panel is narrow. */}
-								<span style={lineStyle}>
-									<LabelField
-										key={repo.label}
-										repo={repo}
-										onChange={label => onAdd({url: repo.url, label})}
-									/>
-									<span
-										data-testid="repo-status"
-										style={{
-											...detailStyle,
-											color: status.color,
-											flexShrink: 0,
-										}}
-									>
-										{status.text}
-									</span>
-								</span>
-								<span
-									data-testid="repo-url-shown"
-									title={repo.url}
-									style={detailStyle}
-								>
-									{repo.url}
-								</span>
-								<span style={lineStyle}>
-									<Dropdown
-										testId="repo-branches"
-										width={CONTROL_WIDTH}
-										portalInto={portalInto}
-										value={BRANCHES.find(item => item.id === repo.branches)}
-										items={BRANCHES}
-										onSelect={next =>
-											onAdd({
-												url: repo.url,
-												branches: next as 'default' | 'all',
-											})
-										}
-									/>
-									<SinceField
-										repo={repo}
-										portalInto={portalInto}
-										onChange={since => onAdd({url: repo.url, since})}
-									/>
-								</span>
-							</span>
+			{repos.map(repo => {
+				const armed = remove.armed === repo.id;
+				const status = statusOf(repo);
 
-							<span style={controlStyle}>
-								<Button
-									variant="ghost"
-									testId="remove-repo"
-									title={
-										armed
-											? `Click again to stop reading ${repo.label}`
-											: `Remove ${repo.label}`
-									}
-									onClick={() => {
-										if (!armed) return setArmedId(repo.id);
-
-										onRemove(repo.id);
-										setArmedId(null);
-									}}
-									style={{
-										display: 'flex',
-										alignItems: 'center',
-										gap: 6,
-										color: armed ? GUI_THEME.red : GUI_THEME.dim,
-										// The whole shorthand, and only when armed: Button sets
-										// `border` itself, and React warns that an element given
-										// both it and `borderColor` can drop whichever loses the
-										// race. Spreading `border: undefined` is not the other
-										// branch — that reads as "remove this style".
-										...(armed ? {border: `1px solid ${GUI_THEME.red}`} : {}),
-									}}
-								>
-									{armed && <span style={{fontSize: 10}}>confirm</span>}
-									<IconTrash />
-								</Button>
-							</span>
-						</div>
-					);
-				})}
-
-				{/* The row being added, drawn as the row it becomes. The URL is
-				    checked as it is typed by the rule the server refuses it by,
-				    so the answer is under the field before anything is sent. */}
-				{adding && (
-					<div data-testid="add-repo-row" style={rowStyle(false)}>
+				return (
+					<div
+						key={repo.id}
+						data-testid="repo-row"
+						data-armed={armed ? 'true' : 'false'}
+						style={rowStyle(armed)}
+					>
 						<span style={linesStyle}>
+							{/* The name and how it stands; where it is; what is read
+							    from it. Three lines, since the card is narrow. */}
 							<span style={lineStyle}>
-								<Input
-									data-testid="repo-url"
-									aria-label="Remote URL of a repo to link"
-									value={url}
-									autoFocus
-									placeholder="https://… or git@host:owner/repo.git"
-									// The ticket panel's field at this row's type size.
-									style={{fontSize: TEXT.ui, padding: '5px 8px'}}
-									onChange={event => setUrl(event.target.value)}
-									onKeyDown={event => {
-										if (event.key === 'Enter') submit();
-										if (event.key === 'Escape') {
-											// This row's, not the panel's.
-											event.stopPropagation();
-											cancelAdd();
-										}
-									}}
+								<LabelField
+									key={repo.label}
+									repo={repo}
+									onChange={label => onAdd({url: repo.url, label})}
 								/>
-								<Button
-									testId="add-repo"
-									disabled={!typed || problem !== null}
-									onClick={submit}
-								>
-									link
-								</Button>
-								<Button variant="ghost" onClick={cancelAdd}>
-									cancel
-								</Button>
+								<Chip testId="repo-status" style={{color: status.color}}>
+									{status.text}
+								</Chip>
 							</span>
 							<span
-								data-testid={problem ? 'repo-url-problem' : undefined}
-								style={{
-									...detailStyle,
-									whiteSpace: 'normal',
-									color: problem ? GUI_THEME.red : GUI_THEME.dim,
-								}}
+								data-testid="repo-url-shown"
+								title={repo.url}
+								style={whereStyle}
 							>
-								{problem ? `That URL ${problem}.` : REPO_URL_FORMS}
+								{repo.url}
+							</span>
+							<span style={lineStyle}>
+								<Dropdown
+									testId="repo-branches"
+									width={CONTROL_WIDTH}
+									portalInto={portalInto}
+									value={BRANCHES.find(item => item.id === repo.branches)}
+									items={BRANCHES}
+									onSelect={next =>
+										onAdd({
+											url: repo.url,
+											branches: next as 'default' | 'all',
+										})
+									}
+								/>
+								<SinceField
+									repo={repo}
+									portalInto={portalInto}
+									onChange={since => onAdd({url: repo.url, since})}
+								/>
 							</span>
 						</span>
 
-						{/* The control column, empty: the row's text ends in line
-						    with the rows above. */}
-						<span style={controlStyle} />
+						<IconButton
+							testId="remove-repo"
+							pressed={armed}
+							label={armed ? 'confirm' : undefined}
+							title={
+								armed
+									? `Click again to stop reading ${repo.label}`
+									: `Remove ${repo.label}`
+							}
+							onClick={() => {
+								if (remove.press(repo.id)) onRemove(repo.id);
+							}}
+						>
+							<IconTrash />
+						</IconButton>
 					</div>
-				)}
-			</div>
+				);
+			})}
+
+			{/* The row being added, drawn as the row it becomes. The URL is
+			    checked as it is typed by the rule the server refuses it by,
+			    so the answer is under the field before anything is sent. */}
+			{adding ? (
+				<div data-testid="add-repo-row" style={rowStyle(false)}>
+					<span style={linesStyle}>
+						<Input
+							data-testid="repo-url"
+							aria-label="Remote URL of a repo to link"
+							value={url}
+							autoFocus
+							placeholder="https://… or git@host:owner/repo.git"
+							style={FIELD}
+							onChange={event => setUrl(event.target.value)}
+							onKeyDown={event => {
+								if (event.key === 'Enter') submit();
+								if (event.key === 'Escape') {
+									// This row's, not the panel's.
+									event.stopPropagation();
+									cancelAdd();
+								}
+							}}
+						/>
+						<span
+							data-testid={problem ? 'repo-url-problem' : undefined}
+							style={{
+								...META,
+								marginTop: 0,
+								color: problem ? GUI_THEME.red : GUI_THEME.dim,
+							}}
+						>
+							{problem ? `That URL ${problem}.` : REPO_URL_FORMS}
+						</span>
+						<span style={{...lineStyle, justifyContent: 'flex-end'}}>
+							<Button variant="ghost" onClick={cancelAdd}>
+								cancel
+							</Button>
+							<Button
+								variant="primary"
+								testId="add-repo"
+								disabled={!typed || problem !== null}
+								onClick={submit}
+							>
+								link
+							</Button>
+						</span>
+					</span>
+				</div>
+			) : (
+				<div style={{...ROW, borderBottom: 'none', paddingTop: 12}}>
+					<span />
+					<Button
+						variant="primary"
+						testId="link-repo"
+						onClick={() => setAdding(true)}
+					>
+						+ link a repo
+					</Button>
+				</div>
+			)}
 
 			{state.lastAction && (
 				<div
 					data-testid="repos-last-action"
 					style={{
 						...META,
-						marginTop: 10,
+						marginTop: 6,
 						color: state.lastAction.ok ? GUI_THEME.dim : GUI_THEME.red,
 					}}
 				>
 					{state.lastAction.message}
-				</div>
-			)}
-
-			{!adding && (
-				<div style={{paddingTop: 10}}>
-					<Button
-						variant="ghost"
-						testId="link-repo"
-						onClick={() => setAdding(true)}
-					>
-						+ link a repo
-					</Button>
 				</div>
 			)}
 		</div>

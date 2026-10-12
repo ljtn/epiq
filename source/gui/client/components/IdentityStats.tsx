@@ -2,15 +2,10 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {META, SECTION_HEADING} from '../lib/identity-panel.style';
 import {PersonalStatsState} from '../lib/use-personal-stats';
-import {StatRow} from './StatRow';
+import {Stat} from './StatRow';
 
-// What the person reading this has actually done here. A list rather than the
-// Stats tab's grid of big figures: the panel's own type is 12px, and four
-// numbers at 38 would be the loudest thing in a popover whose subject is
-// somebody's identity, not their output.
-//
-// `StatRow` is that tab's own mark for a named figure in a list, so the two
-// surfaces read as one system rather than as two takes on counting.
+// What the person reading this has actually done here: the Stats tab's own
+// figure, four of them at the panel's size.
 
 export const IdentityStats = ({state}: {state: PersonalStatsState}) => {
 	const stats = state.data;
@@ -18,7 +13,7 @@ export const IdentityStats = ({state}: {state: PersonalStatsState}) => {
 	if (!stats) {
 		return (
 			<>
-				<div style={SECTION_HEADING}>Your work here</div>
+				<div style={SECTION_HEADING}>Your contributions</div>
 				<div
 					style={{
 						...META,
@@ -34,45 +29,59 @@ export const IdentityStats = ({state}: {state: PersonalStatsState}) => {
 
 	return (
 		<>
-			<div style={SECTION_HEADING}>Your work here</div>
-			<div data-testid="identity-stats">
+			<div style={SECTION_HEADING}>Your contributions</div>
+			<div
+				data-testid="identity-stats"
+				style={{
+					display: 'grid',
+					gridTemplateColumns: '1fr 1fr',
+					gap: 8,
+				}}
+			>
 				{/* A history that could not be read has no commit count — which
 				    is not the same as none, and must not be drawn as a zero. */}
-				<StatRow
-					left="commits"
-					right={stats.scanned ? String(stats.commits) : '—'}
+				<Stat
+					size="compact"
+					testId="identity-stat-commits"
+					label="commits"
+					value={stats.scanned ? String(stats.commits) : '—'}
 				/>
-				<StatRow left="tickets opened" right={String(stats.tickets)} />
-				<StatRow left="comments" right={String(stats.comments)} />
-				<StatRow
-					left="joined"
-					right={
-						stats.joinedAt === null ? (
-							'not yet'
-						) : (
-							// Relative in the row, exact on hover — the bargain every
-							// other date in this GUI strikes. Both inline read as one
-							// long string and pushed the label out of a 440px panel.
-							<span title={formatAbsolute(stats.joinedAt)}>
-								{timeAgo(stats.joinedAt)}
-							</span>
-						)
+				<Stat
+					size="compact"
+					testId="identity-stat-tickets"
+					label="tickets opened"
+					value={String(stats.tickets)}
+				/>
+				<Stat
+					size="compact"
+					testId="identity-stat-comments"
+					label="comments"
+					value={String(stats.comments)}
+				/>
+				{/* Relative in the cell, exact on hover — the bargain every other
+				    date in this GUI strikes. */}
+				<Stat
+					size="compact"
+					testId="identity-stat-joined"
+					label="joined"
+					value={stats.joinedAt === null ? 'not yet' : timeAgo(stats.joinedAt)}
+					title={
+						stats.joinedAt === null ? undefined : formatAbsolute(stats.joinedAt)
 					}
-					last
 				/>
 			</div>
 
 			{/* The zero that is this panel's own subject. A bare 0 reads as "you
 			    have written none"; the reason is that no address resolves to you,
-			    and the fix is the list immediately below.
+			    and the fix is the section under this one.
 
 			    Only where the scan actually ran. Said on a failed one it would
 			    tell somebody holding several claims that they hold none, and
 			    contradict the scan error the panel shows a few rows down. */}
 			{stats.scanned && stats.claimedEmails === 0 && (
-				<div style={META}>
+				<div style={{...META, marginTop: 8}}>
 					No git address is yours yet, so no commit counts as one — claim one
-					below.
+					under Git addresses.
 				</div>
 			)}
 		</>

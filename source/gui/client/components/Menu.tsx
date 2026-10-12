@@ -19,6 +19,7 @@ import {
 } from '../lib/select-style';
 import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {IconChevronDown} from './IconChevronDown';
+import {SectionRule} from './SectionRule';
 
 export const Menu = ({
 	label,
@@ -181,31 +182,11 @@ const usePortalAnchor = (
  * answers. Decorative: each group names itself to assistive technology.
  */
 export const MenuSection = ({label}: {label: string}) => (
-	<div
-		aria-hidden
-		style={{
-			display: 'flex',
-			alignItems: 'center',
-			gap: 6,
-			margin: '4px 0 2px',
-			padding: '0 8px',
-		}}
-	>
-		<span
-			style={{
-				fontSize: 8,
-				lineHeight: 1,
-				letterSpacing: '0.1em',
-				textTransform: 'uppercase',
-				color: GUI_THEME.dim,
-				whiteSpace: 'nowrap',
-				userSelect: 'none',
-			}}
-		>
-			{label}
-		</span>
-		<span style={{flex: 1, height: 1, background: GUI_THEME.line}} />
-	</div>
+	<SectionRule
+		label={label}
+		style={{gap: 6, margin: '4px 0 2px', padding: '0 8px'}}
+		labelStyle={{fontSize: 8, lineHeight: 1, letterSpacing: '0.1em'}}
+	/>
 );
 
 export const MenuItem = ({
