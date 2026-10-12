@@ -1,12 +1,14 @@
+import {useState} from 'react';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {ACTION, CARD, META, SECTION_HEADING} from '../lib/identity-panel.style';
+import {Button} from './Button';
+import {Input} from './FormPrimitives';
+import {META, ROW, SECTION_HEADING} from '../lib/identity-panel.style';
+import {useArmed} from '../lib/use-armed';
 import {ContributorEmailsState} from '../lib/use-contributor-emails';
-import {PersonalStatsState} from '../lib/use-personal-stats';
 import {actorDisplay} from '../lib/agent-identity';
-import {IdentityStats} from './IdentityStats';
 
 // Where somebody goes when the board is calling their commits by the wrong
-// name, or by no name at all. Before this there was nowhere: an unresolved
+// name, or by no name at all: a section of the settings panel. Before this there was nowhere: an unresolved
 // commit showed a raw git string and nothing said why, or what would fix it.
 //
 // One list, not a section per state. An address was appearing in three of them
@@ -30,11 +32,14 @@ type Row = {
 
 // The address itself, one step under the identity and well over its note.
 const address: React.CSSProperties = {
-	fontSize: TEXT.ui,
+	fontSize: TEXT.prose,
 	overflowWrap: 'anywhere',
 };
 
 const name = (person: {name: string}) => actorDisplay(person.name).label;
+
+// How many unclaimed addresses show before the rest wait behind a button.
+const SHOWN = 8;
 
 /**
  * Every address the panel knows about, merged into one row each.
@@ -145,48 +150,106 @@ const Section = ({
 	return (
 		<>
 			<div style={SECTION_HEADING}>{title}</div>
-			{rows.map(row => (
-				<div
-					key={row.email}
-					data-testid={`identity-row-${row.email}`}
-					style={{
-						...CARD,
-						display: 'flex',
-						alignItems: 'flex-start',
-						gap: 12,
-						marginBottom: 8,
-					}}
-				>
-					<div style={{flex: 1, minWidth: 0}}>
-						<div
-							style={{
-								...address,
-								color: row.mine ? GUI_THEME.primary : GUI_THEME.dim2,
-							}}
-						>
-							{row.email}
-						</div>
-						<Note row={row} />
-					</div>
+			{rows.map((row, index) => (
+				<AddressRow key={row.email} row={row} last={index === rows.length - 1}>
 					{children(row)}
-				</div>
+				</AddressRow>
 			))}
 		</>
 	);
 };
 
-export const IdentityPanel = ({
+// One address. Yours in the panel's own text; the rest held back as a list
+// is, and brought up under the pointer — still readable held back, since the
+// list is what somebody came here to read through.
+const AddressRow = ({
+	row,
+	last,
+	children,
+}: {
+	row: Row;
+	last: boolean;
+	children: React.ReactNode;
+}) => {
+	const [hovered, setHovered] = useState(false);
+
+	return (
+		<div
+			data-testid={`identity-row-${row.email}`}
+			onMouseEnter={() => setHovered(true)}
+			onMouseLeave={() => setHovered(false)}
+			style={{
+				...ROW,
+				alignItems: 'flex-start',
+				...(last ? {borderBottom: 'none'} : {}),
+			}}
+		>
+			<div
+				style={{
+					flex: 1,
+					minWidth: 0,
+					// Held back to under half, both lines in the dim; under the
+					// pointer the note comes up to the dim and the address to a
+					// grey a little over half of the text colour — lit, not lit up.
+					opacity: row.mine || hovered ? 1 : 0.45,
+					transition: 'opacity 120ms ease',
+				}}
+			>
+				<div
+					style={{
+						...address,
+						color: row.mine
+							? GUI_THEME.primary
+							: hovered
+							? `${GUI_THEME.primary}8c`
+							: GUI_THEME.dim,
+						transition: 'color 120ms ease',
+					}}
+				>
+					{row.email}
+				</div>
+				<Note row={row} />
+			</div>
+			{children}
+		</div>
+	);
+};
+
+export const IdentityAddresses = ({
 	state,
-	stats,
 	onLink,
 	onUnlink,
 }: {
 	state: ContributorEmailsState;
-	stats: PersonalStatsState;
 	onLink: (email: string) => void;
 	onUnlink: (email: string) => void;
 }) => {
 	const rows = rowsFrom(state);
+	// A claim is permanent and reaches every clone, so it takes two clicks:
+	// the button becomes "confirm" and commits on the second.
+	const claim = useArmed<string>();
+	const claimButton = (row: Row, label: string, title: string) => {
+		const armed = claim.armed === row.email;
+
+		return (
+			<Button
+				variant={armed ? 'default' : 'primary'}
+				tint={armed ? GUI_THEME.accent : undefined}
+				held={armed}
+				title={
+					armed
+						? 'Click again to claim it. Permanent, and it reaches every clone.'
+						: title
+				}
+				onBlur={claim.disarm}
+				onClick={() => {
+					if (claim.press(row.email)) onLink(row.email);
+				}}
+			>
+				{armed ? 'confirm' : label}
+			</Button>
+		);
+	};
 
 	// Claimed means claimed by anybody, not only by the viewer. An address
 	// somebody else holds is neither theirs to unlink nor free to take, and
@@ -194,14 +257,28 @@ export const IdentityPanel = ({
 	const claimed = rows.filter(row => row.claimants.length > 0);
 	const free = rows.filter(row => row.claimants.length === 0);
 
-	// Every one of them, never a subset. Which address somebody came to claim is
-	// not something this panel can guess: an old job's is unlike anything they
-	// are called now, so a rule that hid the unlikely ones would hide exactly
-	// that. The list is as long as the history is wide, and the panel scrolls.
-	const unclaimed = free;
+	// Every one of them, never a subset by likeness. Which address somebody came
+	// to claim is not something this panel can guess: an old job's is unlike
+	// anything they are called now, so a rule that hid the unlikely ones would
+	// hide exactly that. On a long history the list is long, so it is found
+	// through rather than read through: a filter on the address or the name,
+	// and past a handful the rest wait behind one button.
+	const [query, setQuery] = useState('');
+	const [showAll, setShowAll] = useState(false);
+	const needle = query.trim().toLowerCase();
+	const matches = (row: Row) =>
+		needle === '' ||
+		row.email.toLowerCase().includes(needle) ||
+		row.names.some(name => name.toLowerCase().includes(needle));
+	const long = rows.length > SHOWN;
+	const claimedShown = claimed.filter(matches);
+	const freeMatching = free.filter(matches);
+	const capped = long && needle === '' && !showAll;
+	const unclaimed = capped ? freeMatching.slice(0, SHOWN) : freeMatching;
+	const hidden = freeMatching.length - unclaimed.length;
 
 	return (
-		<div data-testid="identity-panel">
+		<div data-testid="identity-addresses" style={{paddingTop: 2}}>
 			{state.lastError && (
 				// Only a failure. A claim that worked shows in the list itself, and
 				// nothing else in this GUI reports its own successes back.
@@ -211,28 +288,47 @@ export const IdentityPanel = ({
 			)}
 
 			<div>
-				<IdentityStats state={stats} />
+				{long && (
+					<Input
+						data-testid="identity-filter"
+						aria-label="Filter addresses"
+						placeholder="filter by address or name"
+						value={query}
+						onChange={event => setQuery(event.target.value)}
+						onKeyDown={event => {
+							// The field's, not the panel's: clear it before closing.
+							if (event.key === 'Escape' && query) {
+								event.stopPropagation();
+								setQuery('');
+							}
+						}}
+						style={{
+							marginTop: 14,
+							borderRadius: 6,
+							padding: '6px 10px',
+							fontSize: TEXT.prose,
+						}}
+					/>
+				)}
 
 				{state.scanError ? (
 					// Not the empty state: claiming from this list is the only way to
 					// link an address, so a history that could not be read has to say
-					// so rather than look like one with nothing left in it. It
-					// replaces the addresses alone: the figures above are not a scan.
+					// so rather than look like one with nothing left in it.
 					<div style={{...META, paddingTop: 16, color: GUI_THEME.red}}>
 						{state.scanError}
 					</div>
 				) : (
 					<>
-						<Section title="Claimed git addresses" rows={claimed}>
+						<Section title="Claimed git addresses" rows={claimedShown}>
 							{row =>
 								row.mine ? (
-									<button
+									<Button
 										onClick={() => onUnlink(row.email)}
-										style={{...ACTION, color: GUI_THEME.dim2}}
 										title="Stop this address resolving to you. The record of the claim stays in the log."
 									>
 										Unclaim
-									</button>
+									</Button>
 								) : (
 									// Offered even though somebody else holds it, and named for
 									// what it does rather than "This is me". Without it,
@@ -240,32 +336,38 @@ export const IdentityPanel = ({
 									// door: the row moved up here and offered nothing. It is also
 									// the only answer to somebody claiming an address of yours —
 									// co-claiming is what stops it resolving to them.
-									<button
-										onClick={() => onLink(row.email)}
-										style={{...ACTION, color: GUI_THEME.dim2}}
-										title="Claim this address as well. While two people claim it, commits by it resolve to neither of you."
-									>
-										Claim too
-									</button>
+									claimButton(
+										row,
+										'Claim too',
+										'Claim this address as well. While two people claim it, commits by it resolve to neither of you.',
+									)
 								)
 							}
 						</Section>
 
 						<Section title="Unclaimed" rows={unclaimed}>
-							{row => (
-								<button
-									onClick={() => onLink(row.email)}
-									style={{...ACTION, color: GUI_THEME.accent}}
-									title="Every commit by this address becomes yours, back to the first one. Permanent, and it reaches every clone."
-								>
-									This is me
-								</button>
-							)}
+							{row =>
+								claimButton(
+									row,
+									'This is me',
+									'Every commit by this address becomes yours, back to the first one. Permanent, and it reaches every clone.',
+								)
+							}
 						</Section>
 
-						{claimed.length === 0 && unclaimed.length === 0 && (
-							<div style={{...META, paddingTop: 16}}>
-								No addresses in this repository’s history yet.
+						{hidden > 0 && (
+							<div style={{paddingTop: 10}}>
+								<Button variant="ghost" onClick={() => setShowAll(true)}>
+									{`${hidden} more address${hidden === 1 ? '' : 'es'}`}
+								</Button>
+							</div>
+						)}
+
+						{claimedShown.length === 0 && unclaimed.length === 0 && (
+							<div style={{...META, paddingTop: 14}}>
+								{needle
+									? 'No address matches.'
+									: 'No addresses in this repository’s history yet.'}
 							</div>
 						)}
 					</>

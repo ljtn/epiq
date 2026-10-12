@@ -32,11 +32,21 @@ const openPanel = async (page: Page) => {
 	return panel;
 };
 
-/** The sync section is folded unless the panel was opened for it. */
-const expandSync = async (page: Page) => {
-	const fold = page.getByTestId('settings-section-sync');
+/** A section is folded unless the panel was opened for it. */
+const expand = async (page: Page, section: 'sync' | 'addresses') => {
+	const fold = page.getByTestId(`settings-section-${section}`);
 	if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
+	await expect(fold).toHaveAttribute('aria-expanded', 'true');
+};
+
+const expandSync = async (page: Page) => {
+	await expand(page, 'sync');
 	await expect(page.getByTestId('autosync-interval')).toBeVisible();
+};
+
+const expandAddresses = async (page: Page) => {
+	await expand(page, 'addresses');
+	await expect(page.getByTestId('identity-addresses')).toBeVisible();
 };
 
 /** A commit by `COMMIT_EMAIL`, and a page that can see it. */
@@ -108,6 +118,7 @@ test('the addresses scroll inside a panel that stays in the window', async ({
 	await page.setViewportSize({width: 1280, height: 320});
 
 	const panel = await openPanel(page);
+	await expandAddresses(page);
 	await expect(
 		panel.locator('[data-testid^="identity-row-"]').first(),
 	).toBeVisible();
@@ -271,14 +282,11 @@ test('a configured interval under the floor is shown, not flagged', async ({
 // tickets — which is also the one that proves the row is counting rather than
 // drawing whatever it was handed.
 const ticketsOpened = async (page: Page): Promise<number> => {
-	const row = page
-		.getByTestId('identity-stats')
-		.locator('div', {hasText: /^tickets opened/})
-		.last();
+	const figure = page.getByTestId('identity-stat-tickets-value');
 
-	await expect(row).toBeVisible();
+	await expect(figure).toBeVisible();
 
-	return Number((await row.textContent())?.replace(/\D+/g, ''));
+	return Number(await figure.textContent());
 };
 
 test('the panel counts your own tickets, and the count follows the board', async ({
@@ -323,6 +331,7 @@ test('claiming an address makes its commits read as you, and unlinking undoes it
 	).not.toHaveCount(0);
 
 	let panel = await openPanel(page);
+	await expandAddresses(page);
 
 	// The address matches nothing the viewer is called, so it sits behind the
 	// disclosure rather than among the likely ones — which is the case somebody
@@ -332,7 +341,9 @@ test('claiming an address makes its commits read as you, and unlinking undoes it
 
 	const row = panel.getByTestId(`identity-row-${COMMIT_EMAIL}`);
 	await expect(row).toContainText(COMMIT_EMAIL);
+	// Two clicks: a claim is permanent, so the first only arms the button.
 	await row.getByRole('button', {name: 'This is me'}).click();
+	await row.getByRole('button', {name: 'confirm'}).click();
 
 	// No reload: claiming refetches the commit track itself.
 	await expect(
@@ -343,7 +354,7 @@ test('claiming an address makes its commits read as you, and unlinking undoes it
 	);
 
 	// And back: the address stops resolving, which is all unlinking promises.
-	panel = page.getByTestId('identity-panel');
+	panel = page.getByTestId('settings-panel');
 	await panel
 		.getByTestId(`identity-row-${COMMIT_EMAIL}`)
 		.getByRole('button', {name: 'Unclaim'})

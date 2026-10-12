@@ -10,11 +10,14 @@ import {GUI_THEME} from '../lib/gui-theme';
 // one included" but "is it on", and where the answer wants to be legible at a
 // glance from across the panel.
 //
-// Epiq's own weights rather than the platform's: the track is filled with the
-// accent when on and is the panel's own recess when off, and the knob is a
-// plain circle that slides. No shadow and no gradient — nothing else in this
-// GUI has either, and a switch borrowed whole from somewhere else reads as a
-// component from another application.
+// Epiq's own weights rather than the platform's: on, the track takes a wash of
+// the accent and the knob the accent itself; off, the track is the panel's
+// own recess and the knob is dim. A plain circle that slides, no shadow and
+// no gradient — nothing else in this GUI has either, and a switch borrowed
+// whole from somewhere else reads as a component from another application.
+//
+// A wash rather than the full accent: a filled track was the brightest thing
+// on any panel it sat on, for a state that is only ever read in passing.
 
 // Border-box, so the border is inside these. The knob sits `GAP` in from the
 // padding box on every side, which is what makes its travel read as the same
@@ -26,6 +29,11 @@ const KNOB = 10;
 const GAP = 2;
 
 const TRAVEL = TRACK_WIDTH - 2 * BORDER - KNOB - GAP;
+
+// Three steps of the active colour, as the tag chips take washes of theirs:
+// the track at a quarter, the label at half, the knob at full.
+const WASH = '40';
+const LABEL = '80';
 
 export const Switch = ({
 	label,
@@ -55,7 +63,7 @@ export const Switch = ({
 			alignItems: 'center',
 			gap: 8,
 			fontSize: 11,
-			color: checked ? activeColor : GUI_THEME.dim,
+			color: checked ? `${activeColor}${LABEL}` : GUI_THEME.dim,
 			cursor: disabled ? 'not-allowed' : 'pointer',
 			opacity: disabled ? 0.4 : 1,
 			whiteSpace: 'nowrap',
@@ -69,16 +77,18 @@ export const Switch = ({
 				width: TRACK_WIDTH,
 				height: TRACK_HEIGHT,
 				borderRadius: 999,
-				// Filled when on; the panel's own recess when off, so an unset
+				// Washed when on; the panel's own recess when off, so an unset
 				// switch reads as a slot with nothing in it rather than as a
 				// second colour.
-				background: checked ? activeColor : GUI_THEME.panel,
+				background: checked ? `${activeColor}${WASH}` : GUI_THEME.panel,
 				// `dim` off, not `line`. `line` is a 15% wash meant for dividing
 				// one surface — against the card it composites to about #191d28
 				// and the track all but disappeared, leaving the knob floating
 				// with nothing to say how far it could travel. A switch has to
 				// show its whole extent to read as a switch at all.
-				border: `${BORDER}px solid ${checked ? activeColor : GUI_THEME.dim}`,
+				border: `${BORDER}px solid ${
+					checked ? `${activeColor}${WASH}` : GUI_THEME.dim
+				}`,
 				boxSizing: 'border-box',
 				flexShrink: 0,
 				transition: 'background 120ms ease, border-color 120ms ease',
@@ -111,10 +121,10 @@ export const Switch = ({
 					width: KNOB,
 					height: KNOB,
 					borderRadius: 999,
-					// Against the filled track the knob has to be the hole in it,
-					// which is the ground the switch stands on; against the empty
-					// track it is the only mark, so it carries the dim.
-					background: checked ? GUI_THEME.panel2 : GUI_THEME.dim,
+					// On the washed track the knob is the one full-strength mark;
+					// against the empty track it is the only mark, so it carries
+					// the dim.
+					background: checked ? activeColor : GUI_THEME.dim,
 					transition: 'left 120ms ease, background 120ms ease',
 					pointerEvents: 'none',
 				}}

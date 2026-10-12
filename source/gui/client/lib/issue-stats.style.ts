@@ -53,6 +53,25 @@ export const STAT_CELL: React.CSSProperties = {
 	transition: 'background 120ms ease',
 };
 
+// The same figure over its label, left-aligned in a short cell rather than
+// centred in a square: for a panel where the figure is one fact among others.
+export const STAT_CELL_COMPACT: React.CSSProperties = {
+	...STAT_CELL,
+	gridTemplateRows: 'auto auto',
+	justifyItems: 'start',
+	textAlign: 'left',
+	aspectRatio: 'auto',
+	padding: '10px 12px',
+	borderRadius: 8,
+};
+
+export const STAT_VALUE_COMPACT: React.CSSProperties = {
+	fontSize: 20,
+	fontWeight: 600,
+	lineHeight: 1.2,
+	letterSpacing: '-0.02em',
+};
+
 // A figure's size, shrunk for one too long to fit its square at full size: a
 // monospace digit is about 0.62em wide.
 export const statValueSize = (value: string): number =>

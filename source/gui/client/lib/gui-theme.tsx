@@ -29,6 +29,9 @@ export const GUI_THEME = {
 	bgHighlight: '#10111a65',
 	panel: '#11141b',
 	panel2: '#151a24',
+	// Between the page and a panel: what a panel made of cards stands on, so
+	// the cards carry the lift and the ground stays back without going black.
+	well: '#0d0f14',
 	line: 'rgba(70, 87, 126, 0.15)',
 	// The detail panel's own outer edge. `line` divides sections inside one
 	// surface; this one has to hold the panel apart from the board behind it,

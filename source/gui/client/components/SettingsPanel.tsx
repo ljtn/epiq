@@ -1,33 +1,38 @@
-import {useEffect, useLayoutEffect, useRef, useState} from 'react';
+import {Fragment, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
-import {SECTION_LABEL} from '../lib/identity-panel.style';
-import {PANE_HEADER_INSET} from '../lib/pane-header.style';
+import {CARD, META, SECTION_LABEL} from '../lib/identity-panel.style';
 import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {ASIDE_PADDING} from './Aside';
-import {Button} from './Button';
+import {IconButton} from './IconButton';
 import {IconChevronDown} from './IconChevronDown';
+import {IconClose} from './IconClose';
+import {SectionRule} from './SectionRule';
 
 // The board's setup, as against its content: who the viewer is, what this
 // machine does on its own, which repos are read. One panel from the right
 // edge under the topbar rather than a popover and a modal, so each setting
 // has a fixed place and the board stays in view behind it.
 //
-// Built like the ticket aside — the same edge, shadow, padding and header
-// band — and told apart from it by its face and its ground: the prose font
-// over a surface one step up, where every panel about the board's work is
-// monospace on the panel colour. It is about the system, not the work.
+// Built like the ticket aside — the same shadow and padding — and told apart
+// from it by its face and its ground: the prose font on a well of cards,
+// where every panel about the board's work is monospace on the raised panel.
+// It is about the system, not the work.
 //
-// One fold per section, each named for its scope: the three are about the
-// viewer, this machine and the project, and only the one the panel was opened
-// for is open, so the control that opened it lands on what it promised.
+// One card per section, under a heading for its scope: the sections are
+// about the viewer, this machine and the project, and the heading says which
+// before any card does. Only the section the panel was opened for is
+// unfolded, so the control that opened it lands on what it promised.
 
-export type SettingsSection = 'identity' | 'sync' | 'repos';
+export type SettingsSection = 'identity' | 'addresses' | 'sync' | 'repos';
 
 export type SettingsSectionSpec = {
 	id: SettingsSection;
 	title: string;
-	// Whose setting it is: what the heading says beside the title.
+	// Whose setting it is: the heading over the cards that share it.
 	scope: string;
+	// The state in a word or two, read off the header without unfolding it:
+	// "on", "2 linked". Null while it is not yet known.
+	summary: string | null;
 	content: React.ReactNode;
 };
 
@@ -36,6 +41,8 @@ export const SETTINGS_WIDTH = 440;
 
 // Under the modals and the palette, over everything the board draws.
 const Z_INDEX = 900;
+
+const CARD_PADDING = 16;
 
 const SLIDE = `
 	@keyframes epiqSettingsSlide {
@@ -52,46 +59,108 @@ const Fold = ({
 	spec: SettingsSectionSpec;
 	open: boolean;
 	onToggle: () => void;
-}) => (
-	<div data-section={spec.id}>
-		<button
-			type="button"
-			data-testid={`settings-section-${spec.id}`}
-			aria-expanded={open}
-			onClick={onToggle}
-			style={{
-				display: 'flex',
-				alignItems: 'center',
-				gap: 8,
-				width: '100%',
-				padding: '12px 0',
-				background: 'transparent',
-				border: 'none',
-				borderBottom: `1px solid ${GUI_THEME.line}`,
-				color: GUI_THEME.primary,
-				cursor: 'pointer',
-				fontFamily: 'inherit',
-				fontSize: TEXT.prose,
-				textAlign: 'left',
-			}}
-		>
-			<span
+}) => {
+	const [hovered, setHovered] = useState(false);
+
+	return (
+		<section data-section={spec.id} style={CARD}>
+			<button
+				type="button"
+				data-testid={`settings-section-${spec.id}`}
+				aria-expanded={open}
+				onClick={onToggle}
+				onMouseEnter={() => setHovered(true)}
+				onMouseLeave={() => setHovered(false)}
 				style={{
-					display: 'inline-flex',
-					color: GUI_THEME.dim,
-					transform: open ? undefined : 'rotate(-90deg)',
-					transition: 'transform 120ms ease-out',
+					display: 'flex',
+					alignItems: 'center',
+					gap: 10,
+					width: '100%',
+					padding: `14px ${CARD_PADDING}px`,
+					background: hovered ? GUI_THEME.hover : 'transparent',
+					border: 'none',
+					// The card's own corners, and only the top two while the body
+					// continues under it.
+					borderRadius: open ? '9px 9px 0 0' : 9,
+					color: GUI_THEME.primary,
+					cursor: 'pointer',
+					fontFamily: 'inherit',
+					fontSize: TEXT.prose,
+					fontWeight: 600,
+					textAlign: 'left',
 				}}
 			>
-				<IconChevronDown size={14} />
-			</span>
-			<span style={{flex: 1, minWidth: 0}}>{spec.title}</span>
-			<span style={{...SECTION_LABEL, textTransform: 'none', letterSpacing: 0}}>
-				{spec.scope}
-			</span>
-		</button>
-		{open && <div style={{paddingBottom: 8}}>{spec.content}</div>}
-	</div>
+				<span
+					style={{
+						flex: 1,
+						minWidth: 0,
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{spec.title}
+				</span>
+				{spec.summary && (
+					<span
+						data-testid={`settings-summary-${spec.id}`}
+						// Quieter than a note: a word the eye can skip.
+						style={{
+							...META,
+							marginTop: 0,
+							fontSize: TEXT.meta,
+							fontWeight: 400,
+							opacity: 0.7,
+							whiteSpace: 'nowrap',
+						}}
+					>
+						{spec.summary}
+					</span>
+				)}
+				<span
+					style={{
+						display: 'inline-flex',
+						color: GUI_THEME.dim,
+						transform: open ? undefined : 'rotate(-90deg)',
+						transition: 'transform 120ms ease-out',
+					}}
+				>
+					<IconChevronDown size={14} />
+				</span>
+			</button>
+
+			{open && (
+				// A shade down from the header, so the header reads as the handle
+				// and the body as what it opened. A tint of the card, not a
+				// colour of its own, and no rule between: the shade is the edge.
+				<div
+					style={{
+						// Less below than beside: what ends a body carries padding of
+						// its own, a row's or a button's.
+						padding: `0 ${CARD_PADDING}px 12px`,
+						borderRadius: '0 0 9px 9px',
+						background: 'rgba(0, 0, 0, 0.12)',
+					}}
+				>
+					{spec.content}
+				</div>
+			)}
+		</section>
+	);
+};
+
+// The scope's line over its cards: the menus' section rule at the panel's
+// size and spacing.
+const Scope = ({label, first}: {label: string; first: boolean}) => (
+	<SectionRule
+		label={label}
+		style={{gap: 10, marginTop: first ? 6 : 22, marginBottom: 8}}
+		labelStyle={{
+			...SECTION_LABEL,
+			fontSize: TEXT.label,
+			letterSpacing: '0.1em',
+		}}
+	/>
 );
 
 export const SettingsPanel = ({
@@ -194,12 +263,12 @@ export const SettingsPanel = ({
 				maxWidth: '100vw',
 				boxSizing: 'border-box',
 				zIndex: Z_INDEX,
-				background: GUI_THEME.panel2,
-				borderLeft: `1px solid ${GUI_THEME.edge}`,
+				// A well, not the aside's raised panel: the cards carry the lift,
+				// so the ground under them stays back. The edge is the chrome's
+				// quieter one for the same reason.
+				background: GUI_THEME.well,
+				borderLeft: `1px solid ${GUI_THEME.edgeOnChrome}`,
 				boxShadow: '-10px 0 24px rgba(0, 0, 0, 0.45)',
-				// None at the top: the header band carries the inset, as the
-				// aside's does.
-				padding: `0 ${ASIDE_PADDING}px ${ASIDE_PADDING}px`,
 				display: 'flex',
 				flexDirection: 'column',
 				color: GUI_THEME.primary,
@@ -217,22 +286,31 @@ export const SettingsPanel = ({
 					alignItems: 'center',
 					justifyContent: 'space-between',
 					gap: 12,
-					padding: `${PANE_HEADER_INSET}px 0`,
-					borderBottom: `1px solid ${GUI_THEME.line}`,
+					padding: `14px ${ASIDE_PADDING}px 12px`,
 					flexShrink: 0,
 				}}
 			>
-				<span style={{...SECTION_LABEL, fontSize: TEXT.meta, letterSpacing: 1}}>
+				<span
+					style={{
+						fontSize: 15,
+						fontWeight: 600,
+						letterSpacing: '-0.01em',
+					}}
+				>
 					Settings
 				</span>
-				<Button variant="ghost" testId="close-settings" onClick={onClose}>
-					close
-				</Button>
+				<IconButton
+					title="Close settings"
+					testId="close-settings"
+					onClick={onClose}
+				>
+					<IconClose />
+				</IconButton>
 			</div>
 
-			{/* Everything under the band scrolls as one page. The gutter is
-			    reserved rather than taken from the rows the moment a section
-			    grows, on a platform whose scrollbar occupies layout space. */}
+			{/* Everything under the title scrolls as one page. The padding is
+			    the scroller's, so the bar runs along the panel's own edge rather
+			    than through the cards' margin. */}
 			<div
 				ref={scroller}
 				data-testid="settings-scroller"
@@ -240,16 +318,23 @@ export const SettingsPanel = ({
 					flex: 1,
 					minHeight: 0,
 					overflowY: 'auto',
-					scrollbarGutter: 'stable',
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 10,
+					padding: `0 ${ASIDE_PADDING}px ${ASIDE_PADDING}px`,
 				}}
 			>
-				{sections.map(spec => (
-					<Fold
-						key={spec.id}
-						spec={spec}
-						open={open.has(spec.id)}
-						onToggle={() => toggle(spec.id)}
-					/>
+				{sections.map((spec, index) => (
+					<Fragment key={spec.id}>
+						{spec.scope !== sections[index - 1]?.scope && (
+							<Scope label={spec.scope} first={index === 0} />
+						)}
+						<Fold
+							spec={spec}
+							open={open.has(spec.id)}
+							onToggle={() => toggle(spec.id)}
+						/>
+					</Fragment>
 				))}
 			</div>
 		</div>

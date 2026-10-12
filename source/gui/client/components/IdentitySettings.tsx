@@ -4,14 +4,14 @@ import {
 	MIN_AUTO_SYNC_INTERVAL_MS,
 } from '../../../lib/config/auto-sync-interval.js';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {CARD, META} from '../lib/identity-panel.style';
+import {META, ROW} from '../lib/identity-panel.style';
 import {SyncSettingsState} from '../lib/use-sync-settings';
+import {Input} from './FormPrimitives';
 import {Switch} from './Switch';
 
 // The two settings that were the TUI's alone: whether the board syncs itself,
-// and how often. They belong beside the addresses rather than in a settings
-// screen of their own — both are answers to "what is this machine doing on my
-// behalf", which is the question the panel already opens on.
+// and how often. Two rows — the switch, then the interval it runs at — each a
+// thing on the left and its control on the right.
 //
 // Seconds here, milliseconds on the wire. Nobody thinks about a sync in
 // milliseconds, and the three zeroes were the whole reason the TUI's own
@@ -49,11 +49,9 @@ export const IdentitySettings = ({
 
 	if (!settings) {
 		return (
-			<>
-				<div style={{...META, marginTop: 0}}>
-					{state.lastError ?? 'Reading…'}
-				</div>
-			</>
+			<div style={{...META, paddingTop: 12}}>
+				{state.lastError ?? 'Reading…'}
+			</div>
 		);
 	}
 
@@ -99,36 +97,51 @@ export const IdentitySettings = ({
 		onChange({autoSyncIntervalMs: intervalMs});
 	};
 
+	// Three states, and only ever one of them: a bound being broken, the
+	// refusal that came back, and the setting that is on but cannot run.
+	const note = outOfRange
+		? seconds > MAX_SECONDS
+			? `${MAX_SECONDS} seconds — a day — is the longest interval.`
+			: `${MIN_SECONDS} seconds is the shortest interval.`
+		: state.lastError
+		? state.lastError
+		: settings.enabled && settings.blockedReason
+		? // A toggle that reports success and then does nothing is worse than
+		  // one that is refused: the loops want a name and an editor before
+		  // they run, and nothing else would ever say so.
+		  `Not running — ${settings.blockedReason}.`
+		: null;
+
 	return (
-		<>
-			<div
-				data-testid="identity-autosync"
-				style={{
-					...CARD,
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'space-between',
-					gap: 12,
-				}}
-			>
+		<div data-testid="identity-autosync">
+			<div style={{...ROW, padding: '14px 0 12px'}}>
+				<div style={{minWidth: 0}}>
+					<div>Sync on its own</div>
+					<div style={META}>
+						Pulls and pushes this machine&rsquo;s changes while the board is
+						open.
+					</div>
+				</div>
 				<Switch
 					testId="autosync-toggle"
 					label={settings.enabled ? 'on' : 'off'}
 					checked={settings.enabled}
 					onChange={next => onChange({autoSync: next})}
 				/>
+			</div>
 
+			<div style={{...ROW, borderBottom: 'none'}}>
+				<div>Every</div>
 				<label
 					style={{
 						display: 'flex',
 						alignItems: 'center',
 						gap: 6,
 						color: GUI_THEME.dim,
-						fontSize: TEXT.meta,
+						fontSize: TEXT.ui,
 					}}
 				>
-					every
-					<input
+					<Input
 						data-testid="autosync-interval"
 						type="number"
 						min={MIN_SECONDS}
@@ -147,51 +160,21 @@ export const IdentitySettings = ({
 							}
 						}}
 						style={{
-							width: 52,
-							// One ground under the card, which is the middle of three
-							// tries: at `GUI_THEME.bg` it was two grounds down and read
-							// as a hole punched in the card; with no fill at all it read
-							// as flat, an outline with nothing behind it. A field is a
-							// place to type, so it wants to look recessed — just barely.
-							background: GUI_THEME.panel,
-							color: outOfRange ? GUI_THEME.red : GUI_THEME.primary,
-							border: `1px solid ${
-								outOfRange ? GUI_THEME.red : GUI_THEME.line
-							}`,
-							borderRadius: 4,
-							padding: '3px 6px',
-							font: 'inherit',
-							fontSize: TEXT.meta,
-							outline: 'none',
+							width: 56,
+							borderRadius: 6,
+							padding: '4px 8px',
+							fontSize: TEXT.prose,
 							textAlign: 'right',
+							...(outOfRange
+								? {color: GUI_THEME.red, borderColor: GUI_THEME.red}
+								: {}),
 						}}
 					/>
-					s
+					seconds
 				</label>
 			</div>
 
-			{/* Three states, and only ever one of them: a bound being broken,
-			    the refusal that came back, and the setting that is on but
-			    cannot run. */}
-			{outOfRange ? (
-				<div style={{...META, color: GUI_THEME.red}}>
-					{seconds > MAX_SECONDS
-						? `${MAX_SECONDS} seconds — a day — is the longest interval.`
-						: `${MIN_SECONDS} seconds is the shortest interval.`}
-				</div>
-			) : state.lastError ? (
-				<div style={{...META, color: GUI_THEME.red}}>{state.lastError}</div>
-			) : (
-				settings.enabled &&
-				settings.blockedReason && (
-					// A toggle that reports success and then does nothing is worse
-					// than one that is refused: the loops want a name and an editor
-					// before they run, and nothing else would ever say so.
-					<div style={{...META, color: GUI_THEME.red}}>
-						Not running — {settings.blockedReason}.
-					</div>
-				)
-			)}
-		</>
+			{note && <div style={{...META, color: GUI_THEME.red}}>{note}</div>}
+		</div>
 	);
 };

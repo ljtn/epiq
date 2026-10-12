@@ -120,7 +120,8 @@ import {ReposSettings} from './components/ReposSettings';
 import {SettingsPanel, SettingsSection} from './components/SettingsPanel';
 import {IdentitySettings} from './components/IdentitySettings';
 import {actorDisplay} from './lib/agent-identity';
-import {IdentityPanel} from './components/IdentityPanel';
+import {IdentityAddresses} from './components/IdentityPanel';
+import {IdentityStats} from './components/IdentityStats';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useBoardEditing} from './lib/use-board-editing';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
@@ -2475,10 +2476,25 @@ export const App = () => {
 										? actorDisplay(state.user.name).label
 										: 'Not configured',
 									scope: 'on this board',
+									summary: personalStats.data?.scanned
+										? `${personalStats.data.commits} commits`
+										: null,
 									content: (
-										<IdentityPanel
+										<div data-testid="identity-panel">
+											<IdentityStats state={personalStats} />
+										</div>
+									),
+								},
+								{
+									id: 'addresses',
+									title: 'Git addresses',
+									scope: 'on this board',
+									summary: contributorEmails.data
+										? `${contributorEmails.data.mine.length} claimed`
+										: null,
+									content: (
+										<IdentityAddresses
 											state={contributorEmails}
-											stats={personalStats}
 											onLink={contributorEmails.link}
 											onUnlink={contributorEmails.unlink}
 										/>
@@ -2488,6 +2504,11 @@ export const App = () => {
 									id: 'sync',
 									title: 'Auto sync',
 									scope: 'this machine',
+									summary: syncSettings.data
+										? syncSettings.data.enabled
+											? 'on'
+											: 'off'
+										: null,
 									content: (
 										<IdentitySettings
 											state={syncSettings}
@@ -2499,6 +2520,7 @@ export const App = () => {
 									id: 'repos',
 									title: 'Repos',
 									scope: 'shared with the project',
+									summary: repos.data ? `${repos.data.length} linked` : null,
 									content: (
 										<ReposSettings
 											state={repos}
