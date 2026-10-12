@@ -39,7 +39,7 @@ const makeUpstream = (ref: string, subject: string): string => {
 const openRepos = async (page: Page) => {
 	await page.keyboard.press('Control+k');
 	await expect(page.getByTestId('command-palette')).toBeVisible();
-	await page.keyboard.type('Code repos');
+	await page.keyboard.type('Link repo');
 	await page.keyboard.press('Enter');
 	await expect(page.getByTestId('repos-modal')).toBeVisible();
 };
@@ -75,6 +75,8 @@ test('a repo added from the palette brings its commits to the ticket they name',
 	const ticketUrl = page.url();
 
 	await withProjectFile(repoRoot, async (projectFile, before) => {
+		// The header counts them, and with none it is the way in.
+		await expect(page.getByTestId('linked-repos')).toHaveText('link a repo');
 		await openRepos(page);
 		const modal = page.getByTestId('repos-modal');
 
@@ -83,6 +85,7 @@ test('a repo added from the palette brings its commits to the ticket they name',
 
 		const row = modal.getByTestId('repo-row');
 		await expect(row).toHaveCount(1);
+		await expect(page.getByTestId('linked-repos')).toHaveText('1 repo');
 		await expect(row.getByTestId('repo-status')).toHaveText(
 			'not fetched yet — sync to fetch',
 		);
@@ -113,10 +116,13 @@ test('a repo added from the palette brings its commits to the ticket they name',
 		).toBeVisible();
 		await expect(aside.locator('[data-line]')).toHaveCount(2);
 
-		await openRepos(page);
+		// The header's count is the other way into the panel.
+		await page.getByTestId('linked-repos').click();
+		await expect(modal).toBeVisible();
 		await row.getByTestId('remove-repo').click();
 		await row.getByTestId('remove-repo').click();
 		await expect(row).toHaveCount(0);
+		await expect(page.getByTestId('linked-repos')).toHaveText('link a repo');
 		await expect(modal.getByTestId('repos-last-action')).toContainText(
 			'Removed',
 		);

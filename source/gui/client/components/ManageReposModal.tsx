@@ -207,7 +207,7 @@ export const ManageReposModal = ({
 				data-testid="repos-modal"
 				role="dialog"
 				aria-modal="true"
-				aria-label="Code repos"
+				aria-label="Linked repos"
 				style={{
 					marginTop: '-100px',
 					width: 560,
@@ -228,7 +228,7 @@ export const ManageReposModal = ({
 						textTransform: 'uppercase',
 					}}
 				>
-					Code repos
+					Linked repos
 				</div>
 
 				<div style={{fontSize: 12, color: GUI_THEME.secondary}}>
@@ -376,7 +376,7 @@ export const ManageReposModal = ({
 						style={{...fieldStyle, flex: 1, padding: '6px 8px'}}
 					/>
 					<Button variant="primary" testId="add-repo" type="submit">
-						Add
+						Link
 					</Button>
 				</form>
 
