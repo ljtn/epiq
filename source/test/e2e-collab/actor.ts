@@ -26,6 +26,10 @@ import {
 	listIssues,
 	listSwimlanes,
 } from '../../mcp/epiq-api.js';
+import {
+	readConnectedRepos,
+	writeRepoEvent,
+} from '../../lib/commits/commit-repos.js';
 import {readEventIds, readOwnEventIds} from './log-reader.js';
 import type {ActorJob, ActorReport} from './protocol.js';
 
@@ -94,6 +98,12 @@ for (const action of swimlaneId === null ? [] : job.actions) {
 					issueId: action.issueId,
 					body: action.body,
 			  })
+			: action.kind === 'repo'
+			? writeRepoEvent({
+					repoRoot: job.repoRoot,
+					actorId: job.userId,
+					event: action.event,
+			  })
 			: action.kind === 'tag'
 			? await addIssueTag({
 					repoRoot: job.repoRoot,
@@ -135,6 +145,9 @@ if (loaded && isFail(loaded)) problems.push(`load: ${loaded.message}`);
 const orderedIds =
 	loaded && !isFail(loaded) ? loaded.value.map(event => event.id) : [];
 
+const repos = readConnectedRepos(job.repoRoot);
+if (isFail(repos)) problems.push(`repos: ${repos.message}`);
+
 const report: ActorReport = {
 	userId: job.userId,
 	problems,
@@ -148,6 +161,7 @@ const report: ActorReport = {
 		: (issues.value as {id: string; title: string}[])
 				.map(issue => `${issue.id}\t${issue.title}`)
 				.sort(),
+	repos: isFail(repos) ? '' : JSON.stringify(repos.value),
 };
 
 fs.writeFileSync(job.reportPath, JSON.stringify(report, null, 2));
