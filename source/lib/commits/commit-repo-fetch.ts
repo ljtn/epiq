@@ -1484,6 +1484,14 @@ export const removeRepoClone = (input: {
 		input.repoId,
 	);
 
+	// A repo never fetched on this machine has no clones dir yet; the lock and
+	// the mark it leaves need one.
+	try {
+		fs.mkdirSync(path.dirname(clonePath), {recursive: true});
+	} catch (error) {
+		return failed(`Could not remove the clone: ${errorMessage(error)}`);
+	}
+
 	const lock = acquireLockFile({
 		lockPath: `${clonePath}${LOCK_SUFFIX}`,
 		operation: 'remove',
