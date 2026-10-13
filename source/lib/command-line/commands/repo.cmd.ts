@@ -101,10 +101,10 @@ export const describeRepoPreview = (preview: RepoPreview): string => {
 				60,
 		  )}" by ${sanitizeInlineText(preview.latest.author).slice(0, 40)}`
 		: 'no commits';
-	const refs =
+	const linked =
 		preview.ticketCommits === 0
-			? 'none name a ticket here — is it the right repo?'
-			: `${preview.ticketCommits} name tickets here`;
+			? 'none linked, wrong repo?'
+			: `${preview.ticketCommits} linked`;
 
 	return [
 		`${preview.repo.label} from ${preview.host}`,
@@ -112,19 +112,13 @@ export const describeRepoPreview = (preview: RepoPreview): string => {
 			? sanitizeInlineText(preview.defaultBranch).slice(0, 60)
 			: 'no default branch',
 		latest,
-		`${preview.commits} commits in the window, ${refs}`,
-		`${
-			preview.contributors > 1
-				? `all ${preview.contributors} contributors`
-				: 'everyone on this board'
-		} will download ${formatBytes(preview.bytes)} from ${
-			preview.host
-		} on their next sync`,
-		...(preview.overLimit
-			? [
-					'the board is at its repo limit: nobody downloads it until one ahead of it is disconnected, then everyone does',
-			  ]
-			: []),
+		`${preview.commits} commits, ${linked}`,
+		formatBytes(preview.bytes),
+		preview.overLimit
+			? 'over the limit: not downloaded until another repo is disconnected'
+			: preview.contributors > 1
+			? `all ${preview.contributors} contributors download it on next sync`
+			: 'everyone downloads it on next sync',
 	].join(' · ');
 };
 

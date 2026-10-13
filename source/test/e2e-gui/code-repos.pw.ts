@@ -133,14 +133,14 @@ test('a repo is previewed, connected on the confirm, and brings its commits to t
 			'2 since the board began',
 		);
 		await expect(card.getByTestId('repo-preview-tickets')).toHaveText(
-			'1 of them name a ticket here',
+			'1 linked',
 		);
 		await expect(card.getByTestId('repo-preview-warning')).toHaveCount(0);
 		await expect(card.getByTestId('repo-preview-size')).toHaveText(
 			/^\d+(\.\d)? (B|KB|MB)$/,
 		);
 		await expect(card.getByTestId('repo-preview-stakes')).toHaveText(
-			/^(All \d+ contributors|Everyone on this board) will download \d+(\.\d)? (B|KB|MB) from this machine on their next sync\.$/,
+			/^(All \d+ contributors download|Everyone downloads) \d+(\.\d)? (B|KB|MB) on next sync\.$/,
 		);
 		const confirm = card.getByTestId('repo-preview-confirm');
 		await expect(confirm).toHaveText('connect');
@@ -242,7 +242,7 @@ test('a preview whose commits name no ticket warns, and its cancel writes nothin
 			'1 since the board began',
 		);
 		await expect(card.getByTestId('repo-preview-warning')).toHaveText(
-			'None name a ticket here. Is this the right repo?',
+			'None linked. Wrong repo?',
 		);
 
 		await card.getByTestId('repo-preview-cancel').click();
@@ -435,7 +435,7 @@ test('a repo connected but never fetched shows no size, and one past the limit i
 		await expect(past).toHaveCount(1);
 		await expect(past.getByTestId('repo-url-shown')).toHaveText(urls[20]!);
 		await expect(past.getByTestId('repo-status')).toHaveText(
-			'past the limit of 20 · not fetched',
+			'over limit of 20',
 		);
 		await expect(rows.first().getByTestId('repo-status')).toHaveText(
 			'not fetched yet',
