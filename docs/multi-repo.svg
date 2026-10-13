@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 14 720 256" width="720" height="256" role="img" aria-label="Three repos, api, web and infra, each a line of commits. Arrows run from every repo into one epiq board, where commits from different repos meet on the tickets they reference.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 14 720 256" width="720" height="256" role="img" aria-label="Three repos, each a line of commits. Arrows run from every repo into one epiq board, where commits from different repos meet on the tickets they reference.">
 	<style>
 		.ax    { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #666f91; letter-spacing: .12em; }
-		.lbl   { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }
 		.ref   { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #75d2fd; letter-spacing: .04em; }
 		.line  { stroke: #6f86a3; stroke-width: 1; opacity: .7; }
 		.dot   { fill: #14131d; stroke: #6f86a3; stroke-width: 1.2; }
@@ -20,8 +19,7 @@
 		</marker>
 	</defs>
 
-	<!-- the repos: a line of commits each, the ones naming a ticket lit -->
-	<text class="lbl" x="40" y="62">api</text>
+	<!-- three repos: a line of commits each, the ones naming a ticket lit -->
 	<line class="line" x1="40" y1="76" x2="290" y2="76" />
 	<circle class="dot" cx="70"  cy="76" r="4" />
 	<circle class="dot" cx="120" cy="76" r="4" />
@@ -31,7 +29,6 @@
 	<circle class="hit" cx="270" cy="76" r="4.5" />
 	<text class="ref" x="270" y="96" text-anchor="middle">GK87H8R</text>
 
-	<text class="lbl" x="40" y="136">web</text>
 	<line class="line" x1="40" y1="150" x2="290" y2="150" />
 	<circle class="dot" cx="80"  cy="150" r="4" />
 	<circle class="hit" cx="140" cy="150" r="4.5" />
@@ -39,7 +36,6 @@
 	<circle class="dot" cx="200" cy="150" r="4" />
 	<circle class="dot" cx="250" cy="150" r="4" />
 
-	<text class="lbl" x="40" y="210">infra</text>
 	<line class="line" x1="40" y1="224" x2="290" y2="224" />
 	<circle class="dot" cx="65"  cy="224" r="4" />
 	<circle class="dot" cx="115" cy="224" r="4" />

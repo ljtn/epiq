@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 470" width="360" height="470" role="img" aria-label="Three repos, api, web and infra, each a line of commits. Arrows run from every repo into one epiq board, where commits from different repos meet on the tickets they reference.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 20 360 450" width="360" height="450" role="img" aria-label="Three repos, each a line of commits. Arrows run from every repo into one epiq board, where commits from different repos meet on the tickets they reference.">
 	<style>
 		.ax    { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #666f91; letter-spacing: .12em; }
-		.lbl   { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }
 		.ref   { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #75d2fd; letter-spacing: .04em; }
 		.cref  { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #75d2fd; }
 		.line  { stroke: #6f86a3; stroke-width: 1; opacity: .7; }
@@ -20,8 +19,7 @@
 		</marker>
 	</defs>
 
-	<!-- the repos: a line of commits each, the ones naming a ticket lit -->
-	<text class="lbl" x="20" y="22">api</text>
+	<!-- three repos: a line of commits each, the ones naming a ticket lit -->
 	<line class="line" x1="20" y1="36" x2="340" y2="36" />
 	<circle class="dot" cx="55"  cy="36" r="4" />
 	<circle class="dot" cx="115" cy="36" r="4" />
@@ -31,7 +29,6 @@
 	<circle class="hit" cx="295" cy="36" r="4.5" />
 	<text class="ref" x="295" y="56" text-anchor="middle">GK87H8R</text>
 
-	<text class="lbl" x="20" y="88">web</text>
 	<line class="line" x1="20" y1="102" x2="340" y2="102" />
 	<circle class="dot" cx="65"  cy="102" r="4" />
 	<circle class="hit" cx="135" cy="102" r="4.5" />
@@ -39,7 +36,6 @@
 	<circle class="dot" cx="205" cy="102" r="4" />
 	<circle class="dot" cx="275" cy="102" r="4" />
 
-	<text class="lbl" x="20" y="154">infra</text>
 	<line class="line" x1="20" y1="168" x2="340" y2="168" />
 	<circle class="dot" cx="50"  cy="168" r="4" />
 	<circle class="dot" cx="110" cy="168" r="4" />
