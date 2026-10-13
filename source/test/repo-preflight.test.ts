@@ -243,6 +243,19 @@ describe('disconnecting a repo', () => {
 		expect(fs.existsSync(clonePathOf(repoRoot, url))).toBe(false);
 	});
 
+	it('disconnects a repo this machine never fetched, saying nothing of a clone', async () => {
+		const {repoRoot} = await board();
+		const url = await makeUpstream(['one']);
+		connectRepoEvent(repoRoot, url, {}, 'TEAMMATE0000000000000000AA');
+
+		const result = await disconnectRepo({repoRoot, repo: repoIdOf(url)});
+
+		expect(isFail(result)).toBe(false);
+		expect(!isFail(result) && result.message).toBe(
+			`Disconnected ${repoIdOf(url).replace(/-[0-9a-f]{12}$/, '')}`,
+		);
+	});
+
 	it('clears a clone on the next fetch once a disconnect arrives from elsewhere', async () => {
 		const {repoRoot} = await board();
 		const url = await makeUpstream(['one']);
