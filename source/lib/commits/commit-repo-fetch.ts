@@ -53,6 +53,12 @@ const placeRemovalMark = (clonePath: string) => {
 	}
 };
 
+/**
+ * Who a leftover in the clones dir is this process's: its pid and when it
+ * started, so a sweep never takes a process given the pid since for its writer.
+ */
+const ownerTag = () => `${process.pid}-${processStartedAt()}`;
+
 /** What the clone was last fetched with, and how that went. */
 export type RepoFetchStatus = {
 	fetchedAt: number | null;
@@ -114,9 +120,9 @@ const writeStatus = (clonePath: string, status: RepoFetchStatus) => {
 		// `wx`: never through a link somebody planted under the name.
 		// Random beyond the pid: a dead process's leftover under a pid reused
 		// since would otherwise refuse every later write.
-		const pending = `${statusPath(clonePath)}.${
-			process.pid
-		}.${randomUUID()}.tmp`;
+		const pending = `${statusPath(
+			clonePath,
+		)}.${ownerTag()}.${randomUUID()}.tmp`;
 		fs.writeFileSync(pending, JSON.stringify(status) + '\n', {flag: 'wx'});
 		fs.renameSync(pending, statusPath(clonePath));
 	} catch (error) {
@@ -576,7 +582,7 @@ const cloneRepo = async (
 ): Promise<Result<null>> => {
 	// Cloned beside its final name and moved into place, so a clone cut short
 	// never looks like one that finished.
-	const pending = `${clonePath}.${process.pid}.pending`;
+	const pending = `${clonePath}.${ownerTag()}.pending`;
 	const built = await buildClone(pending, repo, since);
 	if (isFail(built)) return built;
 
@@ -1357,9 +1363,7 @@ export const stageClone = async (
 	if (isFail(projectResult)) return failed(projectResult.message);
 
 	const clonePath = getRepoClonePath(projectResult.value.projectId, repo.id);
-	const stagePath = `${clonePath}.${
-		process.pid
-	}-${processStartedAt()}.${randomUUID()}.pending`;
+	const stagePath = `${clonePath}.${ownerTag()}.${randomUUID()}.pending`;
 
 	try {
 		fs.mkdirSync(path.dirname(clonePath), {recursive: true});

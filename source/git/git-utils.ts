@@ -213,10 +213,11 @@ export const cloneGitConfig = (): string[] =>
 	].flatMap(setting => ['-c', setting]);
 
 // `<clones>/<project>/<repo id>.git`, or the pending directory one is cloned
-// into — exactly that shape, so a user's own repos under a global dir set to
-// somewhere they keep them are never taken for one.
+// or staged into (`.<pid>[-<its start>][.<uuid>].pending`) — exactly that
+// shape, so a user's own repos under a global dir set to somewhere they keep
+// them are never taken for one.
 const CLONE_DIR =
-	/^[\w-]+[\\/][a-z0-9._-]+-[0-9a-f]{12}\.git(\.\d+\.pending)?$/;
+	/^[\w-]+[\\/][a-z0-9._-]+-[0-9a-f]{12}\.git(\.\d+(-\d+)?(\.[0-9a-f-]{36})?\.pending)?$/;
 
 const realpathOr = (target: string): string => {
 	try {
