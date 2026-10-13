@@ -108,7 +108,7 @@ const statusOf = (
 ): {text: string; color: string} => {
 	if (repo.overLimit) {
 		return {
-			text: `past the limit of ${limit} · not fetched`,
+			text: `over limit of ${limit}`,
 			color: GUI_THEME.amber,
 		};
 	}
@@ -337,15 +337,13 @@ const PreviewCard = ({
 	const size = formatBytes(preview.bytes);
 	const who =
 		preview.contributors > 1
-			? `All ${preview.contributors} contributors`
-			: 'Everyone on this board';
+			? `All ${preview.contributors} contributors download`
+			: 'Everyone downloads';
 	const stakes = preview.overLimit
-		? `The board already reads ${
-				limit ?? 'its limit of'
-		  } repos, so nobody downloads this one until another is disconnected. Then everyone downloads ${size} from ${
-				preview.host
-		  }.`
-		: `${who} will download ${size} from ${preview.host} on their next sync.`;
+		? `Over the limit${
+				limit === null ? '' : ` of ${limit}`
+		  }: not downloaded until another repo is disconnected.`
+		: `${who} ${size} on next sync.`;
 
 	return (
 		<div data-testid="repo-preview" style={rowStyle(false)}>
@@ -383,13 +381,13 @@ const PreviewCard = ({
 					</Fact>
 					<Fact name="Tickets" testId="repo-preview-tickets">
 						{preview.ticketCommits > 0 ? (
-							`${preview.ticketCommits} of them name a ticket here`
+							`${preview.ticketCommits} linked`
 						) : (
 							<span
 								data-testid="repo-preview-warning"
 								style={{color: GUI_THEME.amber}}
 							>
-								None name a ticket here. Is this the right repo?
+								None linked. Wrong repo?
 							</span>
 						)}
 					</Fact>
@@ -637,7 +635,7 @@ export const ReposSettings = ({
 							{problem
 								? `That URL ${problem}.`
 								: cloning
-								? 'Cloning it to see what it is. Nothing is connected until you confirm.'
+								? 'Cloning to preview…'
 								: REPO_URL_FORMS}
 						</span>
 						<span style={{...lineStyle, justifyContent: 'flex-end'}}>

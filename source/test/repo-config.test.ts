@@ -340,6 +340,6 @@ describe('a TUI repo preview', () => {
 		});
 
 		expect(line).not.toMatch(/[\u0000-\u001f\u007f]/);
-		expect(line).toContain('is it the right repo?');
+		expect(line).toContain('wrong repo?');
 	});
 });
