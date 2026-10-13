@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import {
 	execGit,
 	isOutputOverflow,
@@ -156,7 +158,12 @@ const getChangedFileBlobs = async (
 			...(paths && paths.length > 0 ? ['--', ...paths] : []),
 		],
 	});
-	if (isFail(diffResult)) return failed(diffResult.message);
+	// git's own words, with every option epiq runs it under, are for the log;
+	// the reader gets the outcome.
+	if (isFail(diffResult)) {
+		logger.info(`[commits] diff ${from} ${to}: ${diffResult.message}`);
+		return failed(DIFF_UNREADABLE);
+	}
 
 	const lines = diffResult.value.stdout.split('\n').filter(line => line !== '');
 
@@ -293,11 +300,25 @@ export const getCommitDiff = async (
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 	const repoRoot = repoRootResult.value;
 
-	const entriesResult = await getChangedFileBlobs(
+	let entriesResult = await getChangedFileBlobs(
 		repoRoot,
 		`${input.sha}~1`,
 		input.sha,
 	);
+
+	// Asked only on a failure, so a commit with a parent costs one spawn: one
+	// without is a root, diffed against nothing, or a shallow clone's edge.
+	if (isFail(entriesResult) && entriesResult.message === DIFF_UNREADABLE) {
+		const parent = await parentOf(repoRoot, input.sha);
+		if (isFail(parent)) return failed(parent.message);
+		if (parent.value === EMPTY_TREE) {
+			entriesResult = await getChangedFileBlobs(
+				repoRoot,
+				EMPTY_TREE,
+				input.sha,
+			);
+		}
+	}
 	if (isFail(entriesResult)) return failed(entriesResult.message);
 
 	// A commit that changed nothing is a commit the reader was pointed at in
@@ -451,14 +472,52 @@ const isAncestor = async (
 // git's own hash for the empty tree: what a root commit's diff is against.
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
-/** `<sha>~1`, or the empty tree when `sha` is a root commit and has no parent. */
-const parentOf = async (repoRoot: string, sha: string): Promise<string> => {
+const DIFF_UNREADABLE = "Could not read this commit's diff";
+
+/** Said where a commit's parent lies before the window its clone was cut at. */
+export const PARENT_OUTSIDE_HISTORY =
+	'Its parent is outside the fetched history. Widen since to see this diff.';
+
+// Whether `sha` is where a clone cut at a date ends: git keeps those in the
+// repository's `shallow` file and shows them with no parents.
+const isShallowBoundary = async (
+	repoRoot: string,
+	sha: string,
+): Promise<boolean> => {
+	const shallow = await execGit({
+		cwd: repoRoot,
+		args: ['rev-parse', '--git-path', 'shallow'],
+	});
+	if (isFail(shallow)) return false;
+
+	try {
+		return fs
+			.readFileSync(path.resolve(repoRoot, shallow.value.stdout.trim()), 'utf8')
+			.split('\n')
+			.some(line => line !== '' && line.startsWith(sha));
+	} catch {
+		return false;
+	}
+};
+
+/**
+ * `<sha>~1`, or the empty tree for a root commit. A commit at a shallow
+ * clone's edge has a parent that was never fetched, and is refused rather
+ * than drawn as adding every file it holds.
+ */
+const parentOf = async (
+	repoRoot: string,
+	sha: string,
+): Promise<Result<string>> => {
 	const result = await execGit({
 		cwd: repoRoot,
 		args: ['rev-parse', '--verify', '--quiet', `${sha}^1`],
 	});
+	if (!isFail(result)) return succeeded('Parent', `${sha}~1`);
 
-	return isFail(result) ? EMPTY_TREE : `${sha}~1`;
+	return (await isShallowBoundary(repoRoot, sha))
+		? failed(PARENT_OUTSIDE_HISTORY)
+		: succeeded('A root commit', EMPTY_TREE);
 };
 
 /**
@@ -610,7 +669,9 @@ const squashInRepo = async (
 		}
 	}
 
-	const from = await parentOf(repoRoot, oldest);
+	const parent = await parentOf(repoRoot, oldest);
+	if (isFail(parent)) return failed(parent.message);
+	const from = parent.value;
 
 	// Every commit in the range, ours and anybody else's, with the paths it
 	// touched. One spawn, and it answers all three questions left: which of

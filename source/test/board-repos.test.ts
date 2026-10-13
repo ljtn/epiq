@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
 	applyRepoEvent,
+	describeRepoEvent,
 	emptyRepoRegistry,
 	FOLD_DEFAULT_BRANCHES,
 	FOLD_DEFAULT_SINCE,
@@ -303,5 +304,19 @@ describe('resolving the list readers see', () => {
 				{action: 'connect.repo', payload: {url: A}},
 			]),
 		).toEqual(fold(ev('connect.repo', {url: A})));
+	});
+});
+
+describe('a repo event in the log', () => {
+	it('names the repo, and what an edit set', () => {
+		expect(describeRepoEvent(ev('connect.repo', {url: A}))).toBe('a');
+		expect(describeRepoEvent(ev('connect.repo', {url: A, label: 'api'}))).toBe(
+			'api',
+		);
+		expect(
+			describeRepoEvent(ev('edit.repo', {repo: idA, since: 'all', label: ''})),
+		).toBe('a (label cleared, since all)');
+		expect(describeRepoEvent(ev('disconnect.repo', {repo: idA}))).toBe('a');
+		expect(describeRepoEvent(ev('connect.repo', null))).toBe('');
 	});
 });

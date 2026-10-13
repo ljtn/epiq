@@ -307,3 +307,45 @@ export const resolveRepos = (registry: RepoRegistry): ResolvedRepos => {
 		disconnected: entries.filter(entry => !entry.live).map(entry => entry.id),
 	};
 };
+
+/**
+ * A repo event in a few words, for a log line: the repo, and for an edit what
+ * it set. Read off the payload alone, so a replica without the repo still has
+ * something to show.
+ */
+export const describeRepoEvent = (event: {
+	action: string;
+	payload: unknown;
+}): string => {
+	const payload =
+		event.payload && typeof event.payload === 'object'
+			? (event.payload as Record<string, unknown>)
+			: {};
+	const named =
+		typeof payload['label'] === 'string' && payload['label'] !== ''
+			? payload['label']
+			: null;
+
+	if (event.action === 'connect.repo') {
+		return typeof payload['url'] === 'string'
+			? named ?? repoLabelOfUrl(payload['url'])
+			: '';
+	}
+
+	const repo =
+		typeof payload['repo'] === 'string' ? repoLabelOfId(payload['repo']) : '';
+	if (event.action !== 'edit.repo') return repo;
+
+	const fields = readFields(payload);
+	const set = [
+		fields.label !== undefined
+			? fields.label === ''
+				? 'label cleared'
+				: `label ${fields.label}`
+			: null,
+		fields.branches ? `${fields.branches} branches` : null,
+		fields.since ? `since ${fields.since}` : null,
+	].filter(Boolean);
+
+	return set.length > 0 ? `${repo} (${set.join(', ')})` : repo;
+};

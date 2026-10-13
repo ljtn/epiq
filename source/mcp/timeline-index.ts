@@ -19,6 +19,7 @@ import {AppEvent, EventAction} from '../lib/board/board-events.model.js';
 import {loadActorNames, loadMergedEvents} from '../lib/board/board-log.js';
 import {logSignature} from '../lib/event/log-signature.js';
 import {formatLogAction} from '../lib/board/format-log-utils.js';
+import {describeRepoEvent, isRepoAction} from '../lib/board/board-repos.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {projectLogNames} from '../lib/board/log-names.js';
 import {Identity, identityOf} from '../lib/model/identity.js';
@@ -272,6 +273,10 @@ const describeTimelineEvent = (
 		return previousParents.get(event.id) === payload.parent
 			? `Moved within ${lane}`
 			: `Moved to ${lane}`;
+	}
+
+	if (isRepoAction(event.action)) {
+		return [action, describeRepoEvent(event)].filter(Boolean).join(' ');
 	}
 
 	const detail =
