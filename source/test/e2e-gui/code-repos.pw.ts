@@ -125,23 +125,25 @@ test('a repo is previewed, connected on the confirm, and brings its commits to t
 		await expect(card.getByTestId('repo-preview-host')).toHaveText(
 			'this machine',
 		);
-		await expect(card.getByTestId('repo-preview-branch')).toHaveText(
-			'default branch main',
-		);
+		await expect(card.getByTestId('repo-preview-branch')).toHaveText('main');
 		await expect(card.getByTestId('repo-preview-latest')).toContainText(
 			`${ref} ${subject} · e2e`,
 		);
 		await expect(card.getByTestId('repo-preview-commits')).toHaveText(
-			'2 commits since the board began · 1 name a ticket here',
+			'2 since the board began',
+		);
+		await expect(card.getByTestId('repo-preview-tickets')).toHaveText(
+			'1 of them name a ticket here',
 		);
 		await expect(card.getByTestId('repo-preview-warning')).toHaveCount(0);
-		await expect(card.getByTestId('repo-preview-size')).toContainText(
-			/^\d+(\.\d)? (B|KB|MB) cloned/,
+		await expect(card.getByTestId('repo-preview-size')).toHaveText(
+			/^\d+(\.\d)? (B|KB|MB)$/,
+		);
+		await expect(card.getByTestId('repo-preview-stakes')).toHaveText(
+			/^(All \d+ contributors|Everyone on this board) will download \d+(\.\d)? (B|KB|MB) from this machine on their next sync\.$/,
 		);
 		const confirm = card.getByTestId('repo-preview-confirm');
-		await expect(confirm).toContainText(
-			/^Connect — every contributor's epiq downloads about \d+(\.\d)? (B|KB|MB) from this machine on their next sync \(\d+ contributors?\)$/,
-		);
+		await expect(confirm).toHaveText('connect');
 
 		// Nothing is written until the confirm.
 		expect(connectedRepos(board)).toEqual([]);
@@ -159,7 +161,7 @@ test('a repo is previewed, connected on the confirm, and brings its commits to t
 			/^\d+(\.\d)? (B|KB|MB)$/,
 		);
 		await expect(modal.getByTestId('repos-claimed')).toHaveText(
-			/^Their copies take \d+(\.\d)? (B|KB|MB) on this machine\.$/,
+			/^Claimed disk space: \d+(\.\d)? (B|KB|MB)$/,
 		);
 		// The slot closes once the connect landed.
 		await expect(modal.getByTestId('repo-url')).toHaveCount(0);
@@ -237,10 +239,10 @@ test('a preview whose commits name no ticket warns, and its cancel writes nothin
 		const card = await previewRepo(page, url);
 
 		await expect(card.getByTestId('repo-preview-commits')).toHaveText(
-			'1 commit since the board began · 0 name a ticket here',
+			'1 since the board began',
 		);
 		await expect(card.getByTestId('repo-preview-warning')).toHaveText(
-			'None name a ticket here — is this the right repo?',
+			'None name a ticket here. Is this the right repo?',
 		);
 
 		await card.getByTestId('repo-preview-cancel').click();
@@ -424,7 +426,7 @@ test('a repo connected but never fetched shows no size, and one past the limit i
 
 		await expect(rows.first().getByTestId('repo-size')).toHaveText('—');
 		await expect(modal.getByTestId('repos-claimed')).toHaveText(
-			'Their copies take — on this machine.',
+			'Claimed disk space: —',
 		);
 
 		const past = modal.locator(
