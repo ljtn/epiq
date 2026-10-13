@@ -3,7 +3,7 @@
 // ScrubberTrack, ScatterCanvas and FlowCanvas; the numbers it places them at
 // from TimeScrubber, which owns all the logic.
 
-import {memo} from 'react';
+import {memo, useEffect, useRef} from 'react';
 import {GuiCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
@@ -255,6 +255,15 @@ export const ScrubberLayout = ({
 }) => {
 	const {axis, layoutMode, animate, windowKey, on} = chart;
 	const flowGeo = flowGeometry(chart.flowChart.strands);
+	// The track heights slide when a series is folded away, never when the
+	// layout changes: volume and events end at the same height, and parts of
+	// the two arriving at different speeds bounced the board below.
+	const shownLayout = useRef(layoutMode);
+	const layoutChanged = shownLayout.current !== layoutMode;
+	useEffect(() => {
+		shownLayout.current = layoutMode;
+	}, [layoutMode]);
+	const foldAnimate = animate && !layoutChanged;
 	// The charts are unmounted while the bar is shut, as they were before they
 	// moved: shutting it is how somebody takes a busy timeline off the page.
 	// They are only held past the toggle for as long as the closing move.
@@ -501,7 +510,7 @@ export const ScrubberLayout = ({
 										boxSizing: 'content-box',
 										display: 'flex',
 										alignItems: 'center',
-										transition: animate
+										transition: foldAnimate
 											? `height ${REVEAL_MS}ms ease`
 											: undefined,
 									}}
@@ -598,7 +607,7 @@ export const ScrubberLayout = ({
 											height: chart.showCommits ? TRACK_HEIGHT : 0,
 											overflow: 'hidden',
 											flexShrink: 0,
-											transition: animate
+											transition: foldAnimate
 												? `height ${REVEAL_MS}ms ease`
 												: undefined,
 										}}
