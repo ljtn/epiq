@@ -109,6 +109,35 @@ test('a click inside the panel does not dismiss it', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// The topbar moves down when the follow banner rises above it, without
+// changing its own size: the panel must move with it rather than overlap it.
+test('the panel keeps to the topbar as the follow banner comes and goes', async ({
+	page,
+	pageErrors,
+}) => {
+	const panel = await openPanel(page);
+	const before = (await panel.boundingBox())!.y;
+
+	// A click event alone: the dismiss listens for the press, and the panel is
+	// meant to stay.
+	await page.getByTestId('live-toggle').dispatchEvent('click');
+	const banner = page.getByTestId('follow-banner');
+	await expect(banner).toBeVisible();
+	const height = (await banner.boundingBox())!.height;
+
+	await expect
+		.poll(async () => (await panel.boundingBox())!.y)
+		.toBeCloseTo(before + height, 0);
+
+	await page.getByTestId('live-toggle').dispatchEvent('click');
+	await expect(banner).toHaveCount(0);
+	await expect
+		.poll(async () => (await panel.boundingBox())!.y)
+		.toBeCloseTo(before, 0);
+
+	expect(pageErrors).toEqual([]);
+});
+
 // It draws every address in the history on purpose, so on any real repository
 // the list is taller than the window. Without a cap it ran off the bottom: the
 // panel's own edge went over the fold and the rows below it were unreachable.

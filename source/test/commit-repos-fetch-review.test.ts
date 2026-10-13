@@ -149,7 +149,8 @@ describe('a fetch that fails', () => {
 
 		expect(outcome!.ok).toBe(false);
 		expect(outcome!.message).not.toMatch(/^git |-c |core\.hooksPath/);
-		expect(outcome!.message).toMatch(/repository|exist|not/i);
+		// The line naming the cause, not the stock one git ends on.
+		expect(outcome!.message).toMatch(/does not appear to be a git repository/);
 		expect(value(listRepoStates(board))[0]!.error).toBe(outcome!.message);
 	});
 

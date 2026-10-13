@@ -8,6 +8,7 @@ import {invalidateCommitTimelineCache} from './commit-timeline.js';
 import {cloneReadProblem} from './commit-sources.js';
 import {
 	CLONE_DIR_NAME,
+	cloneStatusPath as statusPath,
 	CommitRepo,
 	getRepoClonePath,
 	getRepoClonesDir,
@@ -20,6 +21,7 @@ import {
 	REPO_RENAMED,
 	REPO_UNCHANGED,
 	sinceDate,
+	STATE_BRANCH_NAME,
 	upsertCommitRepo,
 } from './commit-repos.js';
 
@@ -29,14 +31,23 @@ import {
 /** A transfer whose size nobody knows in advance; long, but not forever. */
 const TRANSFER_TIMEOUT_MS = 30 * 60 * 1000;
 
-// Beside the clone rather than in it, so a first clone that fails — and
-// leaves no clone — still records why.
-const statusPath = (clonePath: string) => `${clonePath}.json`;
-
 // Left by a remove that found the clone in use; the fetch holding it deletes
 // it on the way out. Only an explicit remove deletes a clone: another worktree
 // may still list a repo this one does not.
 const removalMark = (clonePath: string) => `${clonePath}.removed`;
+
+// Made, never written through: a link planted under the name is no mark, and
+// one already there is the same mark.
+const placeRemovalMark = (clonePath: string) => {
+	try {
+		fs.writeFileSync(removalMark(clonePath), '', {flag: 'wx'});
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+		if (isLink(removalMark(clonePath))) {
+			throw new Error('The removal mark is a link, which epiq will not use');
+		}
+	}
+};
 
 /** What the clone was last fetched with, and how that went. */
 export type RepoFetchStatus = {
@@ -47,6 +58,8 @@ export type RepoFetchStatus = {
 	branches: RepoBranches | null;
 	/** The date history starts at, or null for all of it. */
 	since: string | null;
+	/** The clone's own epiq state branch, if its project.json names one. */
+	stateBranch: string | null;
 };
 
 const readStatus = (clonePath: string): RepoFetchStatus | null => {
@@ -64,6 +77,11 @@ const readStatus = (clonePath: string): RepoFetchStatus | null => {
 					? raw.branches
 					: null,
 			since: typeof raw.since === 'string' ? raw.since : null,
+			stateBranch:
+				typeof raw.stateBranch === 'string' &&
+				STATE_BRANCH_NAME.test(raw.stateBranch)
+					? raw.stateBranch
+					: null,
 		};
 	} catch {
 		return null;
@@ -123,10 +141,14 @@ const localGit = (input: {cwd: string; args: string[]; timeoutMs?: number}) =>
 const git = (cwd: string, args: string[]) =>
 	localGit({cwd, args, timeoutMs: TRANSFER_TIMEOUT_MS});
 
+// Stock lines git follows the specific one with, naming no cause.
+const GENERIC_GIT_LINE =
+	/could not read from remote repository|the remote end hung up unexpectedly|early EOF|fetch-pack: invalid index-pack output/i;
+
 /**
- * What a failed git call says to a person: git's own last `fatal:` or `error:`
- * line, not the argv `execGit` leads with. Whatever the remote said is in it,
- * so it is kept as plain text, and short.
+ * What a failed git call says to a person: git's first `fatal:` or `error:`
+ * line that names a cause, not the argv `execGit` leads with. Whatever the
+ * remote said is in it, so it is kept as plain text, and short.
  */
 const gitReason = (message: string): string => {
 	const lines = message
@@ -134,9 +156,47 @@ const gitReason = (message: string): string => {
 		.map(line => line.replace(/[\x00-\x09\x0b-\x1f\x7f-\x9f]/g, '').trim())
 		.filter(line => line && !line.startsWith('git '));
 	const said = lines.filter(line => /^(fatal|error):/i.test(line));
-	const reason = said[said.length - 1] ?? lines[lines.length - 1] ?? message;
+	const specific = said.filter(line => !GENERIC_GIT_LINE.test(line));
+	const reason =
+		specific[0] ?? said[said.length - 1] ?? lines[lines.length - 1] ?? message;
 
 	return reason.replace(/^(fatal|error):\s*/i, '').slice(0, 300);
+};
+
+// More than any project.json; a bigger one is no board's.
+const PROJECT_FILE_MAX_BYTES = 64 * 1024;
+
+/** The state branch the clone's project.json names, when it is an epiq board. */
+const stateBranchOf = async (clonePath: string): Promise<string | null> => {
+	const object = 'HEAD:.epiq/project.json';
+	const size = await localGit({
+		cwd: clonePath,
+		args: ['cat-file', '-s', object],
+	});
+	if (
+		isFail(size) ||
+		!(Number(size.value.stdout.trim()) <= PROJECT_FILE_MAX_BYTES)
+	) {
+		return null;
+	}
+
+	const blob = await localGit({
+		cwd: clonePath,
+		args: ['cat-file', 'blob', object],
+	});
+	if (isFail(blob)) return null;
+
+	try {
+		const {stateBranch} = JSON.parse(blob.value.stdout) as {
+			stateBranch?: unknown;
+		};
+		return typeof stateBranch === 'string' &&
+			STATE_BRANCH_NAME.test(stateBranch)
+			? stateBranch
+			: null;
+	} catch {
+		return null;
+	}
 };
 
 const defaultBranchOf = async (clonePath: string): Promise<string | null> => {
@@ -314,22 +374,29 @@ const isBranchName = async (clonePath: string, name: string) =>
 		}),
 	);
 
-/** Points HEAD and the refspec at the branch the remote now calls its default. */
-const followDefaultBranch = async (
-	clonePath: string,
-): Promise<Result<null>> => {
+/** The branch the remote calls its default, or null where it does not say. */
+const remoteDefaultOf = async (clonePath: string): Promise<string | null> => {
 	const remote = await git(clonePath, [
 		'ls-remote',
 		'--symref',
 		'origin',
 		'HEAD',
 	]);
-	if (isFail(remote)) return failed(remote.message);
+	if (isFail(remote)) return null;
 
 	const name = /^ref: refs\/heads\/(\S+)\tHEAD$/m.exec(
 		remote.value.stdout,
 	)?.[1];
-	if (!name || !(await isBranchName(clonePath, name))) {
+	return name && (await isBranchName(clonePath, name)) ? name : null;
+};
+
+/** Points HEAD and the refspec at the branch the remote now calls its default. */
+const followDefaultBranch = async (
+	clonePath: string,
+	known?: string,
+): Promise<Result<null>> => {
+	const name = known ?? (await remoteDefaultOf(clonePath));
+	if (!name) {
 		return failed('Could not tell which branch the remote now defaults to');
 	}
 
@@ -419,6 +486,18 @@ const fetchRepo = async (
 			? [shallowSince(since)]
 			: [];
 
+	// A default switched to another branch that already existed: the refspec
+	// still fetches fine, from the old one, and would read it for good.
+	let followed = false;
+	if (repo.branches === 'default') {
+		const remoteDefault = await remoteDefaultOf(clonePath);
+		if (remoteDefault && remoteDefault !== (await defaultBranchOf(clonePath))) {
+			const followResult = await followDefaultBranch(clonePath, remoteDefault);
+			if (isFail(followResult)) return failed(followResult.message);
+			followed = true;
+		}
+	}
+
 	const fetchArgs = ['fetch', '--prune', '--no-tags', ...window, 'origin'];
 	let fetchResult = await git(clonePath, fetchArgs);
 
@@ -442,7 +521,7 @@ const fetchRepo = async (
 		if (isFail(deepenResult)) return failed(deepenResult.message);
 	}
 
-	if (branchesChanged && repo.branches === 'default') {
+	if ((branchesChanged || followed) && repo.branches === 'default') {
 		await dropOtherBranches(clonePath);
 	}
 
@@ -684,6 +763,9 @@ const fetchOne = async (
 			? await fetchRepo(clonePath, repo, since, current)
 			: await cloneRepo(clonePath, repo, since);
 		const message = isFail(result) ? gitReason(result.message) : 'Fetched';
+		const stateBranch = isFail(result)
+			? current?.stateBranch ?? null
+			: await stateBranchOf(clonePath);
 
 		// Written whether or not a clone exists: a first clone that failed has
 		// nothing else to say why.
@@ -695,6 +777,7 @@ const fetchOne = async (
 				? current?.branches ?? repo.branches
 				: repo.branches,
 			since: isFail(result) ? current?.since ?? since : since,
+			stateBranch,
 		});
 
 		if (isFail(result)) {
@@ -762,7 +845,7 @@ const deleteIfMarked = (clonePath: string) => {
  * no longer listed is left alone: another worktree's branch may still list it,
  * and only an explicit remove deletes one.
  */
-const sweepPending = (projectId: string, listed: ReadonlySet<string>) => {
+const sweepPending = (projectId: string) => {
 	const dir = getRepoClonesDir(projectId);
 	if (!fs.existsSync(dir)) return;
 
@@ -770,17 +853,6 @@ const sweepPending = (projectId: string, listed: ReadonlySet<string>) => {
 		const pending = /^.+\.git(?:\.json)?\.(\d+)\.(?:pending|tmp)$/.exec(name);
 		if (pending && !isAlive(Number(pending[1]))) {
 			fs.rmSync(path.join(dir, name), {recursive: true, force: true});
-		}
-
-		// A remove's tombstone, once no clone stands under it and nothing
-		// lists the repo: it has outlived the pass it was left for.
-		const tombstone = /^(.+)\.git\.removed$/.exec(name);
-		if (
-			tombstone &&
-			!listed.has(tombstone[1]!) &&
-			!fs.existsSync(path.join(dir, `${tombstone[1]}.git`))
-		) {
-			fs.rmSync(path.join(dir, name), {force: true});
 		}
 	}
 };
@@ -854,16 +926,16 @@ export const removeRepoClone = (input: {
 
 	try {
 		if (!lock.acquired) {
-			fs.writeFileSync(removalMark(clonePath), '');
+			placeRemovalMark(clonePath);
 			deleteIfMarked(clonePath);
 			return succeeded('Removed once its fetch ends', null);
 		}
 
 		deleteClone(clonePath);
 		// Left as a tombstone for a pass that read its list before this: it
-		// would otherwise clone the repo again. A later pass sweeps it; a
-		// fetch after a re-add honours and clears it.
-		fs.writeFileSync(removalMark(clonePath), '', {flag: 'wx'});
+		// would otherwise clone the repo again. Never swept, since that pass
+		// may be in another worktree; the next clone after a re-add clears it.
+		placeRemovalMark(clonePath);
 		return succeeded('Removed clone', null);
 	} catch (error) {
 		return failed(`Could not remove the clone: ${String(error)}`);
@@ -943,7 +1015,7 @@ const fetchAll = async (
 	if (repos.length === 0) return succeeded('No other repos', []);
 
 	try {
-		sweepPending(projectId, new Set(reposResult.value.map(repo => repo.id)));
+		sweepPending(projectId);
 	} catch (error) {
 		logger.info(`[repos] sweep failed: ${String(error)}`);
 	}

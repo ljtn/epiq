@@ -996,12 +996,24 @@ export const setupWebsocket = (
 				});
 			};
 
-			try {
-				const parsed = parseGuiMessage(JSON.parse(raw.toString()));
+			// A refused repo change is answered as one, with the list: the panel
+			// waits on that answer, and a bare error never reaches it.
+			let rawType: unknown;
+			const refuse = async (message: string) =>
+				rawType === 'repo:add' || rawType === 'repo:remove'
+					? sendSocket(socket, {
+							type: 'repos',
+							payload: await listRepos({repoRoot: project.repoRoot}),
+							lastAction: {ok: false, message},
+					  })
+					: sendSocket(socket, {type: 'error', message});
 
-				if (!parsed.ok) {
-					return sendSocket(socket, {type: 'error', message: parsed.error});
-				}
+			try {
+				const data: unknown = JSON.parse(raw.toString());
+				rawType = (data as {type?: unknown} | null)?.type;
+				const parsed = parseGuiMessage(data);
+
+				if (!parsed.ok) return await refuse(parsed.error);
 
 				const message = parsed.message;
 
@@ -1023,10 +1035,7 @@ export const setupWebsocket = (
 					return dispatchMessage(message);
 				});
 			} catch (error) {
-				return sendSocket(socket, {
-					type: 'error',
-					message: error instanceof Error ? error.message : String(error),
-				});
+				return refuse(error instanceof Error ? error.message : String(error));
 			}
 		});
 	});

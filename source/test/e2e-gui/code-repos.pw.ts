@@ -190,8 +190,11 @@ test("a repo that cannot be fetched says git's reason, and a bad URL is refused 
 
 		const status = modal.getByTestId('repo-row').getByTestId('repo-status');
 		await expect(status).not.toHaveText(/not fetched yet/);
-		await expect(status).not.toContainText('git ');
-		await expect(status).not.toContainText('-c ');
+		// git's cause, never the command line it ran.
+		await expect(status).toContainText(
+			'does not appear to be a git repository',
+		);
+		await expect(status).not.toHaveText(/^git |-c |core\.hooksPath/);
 	});
 
 	expect(pageErrors).toEqual([]);
@@ -267,6 +270,53 @@ test('a repo’s options are written when they change, and only then', async ({
 			.toEqual([{url, branches: 'default', since: '2025-03-01'}]);
 		expect(adds).toHaveLength(1);
 		expect(adds[0]).toContain('"branches":"default"');
+	});
+
+	expect(pageErrors).toEqual([]);
+});
+
+// A list is fixed to the window, so one opened past its bottom edge could not
+// be scrolled to: it opens upward there instead.
+test('a list opened at the bottom of the window opens upward, on screen', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.setViewportSize({width: 1280, height: 640});
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await withProjectFile(repoRoot, async () => {
+		await openRepos(page);
+		const modal = page.getByTestId('settings-panel');
+		await startLink(page);
+		await modal
+			.getByTestId('repo-url')
+			.fill('https://example.com/acme/edge.git');
+		await modal.getByTestId('add-repo').click();
+		const trigger = modal.getByTestId('repo-row').getByTestId('repo-since');
+		await expect(trigger).toBeVisible();
+
+		// Its trigger brought to the window's bottom edge.
+		await page.evaluate(`
+			const pane = document.querySelector('[data-testid="settings-scroller"]');
+			const spacer = document.createElement('div');
+			spacer.style.height = '2000px';
+			pane.prepend(spacer);
+			document
+				.querySelector('[data-testid="repo-row"] [data-testid="repo-since"]')
+				.scrollIntoView({block: 'end'});
+		`);
+		await trigger.click();
+
+		const options = page.getByTestId('repo-since-option');
+		await expect(options.first()).toBeVisible();
+		const list = (await options.last().boundingBox())!;
+		expect(list.y + list.height).toBeLessThanOrEqual(640);
+		expect((await options.first().boundingBox())!.y).toBeLessThan(
+			(await trigger.boundingBox())!.y,
+		);
 	});
 
 	expect(pageErrors).toEqual([]);

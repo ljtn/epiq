@@ -7,6 +7,7 @@ import {
 	fetchCommitRepos,
 	getCommitDiff,
 	getCommitsForRef,
+	getCommitTimeline,
 	getSquashedDiffForRef,
 	listRepoStates,
 	readCommitRepos,
@@ -17,8 +18,13 @@ import {
 	resetCommitTimelineCacheForTests,
 	upsertCommitRepo,
 } from '../lib/commits/commits.js';
-import {getRepoClonePath, MAX_REPOS} from '../lib/commits/commit-repos.js';
+import {
+	getRepoClonePath,
+	MAX_REPOS,
+	projectFileLockPath,
+} from '../lib/commits/commit-repos.js';
 import {execGit} from '../git/git-utils.js';
+import {boot} from '../mcp/api/boot.js';
 import {acquireLockFile} from '../git/sync-lock.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
@@ -180,11 +186,72 @@ describe('a remote with no commits yet', () => {
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 		expect(outcome!.ok).toBe(true);
 
-		const [state] = value(listRepoStates(board));
-		expect(state!.error).toBeNull();
+		// Read first: only a read can find a clone unreadable.
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})),
 		).toEqual([]);
+		const [state] = value(listRepoStates(board));
+		expect(state!.error).toBeNull();
+	});
+});
+
+describe('a listed repo nobody has synced', () => {
+	// Only a sync reaches the network: a board opened, read and browsed with a
+	// repo listed leaves it uncloned.
+	it('is not fetched by booting or by any read', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+
+		value(await boot(board, {pull: false}));
+		value(listRepoStates(board));
+		value(await getCommitTimeline({repoRoot: board}));
+		value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'}));
+		await getSquashedDiffForRef({repoRoot: board, ref: 'AAAAAAA'});
+
+		expect(fs.existsSync(getRepoClonePath(PROJECT_ID, repoIdOf(url)))).toBe(
+			false,
+		);
+	});
+});
+
+describe('an edit of the repo list while another process edits it', () => {
+	it('waits its turn, and is refused rather than written over it', () => {
+		const lockPath = projectFileLockPath(board);
+		fs.mkdirSync(path.dirname(lockPath), {recursive: true});
+		const held = acquireLockFile({lockPath, operation: 'test'});
+		expect(held.acquired).toBe(true);
+
+		const refused = upsertCommitRepo({repoRoot: board, url});
+		if (held.acquired) held.release();
+
+		expect(isFail(refused) ? refused.message : '').toMatch(/Another process/);
+		expect(value(readCommitRepos(board))).toEqual([]);
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(removeCommitRepo({repoRoot: board, repo: url}));
+		expect(fs.existsSync(lockPath)).toBe(false);
+	});
+});
+
+describe('a linked repo that is an epiq board', () => {
+	it('lends its work, never its event log', async () => {
+		fs.mkdirSync(path.join(upstream, '.epiq'));
+		fs.writeFileSync(
+			path.join(upstream, '.epiq', 'project.json'),
+			JSON.stringify({projectId: 'theirs', stateBranch: 'their/log'}),
+		);
+		git(upstream, ['add', '.epiq']);
+		commit(upstream, 'work.txt', 'AAAAAAA their work');
+		git(upstream, ['checkout', '-q', '--orphan', 'their/log']);
+		commit(upstream, 'event.json', 'AAAAAAA an event about it');
+		git(upstream, ['checkout', '-q', 'main']);
+		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const commits = value(
+			await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'}),
+		);
+
+		expect(commits.map(found => found.subject)).toEqual(['AAAAAAA their work']);
 	});
 });
 
@@ -256,16 +323,71 @@ describe('a remove that lands while a pass is waiting', () => {
 
 		const pass = fetchCommitRepos({repoRoot: board});
 		await new Promise(resolve => setTimeout(resolve, 400));
-		// The remove, as the GUI and the MCP make it: off the list, and the
-		// clone marked, since the pass is taken for its holder.
+		// Let go first, so the remove finds the clone free and deletes it
+		// itself; the pass, still asleep, wakes to what the remove left.
+		if (held.acquired) held.release();
 		value(removeCommitRepo({repoRoot: board, repo: url}));
 		value(removeRepoClone({repoRoot: board, repoId: repoIdOf(url)}));
-		if (held.acquired) held.release();
 
 		const [outcome] = value(await pass);
 
 		expect(outcome!.message).toBe('Removed before it was cloned');
 		expect(fs.existsSync(clonePath)).toBe(false);
+	});
+
+	it('is not undone when another worktree passes first', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		const otherUpstream = makeTempDir();
+		git(otherUpstream, ['init', '-q', '-b', 'main']);
+		commit(otherUpstream, 'o.txt', 'BBBBBBB other');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+
+		// A second worktree of the board, on a branch listing another repo.
+		const sibling = makeTempDir();
+		writeProject(sibling);
+		value(
+			upsertCommitRepo({repoRoot: sibling, url: `file://${otherUpstream}`}),
+		);
+
+		const held = acquireLockFile({
+			lockPath: `${clonePath}.lock`,
+			operation: 'test',
+			staleAfterMs: 60_000,
+		});
+		expect(held.acquired).toBe(true);
+
+		const pass = fetchCommitRepos({repoRoot: board});
+		await new Promise(resolve => setTimeout(resolve, 400));
+		if (held.acquired) held.release();
+		value(removeCommitRepo({repoRoot: board, repo: url}));
+		value(removeRepoClone({repoRoot: board, repoId: repoIdOf(url)}));
+		value(await fetchCommitRepos({repoRoot: sibling}));
+
+		const [outcome] = value(await pass);
+
+		expect(outcome!.message).toBe('Removed before it was cloned');
+		expect(fs.existsSync(clonePath)).toBe(false);
+	});
+
+	it('can be made twice, the repo re-added between', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		const id = repoIdOf(url);
+		for (let round = 0; round < 2; round++) {
+			value(upsertCommitRepo({repoRoot: board, url}));
+			value(removeCommitRepo({repoRoot: board, repo: url}));
+			value(removeRepoClone({repoRoot: board, repoId: id}));
+		}
+
+		value(upsertCommitRepo({repoRoot: board, url}));
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(fs.existsSync(getRepoClonePath(PROJECT_ID, id))).toBe(true);
+		expect(fs.existsSync(`${getRepoClonePath(PROJECT_ID, id)}.removed`)).toBe(
+			false,
+		);
 	});
 });
 
@@ -471,6 +593,28 @@ describe('a remote that renames its default branch', () => {
 				entry => entry.subject,
 			),
 		).toContain('AAAAAAA after the rename');
+	});
+});
+
+describe('a remote that makes another branch its default', () => {
+	it('is read from that branch from the next fetch on', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA on main');
+		git(upstream, ['branch', 'trunk']);
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		git(upstream, ['checkout', '-q', 'trunk']);
+		commit(upstream, 'up.txt', 'AAAAAAA on trunk');
+		git(upstream, ['symbolic-ref', 'HEAD', 'refs/heads/trunk']);
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})).map(
+				entry => entry.subject,
+			),
+		).toContain('AAAAAAA on trunk');
 	});
 });
 

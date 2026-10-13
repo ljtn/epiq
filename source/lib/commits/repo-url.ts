@@ -8,7 +8,7 @@ const SCP_URL = /^[A-Za-z0-9][\w.-]*@[A-Za-z0-9][\w.-]*:[^:]+$/;
 // Visible ASCII: no spaces, no control characters to rewrite a terminal with,
 // no lookalike letters to pass one host off as another.
 const PRINTABLE = /^[\x21-\x7e]+$/;
-const MAX_URL_LENGTH = 2048;
+export const MAX_URL_LENGTH = 2048;
 
 /** The forms a URL may take, for the line that refuses one. */
 export const REPO_URL_FORMS =

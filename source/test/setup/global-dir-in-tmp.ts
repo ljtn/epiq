@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {beforeEach} from 'vitest';
+import {afterAll, beforeEach} from 'vitest';
 import {getGlobalConfigDir} from '../../lib/storage/global-config-dir.js';
 
 const tempRoot = fs.realpathSync(os.tmpdir());
@@ -53,10 +53,17 @@ export const assertGlobalDirThrowaway = (dir: string): void => {
 	);
 };
 
-if (!process.env['EPIQ_GLOBAL_DIR']) {
-	process.env['EPIQ_GLOBAL_DIR'] = fs.mkdtempSync(
-		path.join(tempRoot, 'epiq-global-'),
-	);
+// Made here, so removed here once the file's tests are done: clones and locks
+// would otherwise pile up under the OS tmpdir run after run.
+const made = process.env['EPIQ_GLOBAL_DIR']
+	? null
+	: fs.mkdtempSync(path.join(tempRoot, 'epiq-global-'));
+if (made) {
+	process.env['EPIQ_GLOBAL_DIR'] = made;
+	afterAll(() => {
+		fs.rmSync(made, {recursive: true, force: true});
+		delete process.env['EPIQ_GLOBAL_DIR'];
+	});
 }
 
 assertGlobalDirThrowaway(getGlobalConfigDir());
