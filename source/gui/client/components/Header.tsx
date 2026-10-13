@@ -22,18 +22,12 @@ type HeaderProps = {
 	// what everything below is showing, the timeline included, and this is the
 	// one row that outlives every panel and collapse below it.
 	board: React.ReactNode;
-	// The gear toggles the settings panel; the avatar toggles it at who the
-	// viewer is. The refs are the panel's, which must not take a click here
-	// for a click outside.
+	// Toggles the settings panel. The ref is the panel's, which must not take
+	// a click here for a click outside.
 	settings: {
 		open: boolean;
 		onToggle: () => void;
 		ref: React.RefObject<HTMLSpanElement | null>;
-	};
-	identity: {
-		open: boolean;
-		onToggle: () => void;
-		ref: React.RefObject<HTMLDivElement | null>;
 	};
 };
 
@@ -46,7 +40,6 @@ export const Header = ({
 	onOpenCommands,
 	board,
 	settings,
-	identity,
 }: HeaderProps) => {
 	const syncColor =
 		syncStatus.status === 'synced'
@@ -204,30 +197,17 @@ export const Header = ({
 						</span>
 					</div>
 
-					{/* The orthodox way in: a gear, which says "settings" where the
-					    avatar and the repo count only imply it. */}
+					{/* The one way into settings: the viewer's own avatar, which says
+					    who the board takes them for as well, and a gear only where no
+					    identity is set yet to draw one. Filled while the panel is open. */}
 					<span ref={settings.ref} style={{display: 'inline-flex'}}>
-						<IconButton
-							title="Settings"
-							testId="open-settings"
-							pressed={settings.open}
-							aria-expanded={settings.open}
-							aria-controls="settings-panel"
-							onClick={settings.onToggle}
-						>
-							<IconGear />
-						</IconButton>
-					</span>
-
-					{state?.user && (
-						// The avatar was the only thing in the GUI that named the viewer,
-						// and it did nothing. It is the obvious place to ask who the board
-						// thinks you are.
-						<div ref={identity.ref} style={{position: 'relative'}}>
+						{state?.user ? (
 							<button
-								onClick={identity.onToggle}
-								aria-label="Your identity on this board"
-								aria-expanded={identity.open}
+								data-testid="open-settings"
+								onClick={settings.onToggle}
+								aria-label="Settings"
+								aria-pressed={settings.open}
+								aria-expanded={settings.open}
 								aria-controls="settings-panel"
 								style={{
 									background: 'transparent',
@@ -239,10 +219,21 @@ export const Header = ({
 							>
 								{/* `User` renders its own `title`, which covers the button and
 								    wins every hover, so a title here would never be seen. */}
-								<User user={state.user} />
+								<User user={state.user} filled={settings.open} />
 							</button>
-						</div>
-					)}
+						) : (
+							<IconButton
+								title="Settings"
+								testId="open-settings"
+								pressed={settings.open}
+								aria-expanded={settings.open}
+								aria-controls="settings-panel"
+								onClick={settings.onToggle}
+							>
+								<IconGear />
+							</IconButton>
+						)}
+					</span>
 				</div>
 			</div>
 		</Panel>

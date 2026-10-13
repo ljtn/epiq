@@ -87,7 +87,7 @@ test('a repo added from the palette brings its commits to the ticket they name',
 		const modal = page.getByTestId('settings-panel');
 		// The Repos card says how many are linked, the board's own not counted.
 		const summary = page.getByTestId('settings-summary-repos');
-		await expect(summary).toHaveText('0 linked');
+		await expect(summary).toHaveText('none');
 
 		// The board's own repo is shown, and is not one of the linked rows:
 		// nothing to remove, nothing to set.
@@ -103,7 +103,7 @@ test('a repo added from the palette brings its commits to the ticket they name',
 
 		const row = modal.getByTestId('repo-row');
 		await expect(row).toHaveCount(1);
-		await expect(summary).toHaveText('1 linked');
+		await expect(summary).toHaveText('1');
 		await expect(row.getByTestId('repo-status')).toHaveText('not fetched yet');
 		// The slot closes once the add landed.
 		await expect(modal.getByTestId('repo-url')).toHaveCount(0);
@@ -143,10 +143,9 @@ test('a repo added from the palette brings its commits to the ticket they name',
 		await row.getByTestId('remove-repo').click();
 		await row.getByTestId('remove-repo').click();
 		await expect(row).toHaveCount(0);
-		await expect(summary).toHaveText('0 linked');
-		await expect(modal.getByTestId('repos-last-action')).toContainText(
-			'Removed',
-		);
+		await expect(summary).toHaveText('none');
+		// The list says it; no line under it repeats it.
+		await expect(modal.getByTestId('repos-last-action')).toHaveCount(0);
 
 		// Back to the bytes it was found in, by the remove itself.
 		expect(fs.readFileSync(projectFile, 'utf8')).toBe(before);
@@ -465,12 +464,12 @@ test('a repo labelled in the panel is named so on its commits and in the filter'
 		await expect(label).toHaveValue(path.basename(upstream).toLowerCase());
 		await label.fill('upstream');
 		await label.press('Enter');
-		await expect(modal.getByTestId('repos-last-action')).toHaveText(
-			/^Renamed upstream/,
-		);
-		expect(
-			JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos[0].label,
-		).toBe('upstream');
+		await expect
+			.poll(
+				() => JSON.parse(fs.readFileSync(projectFile, 'utf8')).repos[0].label,
+			)
+			.toBe('upstream');
+		await expect(modal.getByTestId('repos-last-action')).toHaveCount(0);
 
 		// Refused, and the field keeps what was typed.
 		await row.getByTestId('repo-label').fill('Up Stream');

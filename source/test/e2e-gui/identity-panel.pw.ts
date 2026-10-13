@@ -22,18 +22,22 @@ const BOARD_NAME = 'claude/tester';
 const SHOWN_NAME = '/tester';
 const COMMIT_EMAIL = 'e2e@example.com';
 
+/** The panel, opened from the avatar, with the viewer's own stats unfolded. */
 const openPanel = async (page: Page) => {
-	await page
-		.locator('button[aria-label="Your identity on this board"]')
-		.click();
+	await page.getByTestId('open-settings').click();
 
 	const panel = page.getByTestId('settings-panel');
+	await expect(panel).toBeVisible();
+	await expand(page, 'identity');
 	await expect(panel.getByTestId('identity-panel')).toBeVisible();
 	return panel;
 };
 
 /** A section is folded unless the panel was opened for it. */
-const expand = async (page: Page, section: 'sync' | 'addresses') => {
+const expand = async (
+	page: Page,
+	section: 'identity' | 'sync' | 'addresses',
+) => {
 	const fold = page.getByTestId(`settings-section-${section}`);
 	if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
 	await expect(fold).toHaveAttribute('aria-expanded', 'true');
@@ -70,23 +74,27 @@ test.beforeEach(async ({page, appUrl}) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 });
 
-test('the avatar opens who you are, and Escape closes it', async ({
+test('the avatar opens settings, names who you are, and Escape closes it', async ({
 	page,
 	pageErrors,
 }) => {
 	await expect(page.getByTestId('identity-panel')).toHaveCount(0);
 
-	const panel = await openPanel(page);
-	await expect(panel).toContainText(SHOWN_NAME);
+	await page.getByTestId('open-settings').click();
+	const panel = page.getByTestId('settings-panel');
 	// Focus moves into the panel, so Tab walks it rather than the page.
 	await expect(panel).toBeFocused();
+	// Who the board takes the viewer for, without unfolding anything.
+	await expect(panel.getByTestId('settings-summary-identity')).toContainText(
+		SHOWN_NAME,
+	);
+	await expand(page, 'identity');
+	await expect(panel.getByTestId('identity-panel')).toBeVisible();
 
 	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('identity-panel')).toHaveCount(0);
 	// And comes back to what opened it.
-	await expect(
-		page.locator('button[aria-label="Your identity on this board"]'),
-	).toBeFocused();
+	await expect(page.getByTestId('open-settings')).toBeFocused();
 
 	expect(pageErrors).toEqual([]);
 });

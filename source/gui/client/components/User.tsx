@@ -1,13 +1,17 @@
 import {GuiUser, GuiState} from '../lib/gui-state.model';
+import {GUI_THEME} from '../lib/gui-theme';
 
 export const User = ({
 	user,
 	index,
 	isFocus,
+	filled = false,
 }: {
 	user: GuiState['user'];
 	index?: number;
 	isFocus?: boolean;
+	/** Solid in the user's colour, the letter cut out of it: for a pressed state. */
+	filled?: boolean;
 }) => (
 	<span
 		key={user.id}
@@ -19,8 +23,8 @@ export const User = ({
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
-			background: 'transparent',
-			color: user.color,
+			background: filled ? user.color : 'transparent',
+			color: filled ? GUI_THEME.chrome : user.color,
 			border: `1px solid ${user.color}`,
 			fontSize: 11,
 			fontWeight: 700,
