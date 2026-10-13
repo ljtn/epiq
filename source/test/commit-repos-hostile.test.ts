@@ -23,6 +23,7 @@ import {
 	MAX_REPOS,
 	projectFileLockPath,
 } from '../lib/commits/commit-repos.js';
+import {MAX_CLONE_PACKS} from '../lib/commits/commit-repo-fetch.js';
 import {execGit} from '../git/git-utils.js';
 import {setConfig} from '../lib/config/user-config.js';
 import {randomBytes} from 'node:crypto';
@@ -268,6 +269,32 @@ describe("a repo bigger than this machine's clone cap", () => {
 			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})),
 		).toHaveLength(2);
 	});
+});
+
+describe('a clone fetched many times', () => {
+	it('merges its packs rather than piling them up', async () => {
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		for (let round = 0; round <= MAX_CLONE_PACKS + 1; round++) {
+			commit(upstream, 'up.txt', `AAAAAAA round ${round}`);
+			value(await fetchCommitRepos({repoRoot: board}));
+		}
+
+		const packs = fs
+			.readdirSync(
+				path.join(
+					getRepoClonePath(PROJECT_ID, repoIdOf(url)),
+					'objects',
+					'pack',
+				),
+			)
+			.filter(name => name.endsWith('.pack'));
+		expect(packs.length).toBeLessThanOrEqual(MAX_CLONE_PACKS);
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})),
+		).toHaveLength(MAX_CLONE_PACKS + 2);
+	}, 60_000);
 });
 
 describe('a listed repo nobody has synced', () => {
