@@ -3,7 +3,7 @@ import {CODE_FONT} from '../lib/code-text.style';
 import {GuiRepo, GuiRepoPreview} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {META, ROW} from '../lib/card.style';
+import {CARD, META, ROW} from '../lib/card.style';
 import {useArmed} from '../lib/use-armed';
 import {RepoConnectPayload, ReposState} from '../lib/use-repos';
 import {repoUrlProblem, REPO_URL_FORMS} from '../../../lib/commits/repo-url.js';
@@ -38,14 +38,21 @@ const LINE_GAP = 8;
 // The confirm button's own red, translucent enough that the name still reads.
 const ARMED_BACKGROUND = 'rgba(255, 135, 135, 0.14)';
 
-// One repo per block, inset from the section's text and parted by a rule, so
-// each reads as one item.
+// One repo per block: its own ground and corners, apart from the next, so the
+// list reads as items at a glance. The section header's ground, lifted out of
+// the body's shade.
+const BLOCK_BACKGROUND = CARD.background;
+
 const rowStyle = (armed: boolean): React.CSSProperties => ({
 	...ROW,
 	flexDirection: 'column',
 	alignItems: 'stretch',
 	gap: 10,
 	padding: 8,
+	borderBottom: 'none',
+	borderRadius: 8,
+	marginBottom: 16,
+	background: BLOCK_BACKGROUND,
 	// Arming washes the row and pulls it out to the card's edge, so the wash
 	// has edges of its own rather than stopping at the text.
 	...(armed
