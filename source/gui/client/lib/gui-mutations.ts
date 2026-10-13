@@ -4,6 +4,8 @@ export const MUTATING_MESSAGE_TYPES = new Set<string>([
 	'sync',
 	'email:link',
 	'email:unlink',
+	'repo:connect',
+	'repo:disconnect',
 	'issues:create',
 	'board:create',
 	'board:edit:title',

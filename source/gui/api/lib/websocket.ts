@@ -30,6 +30,7 @@ import {
 	removeIssueTag,
 	reopenIssue,
 	sync,
+	cancelRepoConnect,
 	connectRepo,
 	fetchRepos,
 	listRepos,
@@ -451,17 +452,44 @@ export const setupWebsocket = (
 					});
 				}
 
+				// Stages a clone and previews it, writing nothing: not a mutation,
+				// so a clone that takes minutes holds no lock.
+				if (type === 'repo:preview') {
+					const result = await connectRepo({
+						repoRoot,
+						...message.payload,
+						previewOnly: true,
+					});
+
+					return sendSocket(socket, {
+						type: 'repos',
+						payload: isFail(result) ? await listRepos({repoRoot}) : result,
+						preview: isFail(result) ? null : result.value.preview ?? null,
+						lastAction: {ok: !isFail(result), message: result.message},
+					});
+				}
+
+				if (type === 'repo:preview:cancel') {
+					cancelRepoConnect(message.payload);
+					return sendSocket(socket, {
+						type: 'repos',
+						payload: await listRepos({repoRoot}),
+						preview: null,
+					});
+				}
+
 				if (type === 'repo:connect' || type === 'repo:disconnect') {
 					const result =
 						type === 'repo:connect'
-							? await connectRepo({repoRoot, ...message.payload})
+							? await connectRepo({repoRoot, ...message.payload, confirm: true})
 							: await disconnectRepo({repoRoot, ...message.payload});
 
 					// The list either way, so a refused change leaves the panel
-					// showing what is configured rather than what was turned down.
+					// showing what is connected rather than what was turned down.
 					sendSocket(socket, {
 						type: 'repos',
 						payload: isFail(result) ? await listRepos({repoRoot}) : result,
+						preview: null,
 						lastAction: {ok: !isFail(result), message: result.message},
 					});
 
@@ -476,7 +504,15 @@ export const setupWebsocket = (
 						broadcastReposChanged();
 					}
 
-					return;
+					// An event like any other: it queues a sync, so it reaches
+					// every clone without anybody committing anything.
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						`${type}:result`,
+						result,
+					);
 				}
 
 				if (type === 'issue:commits:get') {
@@ -1000,7 +1036,9 @@ export const setupWebsocket = (
 			// waits on that answer, and a bare error never reaches it.
 			let rawType: unknown;
 			const refuse = async (message: string) =>
-				rawType === 'repo:connect' || rawType === 'repo:disconnect'
+				rawType === 'repo:connect' ||
+				rawType === 'repo:disconnect' ||
+				rawType === 'repo:preview'
 					? sendSocket(socket, {
 							type: 'repos',
 							payload: await listRepos({repoRoot: project.repoRoot}),

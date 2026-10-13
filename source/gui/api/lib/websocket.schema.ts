@@ -126,6 +126,16 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	),
 	bare('repos:get'),
 	message(
+		'repo:preview',
+		z.object({
+			url: z.string().min(1).max(MAX_URL_LENGTH),
+			branches: z.enum(['default', 'all']).optional(),
+			since: z.string().max(20).optional(),
+			label: z.string().max(24).optional(),
+		}),
+	),
+	message('repo:preview:cancel', z.object({repo: z.string().min(1).max(80)})),
+	message(
 		'repo:connect',
 		z.object({
 			url: z.string().min(1).max(MAX_URL_LENGTH),

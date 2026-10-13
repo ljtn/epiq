@@ -1,8 +1,8 @@
 // The code's commits, and what they changed — one front door, so a caller asks
 // `lib/commits` rather than picking a file out of it.
 //
-// Commits come from the board's own repo and from every repo registered in
-// `project.json`, read from epiq's clones of them. Every read here is a pure
+// Commits come from the board's own repo and from every repo connected to the
+// board, read from epiq's clones of them. Every read here is a pure
 // read, independent of the board and of any time-travel checkout, which is
 // what lets the TUI, the GUI server and the MCP tools all answer from the same
 // code. Only `fetchCommitRepos` touches the network, and only sync calls it.
@@ -16,33 +16,46 @@ export {
 
 export {
 	findCommitRepo,
+	findConnectedRepo,
 	isAllowedRepoUrl,
 	isRepoLabel,
 	isRepoSince,
+	MAX_REPOS,
+	planRepoChange,
 	readCommitRepos,
+	readConnectedRepos,
 	removableNames,
-	removeCommitRepo,
 	repoIdOf,
 	repoLabelOfId,
 	repoLabelsById,
 	repoUrlProblem,
 	REPO_RENAMED,
 	REPO_UNCHANGED,
-	upsertCommitRepo,
 	type CommitRepo,
 	type RepoBranches,
+	type RepoChange,
 	type RepoSince,
+	type ResolvedRepos,
 } from './commit-repos.js';
+
+export {
+	cancelRepoPreview,
+	claimedBytesOf,
+	connectCommitRepo,
+	hostOfRepoUrl,
+	STAGE_TTL_MS,
+	type ConnectOutcome,
+	type RepoPreview,
+} from './commit-repo-preflight.js';
 
 export {readOwnRepo, type OwnRepo} from './own-repo.js';
 
 export {
 	describeFetchFailures,
 	fetchCommitRepos,
+	disconnectCommitRepo,
 	listRepoStates,
-	registerCommitRepo,
 	removeRepoClone,
-	unregisterCommitRepo,
 	type RepoFetchOutcome,
 	type RepoState,
 } from './commit-repo-fetch.js';

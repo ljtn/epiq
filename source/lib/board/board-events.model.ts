@@ -9,6 +9,7 @@ import {AttachmentExt, Contributor, Tag} from '../model/app-state.model.js';
 import {EmailLink} from '../model/email-link.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
+import {RepoEntry} from './board-repos.js';
 
 /**
  * All string references in event payloads are IDs unless otherwise noted.
@@ -303,6 +304,39 @@ export type AppEventMap = {
 		result: EmailLink;
 	};
 
+	/**
+	 * Another repository whose commits count as this board's, named by URL; its
+	 * id is derived from that URL. Of a live repo, merges the fields it carries.
+	 * Fields it leaves out keep their value, or take the default on a new one.
+	 */
+	'connect.repo': {
+		payload: {
+			url: string;
+			branches?: 'default' | 'all';
+			since?: string;
+			/** Empty clears it. */
+			label?: string;
+		};
+		result: RepoEntry;
+	};
+
+	/** Changes a live repo's fields; one that is not live is skipped. */
+	'edit.repo': {
+		payload: {
+			repo: string;
+			branches?: 'default' | 'all';
+			since?: string;
+			label?: string;
+		};
+		result: RepoEntry;
+	};
+
+	/** Stops reading a repo. Forward-only: a later connect revives it. */
+	'disconnect.repo': {
+		payload: {repo: string};
+		result: RepoEntry;
+	};
+
 	'link.contributor.user': {
 		payload: {
 			contributor: string;
@@ -355,6 +389,9 @@ export const EVENT_ACTIONS = [
 	'link.contributor.user',
 	'link.contributor.email',
 	'unlink.contributor.email',
+	'connect.repo',
+	'edit.repo',
+	'disconnect.repo',
 ] as const satisfies readonly EventAction[];
 
 // Compile-time proof that EVENT_ACTIONS covers every EventAction.

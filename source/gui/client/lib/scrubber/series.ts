@@ -151,6 +151,10 @@ const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 	// Who a commit belongs to, which is the same question assigning answers.
 	'link.contributor.email': 'assigning',
 	'unlink.contributor.email': 'assigning',
+	// Which commits the board reads: a change to the board itself.
+	'connect.repo': 'tickets',
+	'edit.repo': 'tickets',
+	'disconnect.repo': 'tickets',
 };
 
 // Everything else is a change to a ticket or to the board holding it.

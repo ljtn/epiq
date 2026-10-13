@@ -76,6 +76,12 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'link.contributor.email': z.looseObject({contributor: id, email: id}),
 	'unlink.contributor.email': z.looseObject({contributor: id, email: id}),
 
+	// Every field is checked by the reducer, one at a time: a value this build
+	// cannot read drops that field, not the event.
+	'connect.repo': z.looseObject({url: z.string()}),
+	'edit.repo': z.looseObject({repo: id}),
+	'disconnect.repo': z.looseObject({repo: id}),
+
 	'add.issue.assignee': z.looseObject({id, assignee: id}),
 	'remove.issue.assignee': z.looseObject({id, assignee: id}),
 	'add.issue.tag': z.looseObject({id, tag: id}),

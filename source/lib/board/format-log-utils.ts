@@ -1,3 +1,4 @@
+import {repoLabelOfId} from './board-repos.js';
 import chalk from 'chalk';
 import stringWidth from 'string-width';
 import {ulidTimeMs} from '../event/date-utils.js';
@@ -54,6 +55,9 @@ export const formatLogAction = (action: string): string => {
 		'link.contributor.user': 'Linked contributor',
 		'link.contributor.email': 'Claimed',
 		'unlink.contributor.email': 'Unclaimed',
+		'connect.repo': 'Connected repo',
+		'edit.repo': 'Edited repo',
+		'disconnect.repo': 'Disconnected repo',
 		'tombstone.contributor': 'Removed contributor',
 		'restore.contributor': 'Restored contributor',
 		'rebalance.children': 'Rebalanced order',
@@ -164,6 +168,13 @@ const formatEventDetails = (event: AppEvent): string => {
 			return event.payload.email;
 		}
 
+		case 'connect.repo':
+			return event.payload.url;
+
+		case 'edit.repo':
+		case 'disconnect.repo':
+			return repoLabelOfId(event.payload.repo);
+
 		case 'add.issue.attachment': {
 			return `"${event.payload.name}" ${chalk.dim(
 				`(${formatAttachmentKb(event.payload.bytes)})`,
@@ -241,6 +252,13 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		case 'link.contributor.email':
 		case 'unlink.contributor.email':
 			return event.payload.email;
+
+		case 'connect.repo':
+			return event.payload.url;
+
+		case 'edit.repo':
+		case 'disconnect.repo':
+			return repoLabelOfId(event.payload.repo);
 
 		case 'move.node': {
 			const parent = nodeRepo.getNode(event.payload.parent);

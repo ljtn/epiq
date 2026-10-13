@@ -397,6 +397,9 @@ const WORKSPACE_ACTIONS = new Set<string>([
 	'link.contributor.user',
 	'link.contributor.email',
 	'unlink.contributor.email',
+	'connect.repo',
+	'edit.repo',
+	'disconnect.repo',
 ]);
 
 export const filterEventsForBoard = (
