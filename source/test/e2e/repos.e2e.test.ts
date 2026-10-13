@@ -51,17 +51,20 @@ describe('TUI repos e2e', () => {
 				await tui.waitFor('Todo (0)', 4_000);
 
 				git(upstream, 'init -q -b main');
+				git(
+					upstream,
+					'-c user.name=t -c user.email=t@t commit -q --allow-empty -m init',
+				);
 				const url = `file://${upstream}`;
 
 				// One option: the line is drawn whole only while it fits the pane.
 				await typeCommand(tui, `:config repoConnect ${url} label=mirror`);
+				// The preview leaves the confirm line typed out, saying what it is.
 				await tui.waitFor(/mirror from/, 10_000);
+				await tui.waitFor('confirm', 4_000);
 				expect(connectedRepos(tui.cwd)).toEqual([]);
 
-				await typeCommand(
-					tui,
-					`:config repoConnect ${url} label=mirror confirm`,
-				);
+				tui.input(ENTER);
 				await tui.waitFor(commandLineIsIdle, 5_000);
 				await until(() => connectedRepos(tui.cwd).length > 0, 5_000);
 

@@ -15,9 +15,19 @@ import {
 	commandConfirmed,
 	commandPending,
 	getCmdState,
+	replaceCmdInput,
 } from '../../state/cmd.state.js';
 import {getSettingsState} from '../../state/settings.state.js';
 import {getState} from '../../state/state.js';
+
+const followUpOf = (result: Result): string | null => {
+	const value = (result as {value?: unknown}).value;
+	return value &&
+		typeof value === 'object' &&
+		typeof (value as {followUp?: unknown}).followUp === 'string'
+		? (value as {followUp: string}).followUp
+		: null;
+};
 
 const READ_ONLY_COMMAND_INTENTS = new Set<CommandIntent>([
 	'peek',
@@ -97,6 +107,14 @@ export const onConfirmCommandLineSequenceInput = async ({
 			commands: getCmdState().commandHistory,
 		});
 		if (isFail(storeResult)) logger.info(storeResult.message);
+	}
+
+	// A command that asks a second line of the user — a confirm — leaves it
+	// typed out, its hint saying what it will do.
+	const followUp = followUpOf(commandResult);
+	if (followUp !== null) {
+		replaceCmdInput(followUp);
+		return commandResult;
 	}
 
 	actionMeta.onSuccess?.();

@@ -3,7 +3,6 @@ import path from 'node:path';
 import fs from 'node:fs';
 import {ulid} from 'ulid';
 import {getStateBranchRoot} from '../../git/git-storage.js';
-import {logger} from '../../logger.js';
 import {accountedSignature, logSignature} from '../event/log-signature.js';
 import {
 	loadMergedEvents,
@@ -106,11 +105,12 @@ export const readConnectedRepos = (repoRoot: string): Result<ResolvedRepos> => {
 
 		return succeeded('Read connected repos', repos);
 	} catch (error) {
-		const message = `Could not read the connected repos: ${
-			error instanceof Error ? error.message : String(error)
-		}`;
-		logger.info(`[repos] ${message}`);
-		return failed(message);
+		// Not logged here: the logger reads the disk too, and this must not throw.
+		return failed(
+			`Could not read the connected repos: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
 	}
 };
 

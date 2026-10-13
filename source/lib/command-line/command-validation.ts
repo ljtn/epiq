@@ -26,6 +26,7 @@ import {
 import {findCommitRepo, removableNames} from '../commits/commits.js';
 import {
 	parseRepoConnectArgs,
+	previewSummaryFor,
 	registeredRepos,
 	REPO_CONNECT_OPTIONS,
 } from './commands/repo.cmd.js';
@@ -570,9 +571,22 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				});
 			}
 
-			// The URL is in; the options are what is left to offer.
+			// A confirm says what it will connect; the options are left to offer
+			// otherwise.
+			const preview = parsed.value.confirm
+				? previewSummaryFor(inputString)
+				: null;
+			if (parsed.value.confirm && !preview) {
+				return invalid({
+					message: hintAlert('preview it first: run the line without confirm'),
+					completionWordList: [],
+				});
+			}
+
 			return valid(
-				`${hintDefault(REPO_CONNECT_OPTIONS.join('  '))}  ${CONFIRM_MSG}`,
+				`${
+					preview ?? hintDefault(REPO_CONNECT_OPTIONS.join('  '))
+				}  ${CONFIRM_MSG}`,
 				[],
 				false,
 			);
