@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" role="img" aria-label="Three repos, api, web and infra, each a line of commits. Arrows run from every repo into one epiq board, where commits from different repos meet on the tickets they reference.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 14 720 256" width="720" height="256" role="img" aria-label="Three repos, api, web and infra, each a line of commits. Arrows run from every repo into one epiq board, where commits from different repos meet on the tickets they reference.">
 	<style>
 		.ax    { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #666f91; letter-spacing: .12em; }
 		.lbl   { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }

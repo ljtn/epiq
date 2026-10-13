@@ -214,18 +214,26 @@
 						<h2>One Board, Many Repos.</h2>
 					</div>
 					<p>
-						Connect a repo, so its commits show up in the tickets they
+						Connect another repo, so its commits show up in the tickets they
 						reference, and in statistics. Epiq is the orchestrator and knowledge
 						graph for entire teams of humans and agents.
 					</p>
 				</div>
 				<div class="media-placeholder media-placeholder--graph">
-					<img
-						src="multi-repo.svg"
-						width="720"
-						height="300"
-						alt="Three repos, api, web and infra, each a line of commits, with arrows into one epiq board where their commits meet on the tickets they reference"
-					/>
+					<picture>
+						<source
+							media="(max-width: 620px)"
+							srcset="multi-repo-phone.svg"
+							width="360"
+							height="470"
+						/>
+						<img
+							src="multi-repo.svg"
+							width="720"
+							height="256"
+							alt="Three repos, api, web and infra, each a line of commits, with arrows into one epiq board where their commits meet on the tickets they reference"
+						/>
+					</picture>
 				</div>
 			</section>
 

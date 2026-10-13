@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 470" width="360" height="470" role="img" aria-label="Three repos, api, web and infra, each a line of commits. Arrows run from every repo into one epiq board, where commits from different repos meet on the tickets they reference.">
+	<style>
+		.ax    { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #666f91; letter-spacing: .12em; }
+		.lbl   { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }
+		.ref   { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #75d2fd; letter-spacing: .04em; }
+		.cref  { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #75d2fd; }
+		.line  { stroke: #6f86a3; stroke-width: 1; opacity: .7; }
+		.dot   { fill: #14131d; stroke: #6f86a3; stroke-width: 1.2; }
+		.hit   { fill: #75d2fd; stroke: none; }
+		.flow  { fill: none; stroke: #c6a7ff; stroke-width: 1; opacity: .75; }
+		.board { fill: rgba(198,167,255,.05); stroke: #c6a7ff; stroke-width: 1; }
+		.lane  { fill: none; stroke: rgba(78,84,133,.9); stroke-width: 1; }
+		.card  { fill: rgba(111,134,163,.08); stroke: #6f86a3; stroke-width: 1; opacity: .8; }
+		.lit   { fill: rgba(117,210,253,.10); stroke: #75d2fd; stroke-width: 1; }
+	</style>
+
+	<defs>
+		<marker id="head" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+			<path d="M0 0 L8 4 L0 8" fill="none" stroke="#c6a7ff" stroke-width="1.2" />
+		</marker>
+	</defs>
+
+	<!-- the repos: a line of commits each, the ones naming a ticket lit -->
+	<text class="lbl" x="20" y="22">api</text>
+	<line class="line" x1="20" y1="36" x2="340" y2="36" />
+	<circle class="dot" cx="55"  cy="36" r="4" />
+	<circle class="dot" cx="115" cy="36" r="4" />
+	<circle class="hit" cx="175" cy="36" r="4.5" />
+	<text class="ref" x="175" y="56" text-anchor="middle">4SC2RXY</text>
+	<circle class="dot" cx="235" cy="36" r="4" />
+	<circle class="hit" cx="295" cy="36" r="4.5" />
+	<text class="ref" x="295" y="56" text-anchor="middle">GK87H8R</text>
+
+	<text class="lbl" x="20" y="88">web</text>
+	<line class="line" x1="20" y1="102" x2="340" y2="102" />
+	<circle class="dot" cx="65"  cy="102" r="4" />
+	<circle class="hit" cx="135" cy="102" r="4.5" />
+	<text class="ref" x="135" y="122" text-anchor="middle">4SC2RXY</text>
+	<circle class="dot" cx="205" cy="102" r="4" />
+	<circle class="dot" cx="275" cy="102" r="4" />
+
+	<text class="lbl" x="20" y="154">infra</text>
+	<line class="line" x1="20" y1="168" x2="340" y2="168" />
+	<circle class="dot" cx="50"  cy="168" r="4" />
+	<circle class="dot" cx="110" cy="168" r="4" />
+	<circle class="dot" cx="170" cy="168" r="4" />
+	<circle class="hit" cx="250" cy="168" r="4.5" />
+	<text class="ref" x="250" y="188" text-anchor="middle">7GC0E2M</text>
+
+	<!-- every repo flows into the one board -->
+	<path class="flow" d="M90 200 C90 222 140 218 150 238" marker-end="url(#head)" />
+	<path class="flow" d="M180 200 L180 238" marker-end="url(#head)" />
+	<path class="flow" d="M270 200 C270 222 220 218 210 238" marker-end="url(#head)" />
+
+	<!-- the board: three lanes, the tickets the commits name lit -->
+	<text class="ax" x="180" y="256" text-anchor="middle">EPIQ</text>
+	<rect class="board" x="40" y="266" width="280" height="194" rx="6" />
+	<line class="lane" x1="137" y1="280" x2="137" y2="446" />
+	<line class="lane" x1="223" y1="280" x2="223" y2="446" />
+
+	<rect class="card" x="53"  y="280" width="70" height="28" rx="3" />
+	<rect class="card" x="53"  y="316" width="70" height="28" rx="3" />
+	<rect class="lit"  x="145" y="280" width="70" height="28" rx="3" />
+	<rect class="card" x="145" y="316" width="70" height="28" rx="3" />
+	<rect class="lit"  x="231" y="280" width="70" height="28" rx="3" />
+	<rect class="lit"  x="231" y="316" width="70" height="28" rx="3" />
+	<rect class="card" x="231" y="352" width="70" height="28" rx="3" />
+	<text class="cref" x="180" y="298" text-anchor="middle">4SC2RXY</text>
+	<text class="cref" x="266" y="298" text-anchor="middle">GK87H8R</text>
+	<text class="cref" x="266" y="334" text-anchor="middle">7GC0E2M</text>
+
+	<text class="ax" x="88"  y="440" text-anchor="middle" opacity=".7">todo</text>
+	<text class="ax" x="180" y="440" text-anchor="middle" opacity=".7">doing</text>
+	<text class="ax" x="266" y="440" text-anchor="middle" opacity=".7">done</text>
+</svg>

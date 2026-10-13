@@ -1949,7 +1949,10 @@ h2 {
 #repos .media-placeholder {
 	min-height: 0;
 }
-#repos .media-placeholder > img {
+#repos .media-placeholder > picture {
+	display: contents;
+}
+#repos .media-placeholder img {
 	width: 100%;
 	max-width: 720px;
 	height: auto;
