@@ -13,19 +13,19 @@ import {REPO_RENAMED, REPO_UNCHANGED} from '../../commits/commit-repos.js';
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 
-// `:config repoAdd <url> [branches=default|all] [since=board|all|YYYY-MM-DD]
-// [label=<name>]` and `:config repoRemove <name>`: the TUI's way to the repos
+// `:config repoConnect <url> [branches=default|all] [since=board|all|YYYY-MM-DD]
+// [label=<name>]` and `:config repoDisconnect <name>`: the TUI's way to the repos
 // the GUI's palette opens. Both edit `.epiq/project.json`; the next sync
 // fetches.
 
-export type RepoAddArgs = {
+export type RepoConnectArgs = {
 	url: string;
 	branches?: RepoBranches;
 	since?: string;
 	label?: string;
 };
 
-export const REPO_ADD_OPTIONS = [
+export const REPO_CONNECT_OPTIONS = [
 	'branches=default',
 	'branches=all',
 	'since=board',
@@ -35,14 +35,16 @@ export const REPO_ADD_OPTIONS = [
 ];
 
 /** The typed line as a request, or why it is not one yet. */
-export const parseRepoAddArgs = (input: string): Result<RepoAddArgs> => {
+export const parseRepoConnectArgs = (
+	input: string,
+): Result<RepoConnectArgs> => {
 	const [url = '', ...options] = input.trim().split(/\s+/).filter(Boolean);
 	if (!url) return failed('a remote URL to read commits from');
 	if (!isAllowedRepoUrl(url)) {
 		return failed('https://, ssh://, git://, file:/// or user@host:path');
 	}
 
-	const args: RepoAddArgs = {url};
+	const args: RepoConnectArgs = {url};
 	const seen = new Set<string>();
 
 	for (const option of options) {
@@ -63,14 +65,14 @@ export const parseRepoAddArgs = (input: string): Result<RepoAddArgs> => {
 			args.label = value;
 		} else {
 			// Read after `Expected`, as every refusal here is.
-			return failed(`${REPO_ADD_OPTIONS.join(', ')}; not "${option}"`);
+			return failed(`${REPO_CONNECT_OPTIONS.join(', ')}; not "${option}"`);
 		}
 	}
 
 	return succeeded('Parsed', args);
 };
 
-/** The registered repos, for `repoRemove`'s completion and its lookup. */
+/** The registered repos, for `repoDisconnect`'s completion and its lookup. */
 export const registeredRepos = (): CommitRepo[] => {
 	const repoRootResult = resolveRepoRoot();
 	if (isFail(repoRootResult)) return [];
@@ -79,8 +81,10 @@ export const registeredRepos = (): CommitRepo[] => {
 	return isFail(reposResult) ? [] : reposResult.value;
 };
 
-export const repoAddCommand = () => {
-	const argsResult = parseRepoAddArgs(getCmdState().commandMeta.inputString);
+export const repoConnectCommand = () => {
+	const argsResult = parseRepoConnectArgs(
+		getCmdState().commandMeta.inputString,
+	);
 	if (isFail(argsResult)) return failed(`Expected ${argsResult.message}`);
 
 	const repoRootResult = resolveRepoRoot();
@@ -101,7 +105,7 @@ export const repoAddCommand = () => {
 	);
 };
 
-export const repoRemoveCommand = () => {
+export const repoDisconnectCommand = () => {
 	const repoRootResult = resolveRepoRoot();
 	if (isFail(repoRootResult)) return repoRootResult;
 

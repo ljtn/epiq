@@ -20,7 +20,7 @@ afterAll(() => {
 });
 
 describe("the board's own repo, as the panel shows it", () => {
-	it('is named by its origin, as a linked repo would be', async () => {
+	it('is named by its origin, as a connected repo would be', async () => {
 		const dir = makeRepo('origin');
 		execFileSync(
 			'git',

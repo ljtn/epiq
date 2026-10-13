@@ -362,7 +362,7 @@ export const acquireLockFile = ({
 	staleAfterMs?: number;
 	/**
 	 * Takes a lock whose live pid now runs another process, or that was written
-	 * before the last boot, as dead. For the linked repos' locks; the board's
+	 * before the last boot, as dead. For the connected repos' locks; the board's
 	 * sync lock keeps judging by the pid alone.
 	 */
 	checkProcess?: boolean;

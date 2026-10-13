@@ -83,7 +83,7 @@ describe('a repo change the server refuses', () => {
 
 	it('is answered as a refused change, with the list', async () => {
 		send({
-			type: 'repo:add',
+			type: 'repo:connect',
 			payload: {url: `https://example.com/${'a'.repeat(3000)}`},
 		});
 

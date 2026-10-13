@@ -126,7 +126,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	),
 	bare('repos:get'),
 	message(
-		'repo:add',
+		'repo:connect',
 		z.object({
 			url: z.string().min(1).max(MAX_URL_LENGTH),
 			branches: z.enum(['default', 'all']).optional(),
@@ -134,7 +134,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 			label: z.string().max(24).optional(),
 		}),
 	),
-	message('repo:remove', z.object({repo: z.string().min(1).max(2000)})),
+	message('repo:disconnect', z.object({repo: z.string().min(1).max(2000)})),
 	z.object({type: z.literal('emails:get')}),
 	message(
 		'email:link',

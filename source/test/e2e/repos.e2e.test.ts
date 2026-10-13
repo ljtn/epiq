@@ -36,7 +36,7 @@ beforeAll(async () => {
 
 describe('TUI repos e2e', () => {
 	it(
-		':config repoAdd lists a repo in project.json, and repoRemove takes it out',
+		':config repoConnect lists a repo in project.json, and repoDisconnect takes it out',
 		async () => {
 			const tui = setupTui();
 			const upstream = fs.mkdtempSync(
@@ -52,7 +52,7 @@ describe('TUI repos e2e', () => {
 				const url = `file://${upstream}`;
 
 				// One option: the line is drawn whole only while it fits the pane.
-				await typeCommand(tui, `:config repoAdd ${url} label=mirror`);
+				await typeCommand(tui, `:config repoConnect ${url} label=mirror`);
 				await tui.waitFor(commandLineIsIdle, 5_000);
 				await until(() => projectRepos(tui.cwd) !== undefined, 5_000);
 
@@ -61,12 +61,12 @@ describe('TUI repos e2e', () => {
 				]);
 
 				// The hint offers it by name.
-				tui.input(':config repoRemove ');
+				tui.input(':config repoDisconnect ');
 				await tui.waitFor('mirror', 4_000);
 				tui.input('\x7f'.repeat(40));
 				await tui.waitFor(commandLineIsIdle, 4_000);
 
-				await typeCommand(tui, ':config repoRemove mirror');
+				await typeCommand(tui, ':config repoDisconnect mirror');
 				await until(() => projectRepos(tui.cwd) === undefined, 5_000);
 			} finally {
 				await tui.destroy();

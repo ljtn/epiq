@@ -32,7 +32,7 @@ export const listRepos = async (
 	return listRepoStates(repoRootResult.value);
 };
 
-export const addRepo = async (
+export const connectRepo = async (
 	input: RepoRootInput & {
 		url: string;
 		branches?: RepoBranches;
@@ -58,7 +58,7 @@ export const addRepo = async (
 	return succeeded(addResult.message, listResult.value);
 };
 
-export const removeRepo = async (
+export const disconnectRepo = async (
 	input: RepoRootInput & {repo: string},
 ): Promise<Result<RepoState[]>> => {
 	const repoRootResult = resolveRepoRoot(input.repoRoot);

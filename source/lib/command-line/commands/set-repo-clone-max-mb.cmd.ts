@@ -18,7 +18,7 @@ export const setRepoCloneMaxMbCommand = () => {
 
 	if (!maxMb.success) {
 		return failed(
-			`A linked repo's clone cap must be ${MIN_REPO_CLONE_MAX_MB}-${MAX_REPO_CLONE_MAX_MB} MB (default ${DEFAULT_REPO_CLONE_MAX_MB})`,
+			`A connected repo's clone cap must be ${MIN_REPO_CLONE_MAX_MB}-${MAX_REPO_CLONE_MAX_MB} MB (default ${DEFAULT_REPO_CLONE_MAX_MB})`,
 		);
 	}
 
@@ -26,5 +26,5 @@ export const setRepoCloneMaxMbCommand = () => {
 	const persistResult = setConfig({repoCloneMaxMb: maxMb.data});
 	if (isFail(persistResult)) return persistResult;
 
-	return succeeded(`Linked repo clone cap set to ${maxMb.data} MB`, null);
+	return succeeded(`Connected repo clone cap set to ${maxMb.data} MB`, null);
 };

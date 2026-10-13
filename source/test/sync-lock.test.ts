@@ -208,7 +208,7 @@ describe('sync lock', () => {
 
 describe('a lock whose holder pid now belongs to another process', () => {
 	// A crashed holder's pid, reused by whatever started next, must not hold
-	// a linked repo's lock until it goes stale: that blocked a clone for two
+	// a connected repo's lock until it goes stale: that blocked a clone for two
 	// hours. The board's sync lock is left judging by the pid alone.
 	const holdWith = (holder: Record<string, unknown>) => {
 		const dir = makeTempDir();

@@ -3,7 +3,7 @@ import path from 'node:path';
 import {readEpiqConfig} from '../config/user-config.js';
 import {isFail} from '../model/result-types.js';
 
-// How much disk a linked repo's clone may take on this machine. Set here, in
+// How much disk a connected repo's clone may take on this machine. Set here, in
 // the machine's own config: the repo list comes from a committed file, and a
 // cap that file could raise would be no cap.
 
@@ -58,4 +58,4 @@ export const dirSize = (dir: string): number => {
 
 /** What a repo is told when its clone would pass the cap. */
 export const cloneCapMessage = (maxMb: number) =>
-	`Its clone would pass this machine's ${maxMb} MB cap for a linked repo: narrow its history, or raise repoCloneMaxMb`;
+	`Its clone would pass this machine's ${maxMb} MB cap for a connected repo: narrow its history, or raise repoCloneMaxMb`;
