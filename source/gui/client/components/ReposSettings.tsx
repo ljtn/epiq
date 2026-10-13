@@ -1,12 +1,13 @@
 import {useEffect, useRef, useState} from 'react';
 import {CODE_FONT} from '../lib/code-text.style';
-import {GuiRepo} from '../lib/gui-state.model';
+import {GuiRepo, GuiRepoPreview} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {META, ROW} from '../lib/card.style';
 import {useArmed} from '../lib/use-armed';
-import {ReposState} from '../lib/use-repos';
+import {RepoConnectPayload, ReposState} from '../lib/use-repos';
 import {repoUrlProblem, REPO_URL_FORMS} from '../../../lib/commits/repo-url.js';
+import {formatBytes} from '../../../lib/utils/format-bytes.js';
 import {Button} from './Button';
 import {Chip} from './Chip';
 import {Dropdown} from './Dropdown';
@@ -21,12 +22,12 @@ import {IconUnplug} from './IconUnplug';
 
 type Props = {
 	state: ReposState;
-	onAdd: (payload: {
-		url: string;
-		branches?: 'default' | 'all';
-		since?: string;
-		label?: string;
-	}) => void;
+	/** Stages a new repo and describes it; nothing is written. */
+	onPreview: (payload: RepoConnectPayload) => void;
+	onConfirm: () => void;
+	onCancelPreview: () => void;
+	/** A connected repo's options, written at once. */
+	onChange: (payload: RepoConnectPayload) => void;
 	onRemove: (repo: string) => void;
 };
 
@@ -101,7 +102,17 @@ const controlStyle: React.CSSProperties = {
 	flexShrink: 0,
 };
 
-const statusOf = (repo: GuiRepo): {text: string; color: string} => {
+const statusOf = (
+	repo: GuiRepo,
+	limit: number,
+): {text: string; color: string} => {
+	if (repo.overLimit) {
+		return {
+			text: `past the limit of ${limit} · not fetched`,
+			color: GUI_THEME.amber,
+		};
+	}
+
 	if (repo.error) {
 		return {
 			text: repo.error.split('\n')[0] ?? repo.error,
@@ -261,28 +272,154 @@ const SinceField = ({
 	);
 };
 
-export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
+const plural = (count: number, one: string, many = `${one}s`) =>
+	`${count} ${count === 1 ? one : many}`;
+
+const windowOf = (since: string) =>
+	since === 'all'
+		? 'in all history'
+		: since === 'board'
+		? 'since the board began'
+		: `since ${since}`;
+
+const sizeOf = (bytes: number | null) =>
+	bytes === null ? '—' : formatBytes(bytes);
+
+const factStyle: React.CSSProperties = {...META, marginTop: 0};
+
+// What a staged clone turned out to be, and what connecting it costs everyone:
+// the confirm says the cost, since every contributor's epiq downloads it.
+const PreviewCard = ({
+	preview,
+	limit,
+	confirming,
+	onConfirm,
+	onCancel,
+}: {
+	preview: GuiRepoPreview;
+	limit: number | null;
+	confirming: boolean;
+	onConfirm: () => void;
+	onCancel: () => void;
+}) => {
+	const {repo, latest} = preview;
+	const stakes = preview.overLimit
+		? `Connect — past the board's limit${
+				limit === null ? '' : ` of ${limit}`
+		  }, it is listed and nobody downloads it`
+		: `Connect — every contributor's epiq downloads about ${formatBytes(
+				preview.bytes,
+		  )} from ${preview.host} on their next sync (${plural(
+				preview.contributors,
+				'contributor',
+		  )})`;
+
+	return (
+		<div data-testid="repo-preview" style={rowStyle(false)}>
+			<span style={linesStyle}>
+				<span style={lineStyle}>
+					<span style={nameStyle}>{repo.label}</span>
+					<Chip testId="repo-preview-host">{preview.host}</Chip>
+				</span>
+				<span title={repo.url} style={whereStyle}>
+					{repo.url}
+				</span>
+
+				<span style={{display: 'flex', flexDirection: 'column'}}>
+					<span data-testid="repo-preview-branch" style={factStyle}>
+						{preview.defaultBranch
+							? `default branch ${preview.defaultBranch}`
+							: 'no default branch'}
+					</span>
+					<span
+						data-testid="repo-preview-latest"
+						style={{
+							...factStyle,
+							whiteSpace: 'nowrap',
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+						}}
+						title={latest?.subject}
+					>
+						{latest
+							? `latest: ${latest.subject} · ${latest.author} · ${timeAgo(
+									Date.parse(latest.date),
+							  )}`
+							: 'no commits yet'}
+					</span>
+					<span data-testid="repo-preview-commits" style={factStyle}>
+						{plural(preview.commits, 'commit')} {windowOf(repo.since)} ·{' '}
+						{preview.ticketCommits} name a ticket here
+					</span>
+					{preview.ticketCommits === 0 && (
+						<span
+							data-testid="repo-preview-warning"
+							style={{...factStyle, color: GUI_THEME.amber}}
+						>
+							None name a ticket here — is this the right repo?
+						</span>
+					)}
+					<span data-testid="repo-preview-size" style={factStyle}>
+						{formatBytes(preview.bytes)} cloned · this board&apos;s repos take{' '}
+						{formatBytes(preview.claimedBytes)} here
+					</span>
+				</span>
+
+				<span style={{...lineStyle, justifyContent: 'flex-end'}}>
+					<Button
+						variant="ghost"
+						testId="repo-preview-cancel"
+						disabled={confirming}
+						onClick={onCancel}
+					>
+						cancel
+					</Button>
+					<Button
+						variant="primary"
+						testId="repo-preview-confirm"
+						disabled={confirming}
+						onClick={onConfirm}
+						style={{lineHeight: 1.4, textAlign: 'left'}}
+					>
+						{confirming ? 'connecting…' : stakes}
+					</Button>
+				</span>
+			</span>
+		</div>
+	);
+};
+
+export const ReposSettings = ({
+	state,
+	onPreview,
+	onConfirm,
+	onCancelPreview,
+	onChange,
+	onRemove,
+}: Props) => {
 	const [adding, setAdding] = useState(false);
 	const [url, setUrl] = useState('');
 	// Removing cannot be taken back, so it takes two clicks.
 	const remove = useArmed<string>();
 
-	// The URL sent, until its answer: the row closes once it lands, and stays
-	// with its text if refused.
-	const sent = useRef<string | null>(null);
+	// Set while a confirm is unanswered: the slot closes once it lands, and
+	// stays with its text if refused.
+	const confirmed = useRef(false);
 	const root = useRef<HTMLDivElement>(null);
 	// The dropdowns' popovers are drawn into the section: above the panel, and
 	// inside it for the click that dismisses it.
 	const portalInto = () => root.current;
 
-	const repos = state.data ?? [];
+	const repos = state.data?.repos ?? [];
 	const typed = url.trim();
 	const problem = typed ? repoUrlProblem(typed) : null;
+	const cloning = state.pending === 'preview';
+	const anySized = repos.some(repo => repo.bytes !== null);
 
 	useEffect(() => {
-		if (!state.lastAction || sent.current === null) return;
+		if (!state.lastAction || !confirmed.current) return;
 
-		sent.current = null;
+		confirmed.current = false;
 		if (state.lastAction.ok) {
 			setUrl('');
 			setAdding(false);
@@ -290,10 +427,9 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 	}, [state.lastAction]);
 
 	const submit = () => {
-		if (!typed || problem) return;
+		if (!typed || problem || cloning) return;
 
-		sent.current = url;
-		onAdd({url: typed});
+		onPreview({url: typed});
 	};
 
 	const cancelAdd = () => {
@@ -306,8 +442,8 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 			<div style={{...META, marginTop: 0, padding: '12px 0 2px'}}>
 				Commits from a connected repo show on the tickets they name and in the
 				timeline. It is only read, from a copy epiq keeps on this machine;
-				nothing is ever written to it. The list is kept in the project file, so
-				it reaches everyone.
+				nothing is ever written to it. The list is kept on the board, so it
+				reaches everyone.
 			</div>
 
 			{/* The board's own repo, listed first: the one every other row is
@@ -336,34 +472,39 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 
 			{repos.map(repo => {
 				const armed = remove.armed === repo.id;
-				const status = statusOf(repo);
+				const status = statusOf(repo, state.data?.limit ?? 0);
 
 				return (
 					<div
 						key={repo.id}
 						data-testid="repo-row"
 						data-armed={armed ? 'true' : 'false'}
+						data-over-limit={repo.overLimit ? 'true' : 'false'}
 						style={rowStyle(armed)}
 					>
 						<span style={linesStyle}>
-							{/* The name and how it stands; where it is; what is read
-							    from it. Three lines, since the card is narrow. */}
+							{/* The name and how it stands; where it is and what its copy
+							    takes; what is read from it. Three lines, since the card
+							    is narrow. */}
 							<span style={lineStyle}>
 								<LabelField
 									key={repo.id}
 									repo={repo}
-									onChange={label => onAdd({url: repo.url, label})}
+									onChange={label => onChange({url: repo.url, label})}
 								/>
 								<Chip testId="repo-status" style={{color: status.color}}>
 									{status.text}
 								</Chip>
 							</span>
-							<span
-								data-testid="repo-url-shown"
-								title={repo.url}
-								style={whereStyle}
-							>
-								{repo.url}
+							<span style={lineStyle}>
+								<span
+									data-testid="repo-url-shown"
+									title={repo.url}
+									style={{...whereStyle, flex: 1, minWidth: 0}}
+								>
+									{repo.url}
+								</span>
+								<Chip testId="repo-size">{sizeOf(repo.bytes)}</Chip>
 							</span>
 							<span style={{...lineStyle, flexWrap: 'wrap'}}>
 								<Dropdown
@@ -374,7 +515,7 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 									value={BRANCHES.find(item => item.id === repo.branches)}
 									items={BRANCHES}
 									onSelect={next =>
-										onAdd({
+										onChange({
 											url: repo.url,
 											branches: next as 'default' | 'all',
 										})
@@ -383,7 +524,7 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 								<SinceField
 									repo={repo}
 									portalInto={portalInto}
-									onChange={since => onAdd({url: repo.url, since})}
+									onChange={since => onChange({url: repo.url, since})}
 								/>
 							</span>
 						</span>
@@ -408,10 +549,33 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 				);
 			})}
 
-			{/* The row being added, drawn as the row it becomes. The URL is
-			    checked as it is typed by the rule the server refuses it by,
-			    so the answer is under the field before anything is sent. */}
-			{adding ? (
+			{repos.length > 0 && state.data && (
+				<div
+					data-testid="repos-claimed"
+					style={{...META, marginTop: 0, padding: '10px 0 0'}}
+				>
+					Their copies take{' '}
+					{anySized ? formatBytes(state.data.claimedBytes) : '—'} on this
+					machine.
+				</div>
+			)}
+
+			{/* A new repo is cloned into a stage and described before anything
+			    is connected; the field gives way to what it turned out to be. */}
+			{state.preview ? (
+				<PreviewCard
+					preview={state.preview}
+					limit={state.data?.limit ?? null}
+					confirming={state.pending === 'confirm'}
+					onCancel={onCancelPreview}
+					onConfirm={() => {
+						confirmed.current = true;
+						onConfirm();
+					}}
+				/>
+			) : adding ? (
+				// The URL is checked as it is typed by the rule the server refuses
+				// it by, so the answer is under the field before anything is sent.
 				<div data-testid="connect-repo-row" style={rowStyle(false)}>
 					<span style={linesStyle}>
 						<Input
@@ -419,6 +583,7 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 							aria-label="Remote URL of a repo to connect"
 							value={url}
 							autoFocus
+							readOnly={cloning}
 							placeholder="https://… or git@host:owner/repo.git"
 							style={FIELD}
 							onChange={event => setUrl(event.target.value)}
@@ -427,31 +592,46 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 								if (event.key === 'Escape') {
 									// This row's, not the panel's.
 									event.stopPropagation();
-									cancelAdd();
+									if (cloning) onCancelPreview();
+									else cancelAdd();
 								}
 							}}
 						/>
 						<span
-							data-testid={problem ? 'repo-url-problem' : undefined}
+							data-testid={
+								problem
+									? 'repo-url-problem'
+									: cloning
+									? 'repo-preview-pending'
+									: undefined
+							}
 							style={{
 								...META,
 								marginTop: 0,
 								color: problem ? GUI_THEME.red : GUI_THEME.dim,
 							}}
 						>
-							{problem ? `That URL ${problem}.` : REPO_URL_FORMS}
+							{problem
+								? `That URL ${problem}.`
+								: cloning
+								? 'Cloning it to see what it is. Nothing is connected until you confirm.'
+								: REPO_URL_FORMS}
 						</span>
 						<span style={{...lineStyle, justifyContent: 'flex-end'}}>
-							<Button variant="ghost" onClick={cancelAdd}>
+							<Button
+								variant="ghost"
+								testId="connect-repo-cancel"
+								onClick={cloning ? onCancelPreview : cancelAdd}
+							>
 								cancel
 							</Button>
 							<Button
 								variant="primary"
 								testId="connect-repo"
-								disabled={!typed || problem !== null}
+								disabled={!typed || problem !== null || cloning}
 								onClick={submit}
 							>
-								connect
+								{cloning ? 'cloning…' : 'connect'}
 							</Button>
 						</span>
 					</span>

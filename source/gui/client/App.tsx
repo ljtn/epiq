@@ -484,12 +484,14 @@ export const App = () => {
 	// The other repos whose commits count as the board's.
 	const repos = useRepos({open: settingsOpen, sendRaw, socketEpoch});
 	const registeredRepoIds = useMemo(
-		() => repos.data?.map(repo => repo.id) ?? null,
+		() => repos.data?.repos.map(repo => repo.id) ?? null,
 		[repos.data],
 	);
 	const repoLabels = useMemo(
 		() =>
-			new Map(repos.data?.map(repo => [repo.id, repo.label] as const) ?? []),
+			new Map(
+				repos.data?.repos.map(repo => [repo.id, repo.label] as const) ?? [],
+			),
 		[repos.data],
 	);
 	const personalStats = usePersonalStats({
@@ -2522,11 +2524,16 @@ export const App = () => {
 									id: 'repos',
 									title: 'Connected repositories',
 									scope: 'shared with the project',
-									summary: repos.data ? countOrNone(repos.data.length) : null,
+									summary: repos.data
+										? countOrNone(repos.data.repos.length)
+										: null,
 									content: (
 										<ReposSettings
 											state={repos}
-											onAdd={repos.add}
+											onPreview={repos.previewRepo}
+											onConfirm={repos.confirmPreview}
+											onCancelPreview={repos.cancelPreview}
+											onChange={repos.change}
 											onRemove={repos.remove}
 										/>
 									),

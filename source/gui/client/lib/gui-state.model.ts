@@ -225,8 +225,42 @@ export type GuiRepo = {
 	/** `board`, `all`, or a `YYYY-MM-DD` date. */
 	since: string;
 	cloned: boolean;
+	/** Connected past the board's limit: listed, never fetched. */
+	overLimit: boolean;
+	/** The clone's size, or null where none has landed. */
+	bytes: number | null;
 	fetchedAt: number | null;
 	error: string | null;
+};
+
+export type GuiRepoList = {
+	repos: GuiRepo[];
+	/** What this board's clones take on this machine. */
+	claimedBytes: number;
+	/** How many repos the board fetches; the rest are listed, never fetched. */
+	limit: number;
+};
+
+// A repo cloned into a stage and described, before anything is connected.
+// Mirrors RepoPreview in source/lib/commits/commit-repo-preflight.ts.
+export type GuiRepoPreview = {
+	repo: {
+		id: string;
+		label: string;
+		url: string;
+		branches: 'default' | 'all';
+		since: string;
+	};
+	host: string;
+	defaultBranch: string | null;
+	latest: {subject: string; author: string; date: string} | null;
+	commits: number;
+	ticketCommits: number;
+	bytes: number;
+	contributors: number;
+	claimedBytes: number;
+	overLimit: boolean;
+	expiresAt: number;
 };
 
 // The Code tab's compacted view: every commit on the ticket as one diff.

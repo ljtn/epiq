@@ -469,6 +469,8 @@ export const setupWebsocket = (
 					return sendSocket(socket, {
 						type: 'repos',
 						for: type,
+						// Which preview this answers, refused or not.
+						url: message.payload.url.trim(),
 						payload: isFail(result) ? await listRepos({repoRoot}) : result,
 						preview: isFail(result) ? null : result.value.preview ?? null,
 						lastAction: {ok: !isFail(result), message: result.message},
