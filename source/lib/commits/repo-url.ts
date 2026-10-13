@@ -1,5 +1,8 @@
-// What may be registered as a repo's URL. Pure: the GUI client checks a URL
+// What may be connected as a repo's URL. Pure: the GUI client checks a URL
 // as it is typed with the same rule the server refuses it by.
+//
+// A connected repo is fetched by every contributor, so it must be something
+// all of them can reach: a remote, never a path on one machine.
 
 const SCHEMES = new Set(['https:', 'http:', 'ssh:', 'git:', 'file:']);
 // `user@host:path`, the form ssh remotes are usually written in. Both names
@@ -11,18 +14,29 @@ const PRINTABLE = /^[\x21-\x7e]+$/;
 export const MAX_URL_LENGTH = 2048;
 
 /** The forms a URL may take, for the line that refuses one. */
-export const REPO_URL_FORMS =
-	'Use https://, ssh://, git://, file:/// or user@host:path.';
+export const REPO_URL_FORMS = 'Use https://, ssh://, git:// or user@host:path.';
+
+/**
+ * Whether local `file:///` repos are allowed: off unless the process says so,
+ * which epiq's own tests do so they never touch the network. Never true in a
+ * browser; the GUI is told by the server.
+ */
+export const localReposAllowed = (): boolean =>
+	(globalThis as {process?: {env?: Record<string, string | undefined>}}).process
+		?.env?.['EPIQ_ALLOW_LOCAL_REPOS'] === '1';
 
 /**
  * Why a URL may not be registered, or null when it may. It arrives from a
  * committed file, so it is anybody's who can open a pull request: plain git
  * transports only, nothing git could read as a flag, nothing that runs a
- * command (`ext::` or any other `<helper>::` remote), a local path only as an
- * explicit `file:///`, and no password — one in a committed URL is a leaked
- * one, and a credential helper is where it belongs.
+ * command (`ext::` or any other `<helper>::` remote), no local path unless
+ * `allowLocal`, and no password — one in a shared URL is a leaked one, and a
+ * credential helper is where it belongs.
  */
-export const repoUrlProblem = (url: string): string | null => {
+export const repoUrlProblem = (
+	url: string,
+	allowLocal = localReposAllowed(),
+): string | null => {
 	if (url.length > MAX_URL_LENGTH) return 'is too long';
 	if (!PRINTABLE.test(url)) return 'holds spaces or characters git would not';
 	if (url.startsWith('-')) return 'would be read as an option';
@@ -60,6 +74,8 @@ export const repoUrlProblem = (url: string): string | null => {
 	}
 
 	if (parsed.protocol === 'file:') {
+		if (!allowLocal)
+			return 'is a path on this machine, which nobody else can fetch';
 		// A file URL naming another machine is read by some platforms as a
 		// network share.
 		if (parsed.hostname) return 'names a host in a file:// URL';
@@ -84,5 +100,7 @@ const authorityOf = (url: string): string => {
 	return end === -1 ? rest : rest.slice(0, end);
 };
 
-export const isAllowedRepoUrl = (url: string): boolean =>
-	repoUrlProblem(url) === null;
+export const isAllowedRepoUrl = (
+	url: string,
+	allowLocal = localReposAllowed(),
+): boolean => repoUrlProblem(url, allowLocal) === null;

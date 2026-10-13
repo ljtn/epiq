@@ -26,6 +26,7 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
+import {localReposAllowed} from '../../lib/commits/repo-url.js';
 import {bootedWithActorAndState} from './boot.js';
 
 type RepoRootInput = {repoRoot?: string};
@@ -35,6 +36,8 @@ export type RepoList = {
 	claimedBytes: number;
 	/** How many repos the board reads; the rest are listed, never fetched. */
 	limit: number;
+	/** Whether local file:/// repos may be connected here: tests only. */
+	allowLocal: boolean;
 };
 
 const listed = (repoRoot: string): Result<RepoList> => {
@@ -45,6 +48,7 @@ const listed = (repoRoot: string): Result<RepoList> => {
 		repos: listResult.value,
 		claimedBytes: claimedBytesOf(repoRoot),
 		limit: MAX_REPOS,
+		allowLocal: localReposAllowed(),
 	});
 };
 

@@ -9,6 +9,9 @@ import {isFail} from '../../lib/model/result-types.js';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {writeRepoEvents} from '../helpers/repo-events.js';
 
+// The tests connect repos from local paths; a real board refuses them.
+process.env['EPIQ_ALLOW_LOCAL_REPOS'] = '1';
+
 type Board = {repoRoot: string; globalDir: string};
 
 // The GUI fetches connected repos on sync, and the seeded repo has no remote to
