@@ -1300,7 +1300,12 @@ const sweepPending = (projectId: string) => {
 			// A delete stopped partway: nobody else ever names it.
 			/\.git\.[0-9a-f-]{36}\.deleting$/.test(name)
 		) {
-			fs.rmSync(path.join(dir, name), {recursive: true, force: true});
+			// One that cannot go is left for a later pass; the rest still go.
+			try {
+				fs.rmSync(path.join(dir, name), {recursive: true, force: true});
+			} catch (error) {
+				logger.info(`[repos] could not sweep ${name}: ${errorMessage(error)}`);
+			}
 		}
 	}
 };
