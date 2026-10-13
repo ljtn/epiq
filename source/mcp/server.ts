@@ -1,6 +1,7 @@
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {z} from 'zod';
+import {MAX_URL_LENGTH} from '../lib/commits/repo-url.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
@@ -674,7 +675,7 @@ export const createMcpServer = () => {
 				"Register another repo by URL (https://, ssh://, git://, user@host:path, or file:/// for a local one), so commits there prefixed with a ticket's ref link to it; or change an already registered repo's options. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. label: what the repo is called on the board — its URL's basename unless set; give one when two repos share a basename, such as a fork and its upstream; empty goes back to the basename. Edits .epiq/project.json, which needs committing to reach other clones. epiq_sync fetches it.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
-				url: z.string().min(1).max(2000),
+				url: z.string().min(1).max(MAX_URL_LENGTH),
 				branches: z.enum(['default', 'all']).optional(),
 				since: z.string().max(20).optional(),
 				label: z.string().max(24).optional(),
