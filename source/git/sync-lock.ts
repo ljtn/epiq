@@ -189,6 +189,8 @@ const isProcessAlive = (pid: number): boolean => {
 const claimOver = (
 	holder: LockHolder | null,
 	staleAfterMs = STALE_AFTER_MS,
+	/** Also take a live pid as dead when it no longer runs the holder. */
+	checkProcess = false,
 ): LockClaim | null => {
 	// A lock that says nothing is still broken — leaving it would wedge the
 	// worktree — but it is not evidence that anybody is gone, and it must not be
@@ -204,7 +206,8 @@ const claimOver = (
 		return Date.now() - holder.startedAt > staleAfterMs ? 'stale' : null;
 	}
 
-	if (!isProcessAlive(holder.pid) || !isSameProcess(holder)) return 'dead';
+	if (!isProcessAlive(holder.pid)) return 'dead';
+	if (checkProcess && !isSameProcess(holder)) return 'dead';
 
 	return Date.now() - holder.startedAt > staleAfterMs ? 'stale' : null;
 };
@@ -351,11 +354,18 @@ export const acquireLockFile = ({
 	lockPath,
 	operation,
 	staleAfterMs,
+	checkProcess = false,
 }: {
 	lockPath: string;
 	operation: string;
 	/** For work allowed to run longer than a sync: never broken before this. */
 	staleAfterMs?: number;
+	/**
+	 * Takes a lock whose live pid now runs another process, or that was written
+	 * before the last boot, as dead. For the linked repos' locks; the board's
+	 * sync lock keeps judging by the pid alone.
+	 */
+	checkProcess?: boolean;
 }): LockOutcome => {
 	let mine: LockHolder | null = null;
 
@@ -406,7 +416,9 @@ export const acquireLockFile = ({
 			holder.hostname === os.hostname() &&
 			heldHere.get(lockPath) !== holder.token;
 
-		const claim = orphanOfOurs ? 'dead' : claimOver(holder, staleAfterMs);
+		const claim = orphanOfOurs
+			? 'dead'
+			: claimOver(holder, staleAfterMs, checkProcess);
 		if (claim === null) return {acquired: false, heldBy: holder as LockHolder};
 
 		logger.info(

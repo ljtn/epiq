@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {describe, expect, it, vi} from 'vitest';
+import {describe, expect, it} from 'vitest';
 import {
 	clearStaleGitLocks,
 	clearStaleRefLock,
@@ -180,9 +180,6 @@ describe('a rebase left in the state worktree', () => {
 		const {repoRoot, stateBranchRoot} = await bootstrapped();
 		await leaveRebaseInProgress(stateBranchRoot);
 
-		// Up longer than the lock is old: a machine booted since its holder
-		// started would make the lock a dead one, not an aged live one.
-		const uptime = vi.spyOn(os, 'uptime').mockReturnValue(30 * 24 * 3600);
 		await holdLock(stateBranchRoot, {
 			pid: process.pid,
 			hostname: os.hostname(),
@@ -193,7 +190,7 @@ describe('a rebase left in the state worktree', () => {
 		const result = await syncEpiqWithRemote({
 			cwd: repoRoot,
 			ownEventFileName: OWN_EVENT_FILE,
-		}).finally(() => uptime.mockRestore());
+		});
 
 		expect(isFail(result)).toBe(true);
 		if (!isFail(result)) return;
