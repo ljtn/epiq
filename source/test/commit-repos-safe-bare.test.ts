@@ -18,6 +18,10 @@ const {fetchCommitRepos, getCommitDiff, getCommitsForRef} = await import(
 	'../lib/commits/commits.js'
 );
 const {connectRepoEvent} = await import('./helpers/repo-events.js');
+const {discardStage, stageClone} = await import(
+	'../lib/commits/commit-repo-fetch.js'
+);
+const {repoIdOf} = await import('../lib/board/board-repos.js');
 
 const tempDirs: string[] = [];
 const makeTempDir = () => {
@@ -92,5 +96,38 @@ describe('a clone under safe.bareRepository=explicit', () => {
 		expect(diff.files.map(file => [file.path, file.after])).toEqual([
 			['up.txt', 'AAAAAAA upstream\n'],
 		]);
+	});
+});
+
+describe('a pre-flight under safe.bareRepository=explicit', () => {
+	it('stages a clone it can read', async () => {
+		const board = makeTempDir();
+		fs.mkdirSync(path.join(board, '.epiq'));
+		fs.writeFileSync(
+			path.join(board, '.epiq', 'project.json'),
+			JSON.stringify({
+				projectId: path.basename(board),
+				stateBranch: 'epiq/state',
+				createdAt: '2020-01-01T00:00:00.000Z',
+			}),
+		);
+
+		const upstream = makeTempDir();
+		git(upstream, ['init', '-q', '-b', 'main']);
+		commit(upstream, 'init.txt', 'init');
+		const url = `file://${upstream}`;
+
+		const staged = value(
+			await stageClone(board, {
+				id: repoIdOf(url),
+				url,
+				branches: 'default',
+				since: 'all',
+				label: 'up',
+			}),
+		);
+
+		expect(fs.existsSync(path.join(staged.stagePath, 'HEAD'))).toBe(true);
+		discardStage(staged.stagePath);
 	});
 });

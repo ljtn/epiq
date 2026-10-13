@@ -3,7 +3,7 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';
-import {processStartedAt} from '../git/sync-lock.js';
+import {acquireLockFile, processStartedAt} from '../git/sync-lock.js';
 import {createDefaultEvents} from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../lib/board/board-log.js';
@@ -328,6 +328,30 @@ describe('disconnecting a repo', () => {
 			repoIdOf(url),
 		]);
 		expect(fs.existsSync(clonePathOf(repoRoot, url))).toBe(false);
+	});
+
+	it('leaves the mark for the fetch holding a clone the disconnect could not delete', async () => {
+		const {repoRoot} = await board();
+		const url = await makeUpstream(['one']);
+		value(await connectRepo({repoRoot, url}));
+		value(await connectRepo({repoRoot, url, confirm: true}));
+		const clone = clonePathOf(repoRoot, url);
+
+		// A fetch holding the clone, as one in another process would.
+		const lock = acquireLockFile({
+			lockPath: `${clone}.lock`,
+			operation: 'fetch',
+			checkProcess: true,
+		});
+		if (!lock.acquired) throw new Error('the clone lock is held');
+		try {
+			value(await disconnectRepo({repoRoot, repo: repoIdOf(url)}));
+
+			expect(fs.existsSync(clone)).toBe(true);
+			expect(fs.existsSync(`${clone}.removed`)).toBe(true);
+		} finally {
+			lock.release();
+		}
 	});
 
 	it('disconnects a repo this machine never fetched, saying nothing of a clone', async () => {
