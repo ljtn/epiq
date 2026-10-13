@@ -16,7 +16,7 @@ import {IconLock} from './IconLock';
 import {IconUnplug} from './IconUnplug';
 
 // The repos the board reads commits from, as a section of the settings panel:
-// its own first and locked, then the linked ones, then the row that links
+// its own first and locked, then the connected ones, then the row that connects
 // another. Rows, not cards — the section is the card.
 
 type Props = {
