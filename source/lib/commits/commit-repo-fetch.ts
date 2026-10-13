@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {execGit} from '../../git/git-utils.js';
@@ -61,6 +62,8 @@ export type RepoFetchStatus = {
 	since: string | null;
 	/** The clone's own epiq state branch, if its project.json names one. */
 	stateBranch: string | null;
+	/** When the clone was last started over, having broken here. */
+	restartedAt: number | null;
 };
 
 const readStatus = (clonePath: string): RepoFetchStatus | null => {
@@ -78,6 +81,7 @@ const readStatus = (clonePath: string): RepoFetchStatus | null => {
 					? raw.branches
 					: null,
 			since: typeof raw.since === 'string' ? raw.since : null,
+			restartedAt: typeof raw.restartedAt === 'number' ? raw.restartedAt : null,
 			stateBranch:
 				typeof raw.stateBranch === 'string' &&
 				STATE_BRANCH_NAME.test(raw.stateBranch)
@@ -93,7 +97,11 @@ const writeStatus = (clonePath: string, status: RepoFetchStatus) => {
 	try {
 		// Renamed into place: another process reads it without the clone's lock.
 		// `wx`: never through a link somebody planted under the name.
-		const pending = `${statusPath(clonePath)}.${process.pid}.tmp`;
+		// Random beyond the pid: a dead process's leftover under a pid reused
+		// since would otherwise refuse every later write.
+		const pending = `${statusPath(clonePath)}.${
+			process.pid
+		}.${randomUUID()}.tmp`;
 		fs.writeFileSync(pending, JSON.stringify(status) + '\n', {flag: 'wx'});
 		fs.renameSync(pending, statusPath(clonePath));
 	} catch (error) {
@@ -244,15 +252,46 @@ const snapshotOf = (clonePath: string): CloneSnapshot => {
 	};
 };
 
+// Restore writes land here first: at the clone's top, where git reads no
+// stray file, never beside a ref, where one would be read as a branch.
+const RESTORE_TEMP = 'epiq-restore-';
+
+/** A file replaced whole or not at all: a process stopped here leaves either. */
+const replaceFile = (clonePath: string, relative: string, content: Buffer) => {
+	const temp = path.join(clonePath, `${RESTORE_TEMP}${randomUUID()}.tmp`);
+	fs.writeFileSync(temp, content, {flag: 'wx'});
+	fs.mkdirSync(path.dirname(path.join(clonePath, relative)), {recursive: true});
+	fs.renameSync(temp, path.join(clonePath, relative));
+};
+
+const refFilesOf = (clonePath: string): string[] => {
+	const found: string[] = [];
+	const visit = (relative: string) => {
+		for (const entry of fs.readdirSync(path.join(clonePath, relative), {
+			withFileTypes: true,
+		})) {
+			const child = path.join(relative, entry.name);
+			if (entry.isDirectory()) visit(child);
+			else found.push(child);
+		}
+	};
+	if (fs.existsSync(path.join(clonePath, 'refs'))) visit('refs');
+	return found;
+};
+
+/**
+ * Every write replaces a file whole, and nothing is cleared before what goes
+ * in its place is there: stopped at any point, the clone still opens.
+ */
 const restoreSnapshot = (clonePath: string, snapshot: CloneSnapshot) => {
-	fs.rmSync(path.join(clonePath, 'refs'), {recursive: true, force: true});
 	for (const [relative, content] of snapshot.refs) {
-		fs.mkdirSync(path.dirname(path.join(clonePath, relative)), {
-			recursive: true,
-		});
-		fs.writeFileSync(path.join(clonePath, relative), content);
+		replaceFile(clonePath, relative, content);
 	}
-	fs.mkdirSync(path.join(clonePath, 'refs', 'heads'), {recursive: true});
+	for (const relative of refFilesOf(clonePath)) {
+		if (!snapshot.refs.has(relative)) {
+			fs.rmSync(path.join(clonePath, relative), {force: true});
+		}
+	}
 
 	for (const [name, content] of [
 		['packed-refs', snapshot.packedRefs],
@@ -260,7 +299,7 @@ const restoreSnapshot = (clonePath: string, snapshot: CloneSnapshot) => {
 		['config', snapshot.config],
 		['shallow', snapshot.shallow],
 	] as const) {
-		if (content) fs.writeFileSync(path.join(clonePath, name), content);
+		if (content) replaceFile(clonePath, name, content);
 		else fs.rmSync(path.join(clonePath, name), {force: true});
 	}
 
@@ -278,6 +317,7 @@ const clearTransferLeftovers = (gitDir: string) => {
 		[path.join(objects, 'pack'), 'tmp_'],
 		[path.join(objects, 'pack'), '.tmp-'],
 		[objects, 'incoming-'],
+		[gitDir, RESTORE_TEMP],
 	] as const) {
 		try {
 			for (const name of fs.readdirSync(dir)) {
@@ -439,6 +479,8 @@ const cloneRepo = async (
 	clonePath: string,
 	repo: CommitRepo,
 	since: string | null,
+	/** In place of a clone that broke: the old one goes only once this lands. */
+	{replace = false}: {replace?: boolean} = {},
 ): Promise<Result<null>> => {
 	const clonesDir = path.dirname(clonePath);
 	fs.mkdirSync(clonesDir, {recursive: true});
@@ -502,6 +544,8 @@ const cloneRepo = async (
 			return failed(deepenResult.message);
 		}
 	}
+
+	if (replace) fs.rmSync(clonePath, {recursive: true, force: true});
 
 	// Another process can only have got here first by breaking a lock it took
 	// for abandoned; its clone is as good as this one.
@@ -635,6 +679,46 @@ const repackIfScattered = async (clonePath: string) => {
 	if (isFail(result)) logger.info(`[repos] repack: ${result.message}`);
 };
 
+const refspecOf = async (clonePath: string): Promise<string | null> => {
+	const result = await localGit({
+		cwd: clonePath,
+		args: ['config', '--get', 'remote.origin.fetch'],
+	});
+	return isFail(result) ? null : result.value.stdout.trim() || null;
+};
+
+const branchRefspec = (name: string) =>
+	`+refs/heads/${name}:refs/heads/${name}`;
+
+/** Points HEAD and the refspec where the repo's `branches` says, if not there. */
+const trackBranches = async (
+	clonePath: string,
+	branches: RepoBranches,
+): Promise<Result<null>> => {
+	const refspec = await refspecOf(clonePath);
+
+	if (branches === 'all') {
+		const all = '+refs/heads/*:refs/heads/*';
+		if (refspec === all) return succeeded('Tracking', null);
+		const result = await localGit({
+			cwd: clonePath,
+			args: ['config', 'remote.origin.fetch', all],
+		});
+		return isFail(result)
+			? failed(result.message)
+			: succeeded('Tracking', null);
+	}
+
+	const head = await defaultBranchOf(clonePath);
+	const target = (await remoteDefaultOf(clonePath)) ?? head;
+	if (!target) return failed('Could not tell which branch is the default');
+	if (head === target && refspec === branchRefspec(target)) {
+		return succeeded('Tracking', null);
+	}
+
+	return followDefaultBranch(clonePath, target);
+};
+
 const fetchRepo = async (
 	clonePath: string,
 	repo: CommitRepo,
@@ -651,18 +735,14 @@ const fetchRepo = async (
 	// Before anything moves: a refspec rewritten or a default followed is
 	// put back with the refs if the fetch passes the cap.
 	const before = snapshotOf(clonePath);
-	const branchesChanged = previous?.branches !== repo.branches;
 
-	if (branchesChanged) {
-		const refspecResult = await refspecFor(clonePath, repo.branches);
-		if (isFail(refspecResult)) return failed(refspecResult.message);
-
-		const configResult = await localGit({
-			cwd: clonePath,
-			args: ['config', 'remote.origin.fetch', refspecResult.value],
-		});
-		if (isFail(configResult)) return failed(configResult.message);
-	}
+	// What the clone tracks, checked on every fetch rather than changed on
+	// an event: a process stopped between two of these steps leaves them
+	// disagreeing, and whatever the next fetch finds, it puts right. Under
+	// `default` the remote's default is the one branch, HEAD names it and the
+	// refspec fetches it; a remote that does not say keeps HEAD's.
+	const trackResult = await trackBranches(clonePath, repo.branches);
+	if (isFail(trackResult)) return failed(trackResult.message);
 
 	// Widening the window is a fetch; narrowing it would mean a fresh clone,
 	// and the older commits it would drop do no harm while they stay.
@@ -674,18 +754,6 @@ const fetchRepo = async (
 			: previous?.since && since < previous.since
 			? [shallowSince(since)]
 			: [];
-
-	// A default switched to another branch that already existed: the refspec
-	// still fetches fine, from the old one, and would read it for good.
-	let followed = false;
-	if (repo.branches === 'default') {
-		const remoteDefault = await remoteDefaultOf(clonePath);
-		if (remoteDefault && remoteDefault !== (await defaultBranchOf(clonePath))) {
-			const followResult = await followDefaultBranch(clonePath, remoteDefault);
-			if (isFail(followResult)) return failed(followResult.message);
-			followed = true;
-		}
-	}
 
 	const fetchArgs = ['fetch', '--prune', '--no-tags', ...window, 'origin'];
 	let fetchResult = await transfer(clonePath, fetchArgs, clonePath, {
@@ -705,7 +773,6 @@ const fetchRepo = async (
 		fetchResult = await transfer(clonePath, fetchArgs, clonePath, {
 			undo: before,
 		});
-		if (!isFail(fetchResult)) await dropOtherBranches(clonePath);
 	}
 	if (isFail(fetchResult)) return failed(fetchResult.message);
 
@@ -714,9 +781,7 @@ const fetchRepo = async (
 		if (isFail(deepenResult)) return failed(deepenResult.message);
 	}
 
-	if ((branchesChanged || followed) && repo.branches === 'default') {
-		await dropOtherBranches(clonePath);
-	}
+	if (repo.branches === 'default') await dropOtherBranches(clonePath);
 
 	await repackIfScattered(clonePath);
 	return succeeded('Fetched', null);
@@ -838,7 +903,15 @@ const takeCloneLock = async (
 
 /** The clone and its status, gone. Called holding the clone's lock. */
 const deleteClone = (clonePath: string) => {
-	fs.rmSync(clonePath, {recursive: true, force: true});
+	// Moved aside first, in one step: a delete cut short leaves a directory
+	// the sweep clears, never a half-clone under the clone's own name.
+	const aside = `${clonePath}.${randomUUID()}.deleting`;
+	try {
+		fs.renameSync(clonePath, aside);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+	}
+	fs.rmSync(aside, {recursive: true, force: true});
 	fs.rmSync(statusPath(clonePath), {force: true});
 	fs.rmSync(removalMark(clonePath), {force: true});
 	lastSeen.delete(clonePath);
@@ -848,6 +921,70 @@ const deleteClone = (clonePath: string) => {
 // Its pass is usually a moment's check; a real fetch outlasts this, and is
 // reported as one rather than as a fetch that happened here.
 const EXPLICIT_LOCK_WAIT_MS = 5_000;
+
+/**
+ * Whether git can read the clone at all: its config names where it came from,
+ * its shallow boundary is whole, and its branch tips walk. A clone failing any
+ * of these reads as empty or fails every read, while its fetches go on.
+ */
+const cloneOpens = async (clonePath: string): Promise<boolean> => {
+	const origin = await localGit({
+		cwd: clonePath,
+		args: ['config', '--get', 'remote.origin.url'],
+	});
+	if (isFail(origin) || !origin.value.stdout.trim()) return false;
+
+	const shallow = readOrNull(path.join(clonePath, 'shallow'));
+	if (
+		shallow &&
+		!/^(?:[0-9a-f]{40}(?:[0-9a-f]{24})?\n)*$/.test(shallow.toString('utf8'))
+	) {
+		return false;
+	}
+
+	if (!(await hasRefs(clonePath))) return true;
+	return !isFail(
+		await localGit({
+			cwd: clonePath,
+			args: ['rev-list', '--max-count=1', '--branches'],
+		}),
+	);
+};
+
+// At most this often per clone: a clone that breaks again at once is the
+// remote's doing, and starting it over each time would be a loop.
+const RESTART_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+const mayStartOver = (status: RepoFetchStatus | null) =>
+	!status?.restartedAt ||
+	Date.now() < status.restartedAt ||
+	Date.now() - status.restartedAt >= RESTART_INTERVAL_MS;
+
+// A look at the remote, not a transfer: well under what counts as waiting.
+const REACHABLE_TIMEOUT_MS = 60_000;
+
+/**
+ * Whether a failed fetch is the clone's fault rather than the remote's: the
+ * clone alone is past the cap, or the remote answers by its URL while the
+ * clone's own fetch of it failed. A fetch the cap stopped is the remote's
+ * growth, and a fresh clone would hit the same cap.
+ */
+const brokeHere = async (
+	clonePath: string,
+	repo: CommitRepo,
+	failure: string,
+): Promise<boolean> => {
+	const maxMb = readRepoCloneMaxMb();
+	if (dirSize(clonePath) > maxMb * 1024 * 1024) return true;
+	if (failure.endsWith(cloneCapMessage(maxMb))) return false;
+
+	const remote = await localGit({
+		cwd: path.dirname(clonePath),
+		args: ['ls-remote', '--', repo.url, 'HEAD'],
+		timeoutMs: REACHABLE_TIMEOUT_MS,
+	});
+	return !isFail(remote);
+};
 
 const fetchOne = async (
 	repoRoot: string,
@@ -957,9 +1094,29 @@ const fetchOne = async (
 			return outcome(true, 'Removed before it was cloned');
 		}
 
-		const result = cloned
-			? await fetchRepo(clonePath, repo, since, current)
-			: await cloneRepo(clonePath, repo, since);
+		// The clone is a cache: one that broke here — it will not open, its
+		// config is gone, packs a stopped repack left doubled past the cap —
+		// is started over rather than failing for good. Only when the remote
+		// itself answers or the clone cannot be read at all, and at most once
+		// in a while.
+		const broken = cloned && !(await cloneOpens(clonePath));
+		let result =
+			cloned && !(broken && mayStartOver(current))
+				? await fetchRepo(clonePath, repo, since, current)
+				: !cloned
+				? await cloneRepo(clonePath, repo, since)
+				: failed('Its clone will not open');
+
+		const restarted =
+			cloned &&
+			isFail(result) &&
+			mayStartOver(current) &&
+			(broken || (await brokeHere(clonePath, repo, result.message)));
+		if (restarted) {
+			logger.info(`[repos] ${repo.label}: starting its clone over`);
+			result = await cloneRepo(clonePath, repo, since, {replace: true});
+			lastSeen.delete(clonePath);
+		}
 		const message = isFail(result) ? gitReason(result.message) : 'Fetched';
 		const stateBranch = isFail(result)
 			? current?.stateBranch ?? null
@@ -976,6 +1133,7 @@ const fetchOne = async (
 				: repo.branches,
 			since: isFail(result) ? current?.since ?? since : since,
 			stateBranch,
+			restartedAt: restarted ? Date.now() : current?.restartedAt ?? null,
 		});
 
 		if (isFail(result)) {
@@ -986,7 +1144,9 @@ const fetchOne = async (
 		return outcome(
 			true,
 			message,
-			movedSinceSeen(clonePath, await refsOf(clonePath)) || !cloned,
+			movedSinceSeen(clonePath, await refsOf(clonePath)) ||
+				!cloned ||
+				restarted,
 		);
 	} catch (error) {
 		// A filesystem refusal is this repo's failure, never the process's: the
@@ -1048,8 +1208,15 @@ const sweepPending = (projectId: string) => {
 	if (!fs.existsSync(dir)) return;
 
 	for (const name of fs.readdirSync(dir)) {
-		const pending = /^.+\.git(?:\.json)?\.(\d+)\.(?:pending|tmp)$/.exec(name);
-		if (pending && !isAlive(Number(pending[1]))) {
+		const pending =
+			/^.+\.git(?:\.json)?\.(\d+)(?:\.[0-9a-f-]{36})?\.(?:pending|tmp)$/.exec(
+				name,
+			);
+		if (
+			(pending && !isAlive(Number(pending[1]))) ||
+			// A delete stopped partway: nobody else ever names it.
+			/\.git\.[0-9a-f-]{36}\.deleting$/.test(name)
+		) {
 			fs.rmSync(path.join(dir, name), {recursive: true, force: true});
 		}
 	}
