@@ -206,6 +206,10 @@ export const cloneGitConfig = (): string[] =>
 		// Every fetch kept as a pack of its own, never unpacked into loose
 		// objects: one that took a clone past its size cap goes whole.
 		'fetch.unpackLimit=1',
+		// Nothing written beside the refs that an undone fetch would leave
+		// naming commits it deleted.
+		'fetch.writeCommitGraph=false',
+		'core.logAllRefUpdates=false',
 	].flatMap(setting => ['-c', setting]);
 
 // `<clones>/<project>/<repo id>.git`, or the pending directory one is cloned

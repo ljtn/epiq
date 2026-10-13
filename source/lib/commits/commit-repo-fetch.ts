@@ -604,6 +604,26 @@ const clearStaleGitLocks = (clonePath: string) => {
 const isShallow = (clonePath: string) =>
 	fs.existsSync(path.join(clonePath, 'shallow'));
 
+// Each fetch lands as a pack of its own and nothing collects them: past this
+// many, lookups and the size watch slow down, and they are merged.
+export const MAX_CLONE_PACKS = 20;
+
+const repackIfScattered = async (clonePath: string) => {
+	const packs = listOr(path.join(clonePath, 'objects', 'pack')).filter(name =>
+		name.endsWith('.pack'),
+	);
+	if (packs.length <= MAX_CLONE_PACKS) return;
+
+	// Geometric: merges the small recent packs and leaves the big one be. A
+	// failure costs only the merge; the clone is as it was.
+	const result = await localGit({
+		cwd: clonePath,
+		args: ['repack', '--geometric=2', '-d', '-q'],
+		timeoutMs: TRANSFER_TIMEOUT_MS,
+	});
+	if (isFail(result)) logger.info(`[repos] repack: ${result.message}`);
+};
+
 const fetchRepo = async (
 	clonePath: string,
 	repo: CommitRepo,
@@ -684,6 +704,7 @@ const fetchRepo = async (
 		await dropOtherBranches(clonePath);
 	}
 
+	await repackIfScattered(clonePath);
 	return succeeded('Fetched', null);
 };
 
