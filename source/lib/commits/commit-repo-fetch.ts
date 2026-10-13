@@ -894,6 +894,7 @@ const takeCloneLock = async (
 			lockPath: `${clonePath}${LOCK_SUFFIX}`,
 			operation,
 			staleAfterMs: CLONE_LOCK_STALE_MS,
+			checkProcess: true,
 		});
 		if (lock.acquired || Date.now() >= deadline) return lock;
 
@@ -1184,6 +1185,7 @@ const deleteIfMarked = (clonePath: string) => {
 		lockPath: `${clonePath}${LOCK_SUFFIX}`,
 		operation: 'remove',
 		staleAfterMs: CLONE_LOCK_STALE_MS,
+		checkProcess: true,
 	});
 	if (!lock.acquired) return;
 
@@ -1287,6 +1289,7 @@ export const removeRepoClone = (input: {
 		lockPath: `${clonePath}${LOCK_SUFFIX}`,
 		operation: 'remove',
 		staleAfterMs: CLONE_LOCK_STALE_MS,
+		checkProcess: true,
 	});
 
 	try {

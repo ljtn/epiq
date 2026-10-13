@@ -208,7 +208,8 @@ describe('sync lock', () => {
 
 describe('a lock whose holder pid now belongs to another process', () => {
 	// A crashed holder's pid, reused by whatever started next, must not hold
-	// the lock until it goes stale: that blocked a clone for two hours.
+	// a linked repo's lock until it goes stale: that blocked a clone for two
+	// hours. The board's sync lock is left judging by the pid alone.
 	const holdWith = (holder: Record<string, unknown>) => {
 		const dir = makeTempDir();
 		const lockPath = path.join(dir, 'x.lock');
@@ -234,7 +235,11 @@ describe('a lock whose holder pid now belongs to another process', () => {
 				processStartedAt: Date.now() - 60 * 60 * 1000,
 			});
 
-			const lock = acquireLockFile({lockPath, operation: 'fetch'});
+			const lock = acquireLockFile({
+				lockPath,
+				operation: 'fetch',
+				checkProcess: true,
+			});
 
 			expect(lock).toMatchObject({acquired: true, claim: 'dead'});
 			if (lock.acquired) lock.release();
@@ -253,10 +258,32 @@ describe('a lock whose holder pid now belongs to another process', () => {
 				operation: 'fetch',
 			});
 
-			expect(acquireLockFile({lockPath, operation: 'fetch'})).toMatchObject({
+			expect(
+				acquireLockFile({lockPath, operation: 'fetch', checkProcess: true}),
+			).toMatchObject({
 				acquired: true,
 				claim: 'dead',
 			});
+		} finally {
+			child.kill('SIGKILL');
+		}
+	});
+
+	it('is still respected by a lock that does not ask, as the sync lock', () => {
+		const {child} = other();
+		try {
+			const lockPath = holdWith({
+				pid: child.pid,
+				hostname: os.hostname(),
+				startedAt: Date.now() - 60_000,
+				operation: 'sync',
+				token: 'a crashed holder',
+				processStartedAt: Date.now() - 60 * 60 * 1000,
+			});
+
+			expect(acquireLockFile({lockPath, operation: 'sync'}).acquired).toBe(
+				false,
+			);
 		} finally {
 			child.kill('SIGKILL');
 		}
@@ -274,9 +301,10 @@ describe('a lock whose holder pid now belongs to another process', () => {
 				processStartedAt: startedAt,
 			});
 
-			expect(acquireLockFile({lockPath, operation: 'fetch'}).acquired).toBe(
-				false,
-			);
+			expect(
+				acquireLockFile({lockPath, operation: 'fetch', checkProcess: true})
+					.acquired,
+			).toBe(false);
 		} finally {
 			child.kill('SIGKILL');
 		}

@@ -330,7 +330,11 @@ const takeProjectFileLock = (repoRoot: string) => {
 	const deadline = Date.now() + PROJECT_FILE_LOCK_WAIT_MS;
 	const pause = new Int32Array(new SharedArrayBuffer(4));
 	while (true) {
-		const lock = acquireLockFile({lockPath, operation: 'edit project.json'});
+		const lock = acquireLockFile({
+			lockPath,
+			operation: 'edit project.json',
+			checkProcess: true,
+		});
 		if (lock.acquired || Date.now() >= deadline) return lock;
 		Atomics.wait(pause, 0, 0, 20);
 	}
