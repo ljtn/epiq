@@ -1,7 +1,11 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 import {materialize, materializeAll} from '../lib/board/board-log.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
-import {foldRepoEvents, repoIdOf} from '../lib/board/board-repos.js';
+import {
+	foldRepoEvents,
+	repoIdOf,
+	resolveRepos,
+} from '../lib/board/board-repos.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
@@ -206,9 +210,15 @@ describe('batched replay equals per-event replay', () => {
 
 		expect(batched).toEqual(replayOneByOne(log).repos);
 		expect(batched).toEqual(foldRepoEvents(log));
+		// The fold keeps the refused URL; readers never list it.
 		expect(Object.values(batched.entries).map(repo => repo.live)).toEqual([
 			true,
 			true,
+			true,
+		]);
+		expect(resolveRepos(batched).live.map(repo => repo.url)).toEqual([
+			'https://example.com/a.git',
+			'git@example.com:b.git',
 		]);
 	});
 
