@@ -1003,6 +1003,39 @@ describe('a clone broken on this machine', () => {
 		},
 	);
 
+	it.skipIf(process.getuid?.() === 0)(
+		'sweeps what it can though one leftover cannot go',
+		async () => {
+			await fetched();
+			const clones = path.dirname(clonePath());
+			const uuid = (digit: string) =>
+				`${digit.repeat(8)}-0000-0000-0000-${digit.repeat(12)}`;
+			// Both orders of the listing: one stuck before the other, and after.
+			const stuck = [
+				`${clonePath()}.${uuid('0')}.deleting`,
+				`${clonePath()}.${uuid('f')}.deleting`,
+			];
+			const free = `${clonePath()}.${uuid('7')}.deleting`;
+			for (const dir of [...stuck, free]) {
+				fs.mkdirSync(path.join(dir, 'objects'), {recursive: true});
+				fs.writeFileSync(path.join(dir, 'objects', 'x'), 'x');
+			}
+			for (const dir of stuck) fs.chmodSync(path.join(dir, 'objects'), 0o555);
+
+			try {
+				value(await fetchCommitRepos({repoRoot: board}));
+
+				expect(fs.existsSync(free)).toBe(false);
+			} finally {
+				for (const dir of stuck) {
+					if (fs.existsSync(dir))
+						fs.chmodSync(path.join(dir, 'objects'), 0o755);
+				}
+				expect(clones).toBeTruthy();
+			}
+		},
+	);
+
 	it('leaves nothing of a delete that was stopped partway', async () => {
 		await fetched();
 		const aside = `${clonePath()}.${'0'.repeat(8)}-0000-0000-0000-${'0'.repeat(
