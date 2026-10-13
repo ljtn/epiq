@@ -1,3 +1,4 @@
+import {repoIdOf} from '../lib/board/board-repos.js';
 import {describe, expect, it} from 'vitest';
 import {ulid} from 'ulid';
 import {bootStateFromEventLog} from '../lib/board/board-boot.js';
@@ -95,6 +96,14 @@ const log = (): AppEvent[] => [
 		contributor: ALICE,
 		email: 'alice@example.com',
 	}),
+
+	// Repo events name no contributor: the projection must pass them by.
+	at('connect.repo', {url: 'https://example.com/team/a.git'}),
+	at('edit.repo', {
+		repo: repoIdOf('https://example.com/team/a.git'),
+		since: 'all',
+	}),
+	at('disconnect.repo', {repo: repoIdOf('https://example.com/team/a.git')}),
 
 	at('create.contributor', {id: BOB, name: 'bob'}),
 	at('tombstone.contributor', {id: BOB}),

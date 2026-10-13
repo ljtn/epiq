@@ -91,10 +91,7 @@ export const registeredRepos = (): CommitRepo[] => {
 };
 
 /** A preview as one status line: what it is, what it costs, how to go on. */
-export const describeRepoPreview = (
-	preview: RepoPreview,
-	line: string,
-): string => {
+export const describeRepoPreview = (preview: RepoPreview): string => {
 	const latest = preview.latest
 		? `latest "${preview.latest.subject.slice(0, 60)}" by ${
 				preview.latest.author
@@ -114,11 +111,24 @@ export const describeRepoPreview = (
 			preview.bytes,
 		)} on their next sync (${preview.contributors} contributors)`,
 		...(preview.overLimit ? ['the board is at its repo limit'] : []),
-		`to connect: :config repoConnect ${line.trim()} confirm`,
 	].join(' · ');
 };
 
-export const repoConnectCommand = async (): Promise<Result<null>> => {
+// The last preview, so the confirm line it leaves typed out can say what it
+// will connect.
+let lastPreview: {line: string; summary: string} | null = null;
+
+const confirmLineOf = (line: string) => `${line.trim()} confirm`;
+
+/** What a `confirm` line will connect, if this TUI previewed it. */
+export const previewSummaryFor = (inputString: string): string | null =>
+	lastPreview && lastPreview.line === inputString.trim()
+		? lastPreview.summary
+		: null;
+
+export const repoConnectCommand = async (): Promise<
+	Result<{followUp: string} | null>
+> => {
 	const line = getCmdState().commandMeta.inputString;
 	const argsResult = parseRepoConnectArgs(line);
 	if (isFail(argsResult)) return failed(`Expected ${argsResult.message}`);
@@ -141,8 +151,17 @@ export const repoConnectCommand = async (): Promise<Result<null>> => {
 	if (isFail(result)) return failed(result.message);
 
 	if (result.value.kind === 'preview') {
-		return succeeded(describeRepoPreview(result.value.preview, line), null);
+		const confirmLine = confirmLineOf(line);
+		lastPreview = {
+			line: confirmLine,
+			summary: describeRepoPreview(result.value.preview),
+		};
+		return succeeded(lastPreview.summary, {
+			followUp: `config repoConnect ${confirmLine}`,
+		});
 	}
+
+	if (argsResult.value.confirm) lastPreview = null;
 
 	return succeeded(
 		result.value.kind === 'connected'
