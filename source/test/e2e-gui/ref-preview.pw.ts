@@ -133,6 +133,16 @@ test('a ref lights under the pointer', async ({page, appUrl, pageErrors}) => {
 		expect(await background()).not.toBe(unlit);
 	}).toPass({timeout: 15_000});
 
+	// The board changing under a pointer that stays: another client adds a
+	// ticket, and the ref stays lit rather than being drawn anew without it.
+	const other = await page.context().newPage();
+	await other.goto(appUrl);
+	await expect(other.getByTestId('board-switcher')).toContainText('Default');
+	await createTicket(other, `Lit elsewhere ${stamp}`, 'Meanwhile.');
+	await expect(page.getByText(`Lit elsewhere ${stamp}`)).toBeVisible();
+	expect(await background()).not.toBe(unlit);
+	await other.close();
+
 	await description.hover({position: {x: 5, y: 5}});
 	await expect.poll(background).toBe(unlit);
 
