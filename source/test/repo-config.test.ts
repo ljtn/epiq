@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {withoutRepositoryOverrides} from '../git/git-utils.js';
 import {acquireLockFile} from '../git/sync-lock.js';
 import {parseRepoAddArgs} from '../lib/command-line/commands/repo.cmd.js';
@@ -202,6 +202,8 @@ describe(':config repoRemove names', () => {
 
 describe('a lock file for long work', () => {
 	it('is not broken at the sync lock’s age while its holder lives', () => {
+		// Up longer than the lock is old, as any machine its holder still runs on.
+		const uptime = vi.spyOn(os, 'uptime').mockReturnValue(30 * 24 * 3600);
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-lock-'));
 		const lockPath = path.join(dir, 'x.lock');
 		fs.writeFileSync(
@@ -223,6 +225,7 @@ describe('a lock file for long work', () => {
 		).toBe(false);
 		expect(acquireLockFile({lockPath, operation: 'fetch'}).acquired).toBe(true);
 
+		uptime.mockRestore();
 		fs.rmSync(dir, {recursive: true, force: true});
 	});
 });
