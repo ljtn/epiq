@@ -272,9 +272,6 @@ const SinceField = ({
 	);
 };
 
-const plural = (count: number, one: string, many = `${one}s`) =>
-	`${count} ${count === 1 ? one : many}`;
-
 const windowOf = (since: string) =>
 	since === 'all'
 		? 'in all history'
@@ -285,10 +282,44 @@ const windowOf = (since: string) =>
 const sizeOf = (bytes: number | null) =>
 	bytes === null ? '—' : formatBytes(bytes);
 
-const factStyle: React.CSSProperties = {...META, marginTop: 0};
+const factsStyle: React.CSSProperties = {
+	...META,
+	marginTop: 0,
+	display: 'grid',
+	gridTemplateColumns: 'max-content minmax(0, 1fr)',
+	columnGap: 14,
+	rowGap: 2,
+};
 
-// What a staged clone turned out to be, and what connecting it costs everyone:
-// the confirm says the cost, since every contributor's epiq downloads it.
+const factValueStyle: React.CSSProperties = {
+	color: GUI_THEME.primary,
+	minWidth: 0,
+	whiteSpace: 'nowrap',
+	overflow: 'hidden',
+	textOverflow: 'ellipsis',
+};
+
+const Fact = ({
+	name,
+	testId,
+	title,
+	children,
+}: {
+	name: string;
+	testId: string;
+	title?: string;
+	children: React.ReactNode;
+}) => (
+	<>
+		<span>{name}</span>
+		<span data-testid={testId} title={title} style={factValueStyle}>
+			{children}
+		</span>
+	</>
+);
+
+// What a staged clone turned out to be, and what connecting it costs: every
+// contributor's epiq downloads it, so that is said before the button.
 const PreviewCard = ({
 	preview,
 	limit,
@@ -303,18 +334,18 @@ const PreviewCard = ({
 	onCancel: () => void;
 }) => {
 	const {repo, latest} = preview;
+	const size = formatBytes(preview.bytes);
+	const who =
+		preview.contributors > 1
+			? `All ${preview.contributors} contributors`
+			: 'Everyone on this board';
 	const stakes = preview.overLimit
-		? `Connect — past the board's limit${
-				limit === null ? '' : ` of ${limit}`
-		  }, nobody downloads it until one ahead of it is disconnected; then every contributor's epiq downloads about ${formatBytes(
-				preview.bytes,
-		  )} from ${preview.host}`
-		: `Connect — every contributor's epiq downloads about ${formatBytes(
-				preview.bytes,
-		  )} from ${preview.host} on their next sync (${plural(
-				preview.contributors,
-				'contributor',
-		  )})`;
+		? `The board already reads ${
+				limit ?? 'its limit of'
+		  } repos, so nobody downloads this one until another is disconnected. Then everyone downloads ${size} from ${
+				preview.host
+		  }.`
+		: `${who} will download ${size} from ${preview.host} on their next sync.`;
 
 	return (
 		<div data-testid="repo-preview" style={rowStyle(false)}>
@@ -327,44 +358,48 @@ const PreviewCard = ({
 					{repo.url}
 				</span>
 
-				<span style={{display: 'flex', flexDirection: 'column'}}>
-					<span data-testid="repo-preview-branch" style={factStyle}>
-						{preview.defaultBranch
-							? `default branch ${preview.defaultBranch}`
-							: 'no default branch'}
-					</span>
-					<span
-						data-testid="repo-preview-latest"
-						style={{
-							...factStyle,
-							whiteSpace: 'nowrap',
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-						}}
+				<span style={factsStyle}>
+					<Fact name="Branch" testId="repo-preview-branch">
+						{preview.defaultBranch ?? 'none'}
+					</Fact>
+					<Fact
+						name="Latest"
+						testId="repo-preview-latest"
 						title={latest?.subject}
 					>
-						{latest
-							? `latest: ${latest.subject} · ${latest.author} · ${timeAgo(
-									Date.parse(latest.date),
-							  )}`
-							: 'no commits yet'}
-					</span>
-					<span data-testid="repo-preview-commits" style={factStyle}>
-						{plural(preview.commits, 'commit')} {windowOf(repo.since)} ·{' '}
-						{preview.ticketCommits} name a ticket here
-					</span>
-					{preview.ticketCommits === 0 && (
-						<span
-							data-testid="repo-preview-warning"
-							style={{...factStyle, color: GUI_THEME.amber}}
-						>
-							None name a ticket here — is this the right repo?
-						</span>
-					)}
-					<span data-testid="repo-preview-size" style={factStyle}>
-						{formatBytes(preview.bytes)} cloned · this board&apos;s repos take{' '}
-						{formatBytes(preview.claimedBytes)} here
-					</span>
+						{latest ? (
+							<>
+								{latest.subject}
+								<span style={{color: GUI_THEME.dim}}>
+									{` · ${latest.author} · ${timeAgo(Date.parse(latest.date))}`}
+								</span>
+							</>
+						) : (
+							'no commits yet'
+						)}
+					</Fact>
+					<Fact name="Commits" testId="repo-preview-commits">
+						{preview.commits} {windowOf(repo.since)}
+					</Fact>
+					<Fact name="Tickets" testId="repo-preview-tickets">
+						{preview.ticketCommits > 0 ? (
+							`${preview.ticketCommits} of them name a ticket here`
+						) : (
+							<span
+								data-testid="repo-preview-warning"
+								style={{color: GUI_THEME.amber}}
+							>
+								None name a ticket here. Is this the right repo?
+							</span>
+						)}
+					</Fact>
+					<Fact name="Size" testId="repo-preview-size">
+						{size}
+					</Fact>
+				</span>
+
+				<span data-testid="repo-preview-stakes" style={{...META, marginTop: 4}}>
+					{stakes}
 				</span>
 
 				<span style={{...lineStyle, justifyContent: 'flex-end'}}>
@@ -381,9 +416,8 @@ const PreviewCard = ({
 						testId="repo-preview-confirm"
 						disabled={confirming}
 						onClick={onConfirm}
-						style={{lineHeight: 1.4, textAlign: 'left'}}
 					>
-						{confirming ? 'connecting…' : stakes}
+						{confirming ? 'connecting…' : 'connect'}
 					</Button>
 				</span>
 			</span>
@@ -551,17 +585,6 @@ export const ReposSettings = ({
 				);
 			})}
 
-			{repos.length > 0 && state.data && (
-				<div
-					data-testid="repos-claimed"
-					style={{...META, marginTop: 0, padding: '10px 0 0'}}
-				>
-					Their copies take{' '}
-					{anySized ? formatBytes(state.data.claimedBytes) : '—'} on this
-					machine.
-				</div>
-			)}
-
 			{/* A new repo is cloned into a stage and described before anything
 			    is connected; the field gives way to what it turned out to be. */}
 			{state.preview ? (
@@ -648,6 +671,16 @@ export const ReposSettings = ({
 					>
 						+ connect a repo
 					</Button>
+				</div>
+			)}
+
+			{repos.length > 0 && state.data && (
+				<div
+					data-testid="repos-claimed"
+					style={{...META, marginTop: 0, padding: '10px 0 0'}}
+				>
+					Claimed disk space:{' '}
+					{anySized ? formatBytes(state.data.claimedBytes) : '—'}
 				</div>
 			)}
 

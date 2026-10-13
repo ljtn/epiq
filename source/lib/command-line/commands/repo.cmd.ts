@@ -113,9 +113,13 @@ export const describeRepoPreview = (preview: RepoPreview): string => {
 			: 'no default branch',
 		latest,
 		`${preview.commits} commits in the window, ${refs}`,
-		`every contributor's epiq will download about ${formatBytes(
-			preview.bytes,
-		)} on their next sync (${preview.contributors} contributors)`,
+		`${
+			preview.contributors > 1
+				? `all ${preview.contributors} contributors`
+				: 'everyone on this board'
+		} will download ${formatBytes(preview.bytes)} from ${
+			preview.host
+		} on their next sync`,
 		...(preview.overLimit
 			? [
 					'the board is at its repo limit: nobody downloads it until one ahead of it is disconnected, then everyone does',
