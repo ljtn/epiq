@@ -898,23 +898,110 @@ describe('a clone broken on this machine', () => {
 
 	it('counts a start-over as done only once the new clone has landed', async () => {
 		setConfig({repoCloneMaxMb: 64});
-		commit(upstream, 'small.txt', 'AAAAAAA small');
+		fs.writeFileSync(
+			path.join(upstream, 'mid.bin'),
+			randomBytes(3 * 1024 * 1024),
+		);
+		git(upstream, ['add', 'mid.bin']);
+		git(upstream, ['commit', '-q', '-m', 'AAAAAAA mid']);
 		value(upsertCommitRepo({repoRoot: board, url}));
 		value(await fetchCommitRepos({repoRoot: board}));
 		fs.writeFileSync(path.join(clonePath(), 'config'), '');
-		// The new clone cannot land: the remote is gone.
+		// The remote answers, and the new clone cannot land: past the cap.
+		setConfig({repoCloneMaxMb: 1});
+
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		const status = JSON.parse(fs.readFileSync(`${clonePath()}.json`, 'utf8'));
+		expect(status.restartedAt).toBeNull();
+		expect(status.restartTriedAt).toEqual(expect.any(Number));
+		expect(status.restarts).toBe(1);
+	});
+
+	it('is not counted against while its remote does not answer', async () => {
+		await fetched();
+		fs.writeFileSync(path.join(clonePath(), 'config'), '');
 		fs.renameSync(upstream, `${upstream}-gone`);
 
 		try {
-			value(await fetchCommitRepos({repoRoot: board}));
+			for (let round = 0; round < 3; round++) {
+				value(await fetchCommitRepos({repoRoot: board}));
+			}
 		} finally {
 			fs.renameSync(`${upstream}-gone`, upstream);
 		}
 
 		const status = JSON.parse(fs.readFileSync(`${clonePath()}.json`, 'utf8'));
-		expect(status.restartedAt).toBeNull();
-		expect(status.restartTriedAt).toEqual(expect.any(Number));
+		expect(status.restarts).toBe(0);
+		expect(status.restartTriedAt).toBeNull();
+		// Back, it is started over at once.
+		expect(value(await fetchCommitRepos({repoRoot: board}))[0]!.ok).toBe(true);
 	});
+
+	it.skipIf(process.getuid?.() === 0)(
+		'is cloned anew for a failing fetch at most once in six hours of tries',
+		async () => {
+			await fetched();
+			// Its own fetch fails, nothing to write into, while the URL answers.
+			commit(upstream, 'more.txt', 'AAAAAAA more');
+			const packs = path.join(clonePath(), 'objects', 'pack');
+			fs.chmodSync(packs, 0o555);
+			const statusFile = `${clonePath()}.json`;
+			const hourAgo = Date.now() - 60 * 60 * 1000;
+			fs.writeFileSync(
+				statusFile,
+				JSON.stringify({
+					...JSON.parse(fs.readFileSync(statusFile, 'utf8')),
+					restartedAt: null,
+					restartTriedAt: hourAgo,
+					restarts: 1,
+				}),
+			);
+
+			try {
+				value(await fetchCommitRepos({repoRoot: board}));
+
+				// Not tried again: the last try is an hour old.
+				expect(JSON.parse(fs.readFileSync(statusFile, 'utf8'))).toMatchObject({
+					restartTriedAt: hourAgo,
+					restarts: 1,
+				});
+				expect(
+					fs
+						.readdirSync(path.dirname(clonePath()))
+						.filter(name => name.endsWith('.pending')),
+				).toEqual([]);
+			} finally {
+				const clones = path.dirname(clonePath());
+				for (const name of fs.readdirSync(clones)) {
+					const left = path.join(clones, name, 'objects', 'pack');
+					if (fs.existsSync(left)) fs.chmodSync(left, 0o755);
+				}
+			}
+		},
+	);
+
+	it.skipIf(process.getuid?.() === 0)(
+		'is swapped for its new clone though the old cannot be cleared',
+		async () => {
+			await fetched();
+			fs.writeFileSync(path.join(clonePath(), 'config'), '');
+			fs.chmodSync(path.join(clonePath(), 'objects', 'pack'), 0o555);
+
+			try {
+				const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+				expect(outcome!.ok).toBe(true);
+				expect(await reads()).toEqual(['AAAAAAA upstream']);
+			} finally {
+				const clones = path.dirname(clonePath());
+				for (const name of fs.readdirSync(clones)) {
+					const left = path.join(clones, name, 'objects', 'pack');
+					if (fs.existsSync(left)) fs.chmodSync(left, 0o755);
+				}
+			}
+		},
+	);
 
 	it('leaves nothing of a delete that was stopped partway', async () => {
 		await fetched();
