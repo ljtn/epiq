@@ -1958,3 +1958,8 @@ h2 {
 	height: auto;
 	box-shadow: none;
 }
+@media (max-width: 760px) {
+	#repos .media-placeholder img {
+		max-width: 440px;
+	}
+}
