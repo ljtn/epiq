@@ -144,6 +144,9 @@ const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 // row, so the two edges cannot drift apart.
 const BOARD_GUTTER = 4;
 
+// A settings card's count, beside a title that already says what is counted.
+const countOrNone = (count: number) => (count === 0 ? 'none' : String(count));
+
 // How long the board has to be quiet before an open log asks for the window
 // again. A state broadcast is not a rare thing — a needle drag makes one every
 // 120ms and a bulk action one per ticket — and each refetch is a full replay of
@@ -460,18 +463,14 @@ export const App = () => {
 		onMessage: onTicketPreviewMessage,
 	} = useTicketPreviews({state, sendRaw});
 
-	// The settings panel: behind the header's avatar and its repo count, and
-	// the palette. Everything it shows is fetched on opening it.
+	// The settings panel: behind the header's avatar, and the palette.
+	// Everything it shows is fetched on opening it.
 	const [settings, setSettings] = useState<SettingsFocus | null>(null);
 	const settingsOpen = settings !== null;
 	const closeSettings = useCallback(() => setSettings(null), []);
-	// Its triggers toggle it: open at their section, or closed from there.
-	const toggleSettings = (section: SettingsFocus) =>
-		setSettings(current => (current === section ? null : section));
-	// The controls that open it, which a click on must not count as outside,
+	// The button that opens it, which a click on must not count as outside,
 	// and the topbar it sits under.
-	const avatarRef = useRef<HTMLDivElement | null>(null);
-	const gearRef = useRef<HTMLSpanElement | null>(null);
+	const settingsButtonRef = useRef<HTMLSpanElement | null>(null);
 	const topbarRef = useRef<HTMLDivElement | null>(null);
 	const contributorEmails = useContributorEmails({
 		open: settingsOpen,
@@ -1952,12 +1951,7 @@ export const App = () => {
 									// Closes whatever is open, wherever it was opened from.
 									onToggle: () =>
 										setSettings(open => (open ? null : 'overview')),
-									ref: gearRef,
-								}}
-								identity={{
-									open: settingsOpen,
-									onToggle: () => toggleSettings('identity'),
-									ref: avatarRef,
+									ref: settingsButtonRef,
 								}}
 							/>
 						</div>
@@ -2469,18 +2463,24 @@ export const App = () => {
 						<SettingsPanel
 							section={settings}
 							below={topbarRef}
-							keepOpenFor={[gearRef, avatarRef]}
+							keepOpenFor={[settingsButtonRef]}
 							onClose={closeSettings}
 							sections={[
 								{
 									id: 'identity',
-									title: state?.user
-										? actorDisplay(state.user.name).label
-										: 'Not configured',
-									scope: 'on this board',
-									summary: personalStats.data?.scanned
-										? `${personalStats.data.commits} commits`
-										: null,
+									title: 'User stats',
+									scope: 'your board',
+									// Who, beside how much: the title no longer says.
+									summary: [
+										state?.user
+											? actorDisplay(state.user.name).label
+											: 'Not configured',
+										personalStats.data?.scanned
+											? `${personalStats.data.commits} commits`
+											: null,
+									]
+										.filter(Boolean)
+										.join(' · '),
 									content: (
 										<div data-testid="identity-panel">
 											<IdentityStats state={personalStats} />
@@ -2489,10 +2489,10 @@ export const App = () => {
 								},
 								{
 									id: 'addresses',
-									title: 'Git addresses',
-									scope: 'on this board',
+									title: 'Claimed Git addresses',
+									scope: 'your board',
 									summary: contributorEmails.data
-										? `${contributorEmails.data.mine.length} claimed`
+										? countOrNone(contributorEmails.data.mine.length)
 										: null,
 									content: (
 										<IdentityAddresses
@@ -2520,9 +2520,9 @@ export const App = () => {
 								},
 								{
 									id: 'repos',
-									title: 'Repos',
+									title: 'Linked repositories',
 									scope: 'shared with the project',
-									summary: repos.data ? `${repos.data.length} linked` : null,
+									summary: repos.data ? countOrNone(repos.data.length) : null,
 									content: (
 										<ReposSettings
 											state={repos}

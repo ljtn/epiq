@@ -22,6 +22,7 @@ export const Dropdown = ({
 	testId,
 	portalInto,
 	width = TRIGGER_WIDTH,
+	color,
 }: {
 	value?: DropdownItem | null;
 	items: DropdownItem[];
@@ -34,6 +35,9 @@ export const Dropdown = ({
 	portalInto?: () => HTMLElement | null;
 	// Narrower where the panel is: the settings panel's rows.
 	width?: number;
+	// The label's colour, where the ground it sits on is lighter than the
+	// chrome's black and the quiet default reads too faint.
+	color?: string;
 }) => (
 	// Portalled: this sits in the topbar, which clips its children.
 	<Menu
@@ -42,6 +46,7 @@ export const Dropdown = ({
 		label={value?.label ?? placeholder}
 		title={value?.label}
 		width={width}
+		color={color}
 		testId={testId}
 		chevronSize={14}
 		// The header's size, not the scrubber's: this names the whole board.

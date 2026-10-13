@@ -13,7 +13,7 @@ import {Dropdown} from './Dropdown';
 import {Input} from './FormPrimitives';
 import {IconButton} from './IconButton';
 import {IconLock} from './IconLock';
-import {IconTrash} from './IconTrash';
+import {IconUnlink} from './IconUnlink';
 
 // The repos the board reads commits from, as a section of the settings panel:
 // its own first and locked, then the linked ones, then the row that links
@@ -30,8 +30,9 @@ type Props = {
 	onRemove: (repo: string) => void;
 };
 
-// Two of these and a gap fit the card's width with its padding taken.
-const CONTROL_WIDTH = 170;
+// Two of them and their gap fit the panel's row with room to spare; past it
+// the second one wraps under the first.
+const CONTROL_WIDTH = 154;
 const LINE_GAP = 8;
 // The confirm button's own red, translucent enough that the name still reads.
 const ARMED_BACKGROUND = 'rgba(255, 135, 135, 0.14)';
@@ -150,6 +151,11 @@ const LabelField = ({
 }) => {
 	const [label, setLabel] = useState(repo.label);
 	const [focused, setFocused] = useState(false);
+	// A name changed elsewhere is taken while nobody is typing here; what is
+	// being typed is never written over by an answer arriving under it.
+	useEffect(() => {
+		if (!focused) setLabel(repo.label);
+	}, [repo.label]);
 	// What was last sent: Enter and then a blur send one change, not two, and
 	// a refused one is not raised again by every blur after.
 	const sent = useRef<string | null>(null);
@@ -198,7 +204,8 @@ const LabelField = ({
 };
 
 // How much history is cloned: since the board was created, all of it, or
-// since a date. The date input only appears for the third.
+// since a date. The date input only appears for the third, on a line of its
+// own under the two lists, which fill the row between them.
 const SinceField = ({
 	repo,
 	onChange,
@@ -213,10 +220,11 @@ const SinceField = ({
 	const selected = isDate || picking ? 'date' : repo.since;
 
 	return (
-		<span style={{display: 'flex', alignItems: 'center', gap: LINE_GAP}}>
+		<>
 			<Dropdown
 				testId="repo-since"
 				width={CONTROL_WIDTH}
+				color={GUI_THEME.dim2}
 				portalInto={portalInto}
 				value={SINCE.find(item => item.id === selected) ?? null}
 				items={SINCE}
@@ -229,25 +237,27 @@ const SinceField = ({
 			/>
 
 			{(isDate || picking) && (
-				<Input
-					data-testid="repo-since-date"
-					type="date"
-					defaultValue={isDate ? repo.since : ''}
-					aria-label={`Clone ${repo.label} since`}
-					onBlur={event => {
-						const next = event.target.value;
-						// Leaving the field unchanged is not a change to send.
-						if (DATE.test(next) && next !== repo.since) onChange(next);
-					}}
-					style={{
-						...FIELD,
-						width: 'auto',
-						padding: '4px 8px',
-						fontSize: TEXT.ui,
-					}}
-				/>
+				<span style={{flexBasis: '100%', display: 'flex'}}>
+					<Input
+						data-testid="repo-since-date"
+						type="date"
+						defaultValue={isDate ? repo.since : ''}
+						aria-label={`Clone ${repo.label} since`}
+						onBlur={event => {
+							const next = event.target.value;
+							// Leaving the field unchanged is not a change to send.
+							if (DATE.test(next) && next !== repo.since) onChange(next);
+						}}
+						style={{
+							...FIELD,
+							width: 'auto',
+							padding: '4px 8px',
+							fontSize: TEXT.ui,
+						}}
+					/>
+				</span>
 			)}
-		</span>
+		</>
 	);
 };
 
@@ -295,7 +305,9 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 		<div ref={root} data-testid="repos-section">
 			<div style={{...META, marginTop: 0, padding: '12px 0 2px'}}>
 				Commits from a linked repo show on the tickets they name and in the
-				timeline. The list is kept in the project file, so it reaches everyone.
+				timeline. It is only read, from a copy epiq keeps on this machine;
+				nothing is ever written to it. The list is kept in the project file, so
+				it reaches everyone.
 			</div>
 
 			{/* The board's own repo, listed first: the one every other row is
@@ -338,7 +350,7 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 							    from it. Three lines, since the card is narrow. */}
 							<span style={lineStyle}>
 								<LabelField
-									key={repo.label}
+									key={repo.id}
 									repo={repo}
 									onChange={label => onAdd({url: repo.url, label})}
 								/>
@@ -353,10 +365,11 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 							>
 								{repo.url}
 							</span>
-							<span style={lineStyle}>
+							<span style={{...lineStyle, flexWrap: 'wrap'}}>
 								<Dropdown
 									testId="repo-branches"
 									width={CONTROL_WIDTH}
+									color={GUI_THEME.dim2}
 									portalInto={portalInto}
 									value={BRANCHES.find(item => item.id === repo.branches)}
 									items={BRANCHES}
@@ -382,14 +395,14 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 							onBlur={remove.disarm}
 							title={
 								armed
-									? `Click again to stop reading ${repo.label}`
-									: `Remove ${repo.label}`
+									? `Click again to unlink ${repo.label} from board`
+									: `Unlink ${repo.label} from board`
 							}
 							onClick={() => {
 								if (remove.press(repo.id)) onRemove(repo.id);
 							}}
 						>
-							<IconTrash />
+							<IconUnlink />
 						</IconButton>
 					</div>
 				);
@@ -456,14 +469,11 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 				</div>
 			)}
 
-			{state.lastAction && (
+			{/* A refusal only: a change that landed shows in the list itself. */}
+			{state.lastAction && !state.lastAction.ok && (
 				<div
 					data-testid="repos-last-action"
-					style={{
-						...META,
-						marginTop: 6,
-						color: state.lastAction.ok ? GUI_THEME.dim : GUI_THEME.red,
-					}}
+					style={{...META, marginTop: 6, color: GUI_THEME.red}}
 				>
 					{state.lastAction.message}
 				</div>
