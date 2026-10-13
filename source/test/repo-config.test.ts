@@ -7,6 +7,7 @@ import {acquireLockFile} from '../git/sync-lock.js';
 import {parseRepoAddArgs} from '../lib/command-line/commands/repo.cmd.js';
 import {
 	findCommitRepo,
+	isRepoSince,
 	removableNames,
 	repoIdOf,
 	repoLabelOfId,
@@ -22,7 +23,30 @@ import {
 import {GuiCommitEntry} from '../gui/client/lib/gui-state.model.js';
 import {repoLabelOf} from '../gui/client/lib/repo-label.js';
 
+describe('a history window', () => {
+	it.each(['board', 'all', '2024-02-29', '1970-01-01'])('takes %s', since => {
+		expect(isRepoSince(since)).toBe(true);
+	});
+
+	it.each(['2025-02-30', '2023-02-29', '2024-13-01', '1969-12-31', 'today'])(
+		'refuses %s',
+		since => {
+			expect(isRepoSince(since)).toBe(false);
+		},
+	);
+});
+
 describe(':config repoAdd arguments', () => {
+	it('names the options it takes when given one it does not', () => {
+		const result = parseRepoAddArgs(
+			'https://example.com/a/b.git since=2025-02-30',
+		);
+
+		expect(isFail(result) ? result.message : '').toMatch(
+			/^branches=default, .*; not "since=2025-02-30"$/,
+		);
+	});
+
 	it('takes a URL alone, with the defaults left to the config', () => {
 		const result = parseRepoAddArgs('  https://example.com/a/b.git ');
 

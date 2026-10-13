@@ -61,9 +61,8 @@ export const parseRepoAddArgs = (input: string): Result<RepoAddArgs> => {
 			// `label=` alone goes back to the URL's basename.
 			args.label = value;
 		} else {
-			return failed(
-				`"${option}" is not an option: ${REPO_ADD_OPTIONS.join(', ')}`,
-			);
+			// Read after `Expected`, as every refusal here is.
+			return failed(`${REPO_ADD_OPTIONS.join(', ')}; not "${option}"`);
 		}
 	}
 

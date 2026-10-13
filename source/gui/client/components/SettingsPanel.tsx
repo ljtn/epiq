@@ -206,15 +206,23 @@ export const SettingsPanel = ({
 	const [top, setTop] = useState(0);
 
 	// Measured rather than taken from a constant: the topbar wraps on a narrow
-	// window, and the panel must start where it ends either way.
+	// window, and a banner above it comes and goes; the panel must start where
+	// it ends either way.
 	useLayoutEffect(() => {
 		const place = () =>
 			setTop(below.current?.getBoundingClientRect().bottom ?? 0);
 
 		place();
 		window.addEventListener('resize', place);
+		const observer = new ResizeObserver(place);
+		for (const element of [below.current, below.current?.parentElement]) {
+			if (element) observer.observe(element);
+		}
 
-		return () => window.removeEventListener('resize', place);
+		return () => {
+			window.removeEventListener('resize', place);
+			observer.disconnect();
+		};
 	}, [below]);
 
 	// Asked for again while open — another trigger — unfolds its section too.
@@ -226,9 +234,10 @@ export const SettingsPanel = ({
 
 	// Scrolled to the section asked for, and kept there while the sections
 	// above it fill: everything here is fetched on opening, so the section
-	// moves down as the answers land. Held until the viewer scrolls, which is
-	// read off their input rather than off scroll events, since those are
-	// also what the holding causes.
+	// moves down as the answers land. Held until the viewer scrolls or presses
+	// anything in it — a list opened there must not be pulled from under the
+	// pointer — read off their input rather than off scroll events, since those
+	// are also what the holding causes.
 	useEffect(() => {
 		const pane = scroller.current;
 		if (!pane || section === 'overview') return;
@@ -251,12 +260,14 @@ export const SettingsPanel = ({
 		pane.addEventListener('wheel', release, {passive: true});
 		pane.addEventListener('touchmove', release, {passive: true});
 		pane.addEventListener('keydown', release);
+		pane.addEventListener('pointerdown', release);
 
 		return () => {
 			observer.disconnect();
 			pane.removeEventListener('wheel', release);
 			pane.removeEventListener('touchmove', release);
 			pane.removeEventListener('keydown', release);
+			pane.removeEventListener('pointerdown', release);
 		};
 	}, [section]);
 

@@ -2,9 +2,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execGit} from '../../git/git-utils.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
-import {readProjectFile} from '../project-setup/project-setup.js';
+import {
+	DEFAULT_STATE_BRANCH,
+	readProjectFile,
+} from '../project-setup/project-setup.js';
 import {resolveRepoRoot} from './commit-repo.js';
-import {getRepoClonePath, readCommitRepos, sinceDate} from './commit-repos.js';
+import {
+	getRepoClonePath,
+	readCloneStateBranch,
+	readCommitRepos,
+	sinceDate,
+} from './commit-repos.js';
 
 /**
  * Somewhere commits are read from. The board's own repo is one, read in place;
@@ -89,6 +97,17 @@ export const listCommitSources = async (
 
 		const since = sinceDate(repo.since, projectResult.value.createdAt);
 
+		// A linked repo that is an epiq board holds its event log beside its
+		// work, and this board's own remote holds this board's: neither is
+		// anybody's commits.
+		const stateBranches = new Set(
+			[
+				projectResult.value.stateBranch,
+				DEFAULT_STATE_BRANCH,
+				readCloneStateBranch(clonePath),
+			].filter((name): name is string => name !== null),
+		);
+
 		return [
 			{
 				repo: repo.id,
@@ -97,7 +116,10 @@ export const listCommitSources = async (
 				// its refspec fetches. Not HEAD: on a remote with no commits yet
 				// HEAD is an unborn branch and `git log HEAD` fails, where
 				// `--branches` answers nothing.
-				revisions: ['--branches'],
+				revisions: [
+					...[...stateBranches].map(name => `--exclude=${name}`),
+					'--branches',
+				],
 				exclude: shallowBoundary(clonePath),
 				...(since ? {notBefore: Date.parse(`${since}T00:00:00Z`)} : {}),
 			},

@@ -3,6 +3,7 @@
 // an option, a checkbox, a radio — and the menu owns how they look.
 
 import React, {
+	useCallback,
 	useEffect,
 	useId,
 	useLayoutEffect,
@@ -84,7 +85,7 @@ export const Menu = ({
 	const listRef = useRef<HTMLDivElement | null>(null);
 	const triggerRef = useRef<HTMLButtonElement | null>(null);
 	const ref = useDismissOnOutsideClick(open, close, [listRef], {nested: true});
-	const anchor = usePortalAnchor(portal && open, triggerRef);
+	const anchor = usePortalAnchor(portal && open, triggerRef, listRef);
 
 	const popover = (
 		<div
@@ -146,21 +147,47 @@ export const Menu = ({
 	);
 };
 
+// Kept between a popover and the window's edge.
+const EDGE = 8;
+
 const usePortalAnchor = (
 	active: boolean,
 	triggerRef: React.RefObject<HTMLButtonElement | null>,
+	listRef: React.RefObject<HTMLDivElement | null>,
 ) => {
 	const [anchor, setAnchor] = useState<{left: number; top: number} | null>(
 		null,
 	);
 
-	useLayoutEffect(() => {
-		if (!active) return;
+	// Below the trigger, or above it where the window ends first and there is
+	// room there: a fixed popover past the bottom edge cannot be scrolled to.
+	const place = useCallback(() => {
+		const box = triggerRef.current?.getBoundingClientRect();
+		if (!box) return;
 
-		const place = () => {
-			const box = triggerRef.current?.getBoundingClientRect();
-			if (box) setAnchor({left: box.left, top: box.bottom + 6});
-		};
+		const height = listRef.current?.offsetHeight ?? 0;
+		const below = box.bottom + 6;
+		const above = box.top - 6 - height;
+		const flips = below + height > window.innerHeight - EDGE && above >= EDGE;
+
+		setAnchor(prev => {
+			const top = flips ? above : below;
+			return prev?.left === box.left && prev.top === top
+				? prev
+				: {left: box.left, top};
+		});
+	}, [triggerRef, listRef]);
+
+	// Again once the list is drawn and has a height to place.
+	useLayoutEffect(() => {
+		if (active && anchor) place();
+	}, [active, anchor !== null, place]);
+
+	useLayoutEffect(() => {
+		if (!active) {
+			setAnchor(null);
+			return;
+		}
 
 		place();
 		window.addEventListener('resize', place);
@@ -170,7 +197,7 @@ const usePortalAnchor = (
 			window.removeEventListener('resize', place);
 			window.removeEventListener('scroll', place, true);
 		};
-	}, [active, triggerRef]);
+	}, [active, place]);
 
 	return anchor;
 };

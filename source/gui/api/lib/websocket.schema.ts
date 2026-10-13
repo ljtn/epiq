@@ -1,5 +1,6 @@
 import {z} from 'zod';
 import {GuiMessage} from './websocket.model.js';
+import {MAX_URL_LENGTH} from '../../../lib/commits/repo-url.js';
 
 /**
  * `GuiMessage` is a compile-time type, so `JSON.parse(raw) as GuiMessage` was
@@ -127,7 +128,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	message(
 		'repo:add',
 		z.object({
-			url: z.string().min(1).max(2000),
+			url: z.string().min(1).max(MAX_URL_LENGTH),
 			branches: z.enum(['default', 'all']).optional(),
 			since: z.string().max(20).optional(),
 			label: z.string().max(24).optional(),

@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import {acquireLockFile} from '../../git/sync-lock.js';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {readProjectFile} from '../project-setup/project-setup.js';
@@ -58,9 +59,19 @@ const ID_HASH = /-[0-9a-f]{12}$/;
 export const MAX_REPOS = 20;
 
 export const isRepoSince = (value: string): boolean =>
-	value === 'board' ||
-	value === 'all' ||
-	(DATE.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)));
+	value === 'board' || value === 'all' || isCalendarDate(value);
+
+// A day that exists, as itself: `Date` rolls 2025-02-30 into March. From
+// 1970 on, since git takes the window as an epoch.
+const isCalendarDate = (value: string): boolean => {
+	if (!DATE.test(value) || value < '1970-01-01') return false;
+	const parsed = new Date(`${value}T00:00:00Z`);
+
+	return (
+		!Number.isNaN(parsed.getTime()) &&
+		parsed.toISOString().slice(0, 10) === value
+	);
+};
 
 export const isRepoLabel = (value: string): boolean =>
 	LABEL.test(value) && !ID_HASH.test(value);
@@ -259,6 +270,67 @@ const editRawEntries = (
 	repoRoot: string,
 	edit: (entries: unknown[]) => unknown[],
 ): Result<null> => {
+	const targetResult = writableProjectFile(repoRoot);
+	if (isFail(targetResult)) return failed(targetResult.message);
+
+	return editRawEntriesHeld(repoRoot, targetResult.value, edit);
+};
+
+/**
+ * Runs a read-check-write of the repo list under one lock: a GUI, a TUI and an
+ * MCP server editing at once would otherwise each write back a list missing
+ * the others' change, or each let in a twenty-first repo.
+ */
+const whileEditingProjectFile = <T>(
+	repoRoot: string,
+	body: () => Result<T>,
+): Result<T> => {
+	const targetResult = writableProjectFile(repoRoot);
+	if (isFail(targetResult)) return failed(targetResult.message);
+
+	const lock = takeProjectFileLock(repoRoot);
+	if (!lock.acquired) {
+		return failed('Another process is editing .epiq/project.json; try again');
+	}
+
+	try {
+		return body();
+	} finally {
+		lock.release();
+	}
+};
+
+// An edit holds it for a moment; a wait this long means a holder that is stuck.
+const PROJECT_FILE_LOCK_WAIT_MS = 3_000;
+
+/** Outside the checkout, so a lock never shows in `git status`. */
+export const projectFileLockPath = (repoRoot: string): string =>
+	path.join(
+		getGlobalConfigDir(),
+		'locks',
+		`${createHash('sha1')
+			.update(fs.realpathSync(getProjectFilePath(repoRoot)))
+			.digest('hex')}.project.lock`,
+	);
+
+const takeProjectFileLock = (repoRoot: string) => {
+	const lockPath = projectFileLockPath(repoRoot);
+	fs.mkdirSync(path.dirname(lockPath), {recursive: true});
+
+	const deadline = Date.now() + PROJECT_FILE_LOCK_WAIT_MS;
+	const pause = new Int32Array(new SharedArrayBuffer(4));
+	while (true) {
+		const lock = acquireLockFile({lockPath, operation: 'edit project.json'});
+		if (lock.acquired || Date.now() >= deadline) return lock;
+		Atomics.wait(pause, 0, 0, 20);
+	}
+};
+
+const editRawEntriesHeld = (
+	repoRoot: string,
+	target: string,
+	edit: (entries: unknown[]) => unknown[],
+): Result<null> => {
 	const rawResult = readRawProject(repoRoot);
 	if (isFail(rawResult)) return failed(rawResult.message);
 
@@ -270,9 +342,6 @@ const editRawEntries = (
 		next[REPOS_KEY] = entries;
 	}
 
-	const targetResult = writableProjectFile(repoRoot);
-	if (isFail(targetResult)) return failed(targetResult.message);
-	const target = targetResult.value;
 	const pending = `${target}.${process.pid}.tmp`;
 
 	try {
@@ -299,15 +368,20 @@ const editRawEntries = (
 	return succeeded('Wrote project.json', null);
 };
 
-/** Adds a repo, or changes the options of one already listed. */
-export const upsertCommitRepo = (input: {
+type RepoChange = {
 	repoRoot: string;
 	url: string;
 	branches?: RepoBranches;
 	since?: RepoSince;
 	/** What to call it; empty goes back to the URL's basename. */
 	label?: string;
-}): Result<CommitRepo> => {
+};
+
+/** Adds a repo, or changes the options of one already listed. */
+export const upsertCommitRepo = (input: RepoChange): Result<CommitRepo> =>
+	whileEditingProjectFile(input.repoRoot, () => upsertHeld(input));
+
+const upsertHeld = (input: RepoChange): Result<CommitRepo> => {
 	const url = input.url.trim();
 	const problem = repoUrlProblem(url);
 	if (problem) {
@@ -458,6 +532,12 @@ export const removeCommitRepo = (input: {
 	repoRoot: string;
 	/** A unique label, the repo's id, or its URL. */
 	repo: string;
+}): Result<CommitRepo> =>
+	whileEditingProjectFile(input.repoRoot, () => removeHeld(input));
+
+const removeHeld = (input: {
+	repoRoot: string;
+	repo: string;
 }): Result<CommitRepo> => {
 	const reposResult = readCommitRepos(input.repoRoot);
 	if (isFail(reposResult)) return failed(reposResult.message);
@@ -493,6 +573,32 @@ export const CLONE_DIR_NAME = /^[a-z0-9._-]+-[0-9a-f]{12}\.git$/;
 
 export const getRepoClonePath = (projectId: string, repoId: string): string =>
 	path.join(getRepoClonesDir(projectId), `${repoId}.git`);
+
+// Beside the clone rather than in it, so a first clone that fails — and
+// leaves no clone — still records why.
+export const cloneStatusPath = (clonePath: string) => `${clonePath}.json`;
+
+/** A state branch as a clone's own project.json may name it: a plain ref name. */
+export const STATE_BRANCH_NAME = /^(?!-)[A-Za-z0-9._/-]{1,100}$/;
+
+/**
+ * The state branch the clone's last fetch found its project.json naming: a
+ * linked repo that is an epiq board keeps its event log there, not its work.
+ */
+export const readCloneStateBranch = (clonePath: string): string | null => {
+	try {
+		const raw = JSON.parse(
+			fs.readFileSync(cloneStatusPath(clonePath), 'utf8'),
+		) as {stateBranch?: unknown};
+
+		return typeof raw.stateBranch === 'string' &&
+			STATE_BRANCH_NAME.test(raw.stateBranch)
+			? raw.stateBranch
+			: null;
+	} catch {
+		return null;
+	}
+};
 
 /** The date a `since` stands for, or null for the whole history. */
 export const sinceDate = (
