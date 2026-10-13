@@ -495,7 +495,9 @@ export const ReposSettings = ({
 
 	const repos = state.data?.repos ?? [];
 	const typed = url.trim();
-	const problem = typed ? repoUrlProblem(typed) : null;
+	const problem = typed
+		? repoUrlProblem(typed, state.data?.allowLocal ?? false)
+		: null;
 	const cloning = state.pending === 'preview';
 	const anySized = repos.some(repo => repo.bytes !== null);
 

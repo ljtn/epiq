@@ -16,6 +16,8 @@ import {HANDOFF_PATH, type Handoff} from './handoff.js';
 // scans are over a seeded repository of a few dozen commits, so the answer costs
 // milliseconds to recompute, and the test asks for what is there now.
 process.env['EPIQ_CACHE_MS'] = '0';
+// The tests connect repos from local paths; a real server refuses them.
+process.env['EPIQ_ALLOW_LOCAL_REPOS'] = '1';
 
 const servers: Array<{close: () => void}> = [];
 

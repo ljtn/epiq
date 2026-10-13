@@ -239,6 +239,8 @@ export type GuiRepoList = {
 	claimedBytes: number;
 	/** How many repos the board fetches; the rest are listed, never fetched. */
 	limit: number;
+	/** Whether a local file:/// repo may be connected: tests only. */
+	allowLocal: boolean;
 };
 
 // A repo cloned into a stage and described, before anything is connected.
