@@ -295,8 +295,7 @@ const EXIT_SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP'];
 const CLONE_KILL_GRACE_MS = 2_000;
 
 /**
- * Clone gits are killed with the process. Exported for the test that sends
- * the process a signal with another listener present.
+ * Clone gits are killed with the process.
  *
  * On a signal: the children are told to go and are waited for, briefly, then
  * killed outright if still there; these handlers go, and the signal is raised
@@ -305,11 +304,12 @@ const CLONE_KILL_GRACE_MS = 2_000;
  * never been here. Ink's handler stands aside while another listener is
  * registered, so one that stayed, or re-raised only when alone, left the
  * TUI standing after its first SIGTERM.
+ *
+ * Registered before the first clone git is spawned, never after: a signal
+ * that landed between the spawn and the registration killed the process by
+ * default and left its git running.
  */
-export const trackCloneChild = (child: ReturnType<typeof spawn>) => {
-	cloneChildren.add(child);
-	child.once('close', () => cloneChildren.delete(child));
-
+const registerCloneKills = () => {
 	if (killsRegistered) return;
 	killsRegistered = true;
 
@@ -336,6 +336,12 @@ export const trackCloneChild = (child: ReturnType<typeof spawn>) => {
 		});
 	}
 	for (const [signal, handler] of handlers) process.once(signal, handler);
+};
+
+/** A clone git, killed with this process: spawned after `registerCloneKills`. */
+const trackCloneChild = (child: ReturnType<typeof spawn>) => {
+	cloneChildren.add(child);
+	child.once('close', () => cloneChildren.delete(child));
 };
 
 const runGit = ({
@@ -379,13 +385,13 @@ const runGit = ({
 			return;
 		}
 
+		if (clone) registerCloneKills();
 		const child = spawn(GIT_BIN, args, {
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe'],
 			env: clone ? cloneEnv : gitEnv,
 			detached: clone && OWN_GROUP,
 		});
-
 		if (clone) trackCloneChild(child);
 		const kill = (signal: NodeJS.Signals) =>
 			clone ? killClone(child, signal) : child.kill(signal);
@@ -590,6 +596,7 @@ export const readGitBlobsBatch = (
 		}
 
 		const clone = isCloneDir(cwd);
+		if (clone) registerCloneKills();
 		const child = spawn(
 			GIT_BIN,
 			[...cloneDirArgs(cwd), 'cat-file', '--batch'],
