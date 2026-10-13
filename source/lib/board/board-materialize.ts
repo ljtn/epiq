@@ -10,7 +10,7 @@ import {FieldNames} from '../repository/fielNames.js';
 import {isValidEmail} from '../model/email-link.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
-import {initWorkspaceState} from '../state/state.js';
+import {getState, initWorkspaceState, updateState} from '../state/state.js';
 import {EventHandlers} from '../event/event-catalog.js';
 import {
 	ConvergenceFail,
@@ -19,6 +19,7 @@ import {
 } from '../event/event-materialize.js';
 import {AppEvent, AppEventMap} from './board-events.model.js';
 import {CLOSED_SWIMLANE_ID} from './static-ids.js';
+import {applyRepoEvent, RepoEntry} from './board-repos.js';
 
 // How each board event applies to the board's state. Every precondition is a
 // `materializeSkip`, so a replay converges over an event that lost a race.
@@ -50,6 +51,27 @@ const refuseUncreatableNode = (
 	}
 
 	return null;
+};
+
+type RepoEventOf =
+	| AppEvent<'connect.repo'>
+	| AppEvent<'edit.repo'>
+	| AppEvent<'disconnect.repo'>;
+
+// The registry the reducer leaves, or the skip it found: one rule for the
+// board state and for the live list readers fold from the log.
+const applyRepo = (
+	event: RepoEventOf,
+): {skip: ConvergenceFail} | {message: string; entry: RepoEntry} => {
+	const applied = applyRepoEvent(getState().repos, event);
+	if (isFail(applied)) return {skip: materializeSkip(applied.message, event)};
+
+	const result = updateState(s => ({...s, repos: applied.value.registry}));
+	if (isFail(result)) {
+		return {skip: materializeSkip('Unable to update repos', event)};
+	}
+
+	return {message: applied.message, entry: applied.value.entry};
 };
 
 export const boardHandlers: EventHandlers<AppEventMap> = {
@@ -751,5 +773,33 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 				userId: event.userId,
 			},
 		});
+	},
+
+	'connect.repo': event => {
+		const applied = applyRepo(event);
+		return 'skip' in applied
+			? applied.skip
+			: succeeded(applied.message, {
+					action: event.action,
+					result: applied.entry,
+			  });
+	},
+	'edit.repo': event => {
+		const applied = applyRepo(event);
+		return 'skip' in applied
+			? applied.skip
+			: succeeded(applied.message, {
+					action: event.action,
+					result: applied.entry,
+			  });
+	},
+	'disconnect.repo': event => {
+		const applied = applyRepo(event);
+		return 'skip' in applied
+			? applied.skip
+			: succeeded(applied.message, {
+					action: event.action,
+					result: applied.entry,
+			  });
 	},
 };

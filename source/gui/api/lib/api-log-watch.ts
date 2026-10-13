@@ -2,6 +2,7 @@ import {GuiProject} from './gui-project.js';
 import {getStateBranchRoot} from '../../../git/git-storage.js';
 import {isSyncLockHeldAt} from '../../../git/sync-lock.js';
 import {logSignature} from '../../../lib/event/log-signature.js';
+import {readConnectedRepos} from '../../../lib/commits/commits.js';
 import {isFail} from '../../../lib/model/result-types.js';
 import {startPacedWatch} from '../../../lib/utils/paced-watch.js';
 import {resolveClosestEpiqProjectRoot} from '../../../lib/storage/paths.js';
@@ -39,6 +40,16 @@ export const createLogPublisher = (input: {project: GuiProject}) => {
 		return stateBranchRoot === null ? null : logSignature(stateBranchRoot);
 	};
 
+	// The connected repos as last published: a pulled or another process's
+	// connect, edit or disconnect moves the list without moving any commit.
+	const reposOf = (): string | null => {
+		const repos = readConnectedRepos(input.project.repoRoot);
+		return isFail(repos)
+			? null
+			: JSON.stringify([repos.value.live, repos.value.overLimit]);
+	};
+	let publishedRepos = reposOf();
+
 	// Recorded before the derive, not after it succeeds: a log that cannot be
 	// derived is tried again only once it changes, which is also the only time
 	// its outcome can change.
@@ -68,6 +79,12 @@ export const createLogPublisher = (input: {project: GuiProject}) => {
 		if (isFail(payload)) return;
 
 		broadcastGuiMessage({type: 'state', payload});
+
+		const repos = reposOf();
+		if (repos !== null && repos !== publishedRepos) {
+			publishedRepos = repos;
+			broadcastGuiMessage({type: 'repos:changed'});
+		}
 	};
 
 	return {publishIfLogMoved};

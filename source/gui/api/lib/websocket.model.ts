@@ -100,9 +100,20 @@ export type GuiMessage =
 	// finds the commit itself, the board's own repo first.
 	| {type: 'commit:inspect'; payload: {sha: string; repo?: string}}
 	| {type: 'commit:diff:get'; payload: {sha: string; repo?: string}}
-	// The other repos whose commits count as the board's. Configuration in
-	// `project.json`, not board state, so none of these is a mutating message.
+	// The repos connected to the board. A preview stages a clone and writes
+	// nothing; a connect (confirming one, or changing a connected repo's
+	// options) and a disconnect write board events.
 	| {type: 'repos:get'}
+	| {
+			type: 'repo:preview';
+			payload: {
+				url: string;
+				branches?: 'default' | 'all';
+				since?: string;
+				label?: string;
+			};
+	  }
+	| {type: 'repo:preview:cancel'; payload: {repo: string}}
 	| {
 			type: 'repo:connect';
 			payload: {

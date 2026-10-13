@@ -12,19 +12,17 @@ import {
 	CLONE_DIR_NAME,
 	cloneStatusPath as statusPath,
 	CommitRepo,
+	findConnectedRepo,
 	getRepoClonePath,
 	getRepoClonesDir,
-	readCommitRepos,
-	removeCommitRepo,
+	readConnectedRepos,
 	repoIdOf,
 	isRepoListed,
 	readRepoProject,
 	RepoBranches,
-	REPO_RENAMED,
-	REPO_UNCHANGED,
 	sinceDate,
 	STATE_BRANCH_NAME,
-	upsertCommitRepo,
+	writeRepoEvent,
 } from './commit-repos.js';
 
 // epiq's own bare clones of the other repos: made and fetched on sync only,
@@ -34,8 +32,8 @@ import {
 const TRANSFER_TIMEOUT_MS = 30 * 60 * 1000;
 
 // Left by a remove that found the clone in use; the fetch holding it deletes
-// it on the way out. Only an explicit remove deletes a clone: another worktree
-// may still list a repo this one does not.
+// it on the way out. A clone goes only for a disconnect read off the log,
+// which every worktree of a board shares; never for a repo merely not listed.
 const removalMark = (clonePath: string) => `${clonePath}.removed`;
 
 // Made, never written through: a link planted under the name is no mark, and
@@ -68,6 +66,8 @@ export type RepoFetchStatus = {
 	restartTriedAt: number | null;
 	/** Start-overs tried since the clone last fetched as itself. */
 	restarts: number;
+	/** The clone's size on disk after its last fetch that landed. */
+	bytes: number | null;
 };
 
 const readStatus = (clonePath: string): RepoFetchStatus | null => {
@@ -92,6 +92,7 @@ const readStatus = (clonePath: string): RepoFetchStatus | null => {
 				typeof raw.restarts === 'number' && raw.restarts >= 0
 					? raw.restarts
 					: 0,
+			bytes: typeof raw.bytes === 'number' && raw.bytes >= 0 ? raw.bytes : null,
 			stateBranch:
 				typeof raw.stateBranch === 'string' &&
 				STATE_BRANCH_NAME.test(raw.stateBranch)
@@ -122,6 +123,10 @@ const writeStatus = (clonePath: string, status: RepoFetchStatus) => {
 export type RepoState = CommitRepo & {
 	/** Whether a clone exists on this machine yet. */
 	cloned: boolean;
+	/** Connected past the cap: listed, never fetched, until one ahead of it goes. */
+	overLimit: boolean;
+	/** The clone's size after its last fetch, or null where none has landed. */
+	bytes: number | null;
 	fetchedAt: number | null;
 	/** Why the last fetch failed, or why the clone could not be read. */
 	error: string | null;
@@ -132,26 +137,28 @@ export const listRepoStates = (repoRoot: string): Result<RepoState[]> => {
 	const projectResult = readRepoProject(repoRoot);
 	if (isFail(projectResult)) return failed(projectResult.message);
 
-	const reposResult = readCommitRepos(repoRoot);
+	const reposResult = readConnectedRepos(repoRoot);
 	if (isFail(reposResult)) return failed(reposResult.message);
 
-	return succeeded(
-		'Listed repos',
-		reposResult.value.map(repo => {
-			const clonePath = getRepoClonePath(
-				projectResult.value.projectId,
-				repo.id,
-			);
-			const status = readStatus(clonePath);
+	const state = (repo: CommitRepo, overLimit: boolean): RepoState => {
+		const clonePath = getRepoClonePath(projectResult.value.projectId, repo.id);
+		const status = readStatus(clonePath);
+		const cloned = fs.existsSync(clonePath);
 
-			return {
-				...repo,
-				cloned: fs.existsSync(clonePath),
-				fetchedAt: status?.fetchedAt ?? null,
-				error: status?.error ?? cloneReadProblem(repo.id),
-			};
-		}),
-	);
+		return {
+			...repo,
+			cloned,
+			overLimit,
+			bytes: cloned ? status?.bytes ?? null : null,
+			fetchedAt: status?.fetchedAt ?? null,
+			error: status?.error ?? cloneReadProblem(repo.id),
+		};
+	};
+
+	return succeeded('Listed repos', [
+		...reposResult.value.live.map(repo => state(repo, false)),
+		...reposResult.value.overLimit.map(repo => state(repo, true)),
+	]);
 };
 
 const localGit = (input: {
@@ -485,19 +492,17 @@ const deepenPastWindow = async (
 const NOTHING_SELECTED =
 	/no commits selected for shallow requests|error processing shallow info/i;
 
-const cloneRepo = async (
-	clonePath: string,
+/**
+ * A whole clone at `pending`, beside the clone it is to become, or nothing
+ * there at all: whatever fails takes the directory with it.
+ */
+const buildClone = async (
+	pending: string,
 	repo: CommitRepo,
 	since: string | null,
-	/** In place of a clone that broke: the old one goes only once this lands. */
-	{replace = false}: {replace?: boolean} = {},
 ): Promise<Result<null>> => {
-	const clonesDir = path.dirname(clonePath);
+	const clonesDir = path.dirname(pending);
 	fs.mkdirSync(clonesDir, {recursive: true});
-
-	// Cloned beside its final name and moved into place, so a clone cut short
-	// never looks like one that finished.
-	const pending = `${clonePath}.${process.pid}.pending`;
 	fs.rmSync(pending, {recursive: true, force: true});
 
 	const args = (window: string[]) => [
@@ -554,6 +559,22 @@ const cloneRepo = async (
 			return failed(deepenResult.message);
 		}
 	}
+
+	return succeeded('Built clone', null);
+};
+
+const cloneRepo = async (
+	clonePath: string,
+	repo: CommitRepo,
+	since: string | null,
+	/** In place of a clone that broke: the old one goes only once this lands. */
+	{replace = false}: {replace?: boolean} = {},
+): Promise<Result<null>> => {
+	// Cloned beside its final name and moved into place, so a clone cut short
+	// never looks like one that finished.
+	const pending = `${clonePath}.${process.pid}.pending`;
+	const built = await buildClone(pending, repo, since);
+	if (isFail(built)) return built;
 
 	// The old one moved aside, the new one in, and only then the old one
 	// cleared: one that cannot be cleared leaves the new clone in place, and
@@ -1216,6 +1237,9 @@ const fetchOne = async (
 				: isFail(result)
 				? current?.restarts ?? 0
 				: 0,
+			// Measured here, under the lock, so a panel showing it never reads
+			// the disk.
+			bytes: isFail(result) ? current?.bytes ?? null : dirSize(clonePath),
 		});
 
 		if (isFail(result)) {
@@ -1310,44 +1334,133 @@ const sweepPending = (projectId: string) => {
 	}
 };
 
-/** Lists a repo, or changes a listed one's options; readers start over on a change. */
-export const registerCommitRepo = (
-	input: Parameters<typeof upsertCommitRepo>[0],
-): Result<CommitRepo> => {
-	const result = upsertCommitRepo(input);
-	// A rename moves no commit: the cached logs stay warm.
-	if (
-		!isFail(result) &&
-		result.message !== REPO_UNCHANGED &&
-		!result.message.startsWith(REPO_RENAMED)
-	) {
-		invalidateCommitTimelineCache();
-	}
+/**
+ * A clone made ahead of a connect, for the pre-flight to read and the confirm
+ * to move into place. Named as a pending clone of this process, so a process
+ * that dies leaves it to `sweepPending`.
+ */
+export const stageClone = async (
+	repoRoot: string,
+	repo: CommitRepo,
+): Promise<Result<{stagePath: string; bytes: number}>> => {
+	const projectResult = readRepoProject(repoRoot);
+	if (isFail(projectResult)) return failed(projectResult.message);
 
-	return result;
+	const clonePath = getRepoClonePath(projectResult.value.projectId, repo.id);
+	const stagePath = `${clonePath}.${process.pid}.${randomUUID()}.pending`;
+
+	try {
+		fs.mkdirSync(path.dirname(clonePath), {recursive: true});
+		ignoreClonesDir(path.dirname(clonePath));
+
+		const built = await buildClone(
+			stagePath,
+			repo,
+			sinceDate(repo.since, projectResult.value.createdAt),
+		);
+		if (isFail(built)) return failed(gitReason(built.message));
+
+		return succeeded('Staged', {stagePath, bytes: dirSize(stagePath)});
+	} catch (error) {
+		discardStage(stagePath);
+		return failed(errorMessage(error));
+	}
 };
 
-/** Takes a repo off the list, and this machine's clone of it with it. */
-export const unregisterCommitRepo = (input: {
+export const discardStage = (stagePath: string) => {
+	try {
+		fs.rmSync(stagePath, {recursive: true, force: true});
+	} catch (error) {
+		logger.info(`[repos] could not clear a stage: ${errorMessage(error)}`);
+	}
+};
+
+/**
+ * Moves a staged clone into place once its connect is written. Never undoes
+ * the connect: a stage that cannot move is cleared, and the next fetch clones.
+ */
+export const adoptStagedClone = async (
+	repoRoot: string,
+	repo: CommitRepo,
+	stagePath: string,
+): Promise<void> => {
+	const projectResult = readRepoProject(repoRoot);
+	if (isFail(projectResult)) return discardStage(stagePath);
+
+	const {projectId, createdAt} = projectResult.value;
+	const clonePath = getRepoClonePath(projectId, repo.id);
+
+	const lock = await takeCloneLock(
+		clonePath,
+		`connect ${repo.label}`,
+		EXPLICIT_LOCK_WAIT_MS,
+	);
+	if (!lock.acquired) return discardStage(stagePath);
+
+	try {
+		// A reconnect: the mark a disconnect left is the old repo's, not this.
+		fs.rmSync(removalMark(clonePath), {force: true});
+
+		if (fs.existsSync(clonePath) || isLink(clonePath)) {
+			return discardStage(stagePath);
+		}
+
+		fs.renameSync(stagePath, clonePath);
+		writeStatus(clonePath, {
+			fetchedAt: Date.now(),
+			attemptedAt: Date.now(),
+			error: null,
+			branches: repo.branches,
+			since: sinceDate(repo.since, createdAt),
+			stateBranch: await stateBranchOf(clonePath),
+			restartedAt: null,
+			restartTriedAt: null,
+			restarts: 0,
+			bytes: dirSize(clonePath),
+		});
+		invalidateCommitTimelineCache();
+	} catch (error) {
+		logger.info(
+			`[repos] could not place ${repo.label}: ${errorMessage(error)}`,
+		);
+		discardStage(stagePath);
+	} finally {
+		lock.release();
+	}
+};
+
+/**
+ * Takes a repo off the list, then this machine's clone of it: the event goes
+ * first, so a clone is never gone while the board still reads the repo.
+ */
+export const disconnectCommitRepo = (input: {
 	repoRoot: string;
+	actorId: string;
 	repo: string;
 }): Result<CommitRepo> => {
-	const result = removeCommitRepo(input);
-	if (isFail(result)) return result;
+	const found = findConnectedRepo(input.repoRoot, input.repo);
+	if (isFail(found)) return found;
 
-	// The registration is what counts; a clone that cannot go is said so.
+	const written = writeRepoEvent({
+		repoRoot: input.repoRoot,
+		actorId: input.actorId,
+		event: {action: 'disconnect.repo', payload: {repo: found.value.id}},
+	});
+	if (isFail(written)) return failed(written.message);
+
 	const cloneResult = removeRepoClone({
 		repoRoot: input.repoRoot,
-		repoId: result.value.id,
+		repoId: found.value.id,
 	});
 	invalidateCommitTimelineCache();
 
+	const message = `Disconnected ${found.value.label}`;
 	return isFail(cloneResult)
 		? succeeded(
-				`${result.message}, but its clone stays: ${cloneResult.message}`,
-				result.value,
+				`${message}, but its clone stays: ${cloneResult.message}`,
+				found.value,
 		  )
-		: result;
+		: succeeded(message, found.value);
 };
 
 /**
@@ -1395,6 +1508,23 @@ export const removeRepoClone = (input: {
 		return failed(`Could not remove the clone: ${String(error)}`);
 	} finally {
 		if (lock.acquired) lock.release();
+	}
+};
+
+const sweepDisconnected = (
+	repoRoot: string,
+	projectId: string,
+	disconnected: readonly string[],
+) => {
+	for (const repoId of disconnected) {
+		if (!fs.existsSync(getRepoClonePath(projectId, repoId))) continue;
+
+		const removed = removeRepoClone({repoRoot, repoId});
+		if (isFail(removed)) {
+			logger.info(`[repos] could not clear ${repoId}: ${removed.message}`);
+		} else {
+			invalidateCommitTimelineCache();
+		}
 	}
 };
 
@@ -1460,19 +1590,23 @@ const fetchAll = async (
 	const projectResult = readRepoProject(repoRoot);
 	if (isFail(projectResult)) return failed(projectResult.message);
 
-	const reposResult = readCommitRepos(repoRoot);
+	const reposResult = readConnectedRepos(repoRoot);
 	if (isFail(reposResult)) return failed(reposResult.message);
 
 	const {projectId, createdAt} = projectResult.value;
-	const repos = reposResult.value;
-
-	if (repos.length === 0) return succeeded('No other repos', []);
+	const repos = reposResult.value.live;
 
 	try {
 		sweepPending(projectId);
 	} catch (error) {
 		logger.info(`[repos] sweep failed: ${String(error)}`);
 	}
+
+	// Only what a disconnect in a log that read whole names: a repo merely
+	// missing from the list is never a reason to delete anything.
+	sweepDisconnected(repoRoot, projectId, reposResult.value.disconnected);
+
+	if (repos.length === 0) return succeeded('No other repos', []);
 
 	const outcomes: RepoFetchOutcome[] = [];
 	for (let start = 0; start < repos.length; start += CONCURRENCY) {

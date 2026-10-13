@@ -643,7 +643,7 @@ export const createMcpServer = () => {
 		'epiq_sync',
 		{
 			description:
-				'Sync Epiq state with the configured Git remote (pull remote changes and push local ones), then fetch the other repos connected with epiq_repo_connect. Other Epiq MCP tools only read and write local state and never sync automatically — call this on demand when you need to see or publish the latest remote changes.',
+				'Sync Epiq state with the configured Git remote (pull remote changes and push local ones), then fetch the repos connected with epiq_repo_connect. Other Epiq MCP tools only read and write local state and never sync automatically — call this on demand when you need to see or publish the latest remote changes.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),
@@ -660,7 +660,7 @@ export const createMcpServer = () => {
 		'epiq_repo_list',
 		{
 			description:
-				"List the other repos whose commits count as this board's (registered by URL in .epiq/project.json), with this machine's clone status and last fetch error.",
+				"List the repos connected to the board, whose commits count as its own: each with this machine's clone status, size on disk and last fetch error, whether it is past the board's limit and so not fetched, and what all of them take on this machine.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),
@@ -672,13 +672,14 @@ export const createMcpServer = () => {
 		'epiq_repo_connect',
 		{
 			description:
-				"Connect another repo by URL (https://, ssh://, git://, user@host:path, or file:/// for a local one), so commits there prefixed with a ticket's ref link to it; or change an already connected repo's options. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. label: what the repo is called on the board — its URL's basename unless set; give one when two repos share a basename, such as a fork and its upstream; empty goes back to the basename. Edits .epiq/project.json, which needs committing to reach other clones. epiq_sync fetches it.",
+				"Connect another repo to the board by URL (https://, ssh://, git://, user@host:path, or file:/// for a local one), so commits there prefixed with a ticket's ref link to it; or change a connected repo's options. Connecting is a two-step, board-wide action: every contributor's epiq downloads the repo on their next sync. The first call clones it into a staging area and returns a preview (size, host, default branch, latest commit, how many commits name this board's tickets — none suggests the wrong repo) and writes nothing. Show the preview to the user; only once they agree, call again with confirm: true and the same options. Option changes to an already connected repo apply at once. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. label: what the repo is called on the board — its URL's basename unless set; empty goes back to the basename. Cloning uses your git credentials: ssh-agent or a credential helper must already work, since a passphrase prompt cannot be answered.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				url: z.string().min(1).max(MAX_URL_LENGTH),
 				branches: z.enum(['default', 'all']).optional(),
 				since: z.string().max(20).optional(),
 				label: z.string().max(24).optional(),
+				confirm: z.boolean().optional(),
 			}),
 		},
 		async input => resultJson(await connectRepo(input)),

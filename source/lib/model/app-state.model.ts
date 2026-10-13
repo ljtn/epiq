@@ -24,6 +24,7 @@ export type BreadCrumb =
 	  ];
 
 import {EmailLink} from './email-link.js';
+import {RepoEntry} from '../board/board-repos.js';
 
 export type ViewMode = 'wide' | 'dense';
 
@@ -92,6 +93,9 @@ export type AppState = {
 	// rather than nested under a contributor so that a contested address — one
 	// two people claim — is a readable state rather than a collision.
 	emailLinks: Record<string, EmailLink>;
+	// Connected repos by id, disconnected ones kept. Readers take the live
+	// list from the log itself, which time travel does not rewind.
+	repos: Record<string, RepoEntry>;
 	tags: Record<string, Tag>;
 	mode: ModeUnion;
 	availableActions: ActionEntry[];

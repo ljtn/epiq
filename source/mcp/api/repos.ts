@@ -1,18 +1,22 @@
-// The other repos whose commits count as this board's. Registering one edits
-// `project.json`, which is committed like any other file; nothing here writes
-// an event. The network is touched only by `fetchRepos`, which a caller runs
-// on purpose — the same fetch a sync does.
+// The other repos whose commits count as this board's, kept as board events
+// so they sync like any other change. Connecting one is two calls: the first
+// clones it into a stage and previews it, writing nothing; the second, with
+// `confirm`, writes the event. The network is touched by that preview and by
+// `fetchRepos`, which a caller runs on purpose.
 
 import {
+	cancelRepoPreview,
+	claimedBytesOf,
+	connectCommitRepo,
 	describeFetchFailures,
+	disconnectCommitRepo,
 	fetchCommitRepos,
 	listRepoStates,
-	registerCommitRepo,
 	RepoBranches,
 	RepoFetchOutcome,
+	RepoPreview,
 	RepoState,
 	resolveRepoRoot,
-	unregisterCommitRepo,
 } from '../../lib/commits/commits.js';
 import {
 	failed,
@@ -20,16 +24,29 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
+import {bootedWithActorAndState} from './boot.js';
 
 type RepoRootInput = {repoRoot?: string};
 
+export type RepoList = {repos: RepoState[]; claimedBytes: number};
+
+const listed = (repoRoot: string): Result<RepoList> => {
+	const listResult = listRepoStates(repoRoot);
+	if (isFail(listResult)) return failed(listResult.message);
+
+	return succeeded('Listed repos', {
+		repos: listResult.value,
+		claimedBytes: claimedBytesOf(repoRoot),
+	});
+};
+
 export const listRepos = async (
 	input: RepoRootInput = {},
-): Promise<Result<RepoState[]>> => {
+): Promise<Result<RepoList>> => {
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
-	return listRepoStates(repoRootResult.value);
+	return listed(repoRootResult.value);
 };
 
 export const connectRepo = async (
@@ -38,45 +55,59 @@ export const connectRepo = async (
 		branches?: RepoBranches;
 		since?: string;
 		label?: string;
+		confirm?: boolean;
+		/** Stage and preview only: never writes, and never holds a write lock. */
+		previewOnly?: boolean;
 	},
-): Promise<Result<RepoState[]>> => {
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
-	if (isFail(repoRootResult)) return failed(repoRootResult.message);
+): Promise<Result<RepoList & {preview?: RepoPreview}>> => {
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+	const {repoRoot} = ready.value.boot;
 
-	const addResult = registerCommitRepo({
-		repoRoot: repoRootResult.value,
+	const result = await connectCommitRepo({
+		repoRoot,
+		actorId: ready.value.actor.userId,
 		url: input.url,
 		branches: input.branches,
 		since: input.since,
 		label: input.label,
+		mode: input.previewOnly ? 'preview' : input.confirm ? 'confirm' : 'auto',
 	});
-	if (isFail(addResult)) return failed(addResult.message);
+	if (isFail(result)) return failed(result.message);
 
-	const listResult = listRepoStates(repoRootResult.value);
+	const listResult = listed(repoRoot);
 	if (isFail(listResult)) return failed(listResult.message);
 
-	return succeeded(addResult.message, listResult.value);
+	return succeeded(result.message, {
+		...listResult.value,
+		...(result.value.kind === 'preview' ? {preview: result.value.preview} : {}),
+	});
 };
 
 export const disconnectRepo = async (
 	input: RepoRootInput & {repo: string},
-): Promise<Result<RepoState[]>> => {
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
-	if (isFail(repoRootResult)) return failed(repoRootResult.message);
+): Promise<Result<RepoList>> => {
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+	const {repoRoot} = ready.value.boot;
 
-	const removeResult = unregisterCommitRepo({
-		repoRoot: repoRootResult.value,
+	const result = disconnectCommitRepo({
+		repoRoot,
+		actorId: ready.value.actor.userId,
 		repo: input.repo,
 	});
-	if (isFail(removeResult)) return failed(removeResult.message);
+	if (isFail(result)) return failed(result.message);
 
-	const listResult = listRepoStates(repoRootResult.value);
+	const listResult = listed(repoRoot);
 	if (isFail(listResult)) return failed(listResult.message);
 
-	return succeeded(
-		`${removeResult.message}. Commit .epiq/project.json to share it.`,
-		listResult.value,
-	);
+	return succeeded(result.message, listResult.value);
+};
+
+/** Abandons a preview: its staged clone is deleted. */
+export const cancelRepoConnect = (input: {repo: string}): Result<null> => {
+	cancelRepoPreview(input.repo);
+	return succeeded('Cancelled', null);
 };
 
 /**

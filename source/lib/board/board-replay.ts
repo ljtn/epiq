@@ -105,6 +105,9 @@ export const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'link.contributor.user':
 		case 'link.contributor.email':
 		case 'unlink.contributor.email':
+		case 'connect.repo':
+		case 'edit.repo':
+		case 'disconnect.repo':
 		default:
 			return [];
 	}
