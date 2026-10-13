@@ -4,7 +4,21 @@ export type ActorAction =
 	| {kind: 'create'; title: string}
 	| {kind: 'comment'; issueId: string; body: string}
 	| {kind: 'tag'; issueId: string; tagName: string}
-	| {kind: 'close'; issueId: string};
+	| {kind: 'close'; issueId: string}
+	// A repo event as the board writes one, without the pre-flight's clone.
+	| {
+			kind: 'repo';
+			event:
+				| {action: 'connect.repo'; payload: {url: string} & RepoOptions}
+				| {action: 'edit.repo'; payload: {repo: string} & RepoOptions}
+				| {action: 'disconnect.repo'; payload: {repo: string}};
+	  };
+
+type RepoOptions = {
+	branches?: 'default' | 'all';
+	since?: string;
+	label?: string;
+};
 
 export type ActorJob = {
 	repoRoot: string;
@@ -44,4 +58,6 @@ export type ActorReport = {
 	orderedEventIds: string[];
 	// `id\ttitle` per issue, sorted, for comparing boards between actors.
 	issues: string[];
+	// The connected repos as readers resolve them, in their order.
+	repos: string;
 };
