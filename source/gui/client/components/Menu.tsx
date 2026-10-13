@@ -178,10 +178,21 @@ const usePortalAnchor = (
 		});
 	}, [triggerRef, listRef]);
 
-	// Again once the list is drawn and has a height to place.
+	// Again once the list is drawn and has a height to place, and whenever
+	// that height changes: a list opened upward that grew would cover its
+	// trigger.
+	const listed = active && anchor !== null;
 	useLayoutEffect(() => {
-		if (active && anchor) place();
-	}, [active, anchor !== null, place]);
+		if (!listed) return;
+
+		place();
+		const list = listRef.current;
+		if (!list) return;
+		const observer = new ResizeObserver(place);
+		observer.observe(list);
+
+		return () => observer.disconnect();
+	}, [listed, place, listRef]);
 
 	useLayoutEffect(() => {
 		if (!active) {

@@ -203,6 +203,9 @@ export const cloneGitConfig = (): string[] =>
 		'core.longpaths=true',
 		'gc.auto=0',
 		'maintenance.auto=false',
+		// Every fetch kept as a pack of its own, never unpacked into loose
+		// objects: one that took a clone past its size cap goes whole.
+		'fetch.unpackLimit=1',
 	].flatMap(setting => ['-c', setting]);
 
 // `<clones>/<project>/<repo id>.git`, or the pending directory one is cloned
@@ -320,6 +323,7 @@ const runGit = ({
 	maxOutput = MAX_GIT_OUTPUT,
 	forClone = false,
 	keepPartial = false,
+	abort,
 }: {
 	args: string[];
 	cwd: string;
@@ -328,6 +332,7 @@ const runGit = ({
 	maxOutput?: number;
 	forClone?: boolean;
 	keepPartial?: boolean;
+	abort?: AbortSignal;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
 		const inClone = isCloneDir(cwd);
@@ -398,6 +403,23 @@ const runGit = ({
 			setTimeout(answerTimeout, 6_000).unref();
 		}, timeoutMs);
 
+		// Stopped by its caller, as a timeout is: answered once git has gone,
+		// with the caller's reason as the last line.
+		let aborted: string | null = null;
+		const answerAbort = () => {
+			const message = [`git ${args.join(' ')}`, aborted].join('\n');
+			if (allowFail) finish({stdout, stderr: message, exitCode: 1});
+			else finish(failed(message));
+		};
+		const onAbort = () => {
+			aborted = String(abort?.reason ?? 'stopped');
+			kill('SIGTERM');
+			setTimeout(() => kill('SIGKILL'), 3_000).unref();
+			setTimeout(answerAbort, 6_000).unref();
+		};
+		if (abort?.aborted) onAbort();
+		else abort?.addEventListener('abort', onAbort, {once: true});
+
 		child.stdout.setEncoding('utf8');
 		child.stderr.setEncoding('utf8');
 
@@ -449,7 +471,9 @@ const runGit = ({
 		});
 
 		child.on('close', code => {
+			abort?.removeEventListener('abort', onAbort);
 			if (timedOut) return answerTimeout();
+			if (aborted !== null) return answerAbort();
 
 			const exitCode = code ?? 1;
 
@@ -489,6 +513,7 @@ export const execGit = ({
 	maxOutput,
 	forClone,
 	keepPartial,
+	abort,
 }: {
 	args: string[];
 	cwd: string;
@@ -503,6 +528,8 @@ export const execGit = ({
 	forClone?: boolean;
 	/** Past `maxOutput`, answers with the whole lines that arrived, marked truncated. */
 	keepPartial?: boolean;
+	/** Stops git, failing with the signal's reason as the last line. */
+	abort?: AbortSignal;
 }): Promise<Result<GitExecResult>> =>
 	runGit({
 		args,
@@ -512,6 +539,7 @@ export const execGit = ({
 		maxOutput,
 		forClone,
 		keepPartial,
+		abort,
 	}) as Promise<Result<GitExecResult>>;
 
 export const execGitAllowFail = ({

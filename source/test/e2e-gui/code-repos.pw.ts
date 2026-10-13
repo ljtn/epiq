@@ -317,6 +317,23 @@ test('a list opened at the bottom of the window opens upward, on screen', async 
 		expect((await options.first().boundingBox())!.y).toBeLessThan(
 			(await trigger.boundingBox())!.y,
 		);
+
+		// A list that grows once open moves up with it, rather than over its
+		// trigger.
+		await page.evaluate(`
+			const grown = document.createElement('div');
+			grown.style.height = '80px';
+			document
+				.querySelector('[data-testid="repo-since-option"]')
+				.parentElement.append(grown);
+		`);
+		const triggerTop = (await trigger.boundingBox())!.y;
+		await expect
+			.poll(async () => {
+				const last = (await options.last().boundingBox())!;
+				return last.y + last.height + 80 <= triggerTop;
+			})
+			.toBe(true);
 	});
 
 	expect(pageErrors).toEqual([]);

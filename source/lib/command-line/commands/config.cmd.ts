@@ -7,6 +7,7 @@ import {patchSettingsState} from '../../state/settings.state.js';
 import {ConfigModifiers} from '../command-modifiers.js';
 import {setAutoSyncDurationCommand} from '../commands/set-auto-sync-duration.cmd.js';
 import {setAttachmentMaxKbCommand} from '../commands/set-attachment-max-kb.cmd.js';
+import {setRepoCloneMaxMbCommand} from '../commands/set-repo-clone-max-mb.cmd.js';
 import {setAutoSyncCommand} from '../commands/set-auto-sync.cmd.js';
 import {setEmailsCommand} from '../commands/set-emails.cmd.js';
 import {unclaimEmailCommand} from '../commands/unclaim-email.cmd.js';
@@ -93,6 +94,9 @@ export const configCommand = (cmdState: CommandLineInput) => {
 
 		case ConfigModifiers.ATTACHMENT_MAX_KB:
 			return setAttachmentMaxKbCommand();
+
+		case ConfigModifiers.REPO_CLONE_MAX_MB:
+			return setRepoCloneMaxMbCommand();
 
 		case ConfigModifiers.REPO_ADD:
 			return repoAddCommand();

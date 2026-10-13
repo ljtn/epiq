@@ -17,6 +17,12 @@ import {
 	MIN_ATTACHMENT_MAX_KB,
 } from './commands/set-attachment-max-kb.cmd.js';
 import {DEFAULT_ATTACHMENT_MAX_KB} from '../media/media-store.js';
+import {
+	isRepoCloneMaxMb,
+	MAX_REPO_CLONE_MAX_MB,
+	MIN_REPO_CLONE_MAX_MB,
+	readRepoCloneMaxMb,
+} from '../commits/clone-size.js';
 import {findCommitRepo, removableNames} from '../commits/commits.js';
 import {
 	parseRepoAddArgs,
@@ -42,6 +48,7 @@ import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
 import {CmdValidity, cmdValidity} from './cmd-validity.js';
 import {
 	ATTACHMENT_MAX_KB_HINTS,
+	REPO_CLONE_MAX_MB_HINTS,
 	AUTOSYNC_DEBOUNCE_HINTS,
 	ConfigModifiers,
 	EditModifiers,
@@ -523,6 +530,30 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 								`current: ${currentMaxKb ?? DEFAULT_ATTACHMENT_MAX_KB} KB.`,
 						) + hint,
 					completionWordList: ATTACHMENT_MAX_KB_HINTS,
+				});
+			}
+
+			return valid(CONFIRM_MSG);
+		}
+
+		case ConfigModifiers.REPO_CLONE_MAX_MB: {
+			const typed = inputString.trim();
+
+			if (!/^\d+$/.test(typed) || !isRepoCloneMaxMb(Number(typed))) {
+				const hint = buildOptionsHint({
+					prefix: ' examples: ',
+					wordList: REPO_CLONE_MAX_MB_HINTS,
+					minLengthForHints: 0,
+					inputString,
+				});
+
+				return invalid({
+					message:
+						hintAlert(
+							`provide a linked repo's clone cap in MB (${MIN_REPO_CLONE_MAX_MB}-${MAX_REPO_CLONE_MAX_MB}). ` +
+								`current: ${readRepoCloneMaxMb()} MB.`,
+						) + hint,
+					completionWordList: REPO_CLONE_MAX_MB_HINTS,
 				});
 			}
 

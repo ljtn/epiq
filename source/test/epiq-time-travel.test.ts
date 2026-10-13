@@ -6,7 +6,10 @@ vi.mock('../git/git-storage.js', () => ({
 	getStateBranchRoot: vi.fn(),
 }));
 
-vi.mock('../lib/storage/paths.js', () => ({
+vi.mock('../lib/storage/paths.js', async () => ({
+	...(await vi.importActual<typeof import('../lib/storage/paths.js')>(
+		'../lib/storage/paths.js',
+	)),
 	resolveClosestEpiqProjectRoot: vi.fn(),
 	// The timeline index stats the log files to notice when they move. These
 	// tests hand it events through the mocked loader instead, so it must find no
