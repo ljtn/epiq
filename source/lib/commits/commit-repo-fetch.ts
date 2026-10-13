@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import {execGit} from '../../git/git-utils.js';
+import {execGit, isShuttingDown} from '../../git/git-utils.js';
 import {acquireLockFile} from '../../git/sync-lock.js';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
@@ -555,7 +555,22 @@ const cloneRepo = async (
 		}
 	}
 
-	if (replace) fs.rmSync(clonePath, {recursive: true, force: true});
+	// The old one moved aside, the new one in, and only then the old one
+	// cleared: one that cannot be cleared leaves the new clone in place, and
+	// the sweep collects what is left.
+	if (replace && fs.existsSync(clonePath)) {
+		const aside = `${clonePath}.${randomUUID()}.deleting`;
+		fs.renameSync(clonePath, aside);
+		fs.renameSync(pending, clonePath);
+		try {
+			fs.rmSync(aside, {recursive: true, force: true});
+		} catch (error) {
+			logger.info(
+				`[repos] could not clear an old clone: ${errorMessage(error)}`,
+			);
+		}
+		return succeeded('Cloned anew', null);
+	}
 
 	// Another process can only have got here first by breaking a lock it took
 	// for abandoned; its clone is as good as this one.
@@ -982,11 +997,15 @@ const backedOff = (status: RepoFetchStatus | null) => {
 // trouble rather than the clone: a fresh clone for it at most this often.
 const FAILED_FETCH_RESTART_MS = 6 * 60 * 60 * 1000;
 
-const mayStartOverFailedFetch = (status: RepoFetchStatus | null) =>
-	backedOff(status) &&
-	(!status?.restartedAt ||
-		Date.now() < status.restartedAt ||
-		Date.now() - status.restartedAt >= FAILED_FETCH_RESTART_MS);
+const mayStartOverFailedFetch = (status: RepoFetchStatus | null) => {
+	// From the last try, landed or not: one that keeps failing is the remote's
+	// trouble too, and is not repeated every hour.
+	const last = status?.restartTriedAt ?? status?.restartedAt;
+	return (
+		backedOff(status) &&
+		(!last || Date.now() < last || Date.now() - last >= FAILED_FETCH_RESTART_MS)
+	);
+};
 
 // A look at the remote, not a transfer: well under what counts as waiting.
 const REACHABLE_TIMEOUT_MS = 60_000;
@@ -1006,13 +1025,18 @@ const brokeHere = async (
 	if (dirSize(clonePath) > maxMb * 1024 * 1024) return 'past the cap';
 	if (failure.endsWith(cloneCapMessage(maxMb))) return null;
 
-	const remote = await localGit({
-		cwd: path.dirname(clonePath),
-		args: ['ls-remote', '--', repo.url, 'HEAD'],
-		timeoutMs: REACHABLE_TIMEOUT_MS,
-	});
-	return isFail(remote) ? null : 'remote answers';
+	return (await remoteAnswers(clonePath, repo)) ? 'remote answers' : null;
 };
+
+/** Whether the repo's URL answers, asked beside the clone rather than of it. */
+const remoteAnswers = async (clonePath: string, repo: CommitRepo) =>
+	!isFail(
+		await localGit({
+			cwd: path.dirname(clonePath),
+			args: ['ls-remote', '--', repo.url, 'HEAD'],
+			timeoutMs: REACHABLE_TIMEOUT_MS,
+		}),
+	);
 
 const fetchOne = async (
 	repoRoot: string,
@@ -1128,11 +1152,18 @@ const fetchOne = async (
 		// itself answers or the clone cannot be read at all, and at most once
 		// in a while.
 		const broken = cloned && !(await cloneOpens(clonePath));
-		let restarted = cloned && broken && backedOff(current);
+		// Only with the remote there: a fresh clone of an unreachable one would
+		// fail, and that failure says nothing about this clone.
+		const due = broken && backedOff(current);
+		let restarted = due && (await remoteAnswers(clonePath, repo));
 		let result = !cloned
 			? await cloneRepo(clonePath, repo, since)
-			: restarted
-			? failed('Its clone will not open')
+			: due
+			? failed(
+					restarted
+						? 'Its clone will not open'
+						: 'Its clone will not open, and its remote does not answer',
+			  )
 			: await fetchRepo(clonePath, repo, since, current);
 
 		if (
@@ -1154,6 +1185,7 @@ const fetchOne = async (
 			result = await cloneRepo(clonePath, repo, since, {replace: true});
 			lastSeen.delete(clonePath);
 		}
+		const counted = restarted && !(isFail(result) && isShuttingDown());
 		const message = isFail(result) ? gitReason(result.message) : 'Fetched';
 		const stateBranch = isFail(result)
 			? current?.stateBranch ?? null
@@ -1175,9 +1207,11 @@ const fetchOne = async (
 				restarted && !isFail(result)
 					? Date.now()
 					: current?.restartedAt ?? null,
-			restartTriedAt: restarted ? Date.now() : current?.restartTriedAt ?? null,
+			// A try counts toward the backoff only when it reached the remote
+			// and was not cut short by this process stopping.
+			restartTriedAt: counted ? Date.now() : current?.restartTriedAt ?? null,
 			// Counted until the clone fetches as itself again.
-			restarts: restarted
+			restarts: counted
 				? (current?.restarts ?? 0) + 1
 				: isFail(result)
 				? current?.restarts ?? 0

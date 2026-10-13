@@ -289,6 +289,14 @@ const killCloneChildren = (signal: NodeJS.Signals = 'SIGTERM') => {
 
 const EXIT_SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP'];
 
+let shuttingDown = false;
+
+/**
+ * Whether this process was signalled to stop: a clone git failing now was
+ * stopped by it, which says nothing about the clone or its remote.
+ */
+export const isShuttingDown = () => shuttingDown;
+
 // How long a signalled process waits for its clone gits to go before it
 // kills what is left outright: it is the last chance to, and git still
 // running holds the clone's lock files.
@@ -317,6 +325,7 @@ const registerCloneKills = () => {
 	const handlers = new Map<NodeJS.Signals, () => void>();
 	for (const signal of EXIT_SIGNALS) {
 		handlers.set(signal, () => {
+			shuttingDown = true;
 			const raise = () => {
 				for (const [other, handler] of handlers) process.off(other, handler);
 				process.kill(process.pid, signal);
