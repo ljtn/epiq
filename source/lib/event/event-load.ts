@@ -915,13 +915,20 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	 * and the next read derives it properly. That is the case this has to get
 	 * right; a log with one writer would not need the check at all.
 	 */
-	function advanceEdgeRef(rootDir: string, fileName: string, id: string): void {
+	function advanceEdgeRef(
+		rootDir: string,
+		fileName: string,
+		id: string,
+		/** The line's size: the file grown by more holds another process's line. */
+		bytes: number,
+	): void {
 		if (!edgeCache || edgeCache.root !== rootDir) return;
 
 		const next = signatureAfterOwnAppend(
 			rootDir,
 			edgeCache.signature,
 			fileName,
+			bytes,
 		);
 
 		// Null means someone else's events arrived, and the tail is theirs to

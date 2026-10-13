@@ -96,7 +96,12 @@ describe('the causal edge', () => {
 				path.join(eventsDir(), fileFor('u-1')),
 				line(mine, null),
 			);
-			advanceEdgeRef(root, fileFor('u-1'), mine);
+			advanceEdgeRef(
+				root,
+				fileFor('u-1'),
+				mine,
+				Buffer.byteLength(line(mine, null)),
+			);
 
 			expect(getEdgeRef(root).value).toBe(mine);
 		});
@@ -114,7 +119,12 @@ describe('the causal edge', () => {
 				path.join(eventsDir(), fileFor('u-1')),
 				line(mine, null),
 			);
-			advanceEdgeRef(root, fileFor('u-1'), mine);
+			advanceEdgeRef(
+				root,
+				fileFor('u-1'),
+				mine,
+				Buffer.byteLength(line(mine, null)),
+			);
 
 			// Derived rather than assumed, and their events sort last here.
 			expect(getEdgeRef(root).value).toBe(theirs);
@@ -131,7 +141,12 @@ describe('the causal edge', () => {
 				path.join(eventsDir(), fileFor('u-1')),
 				line(mine, null),
 			);
-			advanceEdgeRef(root, fileFor('u-1'), mine);
+			advanceEdgeRef(
+				root,
+				fileFor('u-1'),
+				mine,
+				Buffer.byteLength(line(mine, null)),
+			);
 
 			expect(getEdgeRef(root).value).toBe(theirs);
 		});
@@ -148,7 +163,12 @@ describe('the causal edge', () => {
 				path.join(eventsDir(), fileFor('u-1')),
 				line(mine, null),
 			);
-			advanceEdgeRef(root, fileFor('u-1'), mine);
+			advanceEdgeRef(
+				root,
+				fileFor('u-1'),
+				mine,
+				Buffer.byteLength(line(mine, null)),
+			);
 
 			// Re-derived over what is left, rather than trusting a tail taken
 			// while the missing file was still there.
