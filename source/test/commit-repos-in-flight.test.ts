@@ -21,13 +21,12 @@ fs.writeFileSync(
 fs.chmodSync(slowSsh, 0o755);
 process.env['GIT_SSH_COMMAND'] = slowSsh;
 
-const {
-	fetchCommitRepos,
-	removeCommitRepo,
-	removeRepoClone,
-	repoIdOf,
-	upsertCommitRepo,
-} = await import('../lib/commits/commits.js');
+const {fetchCommitRepos, removeRepoClone, repoIdOf} = await import(
+	'../lib/commits/commits.js'
+);
+const {connectRepoEvent, disconnectRepoEvent} = await import(
+	'./helpers/repo-events.js'
+);
 const {getRepoClonePath} = await import('../lib/commits/commit-repos.js');
 const {execGit} = await import('../git/git-utils.js');
 
@@ -80,13 +79,13 @@ describe('a remove that lands while the clone is inside git', () => {
 		git(upstream, ['commit', '-q', '-m', 'AAAAAAA upstream']);
 
 		const url = `ssh://localhost${upstream}`;
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
 
 		const running = fetchCommitRepos({repoRoot: board});
 		// Inside the clone's sleep: the lock is held, so the remove marks.
 		await new Promise(resolve => setTimeout(resolve, 600));
-		value(removeCommitRepo({repoRoot: board, repo: url}));
+		disconnectRepoEvent(board, url);
 		expect(
 			value(removeRepoClone({repoRoot: board, repoId: repoIdOf(url)})),
 		).toBeNull();

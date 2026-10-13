@@ -40,9 +40,10 @@ process.env['GIT_CONFIG_KEY_3'] = 'diff.noprefix';
 process.env['GIT_CONFIG_VALUE_3'] = 'true';
 process.env['GIT_CONFIG_KEY_4'] = 'diff.mnemonicPrefix';
 process.env['GIT_CONFIG_VALUE_4'] = 'true';
-const {fetchCommitRepos, getCommitPatch, upsertCommitRepo} = await import(
+const {fetchCommitRepos, getCommitPatch} = await import(
 	'../lib/commits/commits.js'
 );
+const {connectRepoEvent} = await import('./helpers/repo-events.js');
 
 afterAll(() => {
 	fs.rmSync(scratch, {recursive: true, force: true});
@@ -71,12 +72,13 @@ const git = (cwd: string, args: string[]) =>
 
 const makeBoard = () => {
 	const board = fs.mkdtempSync(path.join(scratch, 'board-'));
+	// Its own id: boards that shared one would share a log, and its repos.
 	git(board, ['init', '-q', '-b', 'main']);
 	fs.mkdirSync(path.join(board, '.epiq'));
 	fs.writeFileSync(
 		path.join(board, '.epiq', 'project.json'),
 		JSON.stringify({
-			projectId: 'hostile-env',
+			projectId: path.basename(board),
 			stateBranch: 'epiq/state',
 			createdAt: '2020-01-01T00:00:00.000Z',
 		}),
@@ -97,12 +99,7 @@ describe('git on behalf of another repo, under a hostile environment', () => {
 		git(upstream, ['add', '-A']);
 		git(upstream, ['commit', '-q', '-m', 'AAAAAAA upstream']);
 
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: `file://${upstream}`,
-			}),
-		);
+		connectRepoEvent(board, `file://${upstream}`);
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 
 		expect(outcome!.ok).toBe(true);
@@ -112,12 +109,7 @@ describe('git on behalf of another repo, under a hostile environment', () => {
 	it('cannot be rewritten onto a transport that runs a command', async () => {
 		const board = makeBoard();
 
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: 'https://evil.example/repo.git',
-			}),
-		);
+		connectRepoEvent(board, 'https://evil.example/repo.git');
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 
 		expect(outcome!.ok).toBe(false);
@@ -148,7 +140,7 @@ describe('git on behalf of another repo, under a hostile environment', () => {
 		git(upstream, ['commit', '-q', '-m', 'AAAAAAA upstream']);
 		const sha = git(upstream, ['rev-parse', 'HEAD']).trim();
 
-		value(upsertCommitRepo({repoRoot: board, url: `file://${upstream}`}));
+		connectRepoEvent(board, `file://${upstream}`);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const patch = value(await getCommitPatch({repoRoot: board, sha}));

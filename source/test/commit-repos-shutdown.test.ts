@@ -4,6 +4,7 @@ import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
+import {connectRepoEvent} from './helpers/repo-events.js';
 
 // A start-over this process's own shutdown cut short: git was stopped by the
 // signal, which says nothing about the clone, so the backoff does not grow.
@@ -14,9 +15,7 @@ vi.mock('../git/git-utils.js', async () => ({
 	isShuttingDown: () => true,
 }));
 
-const {fetchCommitRepos, repoIdOf, upsertCommitRepo} = await import(
-	'../lib/commits/commits.js'
-);
+const {fetchCommitRepos, repoIdOf} = await import('../lib/commits/commits.js');
 const {getRepoClonePath} = await import('../lib/commits/commit-repos.js');
 const {setConfig} = await import('../lib/config/user-config.js');
 
@@ -62,7 +61,7 @@ describe('a start-over the shutdown cut short', () => {
 		git(upstream, ['add', 'big.bin']);
 		git(upstream, ['commit', '-q', '-m', 'AAAAAAA big']);
 		const url = `file://${upstream}`;
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		const clonePath = getRepoClonePath('shutdown-board', repoIdOf(url));
 

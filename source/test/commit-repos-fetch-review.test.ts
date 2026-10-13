@@ -8,15 +8,17 @@ import {
 	fetchCommitRepos,
 	getCommitsForRef,
 	listRepoStates,
-	removeCommitRepo,
 	removeRepoClone,
 	repoIdOf,
 	resetCommitTimelineCacheForTests,
-	upsertCommitRepo,
 } from '../lib/commits/commits.js';
-import {getRepoClonePath} from '../lib/commits/commit-repos.js';
+import {
+	getRepoClonePath,
+	readCommitRepos,
+} from '../lib/commits/commit-repos.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
+import {connectRepoEvent, disconnectRepoEvent} from './helpers/repo-events.js';
 
 const value = <T>(result: Result<T>): T => {
 	if (isFail(result)) throw new Error(result.message);
@@ -43,14 +45,15 @@ const commit = (cwd: string, message: string) => {
 	git(cwd, ['commit', '-q', '-m', message]);
 };
 
-const PROJECT_ID = 'fetch-review';
+// Per board: boards that shared one would share a log, and its repos.
+let projectId: string;
 
 const writeProject = (root: string, extra: Record<string, unknown> = {}) =>
 	fs.writeFileSync(
 		path.join(root, '.epiq', 'project.json'),
 		JSON.stringify(
 			{
-				projectId: PROJECT_ID,
+				projectId,
 				stateBranch: 'epiq/state',
 				createdAt: '2020-01-01T00:00:00.000Z',
 				...extra,
@@ -81,6 +84,7 @@ beforeEach(() => {
 	resetCommitTimelineCacheForTests();
 
 	board = makeTempDir();
+	projectId = path.basename(board);
 	git(board, ['init', '-q', '-b', 'main']);
 	fs.mkdirSync(path.join(board, '.epiq'));
 	writeProject(board);
@@ -91,7 +95,7 @@ beforeEach(() => {
 	git(upstream, ['init', '-q', '-b', 'main']);
 	commit(upstream, 'init');
 	url = `file://${upstream}`;
-	clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+	clonePath = getRepoClonePath(projectId, repoIdOf(url));
 });
 
 afterEach(() => {
@@ -99,26 +103,27 @@ afterEach(() => {
 });
 
 describe('a clone the list stops naming', () => {
-	// A branch switch, pull or rebase rewrites project.json while a fetch runs;
-	// the clone is shared with every worktree, which may still list it.
-	it('is kept when the list changes under a running fetch', async () => {
+	// A branch switch, pull or rebase rewrites project.json while a fetch
+	// runs; the list is the log's, so the clone stays.
+	it('is kept when project.json changes under a running fetch', async () => {
 		commit(upstream, 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 
 		const running = fetchCommitRepos({repoRoot: board});
-		writeProject(board);
+		writeProject(board, {title: 'switched'});
 		value(await running);
 
 		expect(fs.existsSync(clonePath)).toBe(true);
+		expect(value(readCommitRepos(board)).map(repo => repo.url)).toEqual([url]);
 	});
 
 	it('is deleted by the fetch that held it when it was removed', async () => {
 		commit(upstream, 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		holdLock(clonePath);
-		value(removeCommitRepo({repoRoot: board, repo: url}));
+		disconnectRepoEvent(board, url);
 		expect(
 			value(removeRepoClone({repoRoot: board, repoId: repoIdOf(url)})),
 		).toBeNull();
@@ -127,7 +132,7 @@ describe('a clone the list stops naming', () => {
 
 		// The holder, still listing the repo, takes the clone next and honours
 		// the remove before anything else.
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		const statusBefore = fs.statSync(`${clonePath}.json`).mtimeMs;
 		value(await fetchCommitRepos({repoRoot: board}));
 
@@ -138,12 +143,7 @@ describe('a clone the list stops naming', () => {
 
 describe('a fetch that fails', () => {
 	it("says git's reason, not the command it ran", async () => {
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: `file://${path.join(makeTempDir(), 'missing')}`,
-			}),
-		);
+		connectRepoEvent(board, `file://${path.join(makeTempDir(), 'missing')}`);
 
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 
@@ -157,7 +157,7 @@ describe('a fetch that fails', () => {
 	it('is not what an empty repository gets', async () => {
 		const empty = makeTempDir();
 		git(empty, ['init', '-q', '-b', 'main']);
-		value(upsertCommitRepo({repoRoot: board, url: `file://${empty}`}));
+		connectRepoEvent(board, `file://${empty}`);
 
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 
@@ -166,7 +166,7 @@ describe('a fetch that fails', () => {
 
 	it('leaves a clone that cannot be read named in the list', async () => {
 		commit(upstream, 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		fs.rmSync(path.join(clonePath, 'objects'), {recursive: true});
@@ -181,7 +181,7 @@ describe('a fetch that fails', () => {
 describe('another process on the same clone', () => {
 	it('does not answer an explicit fetch as if it had fetched', async () => {
 		commit(upstream, 'AAAAAAA first');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		holdLock(clonePath);
@@ -193,7 +193,7 @@ describe('another process on the same clone', () => {
 
 	it('lets a throttled pass through without the lock', async () => {
 		commit(upstream, 'AAAAAAA first');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		holdLock(clonePath);
@@ -208,7 +208,7 @@ describe('another process on the same clone', () => {
 
 	it('is seen to have moved the clone on the next throttled pass here', async () => {
 		commit(upstream, 'AAAAAAA first');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		// Another process's fetch, as far as this one can tell.
@@ -225,7 +225,7 @@ describe('another process on the same clone', () => {
 	// only once the new one has landed.
 	it('starts a clone whose config could not be read over', async () => {
 		commit(upstream, 'AAAAAAA first');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const marker = path.join(clonePath, 'epiq-test-marker');
@@ -249,7 +249,7 @@ describe('another process on the same clone', () => {
 
 describe('what a process is told about a clone', () => {
 	it('is changed on its first fetch that brings commits, though another process cloned it', async () => {
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		commit(upstream, 'AAAAAAA upstream');
 

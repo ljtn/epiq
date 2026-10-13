@@ -4,11 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {afterEach, describe, expect, it} from 'vitest';
+import {loadMergedEvents} from '../lib/board/board-log.js';
 import {readCommitRepos} from '../lib/commits/commit-repos.js';
+import {getStateBranchRoot} from '../git/git-storage.js';
 import {isFail} from '../lib/model/result-types.js';
 
-// Real processes, since the lock's holder is a pid and each edit is a
-// read-then-write of one file: in one process they cannot interleave.
+// Real processes, each its own actor, so their appends land at once.
 const ADDER = fileURLToPath(
 	new URL('./helpers/repo-adder.ts', import.meta.url),
 );
@@ -44,8 +45,8 @@ const add = (board: string, name: string, count: number, startAt: number) =>
 		});
 	});
 
-describe('processes adding repos to one board at once', () => {
-	it('keep every add', async () => {
+describe('processes connecting repos to one board at once', () => {
+	it('keep every connect', async () => {
 		const board = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-concurrent-'));
 		dirs.push(board);
 		fs.mkdirSync(path.join(board, '.epiq'));
@@ -67,7 +68,24 @@ describe('processes adding repos to one board at once', () => {
 		);
 
 		expect(outcomes.flatMap(outcome => outcome.refused)).toEqual([]);
+
+		const root = getStateBranchRoot({repoRoot: board});
+		const events = isFail(root) ? root : loadMergedEvents(root.value);
+		expect(
+			isFail(events)
+				? []
+				: events.value.filter(event => event.action === 'connect.repo'),
+		).toHaveLength(18);
+
 		const repos = readCommitRepos(board);
-		expect(isFail(repos) ? [] : repos.value).toHaveLength(18);
+		expect(
+			(isFail(repos) ? [] : repos.value).map(repo => repo.url).sort(),
+		).toEqual(
+			Array.from({length: 9}, (_, adder) =>
+				[0, 1].map(index => `https://example.com/adder${adder}-${index}.git`),
+			)
+				.flat()
+				.sort(),
+		);
 	}, 30_000);
 });

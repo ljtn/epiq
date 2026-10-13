@@ -14,8 +14,10 @@ process.env['GIT_CONFIG_COUNT'] = '1';
 process.env['GIT_CONFIG_KEY_0'] = 'safe.bareRepository';
 process.env['GIT_CONFIG_VALUE_0'] = 'explicit';
 
-const {fetchCommitRepos, getCommitDiff, getCommitsForRef, upsertCommitRepo} =
-	await import('../lib/commits/commits.js');
+const {fetchCommitRepos, getCommitDiff, getCommitsForRef} = await import(
+	'../lib/commits/commits.js'
+);
+const {connectRepoEvent} = await import('./helpers/repo-events.js');
 
 const tempDirs: string[] = [];
 const makeTempDir = () => {
@@ -75,12 +77,7 @@ describe('a clone under safe.bareRepository=explicit', () => {
 		commit(upstream, 'init.txt', 'init');
 		const sha = commit(upstream, 'up.txt', 'AAAAAAA upstream');
 
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: `file://${upstream}`,
-			}),
-		);
+		connectRepoEvent(board, `file://${upstream}`);
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 		expect(outcome!.ok).toBe(true);
 

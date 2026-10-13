@@ -12,23 +12,31 @@ import {
 	getSquashedDiffForRef,
 	listRepoStates,
 	readCommitRepos,
-	removeCommitRepo,
 	removeRepoClone,
 	repoIdOf,
 	repoLabelOfId,
 	resetCommitTimelineCacheForTests,
-	upsertCommitRepo,
 } from '../lib/commits/commits.js';
-import {disconnectRepo} from '../mcp/api/repos.js';
 import {
+	findConnectedRepo,
 	getRepoClonePath,
+	getRepoClonesDir,
 	MAX_REPOS,
+	planRepoChange,
+	readConnectedRepos,
 	REPO_RENAMED,
-	REPO_UNCHANGED,
+	type CommitRepo,
+	type RepoChange,
 } from '../lib/commits/commit-repos.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {makeTempDir} from './helpers/git-repo.js';
+import {
+	connectRepoEvent,
+	disconnectRepoEvent,
+	editRepoEvent,
+	writeRepoEvents,
+} from './helpers/repo-events.js';
 
 const REF_A = 'AAAAAAA';
 const REF_B = 'BBBBBBB';
@@ -68,11 +76,8 @@ const initRepo = (dir: string) => {
 	return dir;
 };
 
-const PROJECT = {
-	projectId: 'board-under-test',
-	stateBranch: 'epiq/state',
-	createdAt: '2020-01-01T00:00:00.000Z',
-};
+// Its id is the board's own: boards that shared one would share a log.
+let PROJECT: {projectId: string; stateBranch: string; createdAt: string};
 
 const writeProject = (root: string, extra: Record<string, unknown> = {}) => {
 	fs.mkdirSync(path.join(root, '.epiq'), {recursive: true});
@@ -88,10 +93,27 @@ let board: string;
 let upstream: string;
 let url: string;
 
+/** Connects a repo and hands it back as the board now lists it. */
+const connect = (
+	repoUrl: string,
+	fields: Parameters<typeof connectRepoEvent>[2] = {},
+): CommitRepo => {
+	connectRepoEvent(board, repoUrl, fields);
+	return value(findConnectedRepo(board, repoIdOf(repoUrl)));
+};
+
+const plan = (change: Omit<RepoChange, 'repoRoot'>) =>
+	planRepoChange({repoRoot: board, ...change});
+
 beforeEach(() => {
 	resetCommitTimelineCacheForTests();
 
 	board = initRepo(makeTempDir());
+	PROJECT = {
+		projectId: path.basename(board),
+		stateBranch: 'epiq/state',
+		createdAt: '2020-01-01T00:00:00.000Z',
+	};
 	writeProject(board);
 	commit(board, 'init.txt', 'init', '2018-01-01T00:00:00Z');
 	git(board, ['branch', PROJECT.stateBranch]);
@@ -106,17 +128,16 @@ afterEach(() => {
 	resetCommitTimelineCacheForTests();
 });
 
-describe('the repos list in project.json', () => {
-	it('is empty when the key is absent, as in every file written before it', () => {
+describe('the connected repos', () => {
+	it('are none on a board with no repo events', () => {
 		expect(value(readCommitRepos(board))).toEqual([]);
 	});
 
-	it('reads URLs written as strings or objects, and defaults the options', () => {
-		writeProject(board, {
-			repos: [
-				'https://example.com/a/one.git',
-				{url: 'git@example.com:a/two.git', branches: 'all', since: 'all'},
-			],
+	it('default the options a connect leaves out', () => {
+		connectRepoEvent(board, 'https://example.com/a/one.git');
+		connectRepoEvent(board, 'git@example.com:a/two.git', {
+			branches: 'all',
+			since: 'all',
 		});
 
 		expect(
@@ -142,27 +163,27 @@ describe('the repos list in project.json', () => {
 		]);
 	});
 
-	// The list arrives in a committed file, so a hostile clone writes it.
-	it('skips anything that is not a plain remote URL', () => {
-		writeProject(board, {
-			repos: [
-				'ext::sh -c touch% /tmp/pwned',
-				'--upload-pack=touch /tmp/pwned',
-				'/home/someone/src/project',
-				'../sibling',
-				{url: 42},
-				null,
-				'https://example.com/ok.git',
-			],
-		});
+	// The log syncs from every clone of the board, so a hostile one writes it.
+	it('skip anything that is not a plain remote URL', () => {
+		for (const bad of [
+			'ext::sh -c touch% /tmp/pwned',
+			'--upload-pack=touch /tmp/pwned',
+			'/home/someone/src/project',
+			'../sibling',
+			42 as unknown as string,
+			null as unknown as string,
+		]) {
+			connectRepoEvent(board, bad);
+		}
+		connectRepoEvent(board, 'https://example.com/ok.git');
 
 		expect(value(readCommitRepos(board)).map(repo => repo.url)).toEqual([
 			'https://example.com/ok.git',
 		]);
 	});
 
-	it('ignores a repos key that is not a list rather than refusing the file', () => {
-		writeProject(board, {repos: {url: 'https://example.com/x.git'}});
+	it('are not read from a repos key a committed project.json carries', () => {
+		writeProject(board, {repos: ['https://example.com/x.git']});
 
 		expect(value(readCommitRepos(board))).toEqual([]);
 		expect(isFail(readProjectFile(board))).toBe(false);
@@ -175,31 +196,17 @@ describe('the repos list in project.json', () => {
 		expect(repoIdOf('https://example.com/a/one')).toMatch(/^one-[0-9a-f]{12}$/);
 	});
 
-	it('refuses a local path or an unknown history window on add', () => {
+	it('refuses a local path or an unknown history window on connect', () => {
+		expect(isFail(plan({url: '/tmp/somewhere'}))).toBe(true);
 		expect(
-			isFail(upsertCommitRepo({repoRoot: board, url: '/tmp/somewhere'})),
-		).toBe(true);
-		expect(
-			isFail(
-				upsertCommitRepo({
-					repoRoot: board,
-					url: 'https://example.com/x.git',
-					since: 'yesterday',
-				}),
-			),
+			isFail(plan({url: 'https://example.com/x.git', since: 'yesterday'})),
 		).toBe(true);
 		expect(value(readCommitRepos(board))).toEqual([]);
 	});
 
 	it('changes an existing entry rather than adding a second', () => {
-		value(upsertCommitRepo({repoRoot: board, url}));
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: `${url}/`,
-				branches: 'all',
-			}),
-		);
+		connectRepoEvent(board, url);
+		connectRepoEvent(board, `${url}/`, {branches: 'all'});
 
 		expect(value(readCommitRepos(board))).toMatchObject([
 			{url, branches: 'all', since: 'board'},
@@ -207,36 +214,39 @@ describe('the repos list in project.json', () => {
 	});
 });
 
-describe('an add that changes nothing, or one too many', () => {
-	it('writes nothing when the repo is already listed just so', () => {
-		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
-		const before = projectText(board);
-		const file = path.join(board, '.epiq', 'project.json');
-		const mtime = fs.statSync(file).mtimeMs;
+describe('a connect that changes nothing, or one too many', () => {
+	it('plans nothing to write when the repo is already listed just so', () => {
+		connectRepoEvent(board, url, {branches: 'all'});
 
-		const result = upsertCommitRepo({repoRoot: board, url, branches: 'all'});
-
-		expect(isFail(result) ? null : result.message).toBe(REPO_UNCHANGED);
-		expect(projectText(board)).toBe(before);
-		expect(fs.statSync(file).mtimeMs).toBe(mtime);
+		expect(value(plan({url, branches: 'all'})).kind).toBe('unchanged');
+		expect(value(plan({url: `${url}/`})).kind).toBe('unchanged');
 	});
 
-	it('refuses a repo past the cap rather than listing one never read', () => {
-		writeProject(board, {
-			repos: Array.from(
-				{length: MAX_REPOS},
-				(_, index) => `https://example.com/r${index}.git`,
-			),
-		});
+	it('lists a repo past the cap apart, never read, until one ahead of it goes', async () => {
+		const ahead = Array.from(
+			{length: MAX_REPOS},
+			(_, index) => `https://example.com/r${index}.git`,
+		);
+		for (const each of ahead) connectRepoEvent(board, each);
+		connectRepoEvent(board, url);
 
+		const repos = value(readConnectedRepos(board));
+		expect(repos.live.map(repo => repo.url)).toEqual(ahead);
+		expect(repos.overLimit.map(repo => repo.url)).toEqual([url]);
+		expect(value(readCommitRepos(board))).toHaveLength(MAX_REPOS);
 		expect(
-			isFail(
-				upsertCommitRepo({
-					repoRoot: board,
-					url: 'https://example.com/one-more.git',
-				}),
+			value(listRepoStates(board)).find(repo => repo.url === url),
+		).toMatchObject({overLimit: true});
+		expect(
+			value(await fetchCommitRepos({repoRoot: board})).map(
+				outcome => outcome.id,
 			),
-		).toBe(true);
+		).not.toContain(repoIdOf(url));
+
+		disconnectRepoEvent(board, ahead[0]!);
+
+		expect(value(readCommitRepos(board)).map(repo => repo.url)).toContain(url);
+		expect(value(readConnectedRepos(board)).overLimit).toEqual([]);
 	});
 });
 
@@ -249,36 +259,16 @@ describe('backward compatibility of project.json', () => {
 		createdAt: z.iso.datetime(),
 	});
 
-	it('still reads for a client that predates repos', () => {
-		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
+	it('still reads for a client that predates repos, with repos connected', () => {
+		const before = projectText(board);
+		connectRepoEvent(board, url, {branches: 'all'});
+		connectRepoEvent(board, 'https://example.com/other.git');
+		disconnectRepoEvent(board, 'https://example.com/other.git');
 
 		const parsed = ShippedSchema.safeParse(JSON.parse(projectText(board)));
 
 		expect(parsed.success).toBe(true);
 		expect(parsed.data).toEqual(PROJECT);
-	});
-
-	it('keeps every other key, its order, and keys this build does not know', () => {
-		writeProject(board, {futureField: {nested: true}});
-
-		value(upsertCommitRepo({repoRoot: board, url}));
-
-		expect(Object.keys(JSON.parse(projectText(board)))).toEqual([
-			'projectId',
-			'stateBranch',
-			'createdAt',
-			'futureField',
-			'repos',
-		]);
-		expect(JSON.parse(projectText(board)).futureField).toEqual({nested: true});
-	});
-
-	it('goes back to the exact bytes an older build wrote once the last repo is removed', () => {
-		const before = projectText(board);
-
-		value(upsertCommitRepo({repoRoot: board, url}));
-		value(removeCommitRepo({repoRoot: board, repo: url}));
-
 		expect(projectText(board)).toBe(before);
 	});
 
@@ -298,7 +288,7 @@ describe('commits from a registered repo', () => {
 			`${REF_A} upstream side`,
 			'2024-01-03T00:00:00Z',
 		);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connect(url);
 
 		expect(value(await getCommitTimeline({repoRoot: board}))).toHaveLength(1);
 		expect(value(listRepoStates(board))[0]).toMatchObject({
@@ -320,7 +310,7 @@ describe('commits from a registered repo', () => {
 			`${REF_A} upstream newer`,
 			'2024-01-03T00:00:00Z',
 		);
-		const repo = value(upsertCommitRepo({repoRoot: board, url}));
+		const repo = connect(url);
 
 		const outcomes = value(await fetchCommitRepos({repoRoot: board}));
 		expect(outcomes).toEqual([
@@ -351,7 +341,7 @@ describe('commits from a registered repo', () => {
 
 	it('reads a commit from the repo it is in, named or not', async () => {
 		const sha = commit(upstream, 'src/up.ts', `${REF_A} upstream`);
-		const repo = value(upsertCommitRepo({repoRoot: board, url}));
+		const repo = connect(url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const named = value(
@@ -381,7 +371,7 @@ describe('commits from a registered repo', () => {
 	it('squashes a ticket per repo and hands back every repo’s files', async () => {
 		commit(upstream, 'up.txt', `${REF_A} upstream`);
 		commit(upstream, 'up.txt', `${REF_B} another ticket`);
-		const repo = value(upsertCommitRepo({repoRoot: board, url}));
+		const repo = connect(url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const diff = value(
@@ -407,7 +397,7 @@ describe('commits from a registered repo', () => {
 
 	it('picks up a new commit on the next fetch', async () => {
 		commit(upstream, 'up.txt', `${REF_A} first`);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connect(url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
@@ -426,13 +416,8 @@ describe('commits from a registered repo', () => {
 
 	it('reports a repo it cannot reach and carries on with the rest', async () => {
 		commit(upstream, 'up.txt', `${REF_A} upstream`);
-		value(upsertCommitRepo({repoRoot: board, url}));
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: `file://${path.join(makeTempDir(), 'missing')}`,
-			}),
-		);
+		connect(url);
+		connect(`file://${path.join(makeTempDir(), 'missing')}`);
 
 		const outcomes = value(await fetchCommitRepos({repoRoot: board}));
 
@@ -444,7 +429,7 @@ describe('commits from a registered repo', () => {
 
 	it('records the error on a clone that stops fetching, and keeps its commits', async () => {
 		commit(upstream, 'up.txt', `${REF_A} upstream`);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connect(url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		fs.rmSync(upstream, {recursive: true, force: true});
@@ -460,13 +445,13 @@ describe('commits from a registered repo', () => {
 
 	it('removes the clone with the registration', async () => {
 		commit(upstream, 'up.txt', `${REF_A} upstream`);
-		const repo = value(upsertCommitRepo({repoRoot: board, url}));
+		const repo = connect(url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const clonePath = getRepoClonePath(PROJECT.projectId, repo.id);
 		expect(fs.existsSync(clonePath)).toBe(true);
 
-		value(removeCommitRepo({repoRoot: board, repo: repo.id}));
+		disconnectRepoEvent(board, url);
 		value(removeRepoClone({repoRoot: board, repoId: repo.id}));
 
 		expect(fs.existsSync(clonePath)).toBe(false);
@@ -476,17 +461,21 @@ describe('commits from a registered repo', () => {
 		).toHaveLength(1);
 	});
 
-	it('is removed from the MCP by its label, clone and cached commits too', async () => {
+	it('is disconnected by its label, its clone and cached commits going on the next fetch', async () => {
 		commit(upstream, 'up.txt', `${REF_A} upstream`);
-		const repo = value(upsertCommitRepo({repoRoot: board, url}));
+		const repo = connect(url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
 		).toHaveLength(2);
 
-		value(await disconnectRepo({repoRoot: board, repo: repo.label}));
-
+		const named = value(findConnectedRepo(board, repo.label));
+		writeRepoEvents(board, [
+			{action: 'disconnect.repo', payload: {repo: named.id}},
+		]);
 		expect(value(readCommitRepos(board))).toEqual([]);
+		value(await fetchCommitRepos({repoRoot: board}));
+
 		expect(fs.existsSync(getRepoClonePath(PROJECT.projectId, repo.id))).toBe(
 			false,
 		);
@@ -512,7 +501,7 @@ describe('how much of a registered repo is cloned', () => {
 			'2021-01-01T00:00:00Z',
 		);
 		commit(upstream, 'up.txt', `${REF_A} later still`, '2022-01-01T00:00:00Z');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connect(url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const subjects = value(
@@ -542,7 +531,7 @@ describe('how much of a registered repo is cloned', () => {
 			`${REF_A} after the board`,
 			'2021-01-01T00:00:00Z',
 		);
-		value(upsertCommitRepo({repoRoot: board, url, since: 'all'}));
+		connect(url, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		expect(
@@ -552,7 +541,7 @@ describe('how much of a registered repo is cloned', () => {
 
 	it('still clones a repo with nothing in the window, and shows none of it', async () => {
 		commit(upstream, 'up.txt', `${REF_A} long ago`, '2019-06-01T00:00:00Z');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connect(url);
 
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 
@@ -576,13 +565,13 @@ describe('how much of a registered repo is cloned', () => {
 			'2021-01-01T00:00:00Z',
 		);
 		commit(upstream, 'up.txt', `${REF_A} later`, '2022-01-01T00:00:00Z');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connect(url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
 		).toHaveLength(3);
 
-		value(upsertCommitRepo({repoRoot: board, url, since: 'all'}));
+		connect(url, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		expect(
@@ -596,7 +585,7 @@ describe('how much of a registered repo is cloned', () => {
 		commit(upstream, 'feature.txt', `${REF_A} on a feature branch`);
 		git(upstream, ['checkout', '-q', 'main']);
 
-		value(upsertCommitRepo({repoRoot: board, url, since: 'all'}));
+		connect(url, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: REF_A})).map(
@@ -604,7 +593,7 @@ describe('how much of a registered repo is cloned', () => {
 			),
 		).not.toContain(`${REF_A} on a feature branch`);
 
-		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
+		connect(url, {branches: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 		resetCommitTimelineCacheForTests();
 		expect(
@@ -613,13 +602,7 @@ describe('how much of a registered repo is cloned', () => {
 			),
 		).toContain(`${REF_A} on a feature branch`);
 
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url,
-				branches: 'default',
-			}),
-		);
+		connect(url, {branches: 'default'});
 		value(await fetchCommitRepos({repoRoot: board}));
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: REF_A})).map(
@@ -636,7 +619,7 @@ describe('review fixes', () => {
 		commit(upstream, 'f.txt', `${REF_A} on a branch`, '2024-02-01T00:00:00Z');
 		git(upstream, ['checkout', '-q', 'main']);
 
-		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
+		connect(url, {branches: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		expect(
@@ -647,13 +630,7 @@ describe('review fixes', () => {
 	});
 
 	it('lists a commit two sources share once, from the board’s own repo', async () => {
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: `file://${board}`,
-				since: 'all',
-			}),
-		);
+		connect(`file://${board}`, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const matched = value(
@@ -666,7 +643,7 @@ describe('review fixes', () => {
 
 	it('says whether a fetch moved anything, and skips a repo fetched a moment ago', async () => {
 		commit(upstream, 'up.txt', `${REF_A} first`);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connect(url);
 
 		const [cloned] = value(await fetchCommitRepos({repoRoot: board}));
 		expect(cloned!.changed).toBe(true);
@@ -684,42 +661,33 @@ describe('review fixes', () => {
 		expect(moved!.changed).toBe(true);
 	});
 
-	it('keeps entries and fields a newer build wrote when it edits the list', () => {
-		writeProject(board, {
-			repos: [
-				{url: 'https://example.com/a.git', auth: 'token-ref'},
-				'svn://example.com/not-for-this-build',
-			],
-		});
-
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: 'https://example.com/a.git',
-				branches: 'all',
-			}),
-		);
-		value(upsertCommitRepo({repoRoot: board, url}));
-		value(removeCommitRepo({repoRoot: board, repo: url}));
-
-		expect(JSON.parse(projectText(board)).repos).toEqual([
+	it('reads the fields it knows off an event a newer build wrote', () => {
+		writeRepoEvents(board, [
 			{
-				url: 'https://example.com/a.git',
-				auth: 'token-ref',
-				branches: 'all',
-				since: 'board',
+				action: 'connect.repo',
+				payload: {
+					url: 'https://example.com/a.git',
+					branches: 'all',
+					auth: 'token-ref',
+				} as {url: string},
 			},
-			'svn://example.com/not-for-this-build',
+			{
+				action: 'edit.repo',
+				payload: {
+					repo: repoIdOf('https://example.com/a.git'),
+					since: 'all',
+					branches: 'some-future-mode',
+				} as unknown as {repo: string},
+			},
+		]);
+
+		expect(value(readCommitRepos(board))).toMatchObject([
+			{url: 'https://example.com/a.git', branches: 'all', since: 'all'},
 		]);
 	});
 
 	it('records why a first clone failed, with no clone to put it in', async () => {
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: `file://${path.join(makeTempDir(), 'missing')}`,
-			}),
-		);
+		connect(`file://${path.join(makeTempDir(), 'missing')}`);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		expect(value(listRepoStates(board))[0]).toMatchObject({cloned: false});
@@ -742,7 +710,7 @@ describe('review fixes', () => {
 		git(upstream, ['checkout', '-q', 'main']);
 		commit(upstream, 'm.txt', 'main moves on', '2024-03-02T00:00:00Z');
 
-		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
+		connect(url, {branches: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		expect(
@@ -753,18 +721,13 @@ describe('review fixes', () => {
 	});
 
 	it('does not retry a failing repo on every throttled pass', async () => {
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url: `file://${path.join(makeTempDir(), 'missing')}`,
-			}),
-		);
+		connect(`file://${path.join(makeTempDir(), 'missing')}`);
 		const [first] = value(await fetchCommitRepos({repoRoot: board}));
 		expect(first!.ok).toBe(false);
 
 		// No second try: the status keeps the first attempt's time.
 		const [repo] = value(readCommitRepos(board));
-		const status = `${getRepoClonePath('board-under-test', repo!.id)}.json`;
+		const status = `${getRepoClonePath(PROJECT.projectId, repo!.id)}.json`;
 		const attempted = JSON.parse(fs.readFileSync(status, 'utf8')).attemptedAt;
 
 		const [throttled] = value(
@@ -789,49 +752,42 @@ describe('review fixes', () => {
 			`${REF_A} after the board`,
 			'2021-01-01T00:00:00Z',
 		);
-		value(upsertCommitRepo({repoRoot: board, url, since: 'all'}));
+		connect(url, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
 		).toHaveLength(3);
 
 		// Narrowed: no fetch needed, the clone already holds the window.
-		value(
-			upsertCommitRepo({
-				repoRoot: board,
-				url,
-				since: '2020-06-01',
-			}),
-		);
+		connect(url, {since: '2020-06-01'});
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
 		).toHaveLength(2);
 	});
 
 	it('reports a clones directory it cannot create rather than throwing', async () => {
-		value(upsertCommitRepo({repoRoot: board, url}));
-		const blocker = path.join(makeTempDir(), 'a-file');
+		connect(url);
+		const blocker = getRepoClonesDir(PROJECT.projectId);
+		fs.mkdirSync(path.dirname(blocker), {recursive: true});
 		fs.writeFileSync(blocker, '');
 
-		const saved = process.env['EPIQ_GLOBAL_DIR'];
-		process.env['EPIQ_GLOBAL_DIR'] = path.join(blocker, 'global');
 		try {
 			const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 			expect(outcome!.ok).toBe(false);
 		} finally {
-			process.env['EPIQ_GLOBAL_DIR'] = saved;
+			fs.rmSync(blocker);
 		}
 	});
 });
 
 describe('a repo labelled apart from its URL', () => {
-	it('reads the label off the file, and the basename where there is none', () => {
-		writeProject(board, {
-			repos: [
-				{url: 'https://a.example/org/svc.git', label: 'upstream'},
-				{url: 'https://b.example/me/svc.git'},
-				{url: 'https://c.example/x/thing.git', label: 'Not A Label'},
-			],
+	it('reads the label off the event, and the basename where there is none', () => {
+		connectRepoEvent(board, 'https://a.example/org/svc.git', {
+			label: 'upstream',
+		});
+		connectRepoEvent(board, 'https://b.example/me/svc.git');
+		connectRepoEvent(board, 'https://c.example/x/thing.git', {
+			label: 'Not A Label',
 		});
 
 		expect(value(readCommitRepos(board)).map(repo => repo.label)).toEqual([
@@ -844,76 +800,78 @@ describe('a repo labelled apart from its URL', () => {
 	it('is set, kept across an option change, and cleared back to the basename', () => {
 		const basename = repoLabelOfId(repoIdOf(url));
 
-		expect(
-			value(upsertCommitRepo({repoRoot: board, url, label: 'mirror'})),
-		).toMatchObject({label: 'mirror'});
-		expect(JSON.parse(projectText(board)).repos).toEqual([
-			{url, branches: 'default', since: 'board', label: 'mirror'},
-		]);
+		expect(connect(url, {label: 'mirror'})).toMatchObject({label: 'mirror'});
 
 		// Nothing said about the label: it stays.
-		expect(
-			value(upsertCommitRepo({repoRoot: board, url, branches: 'all'})),
-		).toMatchObject({label: 'mirror'});
-		expect(
-			upsertCommitRepo({repoRoot: board, url, label: 'mirror'}).message,
-		).toBe(REPO_UNCHANGED);
+		expect(value(plan({url, branches: 'all'}))).toMatchObject({
+			kind: 'edit',
+			event: {repo: repoIdOf(url), branches: 'all'},
+		});
+		expect(connect(url, {branches: 'all'})).toMatchObject({label: 'mirror'});
+		expect(value(plan({url, label: 'mirror'})).kind).toBe('unchanged');
 
-		expect(
-			value(upsertCommitRepo({repoRoot: board, url, label: ''})),
-		).toMatchObject({label: basename});
-		expect(JSON.parse(projectText(board)).repos).toEqual([
-			{url, branches: 'all', since: 'board'},
-		]);
-
-		// The basename itself is nothing to write down.
-		expect(
-			upsertCommitRepo({repoRoot: board, url, label: basename}).message,
-		).toBe(REPO_UNCHANGED);
+		// The basename itself is no label of its own: planned as a clear.
+		expect(value(plan({url, label: basename}))).toMatchObject({
+			kind: 'edit',
+			event: {label: ''},
+		});
+		editRepoEvent(board, url, {label: ''});
+		expect(value(findConnectedRepo(board, url))).toMatchObject({
+			label: basename,
+			branches: 'all',
+		});
+		expect(value(plan({url, label: basename})).kind).toBe('unchanged');
 	});
 
 	it('refuses a label another repo carries, and one that is not a label', () => {
-		value(
-			upsertCommitRepo({repoRoot: board, url: 'https://a.example/org/svc.git'}),
-		);
+		connectRepoEvent(board, 'https://a.example/org/svc.git');
 
-		const taken = upsertCommitRepo({repoRoot: board, url, label: 'svc'});
+		const taken = plan({url, label: 'svc'});
 		expect(isFail(taken) && taken.message).toBe(
 			'Another repo is already called svc',
 		);
-		expect(
-			isFail(upsertCommitRepo({repoRoot: board, url, label: 'Up Stream'})),
-		).toBe(true);
-		expect(isFail(upsertCommitRepo({repoRoot: board, url, label: '-x'}))).toBe(
-			true,
-		);
+		expect(isFail(plan({url, label: 'Up Stream'}))).toBe(true);
+		expect(isFail(plan({url, label: '-x'}))).toBe(true);
 		// Shaped like an id, which a removal by id would then find first.
-		expect(
-			isFail(
-				upsertCommitRepo({repoRoot: board, url, label: 'svc-0123456789ab'}),
-			),
-		).toBe(true);
+		expect(isFail(plan({url, label: 'svc-0123456789ab'}))).toBe(true);
 		expect(value(readCommitRepos(board))).toHaveLength(1);
 	});
 
-	it('answers a change of label alone as a rename, which moves no commit', () => {
-		value(upsertCommitRepo({repoRoot: board, url}));
+	it('is kept by the earliest of two connects that claim it', () => {
+		connectRepoEvent(board, 'https://a.example/org/svc.git', {label: 'api'});
+		connectRepoEvent(board, url, {label: 'api'});
 
 		expect(
-			upsertCommitRepo({repoRoot: board, url, label: 'mirror'}).message,
-		).toBe(`${REPO_RENAMED}mirror`);
-		expect(
-			upsertCommitRepo({repoRoot: board, url, label: 'fork', since: 'all'})
-				.message,
-		).toBe('Updated fork');
+			value(readCommitRepos(board)).map(repo => [repo.url, repo.label]),
+		).toEqual([
+			['https://a.example/org/svc.git', 'api'],
+			[url, repoLabelOfId(repoIdOf(url))],
+		]);
+
+		disconnectRepoEvent(board, 'https://a.example/org/svc.git');
+		expect(value(findConnectedRepo(board, url)).label).toBe('api');
 	});
 
-	it('is what the repo is removed by', () => {
-		value(upsertCommitRepo({repoRoot: board, url, label: 'mirror'}));
+	it('answers a change of label alone as a rename, which moves no commit', () => {
+		connectRepoEvent(board, url);
 
-		expect(value(removeCommitRepo({repoRoot: board, repo: 'mirror'})).url).toBe(
-			url,
+		const renamed = value(plan({url, label: 'mirror'}));
+		expect(renamed.kind === 'edit' && renamed.message).toBe(
+			`${REPO_RENAMED}mirror`,
 		);
+		const updated = value(plan({url, label: 'fork', since: 'all'}));
+		expect(updated.kind === 'edit' && updated.message).toBe('Updated fork');
+	});
+
+	it('is what the repo is found by for a disconnect', () => {
+		connectRepoEvent(board, url, {label: 'mirror'});
+
+		const found = value(findConnectedRepo(board, 'mirror'));
+		expect(found.url).toBe(url);
+
+		writeRepoEvents(board, [
+			{action: 'disconnect.repo', payload: {repo: found.id}},
+		]);
 		expect(value(readCommitRepos(board))).toEqual([]);
 	});
 });
