@@ -62,8 +62,12 @@ export type RepoFetchStatus = {
 	since: string | null;
 	/** The clone's own epiq state branch, if its project.json names one. */
 	stateBranch: string | null;
-	/** When the clone was last started over, having broken here. */
+	/** When the clone was last started over and the new one landed. */
 	restartedAt: number | null;
+	/** When a start-over was last tried, landed or not. */
+	restartTriedAt: number | null;
+	/** Start-overs tried since the clone last fetched as itself. */
+	restarts: number;
 };
 
 const readStatus = (clonePath: string): RepoFetchStatus | null => {
@@ -82,6 +86,12 @@ const readStatus = (clonePath: string): RepoFetchStatus | null => {
 					: null,
 			since: typeof raw.since === 'string' ? raw.since : null,
 			restartedAt: typeof raw.restartedAt === 'number' ? raw.restartedAt : null,
+			restartTriedAt:
+				typeof raw.restartTriedAt === 'number' ? raw.restartTriedAt : null,
+			restarts:
+				typeof raw.restarts === 'number' && raw.restarts >= 0
+					? raw.restarts
+					: 0,
 			stateBranch:
 				typeof raw.stateBranch === 'string' &&
 				STATE_BRANCH_NAME.test(raw.stateBranch)
@@ -952,21 +962,38 @@ const cloneOpens = async (clonePath: string): Promise<boolean> => {
 	);
 };
 
-// At most this often per clone: a clone that breaks again at once is the
-// remote's doing, and starting it over each time would be a loop.
-const RESTART_INTERVAL_MS = 6 * 60 * 60 * 1000;
+// Between start-overs of a clone that goes on breaking: at once the first
+// time, then longer, so one that breaks again straight away is no loop and
+// one broken again hours later is not left failing for hours.
+const RESTART_BACKOFF_MS = [0, 60_000, 10 * 60_000, 60 * 60_000];
 
-const mayStartOver = (status: RepoFetchStatus | null) =>
-	!status?.restartedAt ||
-	Date.now() < status.restartedAt ||
-	Date.now() - status.restartedAt >= RESTART_INTERVAL_MS;
+const backedOff = (status: RepoFetchStatus | null) => {
+	if (!status?.restartTriedAt || Date.now() < status.restartTriedAt) {
+		return true;
+	}
+	const wait =
+		RESTART_BACKOFF_MS[
+			Math.min(status.restarts, RESTART_BACKOFF_MS.length - 1)
+		]!;
+	return Date.now() - status.restartTriedAt >= wait;
+};
+
+// A fetch that fails while the remote answers may be the remote's passing
+// trouble rather than the clone: a fresh clone for it at most this often.
+const FAILED_FETCH_RESTART_MS = 6 * 60 * 60 * 1000;
+
+const mayStartOverFailedFetch = (status: RepoFetchStatus | null) =>
+	backedOff(status) &&
+	(!status?.restartedAt ||
+		Date.now() < status.restartedAt ||
+		Date.now() - status.restartedAt >= FAILED_FETCH_RESTART_MS);
 
 // A look at the remote, not a transfer: well under what counts as waiting.
 const REACHABLE_TIMEOUT_MS = 60_000;
 
 /**
- * Whether a failed fetch is the clone's fault rather than the remote's: the
- * clone alone is past the cap, or the remote answers by its URL while the
+ * Why a failed fetch looks like the clone's fault rather than the remote's:
+ * the clone alone is past the cap, or the remote answers by its URL while the
  * clone's own fetch of it failed. A fetch the cap stopped is the remote's
  * growth, and a fresh clone would hit the same cap.
  */
@@ -974,17 +1001,17 @@ const brokeHere = async (
 	clonePath: string,
 	repo: CommitRepo,
 	failure: string,
-): Promise<boolean> => {
+): Promise<'past the cap' | 'remote answers' | null> => {
 	const maxMb = readRepoCloneMaxMb();
-	if (dirSize(clonePath) > maxMb * 1024 * 1024) return true;
-	if (failure.endsWith(cloneCapMessage(maxMb))) return false;
+	if (dirSize(clonePath) > maxMb * 1024 * 1024) return 'past the cap';
+	if (failure.endsWith(cloneCapMessage(maxMb))) return null;
 
 	const remote = await localGit({
 		cwd: path.dirname(clonePath),
 		args: ['ls-remote', '--', repo.url, 'HEAD'],
 		timeoutMs: REACHABLE_TIMEOUT_MS,
 	});
-	return !isFail(remote);
+	return isFail(remote) ? null : 'remote answers';
 };
 
 const fetchOne = async (
@@ -1101,18 +1128,27 @@ const fetchOne = async (
 		// itself answers or the clone cannot be read at all, and at most once
 		// in a while.
 		const broken = cloned && !(await cloneOpens(clonePath));
-		let result =
-			cloned && !(broken && mayStartOver(current))
-				? await fetchRepo(clonePath, repo, since, current)
-				: !cloned
-				? await cloneRepo(clonePath, repo, since)
-				: failed('Its clone will not open');
+		let restarted = cloned && broken && backedOff(current);
+		let result = !cloned
+			? await cloneRepo(clonePath, repo, since)
+			: restarted
+			? failed('Its clone will not open')
+			: await fetchRepo(clonePath, repo, since, current);
 
-		const restarted =
+		if (
 			cloned &&
+			!restarted &&
 			isFail(result) &&
-			mayStartOver(current) &&
-			(broken || (await brokeHere(clonePath, repo, result.message)));
+			mayStartOverFailedFetch(current)
+		) {
+			const why = await brokeHere(clonePath, repo, result.message);
+			// Once more first: a connection dropped partway is no broken clone.
+			if (why === 'remote answers') {
+				result = await fetchRepo(clonePath, repo, since, current);
+			}
+			restarted = why !== null && isFail(result);
+		}
+
 		if (restarted) {
 			logger.info(`[repos] ${repo.label}: starting its clone over`);
 			result = await cloneRepo(clonePath, repo, since, {replace: true});
@@ -1134,7 +1170,18 @@ const fetchOne = async (
 				: repo.branches,
 			since: isFail(result) ? current?.since ?? since : since,
 			stateBranch,
-			restartedAt: restarted ? Date.now() : current?.restartedAt ?? null,
+			// Landed only: one that failed is tried again on the backoff.
+			restartedAt:
+				restarted && !isFail(result)
+					? Date.now()
+					: current?.restartedAt ?? null,
+			restartTriedAt: restarted ? Date.now() : current?.restartTriedAt ?? null,
+			// Counted until the clone fetches as itself again.
+			restarts: restarted
+				? (current?.restarts ?? 0) + 1
+				: isFail(result)
+				? current?.restarts ?? 0
+				: 0,
 		});
 
 		if (isFail(result)) {

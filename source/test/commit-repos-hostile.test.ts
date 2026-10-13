@@ -871,6 +871,51 @@ describe('a clone broken on this machine', () => {
 		expect(outcome!.ok).toBe(false);
 	});
 
+	it('is started over again once its backoff passes, hours inside the first', async () => {
+		await fetched();
+		fs.writeFileSync(path.join(clonePath(), 'config'), '');
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		// An hour on: past the backoff, well inside six hours.
+		const statusFile = `${clonePath()}.json`;
+		const status = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+		const hourAgo = Date.now() - 60 * 60 * 1000;
+		fs.writeFileSync(
+			statusFile,
+			JSON.stringify({
+				...status,
+				restartedAt: hourAgo,
+				restartTriedAt: hourAgo,
+			}),
+		);
+		fs.writeFileSync(path.join(clonePath(), 'config'), '');
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(await reads()).toEqual(['AAAAAAA upstream']);
+	});
+
+	it('counts a start-over as done only once the new clone has landed', async () => {
+		setConfig({repoCloneMaxMb: 64});
+		commit(upstream, 'small.txt', 'AAAAAAA small');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+		fs.writeFileSync(path.join(clonePath(), 'config'), '');
+		// The new clone cannot land: the remote is gone.
+		fs.renameSync(upstream, `${upstream}-gone`);
+
+		try {
+			value(await fetchCommitRepos({repoRoot: board}));
+		} finally {
+			fs.renameSync(`${upstream}-gone`, upstream);
+		}
+
+		const status = JSON.parse(fs.readFileSync(`${clonePath()}.json`, 'utf8'));
+		expect(status.restartedAt).toBeNull();
+		expect(status.restartTriedAt).toEqual(expect.any(Number));
+	});
+
 	it('leaves nothing of a delete that was stopped partway', async () => {
 		await fetched();
 		const aside = `${clonePath()}.${'0'.repeat(8)}-0000-0000-0000-${'0'.repeat(
