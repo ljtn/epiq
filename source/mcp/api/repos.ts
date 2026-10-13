@@ -16,6 +16,7 @@ import {
 	RepoBranches,
 	RepoFetchOutcome,
 	RepoPreview,
+	repoIdOf,
 	RepoState,
 	resolveRepoRoot,
 } from '../../lib/commits/commits.js';
@@ -112,8 +113,10 @@ export const disconnectRepo = async (
 };
 
 /** Abandons a preview: its staged clone is deleted. */
-export const cancelRepoConnect = (input: {repo: string}): Result<null> => {
-	cancelRepoPreview(input.repo);
+export const cancelRepoConnect = (
+	input: {repo: string} | {url: string},
+): Result<null> => {
+	cancelRepoPreview('repo' in input ? input.repo : repoIdOf(input.url.trim()));
 	return succeeded('Cancelled', null);
 };
 
