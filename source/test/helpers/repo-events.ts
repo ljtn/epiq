@@ -1,8 +1,11 @@
 // Repo events written straight into a board's log, for tests of what reads
 // them: no booted board, no actor setup, the line a real connect would leave.
+// Written as another process would, so a board booted here derives them on
+// its next read rather than taking them for its own applied writes.
 import {ulid} from 'ulid';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {persist} from '../../lib/board/board-log.js';
+import {clearAccountedSignature} from '../../lib/event/log-signature.js';
 import {repoIdOf} from '../../lib/board/board-repos.js';
 import {isFail} from '../../lib/model/result-types.js';
 
@@ -36,6 +39,8 @@ export const writeRepoEvents = (
 		});
 		if (isFail(written)) throw new Error(written.message);
 	}
+
+	clearAccountedSignature();
 };
 
 export const connectRepoEvent = (

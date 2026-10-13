@@ -122,7 +122,11 @@ const readFacts = async (
 			'log',
 			'--branches',
 			'--max-count=100000',
-			...(window ? [`--since=${window}`] : []),
+			// An epoch, as the clone's window is: git reads a bare date as that
+			// day at the current time of day.
+			...(window
+				? [`--since=@${Math.floor(Date.parse(`${window}T00:00:00Z`) / 1000)}`]
+				: []),
 			'--format=%s',
 		])) ?? '';
 	const lines = subjects.split('\n').filter(Boolean);
