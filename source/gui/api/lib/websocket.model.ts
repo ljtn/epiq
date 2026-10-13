@@ -113,7 +113,7 @@ export type GuiMessage =
 				label?: string;
 			};
 	  }
-	| {type: 'repo:preview:cancel'; payload: {repo: string}}
+	| {type: 'repo:preview:cancel'; payload: {repo: string} | {url: string}}
 	| {
 			type: 'repo:connect';
 			payload: {
