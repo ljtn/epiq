@@ -1,3 +1,4 @@
+import {emptyRepoRegistry} from '../board/board-repos.js';
 import {useSyncExternalStore} from 'react';
 import {contextActions} from '../actions/action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
@@ -142,7 +143,7 @@ export function initWorkspaceState(workspace: Workspace) {
 		tags: {},
 		contributors: {},
 		emailLinks: {},
-		repos: {},
+		repos: emptyRepoRegistry(),
 		mode: Mode.DEFAULT,
 		nodes: {[workspace.id]: workspace},
 		rootNodeId: workspace.id,

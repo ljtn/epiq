@@ -57,7 +57,12 @@ import {
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
 import {getRefDiffStats} from '../../../mcp/api/ref-diff-stats.js';
 import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
-import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
+import {
+	failed,
+	isFail,
+	Result,
+	succeeded,
+} from '../../../lib/model/result-types.js';
 import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
 import {withCommitAuthors} from '../../../mcp/api/commit-authors.js';
 import {
@@ -463,6 +468,7 @@ export const setupWebsocket = (
 
 					return sendSocket(socket, {
 						type: 'repos',
+						for: type,
 						payload: isFail(result) ? await listRepos({repoRoot}) : result,
 						preview: isFail(result) ? null : result.value.preview ?? null,
 						lastAction: {ok: !isFail(result), message: result.message},
@@ -473,6 +479,7 @@ export const setupWebsocket = (
 					cancelRepoConnect(message.payload);
 					return sendSocket(socket, {
 						type: 'repos',
+						for: type,
 						payload: await listRepos({repoRoot}),
 						preview: null,
 					});
@@ -488,10 +495,20 @@ export const setupWebsocket = (
 					// showing what is connected rather than what was turned down.
 					sendSocket(socket, {
 						type: 'repos',
+						for: type,
 						payload: isFail(result) ? await listRepos({repoRoot}) : result,
 						preview: null,
 						lastAction: {ok: !isFail(result), message: result.message},
 					});
+
+					// A refusal is the panel's to say, under the field: answered for
+					// the mutation gate, and not raised again as a board error.
+					if (isFail(result)) {
+						return sendSocket(socket, {
+							type: `${type}:result`,
+							payload: result,
+						});
+					}
 
 					// A removed repo's commits leave every view at once, and a changed
 					// window or branch set reads differently from the same clone. A
@@ -1035,16 +1052,30 @@ export const setupWebsocket = (
 			// A refused repo change is answered as one, with the list: the panel
 			// waits on that answer, and a bare error never reaches it.
 			let rawType: unknown;
-			const refuse = async (message: string) =>
-				rawType === 'repo:connect' ||
-				rawType === 'repo:disconnect' ||
-				rawType === 'repo:preview'
-					? sendSocket(socket, {
-							type: 'repos',
-							payload: await listRepos({repoRoot: project.repoRoot}),
-							lastAction: {ok: false, message},
-					  })
-					: sendSocket(socket, {type: 'error', message});
+			const refuse = async (message: string) => {
+				if (
+					rawType !== 'repo:connect' &&
+					rawType !== 'repo:disconnect' &&
+					rawType !== 'repo:preview'
+				) {
+					return sendSocket(socket, {type: 'error', message});
+				}
+
+				sendSocket(socket, {
+					type: 'repos',
+					for: rawType,
+					payload: await listRepos({repoRoot: project.repoRoot}),
+					preview: null,
+					lastAction: {ok: false, message},
+				});
+				// The mutation gate counted it as sent; this is its answer.
+				if (rawType !== 'repo:preview') {
+					sendSocket(socket, {
+						type: `${rawType}:result`,
+						payload: failed(message),
+					});
+				}
+			};
 
 			try {
 				const data: unknown = JSON.parse(raw.toString());

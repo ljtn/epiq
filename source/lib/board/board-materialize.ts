@@ -63,15 +63,18 @@ type RepoEventOf =
 const applyRepo = (
 	event: RepoEventOf,
 ): {skip: ConvergenceFail} | {message: string; entry: RepoEntry} => {
-	const applied = applyRepoEvent(getState().repos, event);
+	// In place: the state owns its registry, and a copy per event would make
+	// a long log quadratic.
+	const repos = getState().repos;
+	const applied = applyRepoEvent(repos, event);
 	if (isFail(applied)) return {skip: materializeSkip(applied.message, event)};
 
-	const result = updateState(s => ({...s, repos: applied.value.registry}));
+	const result = updateState(s => ({...s, repos}));
 	if (isFail(result)) {
 		return {skip: materializeSkip('Unable to update repos', event)};
 	}
 
-	return {message: applied.message, entry: applied.value.entry};
+	return {message: applied.message, entry: applied.value};
 };
 
 export const boardHandlers: EventHandlers<AppEventMap> = {

@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {failed, isFail, Result, succeeded} from '../model/result-types.js';
+import {failed, Result, succeeded} from '../model/result-types.js';
 import {isAllowedRepoUrl, MAX_URL_LENGTH} from '../commits/repo-url.js';
 
 // The other repositories whose commits count as this board's, kept as board
@@ -38,7 +38,14 @@ export type RepoEntry = {
 	seq: number;
 };
 
-export type RepoRegistry = Readonly<Record<string, RepoEntry>>;
+/**
+ * Every repo a log has named, by id, and the last `seq` given out. Updated in
+ * place by `applyRepoEvent`, so a log of any length folds in linear time: its
+ * owner is the fold, or the board state, and nothing else holds it.
+ */
+export type RepoRegistry = {entries: Record<string, RepoEntry>; seq: number};
+
+export const emptyRepoRegistry = (): RepoRegistry => ({entries: {}, seq: 0});
 
 /**
  * What a connect that leaves a field out gets, on a new or revived repo. Part
@@ -135,20 +142,15 @@ const withFields = (entry: RepoEntry, fields: RepoFields): RepoEntry => {
 	return next;
 };
 
-const nextSeq = (registry: RepoRegistry): number =>
-	Object.values(registry).reduce((max, entry) => Math.max(max, entry.seq), 0) +
-	1;
-
 type RepoEvent =
 	| {action: 'connect.repo'; payload: unknown}
 	| {action: 'edit.repo'; payload: unknown}
 	| {action: 'disconnect.repo'; payload: unknown};
 
-export type RepoApplied = {registry: RepoRegistry; entry: RepoEntry};
-
 /**
- * One repo event over the registry, or why it changes nothing. Total: any
- * payload at all is an answer, never a throw.
+ * One repo event applied to the registry, or why it changes nothing, in which
+ * case the registry is left as it was. Total: any payload at all is an answer,
+ * never a throw.
  *
  * A connect of a live repo merges its fields, last writer in causal order
  * winning, so two people connecting one repo at once both keep what they set.
@@ -158,7 +160,7 @@ export type RepoApplied = {registry: RepoRegistry; entry: RepoEntry};
 export const applyRepoEvent = (
 	registry: RepoRegistry,
 	event: RepoEvent,
-): Result<RepoApplied> => {
+): Result<RepoEntry> => {
 	const payload =
 		event.payload && typeof event.payload === 'object'
 			? (event.payload as Record<string, unknown>)
@@ -172,7 +174,9 @@ export const applyRepoEvent = (
 		}
 
 		const id = repoIdOf(url);
-		const existing = registry[id];
+		const existing = Object.hasOwn(registry.entries, id)
+			? registry.entries[id]
+			: undefined;
 
 		const entry =
 			existing?.live === true
@@ -185,27 +189,26 @@ export const applyRepoEvent = (
 							branches: FOLD_DEFAULT_BRANCHES,
 							since: FOLD_DEFAULT_SINCE,
 							live: true,
-							seq: nextSeq(registry),
+							seq: registry.seq + 1,
 						},
 						fields,
 				  );
 
-		return succeeded('Connected repo', {
-			registry: {...registry, [id]: entry},
-			entry,
-		});
+		if (!existing?.live) registry.seq++;
+		registry.entries[id] = entry;
+		return succeeded('Connected repo', entry);
 	}
 
 	const id = typeof payload['repo'] === 'string' ? payload['repo'] : '';
-	const existing = Object.hasOwn(registry, id) ? registry[id] : undefined;
+	const existing = Object.hasOwn(registry.entries, id)
+		? registry.entries[id]
+		: undefined;
 	if (!existing?.live) return failed('no such connected repo');
 
 	if (event.action === 'disconnect.repo') {
 		const entry: RepoEntry = {...existing, live: false};
-		return succeeded('Disconnected repo', {
-			registry: {...registry, [id]: entry},
-			entry,
-		});
+		registry.entries[id] = entry;
+		return succeeded('Disconnected repo', entry);
 	}
 
 	if (Object.keys(fields).length === 0) {
@@ -213,10 +216,8 @@ export const applyRepoEvent = (
 	}
 
 	const entry = withFields(existing, fields);
-	return succeeded('Edited repo', {
-		registry: {...registry, [id]: entry},
-		entry,
-	});
+	registry.entries[id] = entry;
+	return succeeded('Edited repo', entry);
 };
 
 export const isRepoAction = (action: string): action is RepoEvent['action'] =>
@@ -228,16 +229,11 @@ export const isRepoAction = (action: string): action is RepoEvent['action'] =>
 export const foldRepoEvents = (
 	events: readonly {action: string; payload: unknown}[],
 ): RepoRegistry => {
-	let registry: RepoRegistry = {};
+	const registry = emptyRepoRegistry();
 
 	for (const event of events) {
 		if (!isRepoAction(event.action)) continue;
-
-		const applied = applyRepoEvent(registry, {
-			action: event.action,
-			payload: event.payload,
-		});
-		if (!isFail(applied)) registry = applied.value.registry;
+		applyRepoEvent(registry, {action: event.action, payload: event.payload});
 	}
 
 	return registry;
@@ -259,7 +255,7 @@ export type ResolvedRepos = {
  * label, and a later one is called by its URL's basename.
  */
 export const resolveRepos = (registry: RepoRegistry): ResolvedRepos => {
-	const entries = Object.values(registry);
+	const entries = Object.values(registry.entries);
 	const live = entries
 		.filter(entry => entry.live && isAllowedRepoUrl(entry.url))
 		.sort((a, b) => a.seq - b.seq);

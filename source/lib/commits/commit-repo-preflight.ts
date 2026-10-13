@@ -66,6 +66,15 @@ type Stage = {
 // One per repo, per process: a confirm moves only a clone this process staged.
 const stages = new Map<string, Stage>();
 
+// Bumped by every preview and cancel of a repo: a clone that finishes after a
+// newer one began, or after a cancel, is not kept.
+const generations = new Map<string, number>();
+const bump = (repoId: string) => {
+	const next = (generations.get(repoId) ?? 0) + 1;
+	generations.set(repoId, next);
+	return next;
+};
+
 const stageKey = (repoRoot: string, repo: CommitRepo) =>
 	JSON.stringify([repoRoot, repo.id, repo.branches, repo.since]);
 
@@ -78,8 +87,11 @@ const dropStage = (repoId: string) => {
 	discardStage(stage.stagePath);
 };
 
-/** Abandons a preview, clearing its staged clone. */
-export const cancelRepoPreview = (repoId: string): void => dropStage(repoId);
+/** Abandons a preview, clearing its staged clone, or the one still cloning. */
+export const cancelRepoPreview = (repoId: string): void => {
+	bump(repoId);
+	dropStage(repoId);
+};
 
 export const hostOfRepoUrl = (url: string): string => {
 	if (url.startsWith('file:')) return 'this machine';
@@ -193,15 +205,12 @@ export const connectCommitRepo = async (
 	if (isFail(planResult)) return failed(planResult.message);
 	const plan = planResult.value;
 
-	if (plan.kind === 'unchanged') {
-		return succeeded(REPO_UNCHANGED, {kind: 'unchanged', repo: plan.repo});
+	if (plan.kind !== 'connect' && input.mode === 'preview') {
+		return failed(`${plan.repo.label} is already connected`);
 	}
 
-	if (plan.kind === 'edit' && input.mode === 'preview') {
-		return succeeded(`${plan.repo.label} is already connected`, {
-			kind: 'unchanged',
-			repo: plan.repo,
-		});
+	if (plan.kind === 'unchanged') {
+		return succeeded(REPO_UNCHANGED, {kind: 'unchanged', repo: plan.repo});
 	}
 
 	if (plan.kind === 'edit') {
@@ -256,12 +265,18 @@ export const connectCommitRepo = async (
 	}
 
 	dropStage(plan.repo.id);
+	const generation = bump(plan.repo.id);
 
 	const projectResult = readRepoProject(input.repoRoot);
 	if (isFail(projectResult)) return failed(projectResult.message);
 
 	const staged = await stageClone(input.repoRoot, plan.repo);
 	if (isFail(staged)) return failed(`Could not clone it: ${staged.message}`);
+
+	if (generations.get(plan.repo.id) !== generation) {
+		discardStage(staged.value.stagePath);
+		return failed('Cancelled');
+	}
 
 	const board = boardFacts();
 	const facts = await readFacts(
@@ -281,6 +296,12 @@ export const connectCommitRepo = async (
 		overLimit: !isFail(listed) && listed.value.live.length >= MAX_REPOS,
 		expiresAt: Date.now() + STAGE_TTL_MS,
 	};
+
+	// Reading the facts awaited git too: a cancel may have landed meanwhile.
+	if (generations.get(plan.repo.id) !== generation) {
+		discardStage(staged.value.stagePath);
+		return failed('Cancelled');
+	}
 
 	const timer = setTimeout(() => dropStage(plan.repo.id), STAGE_TTL_MS);
 	timer.unref();
