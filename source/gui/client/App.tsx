@@ -2520,7 +2520,7 @@ export const App = () => {
 								},
 								{
 									id: 'repos',
-									title: 'Linked repositories',
+									title: 'Connected repositories',
 									scope: 'shared with the project',
 									summary: repos.data ? countOrNone(repos.data.length) : null,
 									content: (

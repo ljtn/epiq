@@ -46,9 +46,9 @@ import {
 	removeIssueTag,
 	reopenIssue,
 	sync,
-	addRepo,
+	connectRepo,
 	listRepos,
-	removeRepo,
+	disconnectRepo,
 	syncThenFetchRepos,
 } from './epiq-api.js';
 import {
@@ -643,7 +643,7 @@ export const createMcpServer = () => {
 		'epiq_sync',
 		{
 			description:
-				'Sync Epiq state with the configured Git remote (pull remote changes and push local ones), then fetch the other repos registered with epiq_repo_add. Other Epiq MCP tools only read and write local state and never sync automatically — call this on demand when you need to see or publish the latest remote changes.',
+				'Sync Epiq state with the configured Git remote (pull remote changes and push local ones), then fetch the other repos connected with epiq_repo_connect. Other Epiq MCP tools only read and write local state and never sync automatically — call this on demand when you need to see or publish the latest remote changes.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),
@@ -669,10 +669,10 @@ export const createMcpServer = () => {
 	);
 
 	server.registerTool(
-		'epiq_repo_add',
+		'epiq_repo_connect',
 		{
 			description:
-				"Register another repo by URL (https://, ssh://, git://, user@host:path, or file:/// for a local one), so commits there prefixed with a ticket's ref link to it; or change an already registered repo's options. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. label: what the repo is called on the board — its URL's basename unless set; give one when two repos share a basename, such as a fork and its upstream; empty goes back to the basename. Edits .epiq/project.json, which needs committing to reach other clones. epiq_sync fetches it.",
+				"Connect another repo by URL (https://, ssh://, git://, user@host:path, or file:/// for a local one), so commits there prefixed with a ticket's ref link to it; or change an already connected repo's options. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. label: what the repo is called on the board — its URL's basename unless set; give one when two repos share a basename, such as a fork and its upstream; empty goes back to the basename. Edits .epiq/project.json, which needs committing to reach other clones. epiq_sync fetches it.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				url: z.string().min(1).max(MAX_URL_LENGTH),
@@ -681,20 +681,20 @@ export const createMcpServer = () => {
 				label: z.string().max(24).optional(),
 			}),
 		},
-		async input => resultJson(await addRepo(input)),
+		async input => resultJson(await connectRepo(input)),
 	);
 
 	server.registerTool(
-		'epiq_repo_remove',
+		'epiq_repo_disconnect',
 		{
 			description:
-				"Unregister a repo by its label (when no other repo shares it), id or URL, and delete this machine's clone of it.",
+				"Disconnect a repo by its label (when no other repo shares it), id or URL, and delete this machine's clone of it.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				repo: z.string().min(1).max(2000),
 			}),
 		},
-		async input => resultJson(await removeRepo(input)),
+		async input => resultJson(await disconnectRepo(input)),
 	);
 
 	return server;

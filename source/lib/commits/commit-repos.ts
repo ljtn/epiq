@@ -490,7 +490,7 @@ const upsertHeld = (input: RepoChange): Result<CommitRepo> => {
 	return succeeded(
 		existing
 			? `${renamed ? REPO_RENAMED : 'Updated '}${repo.label}`
-			: `Added ${repo.label}`,
+			: `Connected ${repo.label}`,
 		repo,
 	);
 };
@@ -539,7 +539,7 @@ export const findCommitRepo = (
 
 	return match
 		? succeeded('Found', match)
-		: failed(`No repo "${typed}" is registered`);
+		: failed(`No repo "${typed}" is connected`);
 };
 
 export const removeCommitRepo = (input: {
@@ -565,7 +565,7 @@ const removeHeld = (input: {
 	);
 	if (isFail(writeResult)) return failed(writeResult.message);
 
-	return succeeded(`Removed ${match.label}`, match);
+	return succeeded(`Disconnected ${match.label}`, match);
 };
 
 /**
@@ -597,7 +597,7 @@ export const STATE_BRANCH_NAME = /^(?!-)[A-Za-z0-9._/-]{1,100}$/;
 
 /**
  * The state branch the clone's last fetch found its project.json naming: a
- * linked repo that is an epiq board keeps its event log there, not its work.
+ * connected repo that is an epiq board keeps its event log there, not its work.
  */
 export const readCloneStateBranch = (clonePath: string): string | null => {
 	try {

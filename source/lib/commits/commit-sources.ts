@@ -97,7 +97,7 @@ export const listCommitSources = async (
 
 		const since = sinceDate(repo.since, projectResult.value.createdAt);
 
-		// A linked repo that is an epiq board holds its event log beside its
+		// A connected repo that is an epiq board holds its event log beside its
 		// work, and this board's own remote holds this board's: neither is
 		// anybody's commits.
 		const stateBranches = new Set(

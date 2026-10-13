@@ -411,7 +411,7 @@ describe('a repo list whose lock cannot be made', () => {
 	});
 });
 
-describe('a linked repo that is an epiq board', () => {
+describe('a connected repo that is an epiq board', () => {
 	it('lends its work, never its event log', async () => {
 		fs.mkdirSync(path.join(upstream, '.epiq'));
 		fs.writeFileSync(

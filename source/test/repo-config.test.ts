@@ -4,7 +4,7 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {withoutRepositoryOverrides} from '../git/git-utils.js';
 import {acquireLockFile} from '../git/sync-lock.js';
-import {parseRepoAddArgs} from '../lib/command-line/commands/repo.cmd.js';
+import {parseRepoConnectArgs} from '../lib/command-line/commands/repo.cmd.js';
 import {
 	findCommitRepo,
 	isRepoSince,
@@ -36,9 +36,9 @@ describe('a history window', () => {
 	);
 });
 
-describe(':config repoAdd arguments', () => {
+describe(':config repoConnect arguments', () => {
 	it('names the options it takes when given one it does not', () => {
-		const result = parseRepoAddArgs(
+		const result = parseRepoConnectArgs(
 			'https://example.com/a/b.git since=2025-02-30',
 		);
 
@@ -48,7 +48,7 @@ describe(':config repoAdd arguments', () => {
 	});
 
 	it('takes a URL alone, with the defaults left to the config', () => {
-		const result = parseRepoAddArgs('  https://example.com/a/b.git ');
+		const result = parseRepoConnectArgs('  https://example.com/a/b.git ');
 
 		expect(isFail(result) ? null : result.value).toEqual({
 			url: 'https://example.com/a/b.git',
@@ -56,7 +56,7 @@ describe(':config repoAdd arguments', () => {
 	});
 
 	it('takes the options after it, in any order', () => {
-		const result = parseRepoAddArgs(
+		const result = parseRepoConnectArgs(
 			'git@example.com:a/b.git since=2024-05-01 branches=all',
 		);
 
@@ -69,21 +69,21 @@ describe(':config repoAdd arguments', () => {
 
 	it('refuses a label with a second =, rather than keeping its first half, and an option said twice', () => {
 		expect(
-			isFail(parseRepoAddArgs('https://example.com/a.git label=a=b')),
+			isFail(parseRepoConnectArgs('https://example.com/a.git label=a=b')),
 		).toBe(true);
 		expect(
-			isFail(parseRepoAddArgs('https://example.com/a.git label=a label=b')),
+			isFail(parseRepoConnectArgs('https://example.com/a.git label=a label=b')),
 		).toBe(true);
 	});
 
 	it('refuses a local path, a flag, and an option it does not know', () => {
-		expect(isFail(parseRepoAddArgs('/home/me/src/thing'))).toBe(true);
-		expect(isFail(parseRepoAddArgs('--upload-pack=x'))).toBe(true);
-		expect(isFail(parseRepoAddArgs('https://example.com/a.git depth=1'))).toBe(
-			true,
-		);
+		expect(isFail(parseRepoConnectArgs('/home/me/src/thing'))).toBe(true);
+		expect(isFail(parseRepoConnectArgs('--upload-pack=x'))).toBe(true);
 		expect(
-			isFail(parseRepoAddArgs('https://example.com/a.git since=yesterday')),
+			isFail(parseRepoConnectArgs('https://example.com/a.git depth=1')),
+		).toBe(true);
+		expect(
+			isFail(parseRepoConnectArgs('https://example.com/a.git since=yesterday')),
 		).toBe(true);
 	});
 });
@@ -158,7 +158,7 @@ describe('the repo messages on the GUI socket', () => {
 	it('refuses a branches value it does not know', () => {
 		expect(
 			parseGuiMessage({
-				type: 'repo:add',
+				type: 'repo:connect',
 				payload: {url: 'https://example.com/a.git', branches: 'some'},
 			}).ok,
 		).toBe(false);
@@ -171,7 +171,7 @@ describe('the repo messages on the GUI socket', () => {
 	});
 });
 
-describe(':config repoRemove names', () => {
+describe(':config repoDisconnect names', () => {
 	const repos = [
 		'https://a.example/x/api.git',
 		'https://b.example/y/api.git',
@@ -263,15 +263,17 @@ describe('a repo hidden from the Code series', () => {
 	});
 });
 
-describe(':config repoAdd label', () => {
+describe(':config repoConnect label', () => {
 	it('takes a label, and an empty one to go back to the basename', () => {
-		const named = parseRepoAddArgs('https://example.com/a.git label=upstream');
+		const named = parseRepoConnectArgs(
+			'https://example.com/a.git label=upstream',
+		);
 		expect(isFail(named) ? null : named.value).toEqual({
 			url: 'https://example.com/a.git',
 			label: 'upstream',
 		});
 
-		const cleared = parseRepoAddArgs('https://example.com/a.git label=');
+		const cleared = parseRepoConnectArgs('https://example.com/a.git label=');
 		expect(isFail(cleared) ? null : cleared.value).toEqual({
 			url: 'https://example.com/a.git',
 			label: '',
@@ -279,27 +281,30 @@ describe(':config repoAdd label', () => {
 	});
 
 	it('refuses what is not a label', () => {
-		expect(isFail(parseRepoAddArgs('https://example.com/a.git label=UP'))).toBe(
-			true,
-		);
-		expect(isFail(parseRepoAddArgs('https://example.com/a.git label=.x'))).toBe(
-			true,
-		);
+		expect(
+			isFail(parseRepoConnectArgs('https://example.com/a.git label=UP')),
+		).toBe(true);
+		expect(
+			isFail(parseRepoConnectArgs('https://example.com/a.git label=.x')),
+		).toBe(true);
 	});
 });
 
-describe('repo:add over the socket with a label', () => {
+describe('repo:connect over the socket with a label', () => {
 	it('takes one up to 24 characters', () => {
 		const url = 'https://example.com/a.git';
 		expect(
-			parseGuiMessage({type: 'repo:add', payload: {url, label: 'upstream'}}).ok,
-		).toBe(true);
-		expect(
-			parseGuiMessage({type: 'repo:add', payload: {url, label: ''}}).ok,
-		).toBe(true);
-		expect(
-			parseGuiMessage({type: 'repo:add', payload: {url, label: 'x'.repeat(25)}})
+			parseGuiMessage({type: 'repo:connect', payload: {url, label: 'upstream'}})
 				.ok,
+		).toBe(true);
+		expect(
+			parseGuiMessage({type: 'repo:connect', payload: {url, label: ''}}).ok,
+		).toBe(true);
+		expect(
+			parseGuiMessage({
+				type: 'repo:connect',
+				payload: {url, label: 'x'.repeat(25)},
+			}).ok,
 		).toBe(false);
 	});
 });

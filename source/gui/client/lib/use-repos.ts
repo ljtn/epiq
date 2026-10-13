@@ -102,7 +102,7 @@ export const useRepos = ({
 			label?: string;
 		}) => {
 			setState(prev => ({...prev, lastAction: null}));
-			sendRaw({type: 'repo:add', payload});
+			sendRaw({type: 'repo:connect', payload});
 		},
 		[sendRaw],
 	);
@@ -110,7 +110,7 @@ export const useRepos = ({
 	const remove = useCallback(
 		(repo: string) => {
 			setState(prev => ({...prev, lastAction: null}));
-			sendRaw({type: 'repo:remove', payload: {repo}});
+			sendRaw({type: 'repo:disconnect', payload: {repo}});
 		},
 		[sendRaw],
 	);

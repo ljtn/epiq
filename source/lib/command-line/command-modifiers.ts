@@ -38,8 +38,8 @@ export const ConfigModifiers = {
 	ATTACHMENT_MAX_KB: 'attachmentMaxKb',
 	REPO_CLONE_MAX_MB: 'repoCloneMaxMb',
 	LOG_LEVEL: 'logLevel',
-	REPO_ADD: 'repoAdd',
-	REPO_REMOVE: 'repoRemove',
+	REPO_CONNECT: 'repoConnect',
+	REPO_DISCONNECT: 'repoDisconnect',
 } as const;
 
 export type ConfigModifier =
@@ -73,8 +73,8 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.SYNC_DEBOUNCE_MS,
 	ConfigModifiers.ATTACHMENT_MAX_KB,
 	ConfigModifiers.LOG_LEVEL,
-	ConfigModifiers.REPO_ADD,
-	ConfigModifiers.REPO_REMOVE,
+	ConfigModifiers.REPO_CONNECT,
+	ConfigModifiers.REPO_DISCONNECT,
 	ConfigModifiers.REPO_CLONE_MAX_MB,
 ];
 

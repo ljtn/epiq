@@ -19,7 +19,7 @@ import {
 	resetCommitTimelineCacheForTests,
 	upsertCommitRepo,
 } from '../lib/commits/commits.js';
-import {removeRepo} from '../mcp/api/repos.js';
+import {disconnectRepo} from '../mcp/api/repos.js';
 import {
 	getRepoClonePath,
 	MAX_REPOS,
@@ -484,7 +484,7 @@ describe('commits from a registered repo', () => {
 			value(await getCommitsForRef({repoRoot: board, ref: REF_A})),
 		).toHaveLength(2);
 
-		value(await removeRepo({repoRoot: board, repo: repo.label}));
+		value(await disconnectRepo({repoRoot: board, repo: repo.label}));
 
 		expect(value(readCommitRepos(board))).toEqual([]);
 		expect(fs.existsSync(getRepoClonePath(PROJECT.projectId, repo.id))).toBe(

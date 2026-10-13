@@ -61,9 +61,9 @@ export {
 export {getPersonalStats} from './api/personal-stats.js';
 
 export {
-	addRepo,
+	connectRepo,
 	fetchRepos,
 	listRepos,
-	removeRepo,
+	disconnectRepo,
 	syncThenFetchRepos,
 } from './api/repos.js';

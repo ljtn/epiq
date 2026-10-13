@@ -13,7 +13,7 @@ import {Dropdown} from './Dropdown';
 import {Input} from './FormPrimitives';
 import {IconButton} from './IconButton';
 import {IconLock} from './IconLock';
-import {IconUnlink} from './IconUnlink';
+import {IconUnplug} from './IconUnplug';
 
 // The repos the board reads commits from, as a section of the settings panel:
 // its own first and locked, then the linked ones, then the row that links
@@ -304,14 +304,14 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 	return (
 		<div ref={root} data-testid="repos-section">
 			<div style={{...META, marginTop: 0, padding: '12px 0 2px'}}>
-				Commits from a linked repo show on the tickets they name and in the
+				Commits from a connected repo show on the tickets they name and in the
 				timeline. It is only read, from a copy epiq keeps on this machine;
 				nothing is ever written to it. The list is kept in the project file, so
 				it reaches everyone.
 			</div>
 
 			{/* The board's own repo, listed first: the one every other row is
-			    linked to. Locked, since it is read from the checkout and there
+			    connected to. Locked, since it is read from the checkout and there
 			    is nothing to set. */}
 			{state.own && (
 				<div data-testid="own-repo-row" style={rowStyle(false)}>
@@ -389,20 +389,20 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 						</span>
 
 						<IconButton
-							testId="remove-repo"
+							testId="disconnect-repo"
 							pressed={armed}
 							label={armed ? 'confirm' : undefined}
 							onBlur={remove.disarm}
 							title={
 								armed
-									? `Click again to unlink ${repo.label} from board`
-									: `Unlink ${repo.label} from board`
+									? `Click again to disconnect ${repo.label}`
+									: `Disconnect ${repo.label}`
 							}
 							onClick={() => {
 								if (remove.press(repo.id)) onRemove(repo.id);
 							}}
 						>
-							<IconUnlink />
+							<IconUnplug />
 						</IconButton>
 					</div>
 				);
@@ -412,11 +412,11 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 			    checked as it is typed by the rule the server refuses it by,
 			    so the answer is under the field before anything is sent. */}
 			{adding ? (
-				<div data-testid="add-repo-row" style={rowStyle(false)}>
+				<div data-testid="connect-repo-row" style={rowStyle(false)}>
 					<span style={linesStyle}>
 						<Input
 							data-testid="repo-url"
-							aria-label="Remote URL of a repo to link"
+							aria-label="Remote URL of a repo to connect"
 							value={url}
 							autoFocus
 							placeholder="https://… or git@host:owner/repo.git"
@@ -447,11 +447,11 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 							</Button>
 							<Button
 								variant="primary"
-								testId="add-repo"
+								testId="connect-repo"
 								disabled={!typed || problem !== null}
 								onClick={submit}
 							>
-								link
+								connect
 							</Button>
 						</span>
 					</span>
@@ -461,10 +461,10 @@ export const ReposSettings = ({state, onAdd, onRemove}: Props) => {
 					<span />
 					<Button
 						variant="primary"
-						testId="link-repo"
+						testId="connect-a-repo"
 						onClick={() => setAdding(true)}
 					>
-						+ link a repo
+						+ connect a repo
 					</Button>
 				</div>
 			)}

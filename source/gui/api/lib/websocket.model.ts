@@ -104,7 +104,7 @@ export type GuiMessage =
 	// `project.json`, not board state, so none of these is a mutating message.
 	| {type: 'repos:get'}
 	| {
-			type: 'repo:add';
+			type: 'repo:connect';
 			payload: {
 				url: string;
 				branches?: 'default' | 'all';
@@ -112,7 +112,7 @@ export type GuiMessage =
 				label?: string;
 			};
 	  }
-	| {type: 'repo:remove'; payload: {repo: string}}
+	| {type: 'repo:disconnect'; payload: {repo: string}}
 	| {type: 'issue:commits:get'; payload: {issueId: string}}
 	| {type: 'issue:squashed-diff:get'; payload: {issueId: string}}
 	| {type: 'issue:stats:get'; payload: {issueId: string}}

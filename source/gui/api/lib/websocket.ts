@@ -30,10 +30,10 @@ import {
 	removeIssueTag,
 	reopenIssue,
 	sync,
-	addRepo,
+	connectRepo,
 	fetchRepos,
 	listRepos,
-	removeRepo,
+	disconnectRepo,
 } from '../../../mcp/epiq-api.js';
 import {
 	REPO_RENAMED,
@@ -451,11 +451,11 @@ export const setupWebsocket = (
 					});
 				}
 
-				if (type === 'repo:add' || type === 'repo:remove') {
+				if (type === 'repo:connect' || type === 'repo:disconnect') {
 					const result =
-						type === 'repo:add'
-							? await addRepo({repoRoot, ...message.payload})
-							: await removeRepo({repoRoot, ...message.payload});
+						type === 'repo:connect'
+							? await connectRepo({repoRoot, ...message.payload})
+							: await disconnectRepo({repoRoot, ...message.payload});
 
 					// The list either way, so a refused change leaves the panel
 					// showing what is configured rather than what was turned down.
@@ -1000,7 +1000,7 @@ export const setupWebsocket = (
 			// waits on that answer, and a bare error never reaches it.
 			let rawType: unknown;
 			const refuse = async (message: string) =>
-				rawType === 'repo:add' || rawType === 'repo:remove'
+				rawType === 'repo:connect' || rawType === 'repo:disconnect'
 					? sendSocket(socket, {
 							type: 'repos',
 							payload: await listRepos({repoRoot: project.repoRoot}),

@@ -25,9 +25,9 @@ import {
 } from '../commits/clone-size.js';
 import {findCommitRepo, removableNames} from '../commits/commits.js';
 import {
-	parseRepoAddArgs,
+	parseRepoConnectArgs,
 	registeredRepos,
-	REPO_ADD_OPTIONS,
+	REPO_CONNECT_OPTIONS,
 } from './commands/repo.cmd.js';
 import {emailsOf} from '../model/email-link.js';
 import {getSafeState, getState} from '../state/state.js';
@@ -550,7 +550,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				return invalid({
 					message:
 						hintAlert(
-							`provide a linked repo's clone cap in MB (${MIN_REPO_CLONE_MAX_MB}-${MAX_REPO_CLONE_MAX_MB}). ` +
+							`provide a connected repo's clone cap in MB (${MIN_REPO_CLONE_MAX_MB}-${MAX_REPO_CLONE_MAX_MB}). ` +
 								`current: ${readRepoCloneMaxMb()} MB.`,
 						) + hint,
 					completionWordList: REPO_CLONE_MAX_MB_HINTS,
@@ -560,8 +560,8 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			return valid(CONFIRM_MSG);
 		}
 
-		case ConfigModifiers.REPO_ADD: {
-			const parsed = parseRepoAddArgs(inputString);
+		case ConfigModifiers.REPO_CONNECT: {
+			const parsed = parseRepoConnectArgs(inputString);
 
 			if (isFail(parsed)) {
 				return invalid({
@@ -572,20 +572,20 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 
 			// The URL is in; the options are what is left to offer.
 			return valid(
-				`${hintDefault(REPO_ADD_OPTIONS.join('  '))}  ${CONFIRM_MSG}`,
+				`${hintDefault(REPO_CONNECT_OPTIONS.join('  '))}  ${CONFIRM_MSG}`,
 				[],
 				false,
 			);
 		}
 
-		case ConfigModifiers.REPO_REMOVE: {
+		case ConfigModifiers.REPO_DISCONNECT: {
 			const repos = registeredRepos();
 			const labels = removableNames(repos);
 			const typed = inputString.trim();
 
 			if (labels.length === 0) {
 				return invalid({
-					message: hintAlert('no other repos are registered'),
+					message: hintAlert('no other repos are connected'),
 					completionWordList: [],
 				});
 			}
