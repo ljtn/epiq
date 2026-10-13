@@ -476,10 +476,8 @@ export const ReposSettings = ({
 	return (
 		<div ref={root} data-testid="repos-section">
 			<div style={{...META, marginTop: 0, padding: '12px 0 2px'}}>
-				Commits from a connected repo show on the tickets they name and in the
-				timeline. It is only read, from a copy epiq keeps on this machine;
-				nothing is ever written to it. The list is kept on the board, so it
-				reaches everyone.
+				Connected repos show linked commits in tickets and show up in the
+				timeline. Epiq keeps a copy in a local clone, read only.
 			</div>
 
 			{/* The board's own repo, listed first: the one every other row is
