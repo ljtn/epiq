@@ -446,7 +446,7 @@ export const setupWebsocket = (
 					return sendSocket(socket, {
 						type: 'repos',
 						payload: await listRepos({repoRoot}),
-						// Beside the linked ones in the panel, and counted with them.
+						// Beside the connected ones in the panel, and counted with them.
 						own,
 					});
 				}
