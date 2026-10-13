@@ -288,7 +288,16 @@ const whileEditingProjectFile = <T>(
 	const targetResult = writableProjectFile(repoRoot);
 	if (isFail(targetResult)) return failed(targetResult.message);
 
-	const lock = takeProjectFileLock(repoRoot);
+	let lock: ReturnType<typeof takeProjectFileLock>;
+	try {
+		lock = takeProjectFileLock(repoRoot);
+	} catch (error) {
+		return failed(
+			`Could not lock .epiq/project.json: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+	}
 	if (!lock.acquired) {
 		return failed('Another process is editing .epiq/project.json; try again');
 	}
@@ -300,8 +309,9 @@ const whileEditingProjectFile = <T>(
 	}
 };
 
-// An edit holds it for a moment; a wait this long means a holder that is stuck.
-const PROJECT_FILE_LOCK_WAIT_MS = 3_000;
+// An edit holds it for a moment; a wait this long means a holder that is
+// stuck. Short, since the wait blocks the process: the GUI server among them.
+const PROJECT_FILE_LOCK_WAIT_MS = 1_000;
 
 /** Outside the checkout, so a lock never shows in `git status`. */
 export const projectFileLockPath = (repoRoot: string): string =>

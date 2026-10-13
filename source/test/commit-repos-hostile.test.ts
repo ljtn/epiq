@@ -24,6 +24,8 @@ import {
 	projectFileLockPath,
 } from '../lib/commits/commit-repos.js';
 import {execGit} from '../git/git-utils.js';
+import {setConfig} from '../lib/config/user-config.js';
+import {randomBytes} from 'node:crypto';
 import {boot} from '../mcp/api/boot.js';
 import {acquireLockFile} from '../git/sync-lock.js';
 import {isFail, Result} from '../lib/model/result-types.js';
@@ -195,6 +197,79 @@ describe('a remote with no commits yet', () => {
 	});
 });
 
+describe("a repo bigger than this machine's clone cap", () => {
+	// Random bytes: git cannot compress them below the cap.
+	const addBlob = (name: string, megabytes: number) => {
+		fs.writeFileSync(
+			path.join(upstream, name),
+			randomBytes(megabytes * 1024 * 1024),
+		);
+		git(upstream, ['add', name]);
+		git(upstream, ['commit', '-q', '-m', `AAAAAAA ${name}`]);
+	};
+	const clonePath = () => getRepoClonePath(PROJECT_ID, repoIdOf(url));
+	const leftovers = () =>
+		fs
+			.readdirSync(path.join(clonePath(), 'objects', 'pack'))
+			.filter(name => name.startsWith('tmp_'));
+
+	afterEach(() => {
+		setConfig({repoCloneMaxMb: undefined});
+	});
+
+	it('is never cloned, and says why', async () => {
+		setConfig({repoCloneMaxMb: 1});
+		addBlob('big.bin', 4);
+		value(upsertCommitRepo({repoRoot: board, url}));
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(false);
+		expect(outcome!.message).toMatch(/1 MB cap.*repoCloneMaxMb/);
+		expect(fs.existsSync(clonePath())).toBe(false);
+		expect(
+			fs
+				.readdirSync(path.dirname(clonePath()))
+				.filter(name => name.includes('.pending')),
+		).toEqual([]);
+	});
+
+	it('stops a fetch that would pass it, and keeps what it held', async () => {
+		setConfig({repoCloneMaxMb: 2});
+		commit(upstream, 'small.txt', 'AAAAAAA small');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		expect(value(await fetchCommitRepos({repoRoot: board}))[0]!.ok).toBe(true);
+
+		addBlob('big.bin', 6);
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(false);
+		expect(outcome!.message).toMatch(/2 MB cap/);
+		expect(leftovers()).toEqual([]);
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})).map(
+				entry => entry.subject,
+			),
+		).toEqual(['AAAAAAA small']);
+	});
+
+	it('leaves a clone already past it unfetched, and readable', async () => {
+		commit(upstream, 'small.txt', 'AAAAAAA small');
+		addBlob('mid.bin', 2);
+		value(upsertCommitRepo({repoRoot: board, url}));
+		expect(value(await fetchCommitRepos({repoRoot: board}))[0]!.ok).toBe(true);
+
+		setConfig({repoCloneMaxMb: 1});
+		commit(upstream, 'later.txt', 'AAAAAAA later');
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.message).toMatch(/1 MB cap/);
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})),
+		).toHaveLength(2);
+	});
+});
+
 describe('a listed repo nobody has synced', () => {
 	// Only a sync reaches the network: a board opened, read and browsed with a
 	// repo listed leaves it uncloned.
@@ -229,6 +304,23 @@ describe('an edit of the repo list while another process edits it', () => {
 		value(upsertCommitRepo({repoRoot: board, url}));
 		value(removeCommitRepo({repoRoot: board, repo: url}));
 		expect(fs.existsSync(lockPath)).toBe(false);
+	});
+});
+
+describe('a repo list whose lock cannot be made', () => {
+	it('refuses the edit rather than throwing', () => {
+		const locks = path.dirname(projectFileLockPath(board));
+		fs.rmSync(locks, {recursive: true, force: true});
+		fs.writeFileSync(locks, 'not a directory');
+
+		try {
+			const result = upsertCommitRepo({repoRoot: board, url});
+
+			expect(isFail(result) ? result.message : '').toMatch(/Could not lock/);
+			expect(value(readCommitRepos(board))).toEqual([]);
+		} finally {
+			fs.rmSync(locks, {force: true});
+		}
 	});
 });
 
@@ -593,6 +685,26 @@ describe('a remote that renames its default branch', () => {
 				entry => entry.subject,
 			),
 		).toContain('AAAAAAA after the rename');
+	});
+});
+
+describe('a remote whose HEAD names a branch it does not have', () => {
+	it('goes on fetching the branch it had', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA on main');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		commit(upstream, 'up.txt', 'AAAAAAA later on main');
+		git(upstream, ['symbolic-ref', 'HEAD', 'refs/heads/nowhere']);
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})).map(
+				entry => entry.subject,
+			),
+		).toContain('AAAAAAA later on main');
 	});
 });
 

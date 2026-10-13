@@ -29,6 +29,7 @@ const {
 	upsertCommitRepo,
 } = await import('../lib/commits/commits.js');
 const {getRepoClonePath} = await import('../lib/commits/commit-repos.js');
+const {execGit} = await import('../git/git-utils.js');
 
 afterAll(() => {
 	fs.rmSync(scratch, {recursive: true, force: true});
@@ -96,4 +97,27 @@ describe('a remove that lands while the clone is inside git', () => {
 		expect(fs.existsSync(clonePath)).toBe(false);
 		expect(fs.existsSync(`${clonePath}.removed`)).toBe(false);
 	}, 30_000);
+});
+
+describe('a transfer its caller stops', () => {
+	// What the clone cap stops a transfer with: git goes at once, and the
+	// failure ends on the caller's reason, which is what the repo reports.
+	it('ends then, on the reason it was given', async () => {
+		const controller = new AbortController();
+		const started = Date.now();
+		setTimeout(() => controller.abort('past the cap'), 100);
+
+		const result = await execGit({
+			cwd: scratch,
+			args: ['ls-remote', 'ssh://example.invalid/repo.git'],
+			forClone: true,
+			abort: controller.signal,
+		});
+
+		expect(isFail(result)).toBe(true);
+		expect(isFail(result) ? result.message.split('\n').pop() : '').toBe(
+			'past the cap',
+		);
+		expect(Date.now() - started).toBeLessThan(1_400);
+	});
 });

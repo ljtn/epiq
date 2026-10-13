@@ -6,6 +6,7 @@ import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {invalidateCommitTimelineCache} from './commit-timeline.js';
 import {cloneReadProblem} from './commit-sources.js';
+import {cloneCapMessage, dirSize, readRepoCloneMaxMb} from './clone-size.js';
 import {
 	CLONE_DIR_NAME,
 	cloneStatusPath as statusPath,
@@ -135,11 +136,152 @@ export const listRepoStates = (repoRoot: string): Result<RepoState[]> => {
 	);
 };
 
-const localGit = (input: {cwd: string; args: string[]; timeoutMs?: number}) =>
-	execGit({...input, forClone: true});
+const localGit = (input: {
+	cwd: string;
+	args: string[];
+	timeoutMs?: number;
+	abort?: AbortSignal;
+}) => execGit({...input, forClone: true});
 
 const git = (cwd: string, args: string[]) =>
 	localGit({cwd, args, timeoutMs: TRANSFER_TIMEOUT_MS});
+
+// How often a transfer's directory is measured against the cap.
+const SIZE_CHECK_MS = 1_000;
+
+/**
+ * A transfer into `into`, held to this machine's cap: a repo listed by
+ * somebody else's commit must not fill the disk. Stopped once the directory
+ * passes it, and failed if it landed past it anyway — a fast transfer can
+ * finish between two looks. Into an existing clone, a transfer that passed
+ * the cap is undone: the clone keeps what it held.
+ */
+const transfer = async (
+	cwd: string,
+	args: string[],
+	into: string,
+	{undo = false}: {undo?: boolean} = {},
+): Promise<Result<unknown>> => {
+	const maxMb = readRepoCloneMaxMb();
+	const maxBytes = maxMb * 1024 * 1024;
+	const before = undo ? snapshotOf(into) : null;
+	const controller = new AbortController();
+	const watch = setInterval(() => {
+		if (dirSize(into) > maxBytes) controller.abort(cloneCapMessage(maxMb));
+	}, SIZE_CHECK_MS);
+
+	let result: Result<unknown>;
+	try {
+		result = await localGit({
+			cwd,
+			args,
+			timeoutMs: TRANSFER_TIMEOUT_MS,
+			abort: controller.signal,
+		});
+	} finally {
+		clearInterval(watch);
+	}
+
+	const capped =
+		controller.signal.aborted || (!isFail(result) && dirSize(into) > maxBytes);
+	if (!capped) return result;
+
+	clearTransferLeftovers(into);
+	if (before) {
+		restoreSnapshot(into, before);
+		// A git stopped partway leaves its locks; nothing else holds them.
+		clearStaleGitLocks(into);
+	}
+	return failed(cloneCapMessage(maxMb));
+};
+
+type CloneSnapshot = {
+	refs: Map<string, Buffer>;
+	packedRefs: Buffer | null;
+	shallow: Buffer | null;
+	packs: ReadonlySet<string>;
+};
+
+const readOrNull = (file: string): Buffer | null => {
+	try {
+		return fs.readFileSync(file);
+	} catch {
+		return null;
+	}
+};
+
+const listOr = (dir: string): string[] => {
+	try {
+		return fs.readdirSync(dir);
+	} catch {
+		return [];
+	}
+};
+
+/** What a fetch changes: the refs, the shallow boundary, and the packs. */
+const snapshotOf = (clonePath: string): CloneSnapshot => {
+	const refs = new Map<string, Buffer>();
+	const visit = (relative: string) => {
+		const full = path.join(clonePath, relative);
+		for (const entry of fs.readdirSync(full, {withFileTypes: true})) {
+			const child = path.join(relative, entry.name);
+			if (entry.isDirectory()) visit(child);
+			else refs.set(child, fs.readFileSync(path.join(clonePath, child)));
+		}
+	};
+	if (fs.existsSync(path.join(clonePath, 'refs'))) visit('refs');
+
+	return {
+		refs,
+		packedRefs: readOrNull(path.join(clonePath, 'packed-refs')),
+		shallow: readOrNull(path.join(clonePath, 'shallow')),
+		packs: new Set(listOr(path.join(clonePath, 'objects', 'pack'))),
+	};
+};
+
+const restoreSnapshot = (clonePath: string, snapshot: CloneSnapshot) => {
+	fs.rmSync(path.join(clonePath, 'refs'), {recursive: true, force: true});
+	for (const [relative, content] of snapshot.refs) {
+		fs.mkdirSync(path.dirname(path.join(clonePath, relative)), {
+			recursive: true,
+		});
+		fs.writeFileSync(path.join(clonePath, relative), content);
+	}
+	fs.mkdirSync(path.join(clonePath, 'refs', 'heads'), {recursive: true});
+
+	for (const [name, content] of [
+		['packed-refs', snapshot.packedRefs],
+		['shallow', snapshot.shallow],
+	] as const) {
+		if (content) fs.writeFileSync(path.join(clonePath, name), content);
+		else fs.rmSync(path.join(clonePath, name), {force: true});
+	}
+
+	const packDir = path.join(clonePath, 'objects', 'pack');
+	for (const name of listOr(packDir)) {
+		if (!snapshot.packs.has(name)) fs.rmSync(path.join(packDir, name));
+	}
+	lastSeen.delete(clonePath);
+};
+
+/** The half-written packs of a transfer stopped partway. */
+const clearTransferLeftovers = (gitDir: string) => {
+	const objects = path.join(gitDir, 'objects');
+	for (const [dir, prefix] of [
+		[path.join(objects, 'pack'), 'tmp_'],
+		[objects, 'incoming-'],
+	] as const) {
+		try {
+			for (const name of fs.readdirSync(dir)) {
+				if (name.startsWith(prefix)) {
+					fs.rmSync(path.join(dir, name), {recursive: true, force: true});
+				}
+			}
+		} catch {
+			// Nothing written there yet.
+		}
+	}
+};
 
 // Stock lines git follows the specific one with, naming no cause.
 const GENERIC_GIT_LINE =
@@ -266,12 +408,12 @@ const shallowSince = (since: string) =>
 const deepenPastWindow = async (clonePath: string): Promise<Result<null>> => {
 	if (!(await hasRefs(clonePath))) return succeeded('Empty', null);
 
-	const result = await git(clonePath, [
-		'fetch',
-		'--no-tags',
-		'--deepen=1',
-		'origin',
-	]);
+	const result = await transfer(
+		clonePath,
+		['fetch', '--no-tags', '--deepen=1', 'origin'],
+		clonePath,
+		{undo: true},
+	);
 	return isFail(result) ? failed(result.message) : succeeded('Deepened', null);
 };
 
@@ -307,9 +449,10 @@ const cloneRepo = async (
 		pending,
 	];
 
-	let cloneResult = await git(
+	let cloneResult = await transfer(
 		clonesDir,
 		args(since ? [shallowSince(since)] : []),
+		pending,
 	);
 	let windowed = since !== null;
 
@@ -319,7 +462,7 @@ const cloneRepo = async (
 		NOTHING_SELECTED.test(cloneResult.message)
 	) {
 		fs.rmSync(pending, {recursive: true, force: true});
-		cloneResult = await git(clonesDir, args(['--depth=1']));
+		cloneResult = await transfer(clonesDir, args(['--depth=1']), pending);
 		windowed = false;
 	}
 
@@ -387,7 +530,12 @@ const remoteDefaultOf = async (clonePath: string): Promise<string | null> => {
 	const name = /^ref: refs\/heads\/(\S+)\tHEAD$/m.exec(
 		remote.value.stdout,
 	)?.[1];
-	return name && (await isBranchName(clonePath, name)) ? name : null;
+	// Followed only where it resolves: a HEAD naming a branch the remote does
+	// not have is no default to read, and following it fails every fetch.
+	const resolves = /^[0-9a-f]{40,64}\tHEAD$/m.test(remote.value.stdout);
+	return name && resolves && (await isBranchName(clonePath, name))
+		? name
+		: null;
 };
 
 /** Points HEAD and the refspec at the branch the remote now calls its default. */
@@ -462,6 +610,13 @@ const fetchRepo = async (
 	since: string | null,
 	previous: RepoFetchStatus | null,
 ): Promise<Result<null>> => {
+	// Already past the cap — lowered since, or grown by a fetch that landed
+	// just over it: read as it is, never fetched further.
+	const maxMb = readRepoCloneMaxMb();
+	if (dirSize(clonePath) > maxMb * 1024 * 1024) {
+		return failed(cloneCapMessage(maxMb));
+	}
+
 	const branchesChanged = previous?.branches !== repo.branches;
 
 	if (branchesChanged) {
@@ -499,7 +654,9 @@ const fetchRepo = async (
 	}
 
 	const fetchArgs = ['fetch', '--prune', '--no-tags', ...window, 'origin'];
-	let fetchResult = await git(clonePath, fetchArgs);
+	let fetchResult = await transfer(clonePath, fetchArgs, clonePath, {
+		undo: true,
+	});
 
 	// The remote renamed its default branch: the refspec still names the old
 	// one, and would go on failing for good.
@@ -511,7 +668,9 @@ const fetchRepo = async (
 		const followed = await followDefaultBranch(clonePath);
 		if (isFail(followed)) return failed(followed.message);
 
-		fetchResult = await git(clonePath, fetchArgs);
+		fetchResult = await transfer(clonePath, fetchArgs, clonePath, {
+			undo: true,
+		});
 		if (!isFail(fetchResult)) await dropOtherBranches(clonePath);
 	}
 	if (isFail(fetchResult)) return failed(fetchResult.message);

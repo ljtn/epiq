@@ -36,6 +36,7 @@ export const ConfigModifiers = {
 	AUTOSYNC: 'autoSync',
 	SYNC_DEBOUNCE_MS: 'syncDebounceMs',
 	ATTACHMENT_MAX_KB: 'attachmentMaxKb',
+	REPO_CLONE_MAX_MB: 'repoCloneMaxMb',
 	LOG_LEVEL: 'logLevel',
 	REPO_ADD: 'repoAdd',
 	REPO_REMOVE: 'repoRemove',
@@ -74,6 +75,7 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.LOG_LEVEL,
 	ConfigModifiers.REPO_ADD,
 	ConfigModifiers.REPO_REMOVE,
+	ConfigModifiers.REPO_CLONE_MAX_MB,
 ];
 
 // Which edit modifiers are valid depends on what is selected: swimlanes and
@@ -104,6 +106,8 @@ export const AUTOSYNC_DEBOUNCE_HINTS = [
 ];
 
 export const ATTACHMENT_MAX_KB_HINTS = ['250', '500', '1000'];
+
+export const REPO_CLONE_MAX_MB_HINTS = ['512', '2048', '8192'];
 
 // Suggested playback windows for `:replay <when> <duration>`. Ordered shortest
 // first so the inline completion lands on the most likely choice.

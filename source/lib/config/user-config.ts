@@ -24,6 +24,7 @@ const EpiqConfigSchema = z
 		autoSync: z.boolean().nullable().optional(),
 		autoSyncDebounceMs: z.number().optional(),
 		attachmentMaxKb: z.number().optional(),
+		repoCloneMaxMb: z.number().optional(),
 		viewMode: z.enum(['dense', 'wide']).optional(),
 		// The boards this machine was asked about its git addresses on and
 		// declined. Only the refusal is kept: whether somebody claimed an address
