@@ -180,3 +180,34 @@ test('a paged-back window survives opening a ticket', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// Volume and Events are one height. Switching between them slid the tracks
+// at one speed while their padding and the commit row jumped, so the board
+// below bounced on every switch; it must not move at all.
+test('switching between volume and events leaves the board where it is', async ({
+	page,
+	appUrl,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	// The board's top edge on every frame from the click until it settles.
+	const travel = async (button: string) => {
+		await page.evaluate(`
+			window.__tops = [];
+			const until = performance.now() + 900;
+			const sample = () => {
+				window.__tops.push(document.querySelector('main').getBoundingClientRect().top);
+				if (performance.now() < until) requestAnimationFrame(sample);
+			};
+			requestAnimationFrame(sample);
+		`);
+		await page.getByRole('button', {name: button, exact: true}).click();
+		await page.waitForTimeout(1000);
+		const tops = (await page.evaluate('window.__tops')) as number[];
+		return Math.max(...tops) - Math.min(...tops);
+	};
+
+	expect(await travel('Events')).toBeLessThanOrEqual(1);
+	expect(await travel('Volume')).toBeLessThanOrEqual(1);
+});
