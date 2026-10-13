@@ -6,6 +6,7 @@ import {
 	type CommitRepo,
 } from '../../lib/commits/commits.js';
 import {isFail} from '../../lib/model/result-types.js';
+import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {writeRepoEvents} from '../helpers/repo-events.js';
 
 type Board = {repoRoot: string; globalDir: string};
@@ -32,15 +33,26 @@ export const connectedRepos = ({repoRoot, globalDir}: Board): CommitRepo[] => {
 	return [...result.value.live, ...result.value.overLimit];
 };
 
+// Written as the board's own user: the worker's board is shared, and a
+// stranger's events would join every later test's Contributors list.
+const boardUser = (globalDir: string): string => {
+	process.env['EPIQ_GLOBAL_DIR'] = globalDir;
+	const settings = loadSettingsFromConfig();
+	if (isFail(settings) || !settings.value.userId) {
+		throw new Error('The seeded board has no user to write as');
+	}
+	return settings.value.userId;
+};
+
 /** Connects repos by writing their events, as another clone's sync would. */
 export const connectByEvent = (
 	{repoRoot, globalDir}: Board,
 	urls: string[],
 ): void => {
-	process.env['EPIQ_GLOBAL_DIR'] = globalDir;
 	writeRepoEvents(
 		repoRoot,
 		urls.map(url => ({action: 'connect.repo' as const, payload: {url}})),
+		boardUser(globalDir),
 	);
 };
 
@@ -63,6 +75,7 @@ export const withNoRepos = async (
 					action: 'disconnect.repo' as const,
 					payload: {repo: repo.id},
 				})),
+				boardUser(board.globalDir),
 			);
 		}
 	}

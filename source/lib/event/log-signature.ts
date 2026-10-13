@@ -93,10 +93,21 @@ export const signatureAfterOwnAppend = (
 	stateBranchRoot: string,
 	previous: string,
 	fileName: string,
+	/** What this process appended: anything more is another's line. */
+	bytes: number,
 ): string | null => {
 	const before = entries(previous);
 	const next = logSignature(stateBranchRoot);
 	const after = entries(next);
+
+	// The same actor's file is written by every process it runs: the TUI, the
+	// GUI and an agent's MCP alike. Grown by more than this append, it holds a
+	// line this process never applied.
+	const sizeOf = (entry: string | undefined) =>
+		entry === undefined ? 0 : Number(entry.slice(0, entry.indexOf(':')));
+	if (sizeOf(after.get(fileName)) !== sizeOf(before.get(fileName)) + bytes) {
+		return null;
+	}
 
 	for (const [file, entry] of after) {
 		if (file === fileName) continue;
@@ -129,6 +140,7 @@ export const accountFor = (
 export const noteOwnAppend = (
 	stateBranchRoot: string,
 	fileName: string,
+	bytes: number,
 ): void => {
 	if (!accounted || accounted.root !== stateBranchRoot) return;
 
@@ -136,6 +148,7 @@ export const noteOwnAppend = (
 		stateBranchRoot,
 		accounted.signature,
 		fileName,
+		bytes,
 	);
 
 	// Null means someone else wrote too, and this process has not applied their

@@ -210,7 +210,8 @@ export const createPersister = <M extends EventMap>(loader: Loader<M>) => {
 
 			if (isFail(entryResult)) return failed(entryResult.message);
 
-			appendPendingLine(filePath, `${JSON.stringify(entryResult.value)}\n`);
+			const line = `${JSON.stringify(entryResult.value)}\n`;
+			appendPendingLine(filePath, line);
 
 			// Advanced only after the line is on disk, so a failed persist leaves
 			// the cursor pointing at an event that exists.
@@ -222,12 +223,12 @@ export const createPersister = <M extends EventMap>(loader: Loader<M>) => {
 			// then theirs to decide.
 			const fileName = path.basename(filePath);
 
-			loader.advanceEdgeRef(rootDir, fileName, newId);
+			loader.advanceEdgeRef(rootDir, fileName, newId, Buffer.byteLength(line));
 
 			// The state already has this event: materializing runs before
 			// persisting. So the log growing by this line does not mean the
 			// process is behind it, and the next read has nothing to catch up on.
-			noteOwnAppend(rootDir, fileName);
+			noteOwnAppend(rootDir, fileName, Buffer.byteLength(line));
 
 			return succeeded('Event persisted', {
 				path: filePath,

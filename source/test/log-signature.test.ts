@@ -101,7 +101,7 @@ describe('what this process has accounted for', () => {
 			accountFor(root, logSignature(root));
 
 			append('u-1', 'b\n');
-			noteOwnAppend(root, fileFor('u-1'));
+			noteOwnAppend(root, fileFor('u-1'), 2);
 
 			expect(accountedSignature(root)).toBe(logSignature(root));
 		});
@@ -116,7 +116,7 @@ describe('what this process has accounted for', () => {
 
 			append('u-2', 'y\n');
 			append('u-1', 'b\n');
-			noteOwnAppend(root, fileFor('u-1'));
+			noteOwnAppend(root, fileFor('u-1'), 2);
 
 			expect(accountedSignature(root)).toBeNull();
 		});
@@ -127,7 +127,7 @@ describe('what this process has accounted for', () => {
 
 			write('u-3', 'z\n');
 			append('u-1', 'b\n');
-			noteOwnAppend(root, fileFor('u-1'));
+			noteOwnAppend(root, fileFor('u-1'), 2);
 
 			expect(accountedSignature(root)).toBeNull();
 		});
@@ -139,7 +139,20 @@ describe('what this process has accounted for', () => {
 
 			fs.rmSync(path.join(eventsDir(), fileFor('u-2')));
 			append('u-1', 'b\n');
-			noteOwnAppend(root, fileFor('u-1'));
+			noteOwnAppend(root, fileFor('u-1'), 2);
+
+			expect(accountedSignature(root)).toBeNull();
+		});
+
+		// One actor's file is shared by every process it runs; a line another of
+		// them wrote is not in this board.
+		it('forgets when another process of the same actor wrote to its file too', () => {
+			write('u-1', 'a\n');
+			accountFor(root, logSignature(root));
+
+			append('u-1', 'theirs\n');
+			append('u-1', 'b\n');
+			noteOwnAppend(root, fileFor('u-1'), 2);
 
 			expect(accountedSignature(root)).toBeNull();
 		});
@@ -147,7 +160,7 @@ describe('what this process has accounted for', () => {
 		it('says nothing about a project it was never given', () => {
 			write('u-1', 'a\n');
 			append('u-1', 'b\n');
-			noteOwnAppend(root, fileFor('u-1'));
+			noteOwnAppend(root, fileFor('u-1'), 2);
 
 			expect(accountedSignature(root)).toBeNull();
 		});
@@ -161,7 +174,7 @@ describe('what this process has accounted for', () => {
 
 			append('u-1', 'b\n');
 
-			expect(signatureAfterOwnAppend(root, before, fileFor('u-1'))).toBe(
+			expect(signatureAfterOwnAppend(root, before, fileFor('u-1'), 2)).toBe(
 				logSignature(root),
 			);
 		});
@@ -173,7 +186,9 @@ describe('what this process has accounted for', () => {
 
 			append('u-2', 'y\n');
 
-			expect(signatureAfterOwnAppend(root, before, fileFor('u-1'))).toBeNull();
+			expect(
+				signatureAfterOwnAppend(root, before, fileFor('u-1'), 2),
+			).toBeNull();
 		});
 	});
 });
