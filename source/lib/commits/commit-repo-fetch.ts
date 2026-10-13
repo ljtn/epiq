@@ -2,7 +2,11 @@ import {randomUUID} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {execGit, isShuttingDown} from '../../git/git-utils.js';
-import {acquireLockFile, pidStartedAfter} from '../../git/sync-lock.js';
+import {
+	acquireLockFile,
+	pidStartedAfter,
+	processStartedAt,
+} from '../../git/sync-lock.js';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {invalidateCommitTimelineCache} from './commit-timeline.js';
@@ -1315,12 +1319,18 @@ const sweepPending = (projectId: string) => {
 	if (!fs.existsSync(dir)) return;
 
 	for (const name of fs.readdirSync(dir)) {
+		// `<pid>[-<its start>][.<uuid>].pending|tmp`: the start, where the name
+		// carries one, tells the writer from a process given its pid since.
 		const pending =
-			/^.+\.git(?:\.json)?\.(\d+)(?:\.[0-9a-f-]{36})?\.(?:pending|tmp)$/.exec(
+			/^.+\.git(?:\.json)?\.(\d+)(?:-(\d+))?(?:\.[0-9a-f-]{36})?\.(?:pending|tmp)$/.exec(
 				name,
 			);
 		if (
-			(pending && !isOwnerAlive(Number(pending[1]), path.join(dir, name))) ||
+			(pending &&
+				!isOwnerAlive(
+					Number(pending[1]),
+					pending[2] === undefined ? null : Number(pending[2]),
+				)) ||
 			// A delete stopped partway: nobody else ever names it.
 			/\.git\.[0-9a-f-]{36}\.deleting$/.test(name)
 		) {
@@ -1347,7 +1357,9 @@ export const stageClone = async (
 	if (isFail(projectResult)) return failed(projectResult.message);
 
 	const clonePath = getRepoClonePath(projectResult.value.projectId, repo.id);
-	const stagePath = `${clonePath}.${process.pid}.${randomUUID()}.pending`;
+	const stagePath = `${clonePath}.${
+		process.pid
+	}-${processStartedAt()}.${randomUUID()}.pending`;
 
 	try {
 		fs.mkdirSync(path.dirname(clonePath), {recursive: true});
@@ -1454,6 +1466,11 @@ export const disconnectCommitRepo = (input: {
 	});
 	invalidateCommitTimelineCache();
 
+	const projectResult = readRepoProject(input.repoRoot);
+	if (!isFail(cloneResult) && !isFail(projectResult)) {
+		clearRemovalMark(projectResult.value.projectId, found.value.id);
+	}
+
 	const message = `Disconnected ${found.value.label}`;
 	return isFail(cloneResult)
 		? succeeded(
@@ -1519,6 +1536,15 @@ export const removeRepoClone = (input: {
 	}
 };
 
+// A delete's mark is for a pass that read its list before it; once the clone
+// is gone the disconnect is in the log, and every later pass reads it.
+const clearRemovalMark = (projectId: string, repoId: string) => {
+	const clonePath = getRepoClonePath(projectId, repoId);
+	if (!fs.existsSync(clonePath)) {
+		fs.rmSync(removalMark(clonePath), {force: true});
+	}
+};
+
 const sweepDisconnected = (
 	repoRoot: string,
 	projectId: string,
@@ -1534,26 +1560,14 @@ const sweepDisconnected = (
 		}
 
 		invalidateCommitTimelineCache();
-		// The mark is for a pass that read its list before the delete; this
-		// pass read the disconnect, and every later one will.
-		const clonePath = getRepoClonePath(projectId, repoId);
-		if (!fs.existsSync(clonePath)) {
-			fs.rmSync(removalMark(clonePath), {force: true});
-		}
+		clearRemovalMark(projectId, repoId);
 	}
 };
 
-// A pid that is alive is still the writer only if it was running before the
-// leftover was last written: a dead writer's pid may have been given out since.
-const isOwnerAlive = (pid: number, leftover: string): boolean => {
-	if (!isAlive(pid)) return false;
-
-	try {
-		return !pidStartedAfter(pid, fs.statSync(leftover).mtimeMs);
-	} catch {
-		return true;
-	}
-};
+// A pid that is alive is still the writer only if it started when the writer
+// did: a dead writer's pid may have been given out since.
+const isOwnerAlive = (pid: number, startedAt: number | null): boolean =>
+	isAlive(pid) && (startedAt === null || !pidStartedAfter(pid, startedAt));
 
 const isAlive = (pid: number): boolean => {
 	try {
