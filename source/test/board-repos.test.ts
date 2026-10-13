@@ -27,18 +27,30 @@ describe('the repo id', () => {
 	it('is pinned across the spellings of one URL', () => {
 		for (const url of [
 			'https://github.com/Me/Repo.git',
-			'https://github.com/me/repo',
-			'https://github.com/me/repo/',
-			'HTTPS://GITHUB.COM/me/repo.git',
+			'https://github.com/Me/Repo',
+			'https://github.com/Me/Repo/',
+			'HTTPS://GITHUB.COM/Me/Repo.git',
 		]) {
-			expect(repoIdOf(url)).toBe('repo-1479a649e7c7');
+			expect(repoIdOf(url)).toBe('repo-87747323e8ae');
 		}
 
 		expect(repoIdOf('git@github.com:me/repo.git')).toBe('repo-659115ab0b5d');
+		expect(repoIdOf('git@GitHub.com:me/repo')).toBe('repo-659115ab0b5d');
 		expect(repoIdOf('ssh://git@github.com/me/repo.git')).toBe(
 			'repo-2471c14b301d',
 		);
 		expect(repoIdOf('file:///srv/git/thing.git')).toBe('thing-eff105fb7081');
+	});
+
+	// A case-sensitive host or file system tells these apart, so the id must.
+	it('keeps the case of the path, folding only the scheme and host', () => {
+		expect(repoIdOf('https://github.com/me/repo')).toBe('repo-1479a649e7c7');
+		expect(repoIdOf('https://github.com/me/repo')).not.toBe(
+			repoIdOf('https://github.com/Me/Repo'),
+		);
+		expect(repoIdOf('file:///srv/git/Thing.git')).not.toBe(
+			repoIdOf('file:///srv/git/thing.git'),
+		);
 	});
 
 	it('keeps the defaults a connect leaves out, which are part of the format', () => {
@@ -149,13 +161,10 @@ describe('applying repo events', () => {
 		expect(live(registry)[0]?.label).toBe('a');
 	});
 
-	it('never lets in a URL git could be tricked by, and never throws on a payload', () => {
+	it('folds any URL, and never throws on a payload', () => {
 		for (const payload of [
-			{url: 'ext::sh -c touch% /tmp/pwned'},
-			{url: '--upload-pack=touch /tmp/pwned'},
-			{url: 'https://user:secret@example.com/a.git'},
-			{url: 'x'.repeat(5000)},
 			{url: 42},
+			{url: ''},
 			null,
 			'https://example.com/a.git',
 			[],
@@ -175,6 +184,23 @@ describe('applying repo events', () => {
 				),
 			),
 		).toBe(true);
+	});
+
+	// Which URLs are read is the readers' rule, which may tighten; the fold
+	// keeps every one, so builds with different rules agree on the log.
+	it('lists no URL git could be tricked by, though the fold keeps it', () => {
+		const hostile = [
+			'ext::sh -c touch% /tmp/pwned',
+			'--upload-pack=touch /tmp/pwned',
+			'https://user:secret@example.com/a.git',
+			`https://example.com/${'x'.repeat(5000)}.git`,
+		];
+		const registry = fold(
+			...[...hostile, A].map(url => ev('connect.repo', {url})),
+		);
+
+		expect(Object.keys(registry.entries)).toHaveLength(hostile.length + 1);
+		expect(live(registry).map(repo => repo.url)).toEqual([A]);
 	});
 });
 
@@ -223,6 +249,26 @@ describe('resolving the list readers see', () => {
 			ev('disconnect.repo', {repo: idA}),
 		);
 		expect(live(freed).map(repo => repo.label)).toEqual(['api']);
+	});
+
+	it('counts a basename as taken, so no two repos show one name', () => {
+		const local = 'file:///srv/git/up';
+		const remote = 'https://x.invalid/a/up';
+
+		const squatted = fold(
+			ev('connect.repo', {url: local}),
+			ev('connect.repo', {url: remote, label: 'up'}),
+		);
+		expect(live(squatted).map(repo => repo.label)).toEqual([
+			'up',
+			repoIdOf(remote),
+		]);
+
+		const named = fold(
+			ev('connect.repo', {url: A, label: 'b'}),
+			ev('connect.repo', {url: B}),
+		);
+		expect(live(named).map(repo => repo.label)).toEqual(['b', repoIdOf(B)]);
 	});
 
 	it('puts a reconnected repo last, as the one most recently live', () => {

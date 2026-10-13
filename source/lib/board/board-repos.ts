@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {failed, Result, succeeded} from '../model/result-types.js';
-import {isAllowedRepoUrl, MAX_URL_LENGTH} from '../commits/repo-url.js';
+import {isAllowedRepoUrl} from '../commits/repo-url.js';
 
 // The other repositories whose commits count as this board's, kept as board
 // events so they sync with the board and never conflict. One reducer applies
@@ -81,16 +81,38 @@ const isCalendarDate = (value: string): boolean => {
 export const isRepoLabel = (value: string): boolean =>
 	LABEL.test(value) && !ID_HASH.test(value);
 
+// `user@host:path`, the form ssh remotes are usually written in.
+const SCP_URL = /^([^@/]+@)([^:/]+)(:.*)$/;
+const SCHEME_URL = /^([a-z][a-z0-9+.-]*:\/\/)([^/]*)(.*)$/i;
+
+// Case folded only where it means nothing: the scheme and the host. A path
+// keeps its case, which a case-sensitive host or file system goes by.
+const foldCase = (url: string): string => {
+	const scp = SCP_URL.exec(url);
+	if (scp) return `${scp[1]}${scp[2]!.toLowerCase()}${scp[3]}`;
+
+	const scheme = SCHEME_URL.exec(url);
+	if (!scheme) return url;
+
+	const authority = scheme[2]!;
+	const at = authority.lastIndexOf('@') + 1;
+	return `${scheme[1]!.toLowerCase()}${authority.slice(0, at)}${authority
+		.slice(at)
+		.toLowerCase()}${scheme[3]}`;
+};
+
 const normalizeUrl = (url: string): string =>
-	url
-		.trim()
-		.replace(/\/+$/, '')
-		.replace(/\.git$/i, '')
-		.toLowerCase();
+	foldCase(
+		url
+			.trim()
+			.replace(/\/+$/, '')
+			.replace(/\.git$/i, ''),
+	);
 
 /** What a repo is called unless a label says otherwise: its URL's basename. */
 export const repoLabelOfUrl = (url: string): string => {
-	const last = normalizeUrl(url).split(/[/:]/).filter(Boolean).pop() ?? '';
+	const last =
+		normalizeUrl(url).toLowerCase().split(/[/:]/).filter(Boolean).pop() ?? '';
 	// Short: it names a directory, and Windows caps a whole path at 260.
 	const slug = last.replace(/[^a-z0-9._-]/g, '-').slice(0, 24);
 
@@ -168,10 +190,10 @@ export const applyRepoEvent = (
 	const fields = readFields(payload);
 
 	if (event.action === 'connect.repo') {
+		// Any URL is folded: which ones are read is the readers' rule, and it
+		// may change, while what a log holds must not.
 		const url = typeof payload['url'] === 'string' ? payload['url'].trim() : '';
-		if (url.length > MAX_URL_LENGTH || !isAllowedRepoUrl(url)) {
-			return failed('not a repo URL this build reads');
-		}
+		if (url === '') return failed('no URL');
 
 		const id = repoIdOf(url);
 		const existing = Object.hasOwn(registry.entries, id)
@@ -249,10 +271,10 @@ export type ResolvedRepos = {
 };
 
 /**
- * The registry as readers see it. The cap and a contested label are settled
+ * The registry as readers see it. The cap and a contested name are settled
  * here rather than in the reducer, so a later build may change either without
  * disagreeing with this one about the log: the earliest to become live keeps a
- * label, and a later one is called by its URL's basename.
+ * name, and a later one is called by its URL's basename, or else its id.
  */
 export const resolveRepos = (registry: RepoRegistry): ResolvedRepos => {
 	const entries = Object.values(registry.entries);
@@ -260,12 +282,15 @@ export const resolveRepos = (registry: RepoRegistry): ResolvedRepos => {
 		.filter(entry => entry.live && isAllowedRepoUrl(entry.url))
 		.sort((a, b) => a.seq - b.seq);
 
+	// Every name shown is one no repo ahead of it shows: its own label, else
+	// its URL's basename, else its id, which nothing else can be called.
 	const taken = new Set<string>();
 	const repos = live.map((entry): CommitRepo => {
-		const wanted = entry.label;
 		const label =
-			wanted && !taken.has(wanted) ? wanted : repoLabelOfUrl(entry.url);
-		if (wanted) taken.add(wanted);
+			[entry.label, repoLabelOfUrl(entry.url)].find(
+				name => name !== undefined && !taken.has(name),
+			) ?? entry.id;
+		taken.add(label);
 
 		return {
 			id: entry.id,

@@ -143,7 +143,8 @@ export const noteOwnAppend = (
 	accounted = next === null ? null : {root: stateBranchRoot, signature: next};
 };
 
-// The tests drive the log through mocks, so they need this gone between cases.
+// Nothing is taken as applied until the next derive: after a write the state
+// took but the log did not, and between test cases that mock the log.
 export const clearAccountedSignature = (): void => {
 	accounted = null;
 };

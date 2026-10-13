@@ -6,6 +6,7 @@ import {
 	succeeded,
 } from '../model/result-types.js';
 import {EventCatalog} from './event-catalog.js';
+import {clearAccountedSignature} from './log-signature.js';
 import {Materializer} from './event-materialize.js';
 import {EdgeCursor, Persister} from './event-persist.js';
 import {ActionOf, Event, EventMap, MaterializeResult} from './event.model.js';
@@ -58,7 +59,12 @@ export const createWriter = <M extends EventMap>(
 			edge,
 			id: id.value,
 		});
-		if (isFail(persistResult)) return persistResult;
+		if (isFail(persistResult)) {
+			// The state now holds what no log does, so nothing may take it for
+			// the log's until it is derived again.
+			clearAccountedSignature();
+			return persistResult;
+		}
 
 		return materialized;
 	}

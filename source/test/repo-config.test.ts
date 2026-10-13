@@ -4,7 +4,10 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {withoutRepositoryOverrides} from '../git/git-utils.js';
 import {acquireLockFile} from '../git/sync-lock.js';
-import {parseRepoConnectArgs} from '../lib/command-line/commands/repo.cmd.js';
+import {
+	describeRepoPreview,
+	parseRepoConnectArgs,
+} from '../lib/command-line/commands/repo.cmd.js';
 import {
 	findCommitRepo,
 	isRepoSince,
@@ -306,5 +309,37 @@ describe('repo:connect over the socket with a label', () => {
 				payload: {url, label: 'x'.repeat(25)},
 			}).ok,
 		).toBe(false);
+	});
+});
+
+describe('a TUI repo preview', () => {
+	// The subject and author come from the repo previewed, which may be anybody's.
+	it('never writes the previewed repo text raw to the terminal', () => {
+		const line = describeRepoPreview({
+			repo: {
+				id: 'a-000000000000',
+				url: 'https://example.com/a.git',
+				branches: 'default',
+				since: 'board',
+				label: 'a',
+			},
+			host: 'example.com',
+			defaultBranch: 'main\u001b]0;pwned\u0007',
+			latest: {
+				subject: 'fix\u001b[2J\u001b[Hgone',
+				author: 'mallory\r\u001b[31m',
+				date: '2025-01-01T00:00:00Z',
+			},
+			commits: 1,
+			ticketCommits: 0,
+			bytes: 1024,
+			contributors: 2,
+			claimedBytes: 0,
+			overLimit: false,
+			expiresAt: 0,
+		});
+
+		expect(line).not.toMatch(/[\u0000-\u001f\u007f]/);
+		expect(line).toContain('is it the right repo?');
 	});
 });

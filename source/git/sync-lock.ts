@@ -111,6 +111,15 @@ const startTimeOf = (pid: number): number | null => {
 	}
 };
 
+/**
+ * Whether the process running as `pid` started after `atMs`: then it is not the
+ * one that wrote something at that time, whose pid it was given.
+ */
+export const pidStartedAfter = (pid: number, atMs: number): boolean => {
+	const startedAt = startTimeOf(pid);
+	return startedAt !== null && startedAt > atMs + START_TOLERANCE_MS;
+};
+
 // `ps` is a process of its own, and a watcher asks every second while a sync
 // holds the lock; a pid is not reused within a few seconds.
 const PS_CACHE_MS = 5_000;

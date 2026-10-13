@@ -193,6 +193,22 @@ describe('connecting a repo', () => {
 		expect(connected(repoRoot)).toEqual([]);
 	});
 
+	it('keeps one stage at a time, a newer preview taking the place of an older', async () => {
+		const {repoRoot} = await board();
+		const first = await makeUpstream(['one']);
+		const second = await makeUpstream(['two']);
+
+		value(await connectRepo({repoRoot, url: first}));
+		value(await connectRepo({repoRoot, url: second}));
+
+		expect(stagesIn(repoRoot)).toHaveLength(1);
+		expect(
+			isFail(await connectRepo({repoRoot, url: first, confirm: true})),
+		).toBe(true);
+		value(await connectRepo({repoRoot, url: second, confirm: true}));
+		expect(connected(repoRoot)).toEqual([repoIdOf(second)]);
+	});
+
 	it('refuses to preview a repo that is already connected', async () => {
 		const {repoRoot} = await board();
 		const url = await makeUpstream(['one']);
@@ -225,6 +241,75 @@ describe('connecting a repo', () => {
 		expect(isFail(renamed)).toBe(false);
 		expect(value(readConnectedRepos(repoRoot)).live[0]?.label).toBe('upstream');
 	});
+});
+
+// A write the state took and the log refused must never be read as the log's.
+describe('a repo event the log refused', () => {
+	const refusingWrites = async <T>(repoRoot: string, fn: () => Promise<T>) => {
+		const dir = path.join(
+			value(getStateBranchRoot({repoRoot})),
+			'.epiq',
+			'events',
+		);
+		const files = fs.readdirSync(dir).map(name => path.join(dir, name));
+		for (const file of [...files, dir]) fs.chmodSync(file, 0o500);
+		try {
+			return await fn();
+		} finally {
+			for (const file of [dir, ...files]) fs.chmodSync(file, 0o700);
+		}
+	};
+
+	const anotherWrite = async (repoRoot: string) => {
+		const boards = value(await listBoards({repoRoot}));
+		const lanes = value(
+			await listSwimlanes({repoRoot, boardId: boards[0]!.id}),
+		);
+		value(
+			await createIssue({repoRoot, parentId: lanes[0]!.id, title: 'later'}),
+		);
+	};
+
+	it.skipIf(process.getuid?.() === 0)(
+		'leaves no phantom repo to clone after a confirm the log refused',
+		async () => {
+			const {repoRoot} = await board();
+			const url = await makeUpstream(['one']);
+			value(await connectRepo({repoRoot, url}));
+
+			const confirmed = await refusingWrites(repoRoot, () =>
+				connectRepo({repoRoot, url, confirm: true}),
+			);
+			expect(isFail(confirmed)).toBe(true);
+
+			await anotherWrite(repoRoot);
+			value(await fetchRepos({repoRoot}));
+
+			expect(connected(repoRoot)).toEqual([]);
+			expect(fs.existsSync(clonePathOf(repoRoot, url))).toBe(false);
+		},
+	);
+
+	it.skipIf(process.getuid?.() === 0)(
+		'keeps the clone of a repo whose disconnect the log refused',
+		async () => {
+			const {repoRoot} = await board();
+			const url = await makeUpstream(['one']);
+			value(await connectRepo({repoRoot, url}));
+			value(await connectRepo({repoRoot, url, confirm: true}));
+
+			const disconnected = await refusingWrites(repoRoot, () =>
+				disconnectRepo({repoRoot, repo: repoIdOf(url)}),
+			);
+			expect(isFail(disconnected)).toBe(true);
+
+			await anotherWrite(repoRoot);
+			value(await fetchRepos({repoRoot}));
+
+			expect(connected(repoRoot)).toEqual([repoIdOf(url)]);
+			expect(fs.existsSync(clonePathOf(repoRoot, url))).toBe(true);
+		},
+	);
 });
 
 describe('disconnecting a repo', () => {
@@ -267,6 +352,31 @@ describe('disconnecting a repo', () => {
 		value(await fetchRepos({repoRoot}));
 
 		expect(fs.existsSync(clonePathOf(repoRoot, url))).toBe(false);
+		expect(fs.existsSync(`${clonePathOf(repoRoot, url)}.removed`)).toBe(false);
+	});
+
+	it('sweeps a stage whose pid now belongs to a process started after it', async () => {
+		const {repoRoot} = await board();
+		const url = await makeUpstream(['one']);
+		const dir = path.dirname(clonePathOf(repoRoot, url));
+		fs.mkdirSync(dir, {recursive: true});
+
+		// This process's pid, but written long before it started.
+		const orphan = `${clonePathOf(repoRoot, url)}.${process.pid}.${'0'.repeat(
+			8,
+		)}-0000-0000-0000-${'0'.repeat(12)}.pending`;
+		fs.mkdirSync(orphan);
+		fs.utimesSync(orphan, new Date('2001-01-01'), new Date('2001-01-01'));
+		const live = `${clonePathOf(repoRoot, url)}.${process.pid}.${'1'.repeat(
+			8,
+		)}-1111-1111-1111-${'1'.repeat(12)}.pending`;
+		fs.mkdirSync(live);
+
+		value(await fetchRepos({repoRoot}));
+
+		expect(fs.existsSync(orphan)).toBe(false);
+		expect(fs.existsSync(live)).toBe(true);
+		fs.rmSync(live, {recursive: true, force: true});
 	});
 
 	it('keeps a repo reconnected before the sweep, and clones it', async () => {
