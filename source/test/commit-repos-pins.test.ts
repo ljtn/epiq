@@ -9,7 +9,6 @@ import {
 	getSquashedDiffForRef,
 	repoIdOf,
 	resetCommitTimelineCacheForTests,
-	upsertCommitRepo,
 } from '../lib/commits/commits.js';
 import {
 	getRepoClonePath,
@@ -18,9 +17,9 @@ import {
 import {isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {syncThenFetchRepos} from '../mcp/api/repos.js';
 import {makeTempDir} from './helpers/git-repo.js';
+import {connectRepoEvent} from './helpers/repo-events.js';
 
 const REF = 'AAAAAAA';
-const PROJECT_ID = 'pins';
 
 const value = <T>(result: Result<T>): T => {
 	if (isFail(result)) throw new Error(result.message);
@@ -62,17 +61,20 @@ let board: string;
 let upstream: string;
 let url: string;
 let clonePath: string;
+// Per board: boards that shared one would share a log, and its repos.
+let projectId: string;
 
 beforeEach(() => {
 	resetCommitTimelineCacheForTests();
 
 	board = makeTempDir();
+	projectId = path.basename(board);
 	git(board, ['init', '-q', '-b', 'main']);
 	fs.mkdirSync(path.join(board, '.epiq'));
 	fs.writeFileSync(
 		path.join(board, '.epiq', 'project.json'),
 		JSON.stringify({
-			projectId: PROJECT_ID,
+			projectId,
 			stateBranch: 'epiq/state',
 			createdAt: '2020-01-01T00:00:00.000Z',
 		}),
@@ -90,7 +92,7 @@ beforeEach(() => {
 		committer: '2018-01-01T00:00:00Z',
 	});
 	url = `file://${upstream}`;
-	clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+	clonePath = getRepoClonePath(projectId, repoIdOf(url));
 });
 
 afterEach(() => {
@@ -107,12 +109,12 @@ describe("a repo's history window", () => {
 			author: '2021-02-01T00:00:00Z',
 			committer: '2019-12-01T00:00:00Z',
 		});
-		value(upsertCommitRepo({repoRoot: board, url, since: 'all'}));
+		connectRepoEvent(board, url, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		// Narrowed on a clone that already holds everything: only the filter
 		// stands between the window and what is shown.
-		value(upsertCommitRepo({repoRoot: board, url, since: '2020-06-01'}));
+		connectRepoEvent(board, url, {since: '2020-06-01'});
 		resetCommitTimelineCacheForTests();
 
 		expect(
@@ -134,9 +136,7 @@ describe('a commit a fork shares', () => {
 		const own = commit(fork, `${REF} the fork’s own`, {
 			author: '2024-01-02T00:00:00Z',
 		});
-		value(
-			upsertCommitRepo({repoRoot: board, url: `file://${fork}`, since: 'all'}),
-		);
+		connectRepoEvent(board, `file://${fork}`, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const matched = value(await getCommitsForRef({repoRoot: board, ref: REF}));
@@ -149,7 +149,7 @@ describe('a clone that breaks', () => {
 	it('costs the squashed diff its own files, never the board’s', async () => {
 		commit(board, `${REF} board`, {author: '2024-01-01T00:00:00Z'});
 		commit(upstream, `${REF} upstream`, {author: '2024-01-02T00:00:00Z'});
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		// The log still lists the clone's commit; reading its trees fails.
@@ -173,7 +173,7 @@ describe('a clone that breaks', () => {
 describe('the fetch after a sync', () => {
 	it('is not waited on past its budget', async () => {
 		commit(upstream, `${REF} upstream`);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 
 		const result = await syncThenFetchRepos(
 			succeeded('Synced', {}),
@@ -188,7 +188,7 @@ describe('the fetch after a sync', () => {
 
 	it('runs again for a fetch asked for during a throttled one', async () => {
 		commit(upstream, `${REF} first`);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		commit(upstream, `${REF} second`);
 
@@ -209,12 +209,12 @@ describe('the fetch after a sync', () => {
 describe('what a dead process left', () => {
 	it('is cleared: a half-made clone, and a lock on the clone', async () => {
 		commit(upstream, `${REF} upstream`);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const dead = 2_147_483_646;
 		const pending = path.join(
-			getRepoClonesDir(PROJECT_ID),
+			getRepoClonesDir(projectId),
 			`${repoIdOf(url)}.git.${dead}.pending`,
 		);
 		fs.mkdirSync(pending);

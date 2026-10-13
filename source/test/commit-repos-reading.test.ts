@@ -9,13 +9,13 @@ import {
 	getSquashedDiffForRef,
 	repoIdOf,
 	resetCommitTimelineCacheForTests,
-	upsertCommitRepo,
 } from '../lib/commits/commits.js';
 import {getRepoClonePath} from '../lib/commits/commit-repos.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {deriveIssueStats} from '../lib/stats/issue-stats.js';
 import {scanTicketPatch} from '../lib/stats/patch-scan.js';
 import {makeTempDir} from './helpers/git-repo.js';
+import {connectRepoEvent} from './helpers/repo-events.js';
 
 const REF = 'AAAAAAA';
 
@@ -56,7 +56,8 @@ const commit = (
 	return git(cwd, ['rev-parse', 'HEAD']).trim();
 };
 
-const PROJECT_ID = 'reading-review';
+// Per board: boards that shared one would share a log, and its repos.
+let projectId: string;
 
 let board: string;
 let upstream: string;
@@ -67,12 +68,13 @@ beforeEach(() => {
 	resetCommitTimelineCacheForTests();
 
 	board = makeTempDir();
+	projectId = path.basename(board);
 	git(board, ['init', '-q', '-b', 'main']);
 	fs.mkdirSync(path.join(board, '.epiq'));
 	fs.writeFileSync(
 		path.join(board, '.epiq', 'project.json'),
 		JSON.stringify({
-			projectId: PROJECT_ID,
+			projectId,
 			stateBranch: 'epiq/state',
 			createdAt: '2020-01-01T00:00:00.000Z',
 		}),
@@ -84,7 +86,7 @@ beforeEach(() => {
 	git(upstream, ['init', '-q', '-b', 'main']);
 	commit(upstream, 'init', '2019-01-01T00:00:00Z');
 	url = `file://${upstream}`;
-	clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+	clonePath = getRepoClonePath(projectId, repoIdOf(url));
 });
 
 afterEach(() => {
@@ -99,7 +101,7 @@ const breakClone = () => {
 describe("a clone's log", () => {
 	it('is read once until the clone changes, and again after', async () => {
 		commit(upstream, `${REF} upstream`, '2024-01-01T00:00:00Z');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		expect(
 			value(await getCommitsForRef({repoRoot: board, ref: REF})),
@@ -128,7 +130,7 @@ describe('commits from several repos', () => {
 		commit(board, `${REF} board, written 2024`, '2024-06-01T00:00:00Z');
 		commit(board, `${REF} board, rebased from 2021`, '2021-01-01T00:00:00Z');
 		commit(upstream, `${REF} upstream 2023`, '2023-01-01T00:00:00Z');
-		value(upsertCommitRepo({repoRoot: board, url, since: 'all'}));
+		connectRepoEvent(board, url, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const times = value(
@@ -147,9 +149,7 @@ describe('commits from several repos', () => {
 		const fork = makeTempDir();
 		git(fork, ['clone', '-q', board, '.']);
 		commit(fork, `${REF} only in the fork`, '2024-01-03T00:00:00Z');
-		value(
-			upsertCommitRepo({repoRoot: board, url: `file://${fork}`, since: 'all'}),
-		);
+		connectRepoEvent(board, `file://${fork}`, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const diff = value(
@@ -172,9 +172,7 @@ describe('a fork that merged a commit the board has', () => {
 		commit(board, `${REF} board`, '2024-01-02T00:00:00Z', 'a.txt');
 		git(fork, ['pull', '-q', '--no-rebase', '--no-edit', 'origin', 'main']);
 		commit(fork, `${REF} fork second`, '2024-01-03T00:00:00Z', 'b.txt');
-		value(
-			upsertCommitRepo({repoRoot: board, url: `file://${fork}`, since: 'all'}),
-		);
+		connectRepoEvent(board, `file://${fork}`, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const diff = value(
@@ -199,8 +197,8 @@ describe('a fork that merged a commit the board has', () => {
 
 		// Listed first, and cut after the first commit: the shared one is its,
 		// the fork keeps the first and last.
-		value(upsertCommitRepo({repoRoot: board, url, since: '2024-01-01'}));
-		value(upsertCommitRepo({repoRoot: board, url: forkUrl, since: 'all'}));
+		connectRepoEvent(board, url, {since: '2024-01-01'});
+		connectRepoEvent(board, forkUrl, {since: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const diff = value(
@@ -243,7 +241,7 @@ describe('what reading a clone is bounded by', () => {
 			'huge.txt',
 			'line\n'.repeat(2 * 1024 * 1024),
 		);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const result = await getCommitPatch({repoRoot: board, sha});
@@ -261,7 +259,7 @@ describe('what reading a clone is bounded by', () => {
 			].join(''),
 			'2024-01-01T00:00:00Z',
 		);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const shas = value(await getCommitsForRef({repoRoot: board, ref: REF})).map(
@@ -275,7 +273,7 @@ describe('what reading a clone is bounded by', () => {
 	it('leaves a broken clone out of a ticket’s stats rather than failing them', async () => {
 		const own = commit(board, `${REF} board`, '2024-01-01T00:00:00Z');
 		const theirs = commit(upstream, `${REF} upstream`, '2024-01-02T00:00:00Z');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		breakClone();
 

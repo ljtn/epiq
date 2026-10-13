@@ -32,9 +32,8 @@ fs.writeFileSync(
 fs.chmodSync(flakySsh, 0o755);
 process.env['GIT_SSH_COMMAND'] = flakySsh;
 
-const {fetchCommitRepos, repoIdOf, upsertCommitRepo} = await import(
-	'../lib/commits/commits.js'
-);
+const {fetchCommitRepos, repoIdOf} = await import('../lib/commits/commits.js');
+const {connectRepoEvent} = await import('./helpers/repo-events.js');
 const {getRepoClonePath} = await import('../lib/commits/commit-repos.js');
 
 afterAll(() => {
@@ -77,7 +76,7 @@ describe('a fetch the network drops once', () => {
 		git(upstream, ['commit', '-q', '--allow-empty', '-m', 'AAAAAAA one']);
 
 		const url = `ssh://localhost${upstream}`;
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		const marker = path.join(
 			getRepoClonePath('flaky-board', repoIdOf(url)),

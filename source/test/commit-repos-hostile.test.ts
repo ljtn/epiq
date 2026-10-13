@@ -11,29 +11,28 @@ import {
 	getSquashedDiffForRef,
 	listRepoStates,
 	readCommitRepos,
-	removeCommitRepo,
 	removeRepoClone,
 	repoIdOf,
 	repoUrlProblem,
 	resetCommitTimelineCacheForTests,
-	upsertCommitRepo,
 } from '../lib/commits/commits.js';
-import {
-	getRepoClonePath,
-	MAX_REPOS,
-	projectFileLockPath,
-} from '../lib/commits/commit-repos.js';
+import {getRepoClonePath, MAX_REPOS} from '../lib/commits/commit-repos.js';
 import {MAX_CLONE_PACKS} from '../lib/commits/commit-repo-fetch.js';
 import {execGit} from '../git/git-utils.js';
 import {setConfig} from '../lib/config/user-config.js';
 import {randomBytes} from 'node:crypto';
 import {boot} from '../mcp/api/boot.js';
+import {getStateBranchRoot} from '../git/git-storage.js';
+import {createDefaultEvents} from '../lib/board/board-boot.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
+import {materializeAndPersistAll} from '../lib/board/board-log.js';
 import {acquireLockFile} from '../git/sync-lock.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
+import {connectRepoEvent, disconnectRepoEvent} from './helpers/repo-events.js';
 
-// `project.json` arrives with the code, so its repo list is anybody's who can
-// land a commit; and a registered repo's contents are its owner's, not ours.
+// The repo events sync from every clone of the board, so the list is anybody's
+// who can push to it; and a registered repo's contents are its owner's, not ours.
 
 const value = <T>(result: Result<T>): T => {
 	if (isFail(result)) throw new Error(result.message);
@@ -66,7 +65,8 @@ const commit = (
 	return git(cwd, ['rev-parse', 'HEAD']).trim();
 };
 
-const PROJECT_ID = 'hostile-board';
+// Per board: boards that shared one would share a log, and its repos.
+let PROJECT_ID: string;
 
 const writeProject = (root: string, extra: Record<string, unknown> = {}) => {
 	fs.mkdirSync(path.join(root, '.epiq'), {recursive: true});
@@ -93,6 +93,7 @@ beforeEach(() => {
 	resetCommitTimelineCacheForTests();
 
 	board = makeTempDir();
+	PROJECT_ID = path.basename(board);
 	git(board, ['init', '-q', '-b', 'main']);
 	writeProject(board);
 	commit(board, 'init.txt', 'init');
@@ -108,50 +109,49 @@ afterEach(() => {
 	resetCommitTimelineCacheForTests();
 });
 
+const HOSTILE_URLS: [string, string][] = [
+	['ext::sh -c touch% /tmp/pwned', 'runs a command'],
+	['fd::17', 'reads a descriptor'],
+	['--upload-pack=touch /tmp/pwned', 'is an option'],
+	['ssh://-oProxyCommand=touch%20x/repo', 'puts an option in the host'],
+	['ssh://-oProxyCommand@host/repo', 'puts an option in the user'],
+	['-oProxyCommand=x@host:repo', 'is an scp option'],
+	['me@-oProxyCommand=x:repo', 'is an scp host option'],
+	['https://user:hunter2@example.com/repo.git', 'commits a password'],
+	[
+		'https://github.com@evil.example/acme/widgets',
+		'passes one host off as another',
+	],
+	[`https://${'%41'.repeat(300)}@evil.example/x`, 'buries the host'],
+	['file://fileserver/share/repo', 'names a host for a file URL'],
+	['/home/me/src/repo', 'is a local path'],
+	['https://example.com/a repo', 'holds a space'],
+	['https://example.com/\x1b]0;pwned\x07', 'holds a control character'],
+	['https://exаmple.com/repo', 'hides a lookalike letter'],
+	[`https://example.com/${'a'.repeat(3000)}`, 'is far too long'],
+	['svn://example.com/repo', 'uses another transport'],
+	['file::helper', 'names a remote helper'],
+	['git::https://example.com/repo', 'names a remote helper, and nothing else'],
+	['https::example.com/repo', 'names a remote helper'],
+	['file:relative/path', 'is ssh to a host called file'],
+	['file:/etc/repo', 'is not a file:/// URL'],
+	['ssh:///repo', 'names no host'],
+	[
+		'https://github.com\\@127.0.0.1:9/x',
+		'reads as one host to the parser and connects to another',
+	],
+	['https://127.0.0.1:9#@github.com/x', 'hides the host behind a fragment'],
+	['https://127.0.0.1:9?@github.com/x', 'hides the host behind a query'],
+	[
+		'ssh://%2doProxyCommand=touch%20x/repo',
+		'puts an option in the host, encoded',
+	],
+	['ssh://%2d%2doption@host/repo', 'puts an option in the user, encoded'],
+	['https://exa%6dple.com/repo', 'encodes its host'],
+];
+
 describe('a URL from a committed file', () => {
-	it.each([
-		['ext::sh -c touch% /tmp/pwned', 'runs a command'],
-		['fd::17', 'reads a descriptor'],
-		['--upload-pack=touch /tmp/pwned', 'is an option'],
-		['ssh://-oProxyCommand=touch%20x/repo', 'puts an option in the host'],
-		['ssh://-oProxyCommand@host/repo', 'puts an option in the user'],
-		['-oProxyCommand=x@host:repo', 'is an scp option'],
-		['me@-oProxyCommand=x:repo', 'is an scp host option'],
-		['https://user:hunter2@example.com/repo.git', 'commits a password'],
-		[
-			'https://github.com@evil.example/acme/widgets',
-			'passes one host off as another',
-		],
-		[`https://${'%41'.repeat(300)}@evil.example/x`, 'buries the host'],
-		['file://fileserver/share/repo', 'names a host for a file URL'],
-		['/home/me/src/repo', 'is a local path'],
-		['https://example.com/a repo', 'holds a space'],
-		['https://example.com/\x1b]0;pwned\x07', 'holds a control character'],
-		['https://exаmple.com/repo', 'hides a lookalike letter'],
-		[`https://example.com/${'a'.repeat(3000)}`, 'is far too long'],
-		['svn://example.com/repo', 'uses another transport'],
-		['file::helper', 'names a remote helper'],
-		[
-			'git::https://example.com/repo',
-			'names a remote helper, and nothing else',
-		],
-		['https::example.com/repo', 'names a remote helper'],
-		['file:relative/path', 'is ssh to a host called file'],
-		['file:/etc/repo', 'is not a file:/// URL'],
-		['ssh:///repo', 'names no host'],
-		[
-			'https://github.com\\@127.0.0.1:9/x',
-			'reads as one host to the parser and connects to another',
-		],
-		['https://127.0.0.1:9#@github.com/x', 'hides the host behind a fragment'],
-		['https://127.0.0.1:9?@github.com/x', 'hides the host behind a query'],
-		[
-			'ssh://%2doProxyCommand=touch%20x/repo',
-			'puts an option in the host, encoded',
-		],
-		['ssh://%2d%2doption@host/repo', 'puts an option in the user, encoded'],
-		['https://exa%6dple.com/repo', 'encodes its host'],
-	])('refuses %j, which %s', bad => {
+	it.each(HOSTILE_URLS)('refuses %j, which %s', bad => {
 		expect(repoUrlProblem(bad)).not.toBeNull();
 	});
 
@@ -168,13 +168,17 @@ describe('a URL from a committed file', () => {
 		expect(repoUrlProblem(good)).toBeNull();
 	});
 
-	it('reads no more than the cap, however many are listed', () => {
-		writeProject(board, {
-			repos: Array.from(
-				{length: MAX_REPOS + 30},
-				(_, index) => `https://example.com/r${index}.git`,
-			),
-		});
+	it('is skipped by the fold when a connect event carries it', () => {
+		for (const [bad] of HOSTILE_URLS) connectRepoEvent(board, bad);
+		connectRepoEvent(board, url);
+
+		expect(value(readCommitRepos(board)).map(repo => repo.url)).toEqual([url]);
+	});
+
+	it('reads no more than the cap, however many are connected', () => {
+		for (let index = 0; index < MAX_REPOS + 30; index++) {
+			connectRepoEvent(board, `https://example.com/r${index}.git`);
+		}
 
 		expect(value(readCommitRepos(board))).toHaveLength(MAX_REPOS);
 	});
@@ -184,7 +188,7 @@ describe('a remote with no commits yet', () => {
 	it('reads as empty, not as unreadable', async () => {
 		const empty = makeTempDir();
 		git(empty, ['init', '-q', '-b', 'main']);
-		value(upsertCommitRepo({repoRoot: board, url: `file://${empty}`}));
+		connectRepoEvent(board, `file://${empty}`);
 
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 		expect(outcome!.ok).toBe(true);
@@ -221,7 +225,7 @@ describe("a repo bigger than this machine's clone cap", () => {
 	it('is never cloned, and says why', async () => {
 		setConfig({repoCloneMaxMb: 1});
 		addBlob('big.bin', 4);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 
@@ -238,7 +242,7 @@ describe("a repo bigger than this machine's clone cap", () => {
 	it('stops a fetch that would pass it, and keeps what it held', async () => {
 		setConfig({repoCloneMaxMb: 2});
 		commit(upstream, 'small.txt', 'AAAAAAA small');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		expect(value(await fetchCommitRepos({repoRoot: board}))[0]!.ok).toBe(true);
 
 		addBlob('big.bin', 6);
@@ -257,7 +261,7 @@ describe("a repo bigger than this machine's clone cap", () => {
 	it('undoes a followed default with the fetch, and follows it once it fits', async () => {
 		setConfig({repoCloneMaxMb: 2});
 		commit(upstream, 'small.txt', 'AAAAAAA small');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		// On the old default alone, and in the clone: read only while that
@@ -293,7 +297,7 @@ describe("a repo bigger than this machine's clone cap", () => {
 	it('leaves a clone already past it unfetched, and readable', async () => {
 		commit(upstream, 'small.txt', 'AAAAAAA small');
 		addBlob('mid.bin', 2);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		expect(value(await fetchCommitRepos({repoRoot: board}))[0]!.ok).toBe(true);
 
 		setConfig({repoCloneMaxMb: 1});
@@ -309,7 +313,7 @@ describe("a repo bigger than this machine's clone cap", () => {
 
 describe('a clone fetched many times', () => {
 	it('merges its packs rather than piling them up', async () => {
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		for (let round = 0; round <= MAX_CLONE_PACKS + 1; round++) {
@@ -336,7 +340,7 @@ describe('a clone fetched many times', () => {
 describe("a git that died writing a clone's packs", () => {
 	it('leaves nothing the next fetch keeps, or counts against the cap', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		const packDir = path.join(
 			getRepoClonePath(PROJECT_ID, repoIdOf(url)),
@@ -362,9 +366,20 @@ describe('a listed repo nobody has synced', () => {
 	// repo listed leaves it uncloned.
 	it('is not fetched by booting or by any read', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		// Once to make the board's worktree, which its events go in.
+		value(await boot(board, {pull: false}));
+		value(
+			materializeAndPersistAll(
+				[
+					...value(createDefaultEvents({userId: 'seed', userName: 'seed'})),
+				] as AppEvent[],
+				value(getStateBranchRoot({repoRoot: board})),
+			),
+		);
+		connectRepoEvent(board, url);
 
 		value(await boot(board, {pull: false}));
+		expect(value(readCommitRepos(board)).map(repo => repo.url)).toEqual([url]);
 		value(listRepoStates(board));
 		value(await getCommitTimeline({repoRoot: board}));
 		value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'}));
@@ -373,41 +388,6 @@ describe('a listed repo nobody has synced', () => {
 		expect(fs.existsSync(getRepoClonePath(PROJECT_ID, repoIdOf(url)))).toBe(
 			false,
 		);
-	});
-});
-
-describe('an edit of the repo list while another process edits it', () => {
-	it('waits its turn, and is refused rather than written over it', () => {
-		const lockPath = projectFileLockPath(board);
-		fs.mkdirSync(path.dirname(lockPath), {recursive: true});
-		const held = acquireLockFile({lockPath, operation: 'test'});
-		expect(held.acquired).toBe(true);
-
-		const refused = upsertCommitRepo({repoRoot: board, url});
-		if (held.acquired) held.release();
-
-		expect(isFail(refused) ? refused.message : '').toMatch(/Another process/);
-		expect(value(readCommitRepos(board))).toEqual([]);
-		value(upsertCommitRepo({repoRoot: board, url}));
-		value(removeCommitRepo({repoRoot: board, repo: url}));
-		expect(fs.existsSync(lockPath)).toBe(false);
-	});
-});
-
-describe('a repo list whose lock cannot be made', () => {
-	it('refuses the edit rather than throwing', () => {
-		const locks = path.dirname(projectFileLockPath(board));
-		fs.rmSync(locks, {recursive: true, force: true});
-		fs.writeFileSync(locks, 'not a directory');
-
-		try {
-			const result = upsertCommitRepo({repoRoot: board, url});
-
-			expect(isFail(result) ? result.message : '').toMatch(/Could not lock/);
-			expect(value(readCommitRepos(board))).toEqual([]);
-		} finally {
-			fs.rmSync(locks, {force: true});
-		}
 	});
 });
 
@@ -423,7 +403,7 @@ describe('a connected repo that is an epiq board', () => {
 		git(upstream, ['checkout', '-q', '--orphan', 'their/log']);
 		commit(upstream, 'event.json', 'AAAAAAA an event about it');
 		git(upstream, ['checkout', '-q', 'main']);
-		value(upsertCommitRepo({repoRoot: board, url, branches: 'all'}));
+		connectRepoEvent(board, url, {branches: 'all'});
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const commits = value(
@@ -437,7 +417,7 @@ describe('a connected repo that is an epiq board', () => {
 describe('a squash whose only clone cannot be read', () => {
 	it('says so, rather than that nothing references the ticket', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		// Read once, so the matches are known; then the clone's objects go
 		// from under them, as the Code tab's list beside the diff still shows.
@@ -467,7 +447,7 @@ describe('a clone that cannot be deleted', () => {
 		'is reported, and its lock let go',
 		async () => {
 			commit(upstream, 'up.txt', 'AAAAAAA upstream');
-			value(upsertCommitRepo({repoRoot: board, url}));
+			connectRepoEvent(board, url);
 			value(await fetchCommitRepos({repoRoot: board}));
 
 			const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
@@ -499,7 +479,7 @@ describe('a clone that cannot be deleted', () => {
 describe('a remove that lands while a pass is waiting', () => {
 	it('is not undone by a clone of what it removed', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
 
@@ -516,7 +496,7 @@ describe('a remove that lands while a pass is waiting', () => {
 		// Let go first, so the remove finds the clone free and deletes it
 		// itself; the pass, still asleep, wakes to what the remove left.
 		if (held.acquired) held.release();
-		value(removeCommitRepo({repoRoot: board, repo: url}));
+		disconnectRepoEvent(board, url);
 		value(removeRepoClone({repoRoot: board, repoId: repoIdOf(url)}));
 
 		const [outcome] = value(await pass);
@@ -530,16 +510,14 @@ describe('a remove that lands while a pass is waiting', () => {
 		const otherUpstream = makeTempDir();
 		git(otherUpstream, ['init', '-q', '-b', 'main']);
 		commit(otherUpstream, 'o.txt', 'BBBBBBB other');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
 
 		// A second worktree of the board, on a branch listing another repo.
 		const sibling = makeTempDir();
 		writeProject(sibling);
-		value(
-			upsertCommitRepo({repoRoot: sibling, url: `file://${otherUpstream}`}),
-		);
+		connectRepoEvent(sibling, `file://${otherUpstream}`);
 
 		const held = acquireLockFile({
 			lockPath: `${clonePath}.lock`,
@@ -551,7 +529,7 @@ describe('a remove that lands while a pass is waiting', () => {
 		const pass = fetchCommitRepos({repoRoot: board});
 		await new Promise(resolve => setTimeout(resolve, 400));
 		if (held.acquired) held.release();
-		value(removeCommitRepo({repoRoot: board, repo: url}));
+		disconnectRepoEvent(board, url);
 		value(removeRepoClone({repoRoot: board, repoId: repoIdOf(url)}));
 		value(await fetchCommitRepos({repoRoot: sibling}));
 
@@ -564,13 +542,15 @@ describe('a remove that lands while a pass is waiting', () => {
 	it('can be made twice, the repo re-added between', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
 		const id = repoIdOf(url);
+		connectRepoEvent(board, url);
+		value(await fetchCommitRepos({repoRoot: board}));
 		for (let round = 0; round < 2; round++) {
-			value(upsertCommitRepo({repoRoot: board, url}));
-			value(removeCommitRepo({repoRoot: board, repo: url}));
+			connectRepoEvent(board, url);
+			disconnectRepoEvent(board, url);
 			value(removeRepoClone({repoRoot: board, repoId: id}));
 		}
 
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 
 		expect(outcome!.ok).toBe(true);
@@ -584,7 +564,7 @@ describe('a remove that lands while a pass is waiting', () => {
 describe('a link planted where epiq writes', () => {
 	it('is never used as the clone', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
 		const elsewhere = makeTempDir();
 		fs.mkdirSync(path.dirname(clonePath), {recursive: true});
@@ -603,7 +583,7 @@ describe('a link planted where epiq writes', () => {
 
 	it('is never written through for the ignore file', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		const clonesDir = path.dirname(getRepoClonePath(PROJECT_ID, repoIdOf(url)));
 		const planted = path.join(makeTempDir(), 'planted');
 		fs.mkdirSync(clonesDir, {recursive: true});
@@ -624,7 +604,7 @@ describe('a link planted where epiq writes', () => {
 describe('a clone that no longer matches the list', () => {
 	it('is cloned again from the listed URL, never fetched from where it points', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
@@ -645,14 +625,18 @@ describe('a clone that no longer matches the list', () => {
 
 	it('keeps its clone when the listed URL is only respelled', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
 		const marker = path.join(clonePath, 'epiq-test-marker');
 		fs.writeFileSync(marker, '');
 
-		writeProject(board, {repos: [`${url}.git/`]});
+		disconnectRepoEvent(board, url);
+		connectRepoEvent(board, `${url}.git/`);
+		expect(value(readCommitRepos(board)).map(repo => repo.url)).toEqual([
+			`${url}.git/`,
+		]);
 		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 
 		expect(outcome!.ok).toBe(true);
@@ -665,7 +649,7 @@ describe('a clone a killed git left behind', () => {
 	// git's own lock files; each one would fail every fetch after it.
 	it('is fetched again past the locks it left', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA first');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
@@ -685,7 +669,7 @@ describe('a clone a killed git left behind', () => {
 describe('a clock and a clone that move under a fetch', () => {
 	it('is not held off by a clock set back past the last fetch', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA first');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const statusFile = `${getRepoClonePath(PROJECT_ID, repoIdOf(url))}.json`;
@@ -704,7 +688,7 @@ describe('a clock and a clone that move under a fetch', () => {
 
 	it('answers two fetches at once with one, and another process with a skip', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA first');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 
 		const [first, second] = await Promise.all([
 			fetchCommitRepos({repoRoot: board}),
@@ -732,7 +716,7 @@ describe('a clock and a clone that move under a fetch', () => {
 
 	it('reads around a clone deleted underneath it', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		commit(board, 'b.txt', 'AAAAAAA board');
 
@@ -748,16 +732,6 @@ describe('a clock and a clone that move under a fetch', () => {
 		).toEqual(['AAAAAAA board']);
 	});
 
-	it('clears a project.json write a dead process left in .epiq/', () => {
-		const leftover = path.join(board, '.epiq', 'project.json.2147483646.tmp');
-		fs.writeFileSync(leftover, '{');
-
-		value(upsertCommitRepo({repoRoot: board, url}));
-
-		expect(fs.existsSync(leftover)).toBe(false);
-		expect(fs.readdirSync(path.join(board, '.epiq'))).toEqual(['project.json']);
-	});
-
 	it('keeps a clone directory name short enough for Windows', () => {
 		expect(
 			repoIdOf(`https://example.com/${'a-very-long-repository-name'.repeat(4)}`)
@@ -769,7 +743,7 @@ describe('a clock and a clone that move under a fetch', () => {
 describe('a remote that renames its default branch', () => {
 	it('is followed to the new name rather than failing for good', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA on master-to-be');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		git(upstream, ['branch', '-m', 'main', 'trunk']);
@@ -792,7 +766,7 @@ describe('a clone broken on this machine', () => {
 	const clonePath = () => getRepoClonePath(PROJECT_ID, repoIdOf(url));
 	const fetched = async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		expect(value(await fetchCommitRepos({repoRoot: board}))[0]!.ok).toBe(true);
 	};
 	const reads = async () =>
@@ -817,7 +791,7 @@ describe('a clone broken on this machine', () => {
 	it('is started over when its shallow boundary is cut short', async () => {
 		setConfig({repoCloneMaxMb: 64});
 		commit(upstream, 'old.txt', 'AAAAAAA old');
-		value(upsertCommitRepo({repoRoot: board, url, since: '2020-01-02'}));
+		connectRepoEvent(board, url, {since: '2020-01-02'});
 		git(upstream, ['commit', '-q', '--allow-empty', '-m', 'AAAAAAA new']);
 		value(await fetchCommitRepos({repoRoot: board}));
 		const shallow = path.join(clonePath(), 'shallow');
@@ -844,7 +818,7 @@ describe('a clone broken on this machine', () => {
 		);
 		git(upstream, ['add', 'mid.bin']);
 		git(upstream, ['commit', '-q', '-m', 'AAAAAAA mid']);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		expect(value(await fetchCommitRepos({repoRoot: board}))[0]!.ok).toBe(true);
 		const packDir = path.join(clonePath(), 'objects', 'pack');
 		for (const name of fs.readdirSync(packDir)) {
@@ -904,7 +878,7 @@ describe('a clone broken on this machine', () => {
 		);
 		git(upstream, ['add', 'mid.bin']);
 		git(upstream, ['commit', '-q', '-m', 'AAAAAAA mid']);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 		fs.writeFileSync(path.join(clonePath(), 'config'), '');
 		// The remote answers, and the new clone cannot land: past the cap.
@@ -1062,7 +1036,7 @@ describe('a default switch a process was stopped in the middle of', () => {
 
 	const switched = async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA shared');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		git(upstream, ['branch', 'trunk']);
 		commit(upstream, 'only.txt', 'AAAAAAA main only');
 		value(await fetchCommitRepos({repoRoot: board}));
@@ -1108,7 +1082,7 @@ describe('a default switch a process was stopped in the middle of', () => {
 describe('a remote whose HEAD names a branch it does not have', () => {
 	it('goes on fetching the branch it had', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA on main');
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		commit(upstream, 'up.txt', 'AAAAAAA later on main');
@@ -1129,7 +1103,7 @@ describe('a remote that makes another branch its default', () => {
 	it('is read from that branch from the next fetch on', async () => {
 		commit(upstream, 'up.txt', 'AAAAAAA on main');
 		git(upstream, ['branch', 'trunk']);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		git(upstream, ['checkout', '-q', 'trunk']);
@@ -1165,7 +1139,7 @@ describe('what a registered repo holds', () => {
 				},
 			},
 		);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const [entry] = value(
@@ -1184,7 +1158,7 @@ describe('what a registered repo holds', () => {
 			'AAAAAAA a huge file',
 			'line\n'.repeat(2 * 1024 * 1024),
 		);
-		value(upsertCommitRepo({repoRoot: board, url}));
+		connectRepoEvent(board, url);
 		value(await fetchCommitRepos({repoRoot: board}));
 
 		const diff = value(await getCommitDiff({repoRoot: board, sha}));
@@ -1215,45 +1189,6 @@ describe('a checkout that looks like a bare repo', () => {
 
 		expect(fs.realpathSync(result.stdout.trim())).toBe(
 			fs.realpathSync(path.join(checkout, '.git')),
-		);
-	});
-});
-
-describe('a project file committed as a link', () => {
-	it('is never written through', () => {
-		const victim = path.join(makeTempDir(), 'profile');
-		fs.writeFileSync(victim, 'export PATH=/usr/bin\n');
-		fs.writeFileSync(
-			victim,
-			JSON.stringify({
-				projectId: PROJECT_ID,
-				stateBranch: 'epiq/state',
-				createdAt: '2020-01-01T00:00:00.000Z',
-			}),
-		);
-		const before = fs.readFileSync(victim, 'utf8');
-
-		const projectFile = path.join(board, '.epiq', 'project.json');
-		fs.rmSync(projectFile);
-		fs.symlinkSync(victim, projectFile);
-
-		expect(isFail(upsertCommitRepo({repoRoot: board, url}))).toBe(true);
-		expect(fs.readFileSync(victim, 'utf8')).toBe(before);
-	});
-
-	it('is never written through a linked .epiq directory either', () => {
-		const elsewhere = makeTempDir();
-		fs.cpSync(path.join(board, '.epiq'), elsewhere, {recursive: true});
-		fs.rmSync(path.join(board, '.epiq'), {recursive: true});
-		fs.symlinkSync(elsewhere, path.join(board, '.epiq'));
-		const before = fs.readFileSync(
-			path.join(elsewhere, 'project.json'),
-			'utf8',
-		);
-
-		expect(isFail(upsertCommitRepo({repoRoot: board, url}))).toBe(true);
-		expect(fs.readFileSync(path.join(elsewhere, 'project.json'), 'utf8')).toBe(
-			before,
 		);
 	});
 });
