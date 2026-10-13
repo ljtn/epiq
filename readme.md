@@ -33,20 +33,15 @@ Preserve the linking post-merge via conventions:
 
 ### Commits from other repos
 
-A board can read commits from other repositories too — handy when the board lives in a repo of its own. Connect them by remote URL in `.epiq/project.json`:
+A board can read commits from other repositories too — handy when the board lives in a repo of its own. Connect one from the GUI (the Repos section of the settings panel behind the gear, or **Connect repo** in the palette), the TUI (`:config repoConnect <url>`, `:config repoDisconnect <name>`) or the MCP (`epiq_repo_connect`, `epiq_repo_disconnect`).
 
-```json
-"repos": [
-  {"url": "git@github.com:me/service.git"},
-  {"url": "https://example.com/lib.git", "branches": "all", "since": "2025-01-01"}
-]
-```
+Connecting is a board-wide action: every contributor's epiq downloads the repo on their next sync. So it takes two steps. The first clones the repo into a staging area and shows what it is and what it costs — its size, host, default branch and latest commit, and how many of its commits name tickets on this board (none suggests the wrong repo) — and writes nothing. Only a confirm connects it: the TUI takes the same line again with `confirm`, the MCP a second call with `confirm: true`. Options of a connected repo change at once. `branches` is `default` (the default) or `all`; `since` is how much history to clone: `board` (since the board was created, the default), `all`, or a date; `label` is what the repo is called on the board — its URL's basename unless set, which is how a fork and its upstream are told apart.
 
-or from the GUI (the Repos section of the settings panel behind the gear, or **Connect repo** in the palette), the TUI (`:config repoConnect <url>`, `:config repoDisconnect <name>`) or the MCP (`epiq_repo_connect`). Epiq keeps its own read-only bare clone of each under `~/.epiq-global/repos/`, fetched on sync with your usual git credentials — never on startup. `branches` is `default` (the default) or `all`; `since` is how much history to clone: `board` (since the board was created, the default), `all`, or a date; `label` is what the repo is called on the board — its URL's basename unless set, which is how a fork and its upstream are told apart. A commit shows once it is pushed and the board has synced. Commit `project.json` to share the list.
+The list is part of the board: connecting, changing and disconnecting are board events, so they sync like any other change and never conflict — nothing to commit. Epiq keeps its own read-only bare clone of each repo under `~/.epiq-global/repos/`, fetched on sync with your usual git credentials (ssh-agent or a credential helper; a passphrase prompt cannot be answered) — never on startup. A commit shows once it is pushed and the board has synced.
 
-A board connects at most 20 repos, and each clone may take at most 2 GB of disk on your machine; `:config repoCloneMaxMb <MB>` changes that, in your own config rather than the shared file. A fetch that would pass it is stopped and undone, and the repo says so. Autosync fetches each at most once a minute; a sync you ask for always fetches. Widening `since` fetches the older history, narrowing it keeps what is already cloned. Disconnecting a repo deletes its clone; worktrees of one board share a clone. A local repository is connected as `file:///absolute/path`. A connected repo that is itself an epiq board lends its commits, never its board's event log.
+A board reads at most 20 repos; one connected past that is listed but not fetched until one ahead of it is disconnected. Each clone may take at most 2 GB of disk on your machine; `:config repoCloneMaxMb <MB>` changes that, in your own config. A fetch that would pass it is stopped and undone, and the repo says so. The Repos section shows what each clone takes on this machine, and the total. Autosync fetches each at most once a minute; a sync you ask for always fetches. Widening `since` fetches the older history, narrowing it keeps what is already cloned. Disconnecting a repo deletes its clone, on every machine as it syncs; worktrees of one board share a clone. A local repository is connected as `file:///absolute/path`. A connected repo that is itself an epiq board lends its commits, never its board's event log.
 
-Since that list arrives with the code, it is read with care: only `https`, `http`, `ssh`, `git`, `file` and `user@host:path` URLs are accepted, never one carrying a password or a user before an http host, and git runs in the clones with none of your hooks, attribute drivers or command-running transports.
+Since anyone on the board can connect a repo, URLs are read with care: only `https`, `http`, `ssh`, `git`, `file` and `user@host:path` URLs are accepted, never one carrying a password or a user before an http host, and git runs in the clones with none of your hooks, attribute drivers or command-running transports.
 
 ## Terminal + Browser
 
