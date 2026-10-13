@@ -306,7 +306,9 @@ const PreviewCard = ({
 	const stakes = preview.overLimit
 		? `Connect — past the board's limit${
 				limit === null ? '' : ` of ${limit}`
-		  }, it is listed and nobody downloads it`
+		  }, nobody downloads it until one ahead of it is disconnected; then every contributor's epiq downloads about ${formatBytes(
+				preview.bytes,
+		  )} from ${preview.host}`
 		: `Connect — every contributor's epiq downloads about ${formatBytes(
 				preview.bytes,
 		  )} from ${preview.host} on their next sync (${plural(

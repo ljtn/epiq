@@ -67,7 +67,10 @@ type Stage = {
 const stages = new Map<string, Stage>();
 
 // Bumped by every preview and cancel of a repo: a clone that finishes after a
-// newer one began, or after a cancel, is not kept.
+// newer one began, or after a cancel, is not kept. One stage at a time per
+// process, too: a stage can be gigabytes, so a newer preview of any repo
+// takes the place of an older one.
+let latestPreview = 0;
 const generations = new Map<string, number>();
 const bump = (repoId: string) => {
 	const next = (generations.get(repoId) ?? 0) + 1;
@@ -264,8 +267,11 @@ export const connectCommitRepo = async (
 		);
 	}
 
-	dropStage(plan.repo.id);
+	for (const repoId of [...stages.keys()]) dropStage(repoId);
 	const generation = bump(plan.repo.id);
+	const token = ++latestPreview;
+	const superseded = () =>
+		generations.get(plan.repo.id) !== generation || latestPreview !== token;
 
 	const projectResult = readRepoProject(input.repoRoot);
 	if (isFail(projectResult)) return failed(projectResult.message);
@@ -273,7 +279,7 @@ export const connectCommitRepo = async (
 	const staged = await stageClone(input.repoRoot, plan.repo);
 	if (isFail(staged)) return failed(`Could not clone it: ${staged.message}`);
 
-	if (generations.get(plan.repo.id) !== generation) {
+	if (superseded()) {
 		discardStage(staged.value.stagePath);
 		return failed('Cancelled');
 	}
@@ -298,7 +304,7 @@ export const connectCommitRepo = async (
 	};
 
 	// Reading the facts awaited git too: a cancel may have landed meanwhile.
-	if (generations.get(plan.repo.id) !== generation) {
+	if (superseded()) {
 		discardStage(staged.value.stagePath);
 		return failed('Cancelled');
 	}

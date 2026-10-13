@@ -14,6 +14,7 @@ import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getSettingsState} from '../../state/settings.state.js';
 import {formatBytes} from '../../utils/format-bytes.js';
+import {sanitizeInlineText} from '../../utils/string.utils.js';
 
 // `:config repoConnect <url> [branches=default|all] [since=board|all|YYYY-MM-DD]
 // [label=<name>] [confirm]` and `:config repoDisconnect <name>`: the TUI's way
@@ -92,10 +93,13 @@ export const registeredRepos = (): CommitRepo[] => {
 
 /** A preview as one status line: what it is, what it costs, how to go on. */
 export const describeRepoPreview = (preview: RepoPreview): string => {
+	// From the repo being previewed, which may be anybody's: never raw to the
+	// terminal.
 	const latest = preview.latest
-		? `latest "${preview.latest.subject.slice(0, 60)}" by ${
-				preview.latest.author
-		  }`
+		? `latest "${sanitizeInlineText(preview.latest.subject).slice(
+				0,
+				60,
+		  )}" by ${sanitizeInlineText(preview.latest.author).slice(0, 40)}`
 		: 'no commits';
 	const refs =
 		preview.ticketCommits === 0
@@ -104,13 +108,19 @@ export const describeRepoPreview = (preview: RepoPreview): string => {
 
 	return [
 		`${preview.repo.label} from ${preview.host}`,
-		preview.defaultBranch ?? 'no default branch',
+		preview.defaultBranch
+			? sanitizeInlineText(preview.defaultBranch).slice(0, 60)
+			: 'no default branch',
 		latest,
 		`${preview.commits} commits in the window, ${refs}`,
 		`every contributor's epiq will download about ${formatBytes(
 			preview.bytes,
 		)} on their next sync (${preview.contributors} contributors)`,
-		...(preview.overLimit ? ['the board is at its repo limit'] : []),
+		...(preview.overLimit
+			? [
+					'the board is at its repo limit: nobody downloads it until one ahead of it is disconnected, then everyone does',
+			  ]
+			: []),
 	].join(' · ');
 };
 
