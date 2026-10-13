@@ -45,7 +45,7 @@ const rowStyle = (armed: boolean): React.CSSProperties => ({
 	flexDirection: 'column',
 	alignItems: 'stretch',
 	gap: 10,
-	padding: '20px 24px',
+	padding: 8,
 	// Arming washes the row and pulls it out to the card's edge, so the wash
 	// has edges of its own rather than stopping at the text.
 	...(armed
@@ -53,7 +53,7 @@ const rowStyle = (armed: boolean): React.CSSProperties => ({
 				background: ARMED_BACKGROUND,
 				boxShadow: `inset 0 0 0 1px ${GUI_THEME.red}`,
 				borderRadius: 8,
-				padding: '20px 24px',
+				padding: 8,
 		  }
 		: {}),
 });
