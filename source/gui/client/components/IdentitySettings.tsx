@@ -166,7 +166,9 @@ export const IdentitySettings = ({
 							fontSize: TEXT.prose,
 							textAlign: 'right',
 							...(outOfRange
-								? {color: GUI_THEME.red, borderColor: GUI_THEME.red}
+								? // Whole: Input sets the shorthand, and a longhand over it
+								  // warns as it comes and goes.
+								  {color: GUI_THEME.red, border: `1px solid ${GUI_THEME.red}`}
 								: {}),
 						}}
 					/>

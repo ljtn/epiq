@@ -19,12 +19,18 @@ const within = <T>(promise: Promise<T>, ms: number, what: string) =>
 	]);
 
 describe('git started for a clone', () => {
-	for (const listener of ['alone', 'with-signal-exit'] as const) {
+	for (const listener of [
+		'alone',
+		'with-signal-exit',
+		'stubborn-helper',
+	] as const) {
 		for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP'] as const) {
 			it(`is stopped when the process gets ${signal} ${
 				listener === 'alone'
 					? 'with nothing else listening'
-					: "beside Ink's exit handler"
+					: listener === 'with-signal-exit'
+					? "beside Ink's exit handler"
+					: 'with a helper that ignores SIGTERM'
 			}, and the process still exits`, async () => {
 				const dir = fs.mkdtempSync(
 					path.join(os.tmpdir(), 'epiq-clone-signal-'),
@@ -47,9 +53,37 @@ describe('git started for a clone', () => {
 				);
 				const {port} = server.address() as net.AddressInfo;
 
+				// Pipes git to the server, and holds the connection through the
+				// polite signals and through git going away: only SIGKILL ends it.
+				const proxy = path.join(dir, 'stubborn-proxy.sh');
+				fs.writeFileSync(
+					proxy,
+					[
+						'#!/bin/sh',
+						`exec "${process.execPath}" -e '`,
+						`for (const s of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(s, () => {});`,
+						`const c = require("net").connect(${port}, "127.0.0.1");`,
+						`process.stdin.on("data", d => c.write(d));`,
+						`c.on("data", d => process.stdout.write(d));`,
+						`process.stdout.on("error", () => {});`,
+						// Gone by itself in the end, should a failing run leave it.
+						`setTimeout(() => process.exit(), 30000);'`,
+						'',
+					].join('\n'),
+				);
+				fs.chmodSync(proxy, 0o755);
+
 				const holder = spawn(
 					process.execPath,
-					['--import', 'tsx', HOLDER, String(port), dir, listener],
+					[
+						'--import',
+						'tsx',
+						HOLDER,
+						String(port),
+						dir,
+						listener,
+						...(listener === 'stubborn-helper' ? [proxy] : []),
+					],
 					{stdio: 'ignore'},
 				);
 				const exited = new Promise<NodeJS.Signals | number | null>(resolve =>

@@ -1,4 +1,10 @@
-import React, {createContext, useContext, useMemo, useState} from 'react';
+import React, {
+	createContext,
+	useContext,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import ReactMarkdown, {
 	type Components,
 	defaultUrlTransform,
@@ -237,9 +243,14 @@ export const MarkdownContent = ({
 }) => {
 	const ticketRefLinks = useContext(TicketRefLinksContext);
 
+	// Built once: renderers built anew are new component types, and React
+	// remounts what they drew — a ref lit under a pointer that has not moved
+	// went dark whenever the board changed. The handler is read when clicked.
+	const onOpen = useRef(ticketRefLinks?.onOpen);
+	onOpen.current = ticketRefLinks?.onOpen;
 	const components = useMemo(
-		() => buildComponents(ticketRefLinks?.onOpen),
-		[ticketRefLinks],
+		() => buildComponents(ref => onOpen.current?.(ref)),
+		[],
 	);
 
 	const remarkPlugins = useMemo(

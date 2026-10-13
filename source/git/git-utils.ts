@@ -283,17 +283,23 @@ const killClone = (child: ReturnType<typeof spawn>, signal: NodeJS.Signals) => {
 	child.kill(signal);
 };
 
-const killCloneChildren = () => {
-	for (const child of cloneChildren) killClone(child, 'SIGTERM');
+const killCloneChildren = (signal: NodeJS.Signals = 'SIGTERM') => {
+	for (const child of cloneChildren) killClone(child, signal);
 };
 
 const EXIT_SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP'];
+
+// How long a signalled process waits for its clone gits to go before it
+// kills what is left outright: it is the last chance to, and git still
+// running holds the clone's lock files.
+const CLONE_KILL_GRACE_MS = 2_000;
 
 /**
  * Clone gits are killed with the process. Exported for the test that sends
  * the process a signal with another listener present.
  *
- * On a signal: the children go, these handlers go, and the signal is raised
+ * On a signal: the children are told to go and are waited for, briefly, then
+ * killed outright if still there; these handlers go, and the signal is raised
  * again with them out of the way, so whoever else listens — Ink's exit
  * handler in the TUI, nobody in the MCP server — sees it as if this had
  * never been here. Ink's handler stands aside while another listener is
@@ -307,13 +313,26 @@ export const trackCloneChild = (child: ReturnType<typeof spawn>) => {
 	if (killsRegistered) return;
 	killsRegistered = true;
 
-	process.once('exit', killCloneChildren);
+	process.once('exit', () => killCloneChildren());
 	const handlers = new Map<NodeJS.Signals, () => void>();
 	for (const signal of EXIT_SIGNALS) {
 		handlers.set(signal, () => {
+			const raise = () => {
+				for (const [other, handler] of handlers) process.off(other, handler);
+				process.kill(process.pid, signal);
+			};
+
 			killCloneChildren();
-			for (const [other, handler] of handlers) process.off(other, handler);
-			process.kill(process.pid, signal);
+			const deadline = Date.now() + CLONE_KILL_GRACE_MS;
+			const settle = () => {
+				if (cloneChildren.size === 0) return raise();
+				if (Date.now() >= deadline) {
+					killCloneChildren('SIGKILL');
+					return raise();
+				}
+				setTimeout(settle, 20);
+			};
+			settle();
 		});
 	}
 	for (const [signal, handler] of handlers) process.once(signal, handler);
