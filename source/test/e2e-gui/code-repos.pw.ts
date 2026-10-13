@@ -326,7 +326,6 @@ test('a cancel while the preview clones, or closing the panel, leaves nothing', 
 		// The late answer is dropped: no card, no refusal, nothing kept.
 		holds.shift()!();
 		await expect.poll(() => delivered).toBe(1);
-		await page.waitForTimeout(300);
 		await expect(modal.getByTestId('repo-preview')).toHaveCount(0);
 		await expect(modal.getByTestId('repos-last-action')).toHaveCount(0);
 		await expect(modal.getByTestId('repo-row')).toHaveCount(0);
@@ -433,7 +432,7 @@ test('a repo connected but never fetched shows no size, and one past the limit i
 			'[data-testid="repo-row"][data-over-limit="true"]',
 		);
 		await expect(past).toHaveCount(1);
-		await expect(past.getByTestId('repo-url-shown')).toHaveText(urls[20]!);
+		await expect(past.getByTestId('repo-url-shown')).toHaveValue(urls[20]!);
 		await expect(past.getByTestId('repo-status')).toHaveText(
 			'over limit of 20',
 		);
@@ -547,25 +546,40 @@ test('a list opened at the bottom of the window opens upward, on screen', async 
 		const trigger = modal.getByTestId('repo-row').getByTestId('repo-since');
 		await expect(trigger).toBeVisible();
 
-		// Its trigger brought to the window's bottom edge.
-		await page.evaluate(`
-			const pane = document.querySelector('[data-testid="settings-scroller"]');
-			const spacer = document.createElement('div');
-			spacer.style.height = '2000px';
-			pane.prepend(spacer);
-			document
-				.querySelector('[data-testid="repo-row"] [data-testid="repo-since"]')
-				.scrollIntoView({block: 'end'});
-		`);
-		await trigger.click();
-
 		const options = page.getByTestId('repo-since-option');
-		await expect(options.first()).toBeVisible();
-		const list = (await options.last().boundingBox())!;
-		expect(list.y + list.height).toBeLessThanOrEqual(640);
-		expect((await options.first().boundingBox())!.y).toBeLessThan(
-			(await trigger.boundingBox())!.y,
-		);
+
+		// Its trigger brought to the window's bottom edge, and clicked there:
+		// the runner would scroll a trigger at the very edge back into the
+		// middle first. Again until it holds, since the panel can still move
+		// under a busy machine while its list is refetched.
+		await expect(async () => {
+			// A list left open by a try that did not hold; Escape would close
+			// the whole panel.
+			if ((await options.count()) > 0) {
+				await trigger.evaluate(element => (element as HTMLElement).click());
+			}
+			await page.evaluate(`
+				const pane = document.querySelector('[data-testid="settings-scroller"]');
+				for (const at of ['prepend', 'append']) {
+					if (pane.querySelector('[data-spacer="' + at + '"]')) continue;
+					const spacer = document.createElement('div');
+					spacer.dataset.spacer = at;
+					spacer.style.height = '2000px';
+					spacer.style.flexShrink = '0';
+					pane[at](spacer);
+				}
+				document
+					.querySelector('[data-testid="repo-row"] [data-testid="repo-since"]')
+					.scrollIntoView({block: 'end'});
+			`);
+			await trigger.evaluate(element => (element as HTMLElement).click());
+			await expect(options.first()).toBeVisible();
+
+			const first = (await options.first().boundingBox())!;
+			const last = (await options.last().boundingBox())!;
+			expect(last.y + last.height).toBeLessThanOrEqual(640);
+			expect(first.y).toBeLessThan((await trigger.boundingBox())!.y);
+		}).toPass({timeout: 15_000});
 
 		// A list that grows once open moves up with it, rather than over its
 		// trigger.

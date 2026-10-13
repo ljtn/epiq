@@ -33,15 +33,19 @@ type Props = {
 
 // Two of them and their gap fit the panel's row with room to spare; past it
 // the second one wraps under the first.
-const CONTROL_WIDTH = 154;
+const CONTROL_WIDTH = 140;
 const LINE_GAP = 8;
 // The confirm button's own red, translucent enough that the name still reads.
 const ARMED_BACKGROUND = 'rgba(255, 135, 135, 0.14)';
 
+// One repo per block, inset from the section's text and parted by a rule, so
+// each reads as one item.
 const rowStyle = (armed: boolean): React.CSSProperties => ({
 	...ROW,
-	alignItems: 'flex-start',
-	padding: '12px 0',
+	flexDirection: 'column',
+	alignItems: 'stretch',
+	gap: 10,
+	padding: '20px 24px',
 	// Arming washes the row and pulls it out to the card's edge, so the wash
 	// has edges of its own rather than stopping at the text.
 	...(armed
@@ -49,8 +53,7 @@ const rowStyle = (armed: boolean): React.CSSProperties => ({
 				background: ARMED_BACKGROUND,
 				boxShadow: `inset 0 0 0 1px ${GUI_THEME.red}`,
 				borderRadius: 8,
-				margin: '0 -8px',
-				padding: '12px 8px',
+				padding: '20px 24px',
 		  }
 		: {}),
 });
@@ -90,6 +93,42 @@ const whereStyle: React.CSSProperties = {
 	overflow: 'hidden',
 	textOverflow: 'ellipsis',
 };
+
+// How a repo stands: plain words beside its name, not a chip.
+const statusStyle: React.CSSProperties = {
+	flexShrink: 0,
+	maxWidth: '45%',
+	overflow: 'hidden',
+	textOverflow: 'ellipsis',
+	whiteSpace: 'nowrap',
+	fontFamily: CODE_FONT,
+	fontSize: TEXT.label,
+};
+
+const SIZE_CHIP: React.CSSProperties = {
+	border: 'none',
+	background: GUI_THEME.raised,
+	color: GUI_THEME.primary,
+	padding: '3px 8px',
+};
+
+// Where a repo is: the panel's field, read only, so a URL reads as a value.
+const UrlField = ({url, testId}: {url: string; testId?: string}) => (
+	<Input
+		data-testid={testId}
+		readOnly
+		value={url}
+		title={url}
+		style={{
+			fontFamily: CODE_FONT,
+			fontSize: TEXT.meta,
+			color: GUI_THEME.dim2,
+			border: 'none',
+			borderRadius: 6,
+			textOverflow: 'ellipsis',
+		}}
+	/>
+);
 
 // The right-hand column: the lock and the trash share one box, so the rows'
 // text starts and ends in line whichever a row carries.
@@ -350,11 +389,14 @@ const PreviewCard = ({
 			<span style={linesStyle}>
 				<span style={lineStyle}>
 					<span style={nameStyle}>{repo.label}</span>
-					<Chip testId="repo-preview-host">{preview.host}</Chip>
+					<span
+						data-testid="repo-preview-host"
+						style={{...statusStyle, color: GUI_THEME.dim2}}
+					>
+						{preview.host}
+					</span>
 				</span>
-				<span title={repo.url} style={whereStyle}>
-					{repo.url}
-				</span>
+				<UrlField url={repo.url} />
 
 				<span style={factsStyle}>
 					<Fact name="Branch" testId="repo-preview-branch">
@@ -483,22 +525,19 @@ export const ReposSettings = ({
 			    is nothing to set. */}
 			{state.own && (
 				<div data-testid="own-repo-row" style={rowStyle(false)}>
-					<span style={linesStyle}>
-						<span style={lineStyle}>
-							<span style={nameStyle}>{state.own.label}</span>
-							<Chip>this repo</Chip>
+					<span style={lineStyle}>
+						<span style={nameStyle}>{state.own.label}</span>
+						<span style={{...statusStyle, color: GUI_THEME.dim2}}>
+							this repo
 						</span>
-						<span style={whereStyle} title={state.own.url ?? state.own.path}>
-							{state.own.url ?? state.own.path}
+						<span
+							title="The board's own repo — its commits are always read"
+							style={{...controlStyle, color: GUI_THEME.dim}}
+						>
+							<IconLock />
 						</span>
 					</span>
-
-					<span
-						title="The board's own repo — its commits are always read"
-						style={{...controlStyle, color: GUI_THEME.dim}}
-					>
-						<IconLock />
-					</span>
+					<UrlField url={state.own.url ?? state.own.path} />
 				</div>
 			)}
 
@@ -514,69 +553,61 @@ export const ReposSettings = ({
 						data-over-limit={repo.overLimit ? 'true' : 'false'}
 						style={rowStyle(armed)}
 					>
-						<span style={linesStyle}>
-							{/* The name and how it stands; where it is and what its copy
-							    takes; what is read from it. Three lines, since the card
-							    is narrow. */}
-							<span style={lineStyle}>
-								<LabelField
-									key={repo.id}
-									repo={repo}
-									onChange={label => onChange({url: repo.url, label})}
-								/>
-								<Chip testId="repo-status" style={{color: status.color}}>
-									{status.text}
-								</Chip>
+						<span style={lineStyle}>
+							<LabelField
+								key={repo.id}
+								repo={repo}
+								onChange={label => onChange({url: repo.url, label})}
+							/>
+							<span
+								data-testid="repo-status"
+								title={status.text}
+								style={{...statusStyle, color: status.color}}
+							>
+								{status.text}
 							</span>
-							<span style={lineStyle}>
-								<span
-									data-testid="repo-url-shown"
-									title={repo.url}
-									style={{...whereStyle, flex: 1, minWidth: 0}}
-								>
-									{repo.url}
-								</span>
-								<Chip testId="repo-size">{sizeOf(repo.bytes)}</Chip>
-							</span>
-							<span style={{...lineStyle, flexWrap: 'wrap'}}>
-								<Dropdown
-									testId="repo-branches"
-									width={CONTROL_WIDTH}
-									color={GUI_THEME.dim2}
-									portalInto={portalInto}
-									value={BRANCHES.find(item => item.id === repo.branches)}
-									items={BRANCHES}
-									onSelect={next =>
-										onChange({
-											url: repo.url,
-											branches: next as 'default' | 'all',
-										})
-									}
-								/>
-								<SinceField
-									repo={repo}
-									portalInto={portalInto}
-									onChange={since => onChange({url: repo.url, since})}
-								/>
-							</span>
+							<Chip testId="repo-size" style={SIZE_CHIP}>
+								{sizeOf(repo.bytes)}
+							</Chip>
+							<IconButton
+								testId="disconnect-repo"
+								pressed={armed}
+								label={armed ? 'confirm' : undefined}
+								onBlur={remove.disarm}
+								title={
+									armed
+										? `Click again to disconnect ${repo.label}`
+										: `Disconnect ${repo.label}`
+								}
+								onClick={() => {
+									if (remove.press(repo.id)) onRemove(repo.id);
+								}}
+							>
+								<IconUnplug />
+							</IconButton>
 						</span>
-
-						<IconButton
-							testId="disconnect-repo"
-							pressed={armed}
-							label={armed ? 'confirm' : undefined}
-							onBlur={remove.disarm}
-							title={
-								armed
-									? `Click again to disconnect ${repo.label}`
-									: `Disconnect ${repo.label}`
-							}
-							onClick={() => {
-								if (remove.press(repo.id)) onRemove(repo.id);
-							}}
-						>
-							<IconUnplug />
-						</IconButton>
+						<UrlField url={repo.url} testId="repo-url-shown" />
+						<span style={{...lineStyle, flexWrap: 'wrap'}}>
+							<Dropdown
+								testId="repo-branches"
+								width={CONTROL_WIDTH}
+								color={GUI_THEME.dim2}
+								portalInto={portalInto}
+								value={BRANCHES.find(item => item.id === repo.branches)}
+								items={BRANCHES}
+								onSelect={next =>
+									onChange({
+										url: repo.url,
+										branches: next as 'default' | 'all',
+									})
+								}
+							/>
+							<SinceField
+								repo={repo}
+								portalInto={portalInto}
+								onChange={since => onChange({url: repo.url, since})}
+							/>
+						</span>
 					</div>
 				);
 			})}
