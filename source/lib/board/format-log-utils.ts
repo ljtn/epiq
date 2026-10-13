@@ -1,4 +1,4 @@
-import {repoLabelOfId} from './board-repos.js';
+import {describeRepoEvent} from './board-repos.js';
 import chalk from 'chalk';
 import stringWidth from 'string-width';
 import {ulidTimeMs} from '../event/date-utils.js';
@@ -169,11 +169,9 @@ const formatEventDetails = (event: AppEvent): string => {
 		}
 
 		case 'connect.repo':
-			return event.payload.url;
-
 		case 'edit.repo':
 		case 'disconnect.repo':
-			return repoLabelOfId(event.payload.repo);
+			return describeRepoEvent(event);
 
 		case 'add.issue.attachment': {
 			return `"${event.payload.name}" ${chalk.dim(
@@ -254,11 +252,9 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 			return event.payload.email;
 
 		case 'connect.repo':
-			return event.payload.url;
-
 		case 'edit.repo':
 		case 'disconnect.repo':
-			return repoLabelOfId(event.payload.repo);
+			return describeRepoEvent(event);
 
 		case 'move.node': {
 			const parent = nodeRepo.getNode(event.payload.parent);

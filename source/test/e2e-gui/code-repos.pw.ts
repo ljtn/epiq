@@ -556,7 +556,7 @@ test('a list opened at the bottom of the window opens upward, on screen', async 
 			// A list left open by a try that did not hold; Escape would close
 			// the whole panel.
 			if ((await options.count()) > 0) {
-				await trigger.evaluate(element => (element as HTMLElement).click());
+				await trigger.dispatchEvent('click');
 			}
 			await page.evaluate(`
 				const pane = document.querySelector('[data-testid="settings-scroller"]');
@@ -572,7 +572,7 @@ test('a list opened at the bottom of the window opens upward, on screen', async 
 					.querySelector('[data-testid="repo-row"] [data-testid="repo-since"]')
 					.scrollIntoView({block: 'end'});
 			`);
-			await trigger.evaluate(element => (element as HTMLElement).click());
+			await trigger.dispatchEvent('click');
 			await expect(options.first()).toBeVisible();
 
 			const first = (await options.first().boundingBox())!;
