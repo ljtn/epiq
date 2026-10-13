@@ -3,6 +3,7 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';
+import {processStartedAt} from '../git/sync-lock.js';
 import {createDefaultEvents} from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../lib/board/board-log.js';
@@ -321,6 +322,7 @@ describe('disconnecting a repo', () => {
 
 		value(await disconnectRepo({repoRoot, repo: repoIdOf(url)}));
 
+		expect(fs.existsSync(`${clonePathOf(repoRoot, url)}.removed`)).toBe(false);
 		expect(connected(repoRoot)).toEqual([]);
 		expect(value(readConnectedRepos(repoRoot)).disconnected).toEqual([
 			repoIdOf(url),
@@ -358,19 +360,20 @@ describe('disconnecting a repo', () => {
 	it('sweeps a stage whose pid now belongs to a process started after it', async () => {
 		const {repoRoot} = await board();
 		const url = await makeUpstream(['one']);
-		const dir = path.dirname(clonePathOf(repoRoot, url));
-		fs.mkdirSync(dir, {recursive: true});
+		const clone = clonePathOf(repoRoot, url);
+		fs.mkdirSync(path.dirname(clone), {recursive: true});
 
-		// This process's pid, but written long before it started.
-		const orphan = `${clonePathOf(repoRoot, url)}.${process.pid}.${'0'.repeat(
+		// This process's pid, written by one that started long before it.
+		const orphan = `${clone}.${process.pid}-978307200000.${'0'.repeat(
 			8,
 		)}-0000-0000-0000-${'0'.repeat(12)}.pending`;
 		fs.mkdirSync(orphan);
-		fs.utimesSync(orphan, new Date('2001-01-01'), new Date('2001-01-01'));
-		const live = `${clonePathOf(repoRoot, url)}.${process.pid}.${'1'.repeat(
+		// This process's own, even with its time set back: the name decides.
+		const live = `${clone}.${process.pid}-${processStartedAt()}.${'1'.repeat(
 			8,
 		)}-1111-1111-1111-${'1'.repeat(12)}.pending`;
 		fs.mkdirSync(live);
+		fs.utimesSync(live, new Date('2001-01-01'), new Date('2001-01-01'));
 
 		value(await fetchRepos({repoRoot}));
 

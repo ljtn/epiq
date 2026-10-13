@@ -67,6 +67,9 @@ type LockHolder = {
 
 const PROCESS_STARTED_AT = Date.now() - process.uptime() * 1000;
 
+/** When this process started, as `pidStartedAfter` reads a pid's start back. */
+export const processStartedAt = (): number => Math.round(PROCESS_STARTED_AT);
+
 // Start times read off the system agree with a process's own to within this:
 // `ps` gives whole seconds.
 const START_TOLERANCE_MS = 5_000;
