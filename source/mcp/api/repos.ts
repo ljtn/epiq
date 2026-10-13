@@ -12,6 +12,7 @@ import {
 	disconnectCommitRepo,
 	fetchCommitRepos,
 	listRepoStates,
+	MAX_REPOS,
 	RepoBranches,
 	RepoFetchOutcome,
 	RepoPreview,
@@ -28,7 +29,12 @@ import {bootedWithActorAndState} from './boot.js';
 
 type RepoRootInput = {repoRoot?: string};
 
-export type RepoList = {repos: RepoState[]; claimedBytes: number};
+export type RepoList = {
+	repos: RepoState[];
+	claimedBytes: number;
+	/** How many repos the board reads; the rest are listed, never fetched. */
+	limit: number;
+};
 
 const listed = (repoRoot: string): Result<RepoList> => {
 	const listResult = listRepoStates(repoRoot);
@@ -37,6 +43,7 @@ const listed = (repoRoot: string): Result<RepoList> => {
 	return succeeded('Listed repos', {
 		repos: listResult.value,
 		claimedBytes: claimedBytesOf(repoRoot),
+		limit: MAX_REPOS,
 	});
 };
 

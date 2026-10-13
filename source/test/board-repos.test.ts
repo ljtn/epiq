@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
 	applyRepoEvent,
+	emptyRepoRegistry,
 	FOLD_DEFAULT_BRANCHES,
 	FOLD_DEFAULT_SINCE,
 	foldRepoEvents,
@@ -103,7 +104,10 @@ describe('applying repo events', () => {
 			ev('edit.repo', {repo: idA, since: 'all'}),
 		);
 		const again = applyRepoEvent(gone, ev('disconnect.repo', {repo: idA}));
-		const never = applyRepoEvent({}, ev('edit.repo', {repo: 'x-000000000000'}));
+		const never = applyRepoEvent(
+			emptyRepoRegistry(),
+			ev('edit.repo', {repo: 'x-000000000000'}),
+		);
 
 		expect([edit, again, never].every(isFail)).toBe(true);
 		expect(live(gone)).toEqual([]);
@@ -156,13 +160,20 @@ describe('applying repo events', () => {
 			'https://example.com/a.git',
 			[],
 		]) {
-			expect(isFail(applyRepoEvent({}, ev('connect.repo', payload)))).toBe(
-				true,
-			);
+			expect(
+				isFail(
+					applyRepoEvent(emptyRepoRegistry(), ev('connect.repo', payload)),
+				),
+			).toBe(true);
 		}
 
 		expect(
-			isFail(applyRepoEvent({}, ev('edit.repo', {repo: '__proto__'}))),
+			isFail(
+				applyRepoEvent(
+					emptyRepoRegistry(),
+					ev('edit.repo', {repo: '__proto__'}),
+				),
+			),
 		).toBe(true);
 	});
 });
@@ -223,6 +234,20 @@ describe('resolving the list readers see', () => {
 		);
 
 		expect(live(registry).map(repo => repo.url)).toEqual([B, A]);
+	});
+
+	// A hostile log can name any number of repos; folding it must not hang a boot.
+	it('folds a log naming twenty thousand repos in linear time', () => {
+		const events = Array.from({length: 20_000}, (_, index) =>
+			ev('connect.repo', {url: `https://example.com/r${index}.git`}),
+		);
+
+		const started = performance.now();
+		const resolved = resolveRepos(foldRepoEvents(events));
+
+		expect(performance.now() - started).toBeLessThan(2_000);
+		expect(resolved.live).toHaveLength(MAX_REPOS);
+		expect(resolved.overLimit).toHaveLength(20_000 - MAX_REPOS);
 	});
 
 	it('ignores everything but repo events in a log', () => {

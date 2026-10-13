@@ -206,7 +206,10 @@ describe('batched replay equals per-event replay', () => {
 
 		expect(batched).toEqual(replayOneByOne(log).repos);
 		expect(batched).toEqual(foldRepoEvents(log));
-		expect(Object.values(batched).map(repo => repo.live)).toEqual([true, true]);
+		expect(Object.values(batched.entries).map(repo => repo.live)).toEqual([
+			true,
+			true,
+		]);
 	});
 
 	it('agrees on the node set itself', () => {

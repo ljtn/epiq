@@ -177,6 +177,34 @@ describe('connecting a repo', () => {
 		);
 	});
 
+	it('keeps no stage when a cancel lands while it is cloning', async () => {
+		const {repoRoot} = await board();
+		const url = await makeUpstream(['one']);
+
+		const previewing = connectRepo({repoRoot, url});
+		// Once the clone has begun: a cancel before the preview is a no-op.
+		while (stagesIn(repoRoot).length === 0) {
+			await new Promise(resolve => setTimeout(resolve, 1));
+		}
+		value(cancelRepoConnect({repo: repoIdOf(url)}));
+
+		expect(isFail(await previewing)).toBe(true);
+		expect(stagesIn(repoRoot)).toEqual([]);
+		expect(connected(repoRoot)).toEqual([]);
+	});
+
+	it('refuses to preview a repo that is already connected', async () => {
+		const {repoRoot} = await board();
+		const url = await makeUpstream(['one']);
+		value(await connectRepo({repoRoot, url}));
+		value(await connectRepo({repoRoot, url, confirm: true}));
+
+		const again = await connectRepo({repoRoot, url, previewOnly: true});
+
+		expect(isFail(again)).toBe(true);
+		expect(stagesIn(repoRoot)).toEqual([]);
+	});
+
 	it('refuses a remote that does not answer, writing nothing', async () => {
 		const {repoRoot} = await board();
 		const url = `file://${path.join(makeTempDir(), 'nothing-here')}`;
