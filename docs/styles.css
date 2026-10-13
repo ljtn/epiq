@@ -1945,3 +1945,13 @@ h2 {
 .feed-link:hover .accent {
 	color: var(--cyan);
 }
+
+#repos .media-placeholder {
+	min-height: 0;
+}
+#repos .media-placeholder > img {
+	width: 100%;
+	max-width: 720px;
+	height: auto;
+	box-shadow: none;
+}
