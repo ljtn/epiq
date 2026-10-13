@@ -260,7 +260,13 @@ describe("a repo bigger than this machine's clone cap", () => {
 		value(upsertCommitRepo({repoRoot: board, url}));
 		value(await fetchCommitRepos({repoRoot: board}));
 
-		git(upstream, ['checkout', '-q', '-b', 'trunk']);
+		// On the old default alone, and in the clone: read only while that
+		// branch is still followed.
+		git(upstream, ['branch', 'trunk']);
+		commit(upstream, 'only.txt', 'AAAAAAA main only');
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		git(upstream, ['checkout', '-q', 'trunk']);
 		addBlob('big.bin', 6);
 		const [capped] = value(await fetchCommitRepos({repoRoot: board}));
 		expect(capped!.message).toMatch(/2 MB cap/);
@@ -277,6 +283,11 @@ describe("a repo bigger than this machine's clone cap", () => {
 				entry => entry.subject,
 			),
 		).toContain('AAAAAAA big.bin');
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})).map(
+				entry => entry.subject,
+			),
+		).not.toContain('AAAAAAA main only');
 	});
 
 	it('leaves a clone already past it unfetched, and readable', async () => {
