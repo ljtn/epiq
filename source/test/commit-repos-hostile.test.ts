@@ -297,6 +297,30 @@ describe('a clone fetched many times', () => {
 	}, 60_000);
 });
 
+describe("a git that died writing a clone's packs", () => {
+	it('leaves nothing the next fetch keeps, or counts against the cap', async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+		const packDir = path.join(
+			getRepoClonePath(PROJECT_ID, repoIdOf(url)),
+			'objects',
+			'pack',
+		);
+		// A fetch's and a repack's temp names.
+		fs.writeFileSync(path.join(packDir, 'tmp_pack_abc'), 'x'.repeat(1024));
+		fs.writeFileSync(path.join(packDir, '.tmp-4242-pack-def.pack'), 'x');
+
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(
+			fs
+				.readdirSync(packDir)
+				.filter(name => name.startsWith('tmp_') || name.startsWith('.tmp-')),
+		).toEqual([]);
+	});
+});
+
 describe('a listed repo nobody has synced', () => {
 	// Only a sync reaches the network: a board opened, read and browsed with a
 	// repo listed leaves it uncloned.

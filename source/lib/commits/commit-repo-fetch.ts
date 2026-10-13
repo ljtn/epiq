@@ -264,11 +264,12 @@ const restoreSnapshot = (clonePath: string, snapshot: CloneSnapshot) => {
 	lastSeen.delete(clonePath);
 };
 
-/** The half-written packs of a transfer stopped partway. */
+/** The half-written packs of a transfer or a repack stopped partway. */
 const clearTransferLeftovers = (gitDir: string) => {
 	const objects = path.join(gitDir, 'objects');
 	for (const [dir, prefix] of [
 		[path.join(objects, 'pack'), 'tmp_'],
+		[path.join(objects, 'pack'), '.tmp-'],
 		[objects, 'incoming-'],
 	] as const) {
 		try {
@@ -933,7 +934,11 @@ const fetchOne = async (
 			lastSeen.set(clonePath, await refsOf(clonePath));
 		}
 
-		if (cloned) clearStaleGitLocks(clonePath);
+		// A git's leftovers, found under the clone's lock, are a dead git's.
+		if (cloned) {
+			clearStaleGitLocks(clonePath);
+			clearTransferLeftovers(clonePath);
+		}
 
 		if (!cloned && removed && !isRepoListed(repoRoot, repo.id)) {
 			return outcome(true, 'Removed before it was cloned');
