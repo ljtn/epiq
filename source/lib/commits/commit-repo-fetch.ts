@@ -160,11 +160,11 @@ const transfer = async (
 	cwd: string,
 	args: string[],
 	into: string,
-	{undo = false}: {undo?: boolean} = {},
+	/** The clone as it stood before the fetch began, to put back. */
+	{undo}: {undo?: CloneSnapshot} = {},
 ): Promise<Result<unknown>> => {
 	const maxMb = readRepoCloneMaxMb();
 	const maxBytes = maxMb * 1024 * 1024;
-	const before = undo ? snapshotOf(into) : null;
 	const controller = new AbortController();
 	const watch = setInterval(() => {
 		if (dirSize(into) > maxBytes) controller.abort(cloneCapMessage(maxMb));
@@ -187,8 +187,8 @@ const transfer = async (
 	if (!capped) return result;
 
 	clearTransferLeftovers(into);
-	if (before) {
-		restoreSnapshot(into, before);
+	if (undo) {
+		restoreSnapshot(into, undo);
 		// A git stopped partway leaves its locks; nothing else holds them.
 		clearStaleGitLocks(into);
 	}
@@ -198,6 +198,9 @@ const transfer = async (
 type CloneSnapshot = {
 	refs: Map<string, Buffer>;
 	packedRefs: Buffer | null;
+	/** The branch followed and the refspec fetching it, which a follow moves. */
+	head: Buffer | null;
+	config: Buffer | null;
 	shallow: Buffer | null;
 	packs: ReadonlySet<string>;
 };
@@ -234,6 +237,8 @@ const snapshotOf = (clonePath: string): CloneSnapshot => {
 	return {
 		refs,
 		packedRefs: readOrNull(path.join(clonePath, 'packed-refs')),
+		head: readOrNull(path.join(clonePath, 'HEAD')),
+		config: readOrNull(path.join(clonePath, 'config')),
 		shallow: readOrNull(path.join(clonePath, 'shallow')),
 		packs: new Set(listOr(path.join(clonePath, 'objects', 'pack'))),
 	};
@@ -251,6 +256,8 @@ const restoreSnapshot = (clonePath: string, snapshot: CloneSnapshot) => {
 
 	for (const [name, content] of [
 		['packed-refs', snapshot.packedRefs],
+		['HEAD', snapshot.head],
+		['config', snapshot.config],
 		['shallow', snapshot.shallow],
 	] as const) {
 		if (content) fs.writeFileSync(path.join(clonePath, name), content);
@@ -406,14 +413,17 @@ const shallowSince = (since: string) =>
  * could not be read. One commit deeper moves the cut to just outside the
  * window. Nothing to deepen in a repository with no commits yet.
  */
-const deepenPastWindow = async (clonePath: string): Promise<Result<null>> => {
+const deepenPastWindow = async (
+	clonePath: string,
+	undo?: CloneSnapshot,
+): Promise<Result<null>> => {
 	if (!(await hasRefs(clonePath))) return succeeded('Empty', null);
 
 	const result = await transfer(
 		clonePath,
 		['fetch', '--no-tags', '--deepen=1', 'origin'],
 		clonePath,
-		{undo: true},
+		{undo},
 	);
 	return isFail(result) ? failed(result.message) : succeeded('Deepened', null);
 };
@@ -638,6 +648,9 @@ const fetchRepo = async (
 		return failed(cloneCapMessage(maxMb));
 	}
 
+	// Before anything moves: a refspec rewritten or a default followed is
+	// put back with the refs if the fetch passes the cap.
+	const before = snapshotOf(clonePath);
 	const branchesChanged = previous?.branches !== repo.branches;
 
 	if (branchesChanged) {
@@ -676,7 +689,7 @@ const fetchRepo = async (
 
 	const fetchArgs = ['fetch', '--prune', '--no-tags', ...window, 'origin'];
 	let fetchResult = await transfer(clonePath, fetchArgs, clonePath, {
-		undo: true,
+		undo: before,
 	});
 
 	// The remote renamed its default branch: the refspec still names the old
@@ -690,14 +703,14 @@ const fetchRepo = async (
 		if (isFail(followed)) return failed(followed.message);
 
 		fetchResult = await transfer(clonePath, fetchArgs, clonePath, {
-			undo: true,
+			undo: before,
 		});
 		if (!isFail(fetchResult)) await dropOtherBranches(clonePath);
 	}
 	if (isFail(fetchResult)) return failed(fetchResult.message);
 
 	if (window[0]?.startsWith('--shallow-since')) {
-		const deepenResult = await deepenPastWindow(clonePath);
+		const deepenResult = await deepenPastWindow(clonePath, before);
 		if (isFail(deepenResult)) return failed(deepenResult.message);
 	}
 

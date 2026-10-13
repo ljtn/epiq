@@ -30,6 +30,7 @@ export const REPO_ADD_OPTIONS = [
 	'branches=all',
 	'since=board',
 	'since=all',
+	'since=YYYY-MM-DD',
 	'label=<name>',
 ];
 

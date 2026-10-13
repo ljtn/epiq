@@ -254,6 +254,31 @@ describe("a repo bigger than this machine's clone cap", () => {
 		).toEqual(['AAAAAAA small']);
 	});
 
+	it('undoes a followed default with the fetch, and follows it once it fits', async () => {
+		setConfig({repoCloneMaxMb: 2});
+		commit(upstream, 'small.txt', 'AAAAAAA small');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		git(upstream, ['checkout', '-q', '-b', 'trunk']);
+		addBlob('big.bin', 6);
+		const [capped] = value(await fetchCommitRepos({repoRoot: board}));
+		expect(capped!.message).toMatch(/2 MB cap/);
+		expect(fs.readFileSync(path.join(clonePath(), 'HEAD'), 'utf8').trim()).toBe(
+			'ref: refs/heads/main',
+		);
+
+		setConfig({repoCloneMaxMb: 64});
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})).map(
+				entry => entry.subject,
+			),
+		).toContain('AAAAAAA big.bin');
+	});
+
 	it('leaves a clone already past it unfetched, and readable', async () => {
 		commit(upstream, 'small.txt', 'AAAAAAA small');
 		addBlob('mid.bin', 2);
