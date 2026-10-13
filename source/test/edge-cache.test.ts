@@ -106,6 +106,24 @@ describe('the causal edge', () => {
 			expect(getEdgeRef(root).value).toBe(mine);
 		});
 
+		// One actor's file is written by every process it runs: a line another
+		// of them appended is a tail this process never decided.
+		it('gives up the shortcut when another process of the same actor wrote too', () => {
+			const tail = writeChain('u-1', 4, baseTime);
+			getEdgeRef(root);
+
+			const theirs = ulid(baseTime + 1000);
+			const file = path.join(eventsDir(), fileFor('u-1'));
+			fs.appendFileSync(file, line(theirs, tail));
+
+			const mine = ulid(baseTime + 100);
+			const own = line(mine, tail);
+			fs.appendFileSync(file, own);
+			advanceEdgeRef(root, fileFor('u-1'), mine, Buffer.byteLength(own));
+
+			expect(getEdgeRef(root).value).toBe(theirs);
+		});
+
 		// The case the correctness rests on. A board with one writer would not
 		// need the check at all.
 		it('gives up the shortcut when a teammate wrote too', () => {
