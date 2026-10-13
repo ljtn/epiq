@@ -1,6 +1,7 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 import {materialize, materializeAll} from '../lib/board/board-log.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
+import {foldRepoEvents, repoIdOf} from '../lib/board/board-repos.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
@@ -88,6 +89,18 @@ const buildEvents = (issueCount: number): AppEvent[] => {
 		}),
 		event('create.tag', {id: IDS.tag, name: 'bug'}),
 		event('create.contributor', {id: IDS.contributor, name: 'alice'}),
+		// Every repo path: a connect, an edit, a disconnect then a reconnect,
+		// an edit of a repo that is gone, and a URL the fold refuses.
+		event('connect.repo', {url: 'https://example.com/a.git'}),
+		event('connect.repo', {url: 'git@example.com:b.git', label: 'bee'}),
+		event('edit.repo', {
+			repo: repoIdOf('https://example.com/a.git'),
+			since: 'all',
+		}),
+		event('disconnect.repo', {repo: repoIdOf('git@example.com:b.git')}),
+		event('edit.repo', {repo: repoIdOf('git@example.com:b.git'), label: 'x'}),
+		event('connect.repo', {url: 'git@example.com:b.git', branches: 'all'}),
+		event('connect.repo', {url: 'ext::sh -c touch% /tmp/pwned'}),
 	];
 
 	for (let i = 0; i < issueCount; i++) {
@@ -185,6 +198,15 @@ describe('batched replay equals per-event replay', () => {
 		expect(batched.contextNode).toEqual(oneByOne.contextNode);
 		expect(batched.selectedNode).toEqual(oneByOne.selectedNode);
 		expect(batched.breadCrumb).toEqual(oneByOne.breadCrumb);
+	});
+
+	it('agrees on the repos, and with the fold readers take from the log', () => {
+		const log = buildEvents(10);
+		const batched = replayBatched(log).repos;
+
+		expect(batched).toEqual(replayOneByOne(log).repos);
+		expect(batched).toEqual(foldRepoEvents(log));
+		expect(Object.values(batched).map(repo => repo.live)).toEqual([true, true]);
 	});
 
 	it('agrees on the node set itself', () => {
