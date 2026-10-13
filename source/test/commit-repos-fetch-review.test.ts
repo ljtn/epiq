@@ -221,7 +221,9 @@ describe('another process on the same clone', () => {
 		expect(outcome).toMatchObject({message: 'Fetched recently', changed: true});
 	});
 
-	it('keeps a clone whose config could not be read rather than deleting it', async () => {
+	// A cache that cannot be read is started over, in place of the old one
+	// only once the new one has landed.
+	it('starts a clone whose config could not be read over', async () => {
 		commit(upstream, 'AAAAAAA first');
 		value(upsertCommitRepo({repoRoot: board, url}));
 		value(await fetchCommitRepos({repoRoot: board}));
@@ -230,13 +232,18 @@ describe('another process on the same clone', () => {
 		fs.writeFileSync(marker, '');
 		const config = path.join(clonePath, 'config');
 		fs.chmodSync(config, 0o000);
+		let outcome: Awaited<ReturnType<typeof fetchCommitRepos>>;
 		try {
-			await fetchCommitRepos({repoRoot: board});
+			outcome = await fetchCommitRepos({repoRoot: board});
 		} finally {
-			fs.chmodSync(config, 0o644);
+			if (fs.existsSync(config)) fs.chmodSync(config, 0o644);
 		}
 
-		expect(fs.existsSync(marker)).toBe(true);
+		expect(value(outcome)[0]!.ok).toBe(true);
+		expect(fs.existsSync(marker)).toBe(false);
+		expect(
+			value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})),
+		).toHaveLength(1);
 	});
 });
 

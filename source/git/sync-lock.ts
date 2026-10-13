@@ -1,3 +1,4 @@
+import {execFileSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -56,6 +57,82 @@ type LockHolder = {
 	 * and a millisecond. Absent from a lock an older build wrote.
 	 */
 	token?: string;
+	/**
+	 * When the holding process started: a pid alone is reused, and a crashed
+	 * holder's pid taken by any other process would read as the holder.
+	 * Absent from a lock an older build wrote.
+	 */
+	processStartedAt?: number;
+};
+
+const PROCESS_STARTED_AT = Date.now() - process.uptime() * 1000;
+
+// Start times read off the system agree with a process's own to within this:
+// `ps` gives whole seconds.
+const START_TOLERANCE_MS = 5_000;
+
+const FRESH_LOCK_MS = 5_000;
+
+/** When a pid's current process started, or null where this cannot tell. */
+const startTimeOf = (pid: number): number | null => {
+	try {
+		if (process.platform === 'linux') {
+			const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+			// After the command name, which may hold spaces and parentheses.
+			const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+			const ticks = Number(fields[19]);
+			const btime = /^btime (\d+)$/m.exec(
+				fs.readFileSync('/proc/stat', 'utf8'),
+			)?.[1];
+			// Clock ticks are a hundredth of a second on every Linux node runs on.
+			return btime && Number.isFinite(ticks)
+				? Number(btime) * 1000 + ticks * 10
+				: null;
+		}
+
+		if (process.platform === 'win32') return null;
+
+		const cached = psStartTimes.get(pid);
+		if (cached && Date.now() - cached.at < PS_CACHE_MS) return cached.value;
+
+		const started = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
+			encoding: 'utf8',
+			timeout: 2_000,
+			stdio: ['ignore', 'pipe', 'ignore'],
+			// A date `Date.parse` reads, whatever the user's locale.
+			env: {...process.env, LC_ALL: 'C'},
+		}).trim();
+		const parsed = Date.parse(started);
+		const value = Number.isNaN(parsed) ? null : parsed;
+		psStartTimes.set(pid, {at: Date.now(), value});
+		return value;
+	} catch {
+		return null;
+	}
+};
+
+// `ps` is a process of its own, and a watcher asks every second while a sync
+// holds the lock; a pid is not reused within a few seconds.
+const PS_CACHE_MS = 5_000;
+const psStartTimes = new Map<number, {at: number; value: number | null}>();
+
+/**
+ * Whether a live pid is still the process that wrote the lock: not one that
+ * started after it, nor one from before the machine last booted.
+ */
+const isSameProcess = (holder: LockHolder): boolean => {
+	const bootedAt = Date.now() - os.uptime() * 1000;
+	if (holder.startedAt < bootedAt) return false;
+	// A lock this fresh is its writer's: reuse needs a crash and a recycled
+	// pid first. Asked only past that, so contention never waits on `ps`.
+	if (Date.now() - holder.startedAt < FRESH_LOCK_MS) return true;
+	if (holder.processStartedAt === undefined) return true;
+
+	const startedAt = startTimeOf(holder.pid);
+	return (
+		startedAt === null ||
+		Math.abs(startedAt - holder.processStartedAt) <= START_TOLERANCE_MS
+	);
 };
 
 // The holds this process has right now, by lock path. A lock naming this
@@ -127,7 +204,7 @@ const claimOver = (
 		return Date.now() - holder.startedAt > staleAfterMs ? 'stale' : null;
 	}
 
-	if (!isProcessAlive(holder.pid)) return 'dead';
+	if (!isProcessAlive(holder.pid) || !isSameProcess(holder)) return 'dead';
 
 	return Date.now() - holder.startedAt > staleAfterMs ? 'stale' : null;
 };
@@ -213,6 +290,7 @@ const write = (lockPath: string, operation: string): LockHolder | null => {
 		startedAt: Date.now(),
 		operation,
 		token: randomUUID(),
+		processStartedAt: PROCESS_STARTED_AT,
 	};
 
 	// Ends in `.lock` on purpose: a process killed between the write and the

@@ -462,27 +462,38 @@ describe('a squash whose only clone cannot be read', () => {
 });
 
 describe('a clone that cannot be deleted', () => {
-	it('is reported, and its lock let go', async () => {
-		commit(upstream, 'up.txt', 'AAAAAAA upstream');
-		value(upsertCommitRepo({repoRoot: board, url}));
-		value(await fetchCommitRepos({repoRoot: board}));
+	// Permissions bind nobody running as root, who deletes it anyway.
+	it.skipIf(process.getuid?.() === 0)(
+		'is reported, and its lock let go',
+		async () => {
+			commit(upstream, 'up.txt', 'AAAAAAA upstream');
+			value(upsertCommitRepo({repoRoot: board, url}));
+			value(await fetchCommitRepos({repoRoot: board}));
 
-		const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
-		const objects = path.join(clonePath, 'objects');
-		// A remove that found the clone busy marks it; the next fetch deletes.
-		fs.writeFileSync(`${clonePath}.removed`, '');
-		// Nothing in it can be unlinked, so the delete throws part way.
-		fs.chmodSync(objects, 0o555);
+			const clonePath = getRepoClonePath(PROJECT_ID, repoIdOf(url));
+			const objects = path.join(clonePath, 'objects');
+			// A remove that found the clone busy marks it; the next fetch deletes.
+			fs.writeFileSync(`${clonePath}.removed`, '');
+			// Nothing in it can be unlinked, so the delete throws part way.
+			fs.chmodSync(objects, 0o555);
 
-		try {
-			const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+			try {
+				const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
 
-			expect(outcome!.ok).toBe(false);
-			expect(fs.existsSync(`${clonePath}.lock`)).toBe(false);
-		} finally {
-			fs.chmodSync(objects, 0o755);
-		}
-	});
+				expect(outcome!.ok).toBe(false);
+				expect(fs.existsSync(`${clonePath}.lock`)).toBe(false);
+				// Moved aside before the delete failed: its own name is free.
+				expect(fs.existsSync(clonePath)).toBe(false);
+			} finally {
+				// Wherever the delete left it, so the dir can go after the test.
+				const clones = path.dirname(clonePath);
+				for (const name of fs.readdirSync(clones)) {
+					const left = path.join(clones, name, 'objects');
+					if (fs.existsSync(left)) fs.chmodSync(left, 0o755);
+				}
+			}
+		},
+	);
 });
 
 describe('a remove that lands while a pass is waiting', () => {
@@ -772,6 +783,160 @@ describe('a remote that renames its default branch', () => {
 				entry => entry.subject,
 			),
 		).toContain('AAAAAAA after the rename');
+	});
+});
+
+describe('a clone broken on this machine', () => {
+	// A cache: whatever broke it here, the next fetch starts it over rather
+	// than failing, or reading nothing, for good.
+	const clonePath = () => getRepoClonePath(PROJECT_ID, repoIdOf(url));
+	const fetched = async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA upstream');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		expect(value(await fetchCommitRepos({repoRoot: board}))[0]!.ok).toBe(true);
+	};
+	const reads = async () =>
+		value(await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'})).map(
+			entry => entry.subject,
+		);
+
+	afterEach(() => {
+		setConfig({repoCloneMaxMb: undefined});
+	});
+
+	it('is started over when its config is emptied', async () => {
+		await fetched();
+		fs.writeFileSync(path.join(clonePath(), 'config'), '');
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(await reads()).toEqual(['AAAAAAA upstream']);
+	});
+
+	it('is started over when its shallow boundary is cut short', async () => {
+		setConfig({repoCloneMaxMb: 64});
+		commit(upstream, 'old.txt', 'AAAAAAA old');
+		value(upsertCommitRepo({repoRoot: board, url, since: '2020-01-02'}));
+		git(upstream, ['commit', '-q', '--allow-empty', '-m', 'AAAAAAA new']);
+		value(await fetchCommitRepos({repoRoot: board}));
+		const shallow = path.join(clonePath(), 'shallow');
+		if (!fs.existsSync(shallow)) {
+			fs.writeFileSync(shallow, git(clonePath(), ['rev-parse', 'HEAD']));
+		}
+		fs.writeFileSync(shallow, fs.readFileSync(shallow, 'utf8').slice(0, 17));
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(
+			/^(?:[0-9a-f]{40}\n)*$/.test(
+				fs.existsSync(shallow) ? fs.readFileSync(shallow, 'utf8') : '',
+			),
+		).toBe(true);
+	});
+
+	it('is started over when a stopped repack left it doubled past the cap', async () => {
+		setConfig({repoCloneMaxMb: 2});
+		fs.writeFileSync(
+			path.join(upstream, 'mid.bin'),
+			randomBytes(1.2 * 1024 * 1024),
+		);
+		git(upstream, ['add', 'mid.bin']);
+		git(upstream, ['commit', '-q', '-m', 'AAAAAAA mid']);
+		value(upsertCommitRepo({repoRoot: board, url}));
+		expect(value(await fetchCommitRepos({repoRoot: board}))[0]!.ok).toBe(true);
+		const packDir = path.join(clonePath(), 'objects', 'pack');
+		for (const name of fs.readdirSync(packDir)) {
+			fs.copyFileSync(
+				path.join(packDir, name),
+				path.join(packDir, name.replace('pack-', 'pack-0')),
+			);
+		}
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(true);
+		expect(await reads()).toEqual(['AAAAAAA mid']);
+	});
+
+	it('is started over once in a while, not every time it breaks', async () => {
+		await fetched();
+		fs.writeFileSync(path.join(clonePath(), 'config'), '');
+		value(await fetchCommitRepos({repoRoot: board}));
+		fs.writeFileSync(path.join(clonePath(), 'config'), '');
+
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(outcome!.ok).toBe(false);
+	});
+
+	it('leaves nothing of a delete that was stopped partway', async () => {
+		await fetched();
+		const aside = `${clonePath()}.${'0'.repeat(8)}-0000-0000-0000-${'0'.repeat(
+			12,
+		)}.deleting`;
+		fs.mkdirSync(path.join(aside, 'objects'), {recursive: true});
+
+		value(await fetchCommitRepos({repoRoot: board}));
+
+		expect(fs.existsSync(aside)).toBe(false);
+	});
+});
+
+describe('a default switch a process was stopped in the middle of', () => {
+	// The two states an interrupted follow leaves: HEAD moved and the refspec
+	// not yet, or both moved and the old branch not yet dropped. Each is put
+	// right by the next fetch, however it was left.
+	const clonePath = () => getRepoClonePath(PROJECT_ID, repoIdOf(url));
+	const cloneGit = (args: string[]) => git(clonePath(), args).trim();
+	const heads = () =>
+		cloneGit(['for-each-ref', '--format=%(refname)', 'refs/heads/'])
+			.split('\n')
+			.filter(Boolean);
+
+	const switched = async () => {
+		commit(upstream, 'up.txt', 'AAAAAAA shared');
+		value(upsertCommitRepo({repoRoot: board, url}));
+		git(upstream, ['branch', 'trunk']);
+		commit(upstream, 'only.txt', 'AAAAAAA main only');
+		value(await fetchCommitRepos({repoRoot: board}));
+		git(upstream, ['checkout', '-q', 'trunk']);
+		commit(upstream, 'trunk.txt', 'AAAAAAA on trunk');
+	};
+
+	const expectOnTrunk = async () => {
+		const [outcome] = value(await fetchCommitRepos({repoRoot: board}));
+		expect(outcome!.ok).toBe(true);
+		expect(heads()).toEqual(['refs/heads/trunk']);
+		expect(cloneGit(['config', '--get', 'remote.origin.fetch'])).toBe(
+			'+refs/heads/trunk:refs/heads/trunk',
+		);
+		const subjects = value(
+			await getCommitsForRef({repoRoot: board, ref: 'AAAAAAA'}),
+		).map(entry => entry.subject);
+		expect(subjects).toContain('AAAAAAA on trunk');
+		expect(subjects).not.toContain('AAAAAAA main only');
+	};
+
+	it('is finished when HEAD moved and the refspec did not', async () => {
+		await switched();
+		cloneGit(['symbolic-ref', 'HEAD', 'refs/heads/trunk']);
+
+		await expectOnTrunk();
+	});
+
+	it('is finished when both moved and the old branch stayed', async () => {
+		await switched();
+		cloneGit(['update-ref', 'refs/heads/trunk', 'refs/heads/main']);
+		cloneGit(['symbolic-ref', 'HEAD', 'refs/heads/trunk']);
+		cloneGit([
+			'config',
+			'remote.origin.fetch',
+			'+refs/heads/trunk:refs/heads/trunk',
+		]);
+
+		await expectOnTrunk();
 	});
 });
 

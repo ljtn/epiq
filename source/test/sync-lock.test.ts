@@ -1,9 +1,14 @@
+import {spawn} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {beforeEach, describe, expect, it} from 'vitest';
 import {execGit, getGitDir} from '../git/git-utils.js';
-import {acquireSyncLock, withSyncLock} from '../git/sync-lock.js';
+import {
+	acquireLockFile,
+	acquireSyncLock,
+	withSyncLock,
+} from '../git/sync-lock.js';
 import {isFail} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
 
@@ -198,5 +203,82 @@ describe('sync lock', () => {
 
 			expect(peak).toBe(1);
 		});
+	});
+});
+
+describe('a lock whose holder pid now belongs to another process', () => {
+	// A crashed holder's pid, reused by whatever started next, must not hold
+	// the lock until it goes stale: that blocked a clone for two hours.
+	const holdWith = (holder: Record<string, unknown>) => {
+		const dir = makeTempDir();
+		const lockPath = path.join(dir, 'x.lock');
+		fs.writeFileSync(lockPath, JSON.stringify(holder));
+		return lockPath;
+	};
+
+	const other = () => {
+		const child = spawn('sleep', ['30'], {stdio: 'ignore'});
+		return {child, startedAt: Date.now()};
+	};
+
+	it('is taken when the process at that pid started after the lock', () => {
+		const {child} = other();
+		try {
+			const lockPath = holdWith({
+				pid: child.pid,
+				hostname: os.hostname(),
+				// A minute old, as a crashed holder's lock is by the time it blocks.
+				startedAt: Date.now() - 60_000,
+				operation: 'fetch',
+				token: 'a crashed holder',
+				processStartedAt: Date.now() - 60 * 60 * 1000,
+			});
+
+			const lock = acquireLockFile({lockPath, operation: 'fetch'});
+
+			expect(lock).toMatchObject({acquired: true, claim: 'dead'});
+			if (lock.acquired) lock.release();
+		} finally {
+			child.kill('SIGKILL');
+		}
+	});
+
+	it('is taken when it was written before the machine last booted', () => {
+		const {child} = other();
+		try {
+			const lockPath = holdWith({
+				pid: child.pid,
+				hostname: os.hostname(),
+				startedAt: Date.now() - os.uptime() * 1000 - 60_000,
+				operation: 'fetch',
+			});
+
+			expect(acquireLockFile({lockPath, operation: 'fetch'})).toMatchObject({
+				acquired: true,
+				claim: 'dead',
+			});
+		} finally {
+			child.kill('SIGKILL');
+		}
+	});
+
+	it('is still refused while its own holder runs', () => {
+		const {child, startedAt} = other();
+		try {
+			const lockPath = holdWith({
+				pid: child.pid,
+				hostname: os.hostname(),
+				startedAt: Date.now() - 60_000,
+				operation: 'fetch',
+				token: 'a live holder',
+				processStartedAt: startedAt,
+			});
+
+			expect(acquireLockFile({lockPath, operation: 'fetch'}).acquired).toBe(
+				false,
+			);
+		} finally {
+			child.kill('SIGKILL');
+		}
 	});
 });
