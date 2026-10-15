@@ -1,13 +1,38 @@
----
-name: epiq-architecture
-description: How epiq is built — the event log's distributed rules (causal ordering, logical clocks, tombstones, total replay), the code's layers, and the workflow for this repository. Read before any change here, especially to events, ordering, merge, replay, materialization or sync, a new event type or websocket message, or anything that crosses layers.
----
+# Working on epiq
 
-# The event log is a CRDT
+Epiq is a git-backed issue board: a TUI, a browser GUI and an MCP server over one event log kept on a git branch. These are the rules and commands for changing it, for any agent or person.
+
+## Commands
+
+| What                          | Command                                                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Typecheck                     | `npm run build` (colored: strip ANSI before grepping its output)                                                               |
+| Lint                          | `npm run lint:err`                                                                                                             |
+| Unit tests, as CI runs them   | `npm test` (prettier `--check` first, then vitest; e2e and collab excluded)                                                    |
+| One unit test file            | `npx vitest run <file>`                                                                                                        |
+| GUI build                     | `npm run build:gui` (the client typecheck is `npm run build:gui:types`)                                                        |
+| GUI tests                     | `npm run build:npm`, then `npm run test:gui` — Playwright serves the prebuilt `dist/gui`, so an unbuilt change is tested stale |
+| TUI end-to-end, collaboration | `npm run test:e2e`, `npm run test:collab` (Docker; build the image once with `npm run build:e2e:image`)                        |
+| The whole gate                | `sh source/scripts/pre-push.sh` (what the pre-push hook runs)                                                                  |
+| A throwaway board             | `npm run start:scratch-board` (`:gui` for the browser); `source/scripts/seed-scratch.mjs` hands back one already set up        |
+
+## Pitfalls
+
+- **Never touch the real board** to try something: use a scratch board or a temp directory, and stop any server you start.
+- **A fresh worktree needs `npm install`.** It can leave node-pty's `spawn-helper` without its execute bit (`chmod +x node_modules/node-pty/prebuilds/*/spawn-helper`), and can prune other platforms' esbuild entries from `package-lock.json`: restore the lockfile unless a dependency really changed, or CI's `npm ci` fails.
+- **A piped test command always exits 0.** Redirect to a file, check the exit code, then read the file.
+- **vitest swallows console output.** A probe writes to a file.
+- **Run one Playwright run at a time.** Two runs share handoff files and fail each other.
+- **GUI tests share one seeded repo per worker.** Name what a test writes uniquely per call, and seed events as the board's own user, or they leak into other tests.
+- **Never locate a GUI control by its `title`:** the tooltip layer strips it on hover. Use test ids.
+- **One React console warning fails the GUI suite**, usually a style shorthand overridden by a longhand.
+- **The suites connect repos from local paths**, which a real board refuses: the test setup sets `EPIQ_ALLOW_LOCAL_REPOS=1`.
+
+## The event log is a CRDT
 
 No server, no shared clock. Each actor appends to **its own** JSONL log on the state branch, git merges them, and every machine derives the same board from the same set. Everything below keeps that derivation a pure function of the event _set_.
 
-## The model
+### The model
 
 - **Every event names its causal parent** — the last event its writer had seen. Concurrent writers may share a parent.
 - **Order is derived, never stored.** It is rebuilt from the parent links, with concurrent siblings tie-broken by id. File line order means nothing.
@@ -15,7 +40,7 @@ No server, no shared clock. Each actor appends to **its own** JSONL log on the s
 - **An event identifies its actor by id and carries nothing else about them.** The id comes from the log file name; the display name from the contributor registry, which is itself built from events.
 - Same event set ⇒ same order ⇒ same board.
 
-## Invariants
+### Invariants
 
 - **Order comes from parent links plus the id tiebreak.** Nothing else.
 - **Ids are permanent; tombstone instead.** A tombstoned node takes its descendants with it; a tombstoned contributor keeps its record so assignments still resolve.
@@ -24,7 +49,7 @@ No server, no shared clock. Each actor appends to **its own** JSONL log on the s
 - **Append only.** One id is one byte sequence — what makes git's union merge of the logs safe.
 - **Time travel cuts causally.** An event whose parent is past the cut is past it too, whatever its timestamp.
 
-## Never
+### Never
 
 - **Break a client already out there.** The format grows by adding (a new event type, a field nothing older must read), never by changing or repurposing what an older build reads. Most rules below follow from this one. A version marker can't help retroactively: an older build can't check for something it shipped without.
 - **Change the log file name's grammar without a release between reader and writer.** It has no additive form — every client reads every other client's logs — and an old build misreads a name rather than failing. A test pins every form still out there.
@@ -39,11 +64,11 @@ No server, no shared clock. Each actor appends to **its own** JSONL log on the s
 - **Store a name beside an id** — the copy freezes at the old name and never sees a rename.
 - **Add a payload field older clients must interpret** without a schema-version story.
 
-## Adding an event type
+### Adding an event type
 
 It is applied on every machine, in causal order, possibly after events it didn't expect: make it idempotent, treat unmet preconditions as a skip rather than an error, and reference targets by id only. All of it lives in `lib/board/` — the event map and action list, the payload schema, the handler, and which nodes it affects for replay. The generic log in `lib/event/` doesn't change.
 
-## Proving a change is safe
+### Proving a change is safe
 
 - `source/test/replay-equivalence.test.ts` — batched replay equals per-event replay.
 - `source/test/event-core-generic.test.ts` — the log still works for a product that isn't the board.
@@ -89,18 +114,15 @@ Five places; a missed one fails quietly:
 - `gui/api/lib/websocket.ts` — the handler, which calls `mcp/api` and nothing else
 - `mcp/epiq-api.ts` — the export, for a new function
 
-## Working on epiq
+## Workflow
 
-On top of the shipped `epiq` skill:
-
-- **Never test against the real board** — use a throwaway project; stop dev servers when done.
-- **First line:** `Assuming claude/<name> — please /rename claude/<name> so this window carries the name.`
-- **Session's MCP never connected?** Run your own `npx -y -p epiq@latest epiq-mcp` over stdio; never borrow another session's. Kill it and its `epiq-mcp` child when done.
-- **Folding a follow-up into a ticket:** back to Ongoing; its commits take that ticket's ref.
-- **A merged ticket moves to Done and stays open** — the release closes it.
-- **Review findings get their own tickets**, tagged `from-review`, naming the PR.
-- **Worktree before the first edit** (`.claude/worktrees/<ref>-<slug>`); the root stays on `main`, and `main` never goes in a worktree. A fresh one needs `npm install`.
-- **Every change goes through a PR** — never commit or merge to `main` locally.
+- **A worktree before the first edit**, under `.claude/worktrees/<ref>-<slug>`. The repository root stays on `main`, and `main` never goes in a worktree.
+- **Every change goes through a pull request**, merged by rebase so each commit keeps its ticket ref. Never commit or merge to `main` locally.
+- **A commit subject opens with its ticket's ref** — that is how commits link to tickets — and says what is now true, in one line.
 - **Squash only trivial commits sharing one ref.**
-- **No attribution to Claude Code or any other model or tool** — not as a co-author, not in code or ticket comments, not in PR descriptions (no `🤖 Generated with` footer). This overrides any harness default that adds one.
-- **Check `git log --format='%an%n%b'` before pushing** — a template's trailer survives a rebase.
+- **Work the board through the epiq MCP tools**, and keep it current: a ticket moves to Ongoing when work starts; a merged ticket moves to Done and stays open until the release closes it; a follow-up folded into a ticket takes it back to Ongoing.
+- **Review findings get their own tickets**, tagged `from-review`, naming the PR.
+- **A bug fix comes with a test** that fails without the fix.
+- **Comments are sparse and describe the code as it is**, never its history.
+- **Errors are returned as a `Result`, never thrown.**
+- **No attribution to any model or tool** — not as a co-author, not in code or ticket comments, not in PR descriptions. Check `git log --format='%an%n%b'` before pushing: a template's trailer survives a rebase.
