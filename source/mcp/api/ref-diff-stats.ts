@@ -38,18 +38,23 @@ export const collectRefDiffStats = (
 	const byRef: RefDiffStats = {};
 
 	for (const commit of commits) {
-		const ref = leadingRef(commit.subject);
-		if (!ref) continue;
+		const leading = leadingRef(commit.subject);
+		const refs = new Set([
+			...(leading ? [leading] : []),
+			...(commit.refs ?? []),
+		]);
 
-		const stat: RefDiffStat = (byRef[ref] ??= {
-			commits: 0,
-			insertions: 0,
-			deletions: 0,
-		});
+		for (const ref of refs) {
+			const stat: RefDiffStat = (byRef[ref] ??= {
+				commits: 0,
+				insertions: 0,
+				deletions: 0,
+			});
 
-		stat.commits++;
-		stat.insertions += commit.insertions;
-		stat.deletions += commit.deletions;
+			stat.commits++;
+			stat.insertions += commit.insertions;
+			stat.deletions += commit.deletions;
+		}
 	}
 
 	return byRef;

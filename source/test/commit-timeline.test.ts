@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {inCommitWindow} from '../lib/commits/commit-timeline.js';
+import {bodyRefs, inCommitWindow} from '../lib/commits/commit-timeline.js';
 
 // 2026-09-20T00:00:07.000Z, and the window that opens 640ms into that second.
 const SECOND = Date.UTC(2026, 8, 20, 0, 0, 7);
@@ -25,5 +25,54 @@ describe('inCommitWindow', () => {
 
 	it('keeps everything with no window', () => {
 		expect(inCommitWindow(SECOND, undefined, undefined)).toBe(true);
+	});
+});
+
+describe('bodyRefs', () => {
+	it('reads a trailer, in any case', () => {
+		expect(bodyRefs('Pin the tag.\n\nepiq-ref: b8pytcm\n')).toEqual([
+			'B8PYTCM',
+		]);
+	});
+
+	// A squash commit's body is the squashed messages run together, so each
+	// one's trailer sits mid-body, not in the final paragraph git would parse.
+	it('finds every trailer in a squash body, once each', () => {
+		const body = [
+			'* B8PYTCM pin the tag',
+			'',
+			'Epiq-Ref: B8PYTCM',
+			'',
+			'* tidy the changelog',
+			'',
+			'  Epiq-Ref: W1TCS14',
+			'Epiq-Ref: B8PYTCM',
+			'',
+			'Co-authored-by: Someone <someone@example.com>',
+		].join('\n');
+
+		expect(bodyRefs(body)).toEqual(['B8PYTCM', 'W1TCS14']);
+	});
+
+	it('reads several refs listed on one line', () => {
+		expect(bodyRefs('Epiq-Ref: B8PYTCM, w1tcs14 VW1Z3QE')).toEqual([
+			'B8PYTCM',
+			'W1TCS14',
+			'VW1Z3QE',
+		]);
+	});
+
+	it('keeps the refs on a line that also holds something else', () => {
+		expect(bodyRefs('Epiq-Ref: B8PYTCM, refused by review')).toEqual([
+			'B8PYTCM',
+		]);
+	});
+
+	it('ignores a mention that is not a line of its own, or not a ref', () => {
+		expect(bodyRefs('Carried over from Epiq-Ref: B8PYTCM last week.')).toEqual(
+			[],
+		);
+		expect(bodyRefs('Epiq-Ref: B8PYTC')).toEqual([]);
+		expect(bodyRefs('Epiq-Ref: B8PYTCMX')).toEqual([]);
 	});
 });

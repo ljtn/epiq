@@ -6,18 +6,40 @@ const commit = (
 	subject: string,
 	insertions = 0,
 	deletions = 0,
+	refs: string[] = [],
 ): CommitEntry => ({
 	sha: subject.slice(0, 7),
 	time: 0,
 	author: 'someone',
 	authorEmail: 'someone@example.com',
 	subject,
+	refs,
 	linesChanged: insertions + deletions,
 	insertions,
 	deletions,
 });
 
 describe('collectRefDiffStats', () => {
+	it('counts a commit that names its ref only in an Epiq-Ref line', () => {
+		const stats = collectRefDiffStats([
+			commit('pin the image tag', 10, 2, ['B8PYTCM']),
+		]);
+
+		expect(stats['B8PYTCM']).toEqual({
+			commits: 1,
+			insertions: 10,
+			deletions: 2,
+		});
+	});
+
+	it('counts a commit once when its subject and body name the same ref', () => {
+		const stats = collectRefDiffStats([
+			commit('B8PYTCM pin the image tag', 10, 2, ['B8PYTCM']),
+		]);
+
+		expect(stats['B8PYTCM']?.commits).toBe(1);
+	});
+
 	it('adds up every commit naming one ref', () => {
 		const stats = collectRefDiffStats([
 			commit('B8PYTCM first go', 10, 2),
