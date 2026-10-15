@@ -37,6 +37,13 @@ export type CommitEntry = {
 	 */
 	authorIdentity?: CommitAuthor;
 	subject: string;
+	/**
+	 * Refs named by `Epiq-Ref:` lines in the body. They link a commit to its
+	 * tickets without a ref in the subject, which would otherwise end up in
+	 * the history of repos the board's tickets are not public to; and they
+	 * survive a squash merge, whose body carries the squashed messages.
+	 */
+	refs?: string[];
 	linesChanged: number;
 	insertions: number;
 	deletions: number;
@@ -87,8 +94,28 @@ const separatorsFor = (source: CommitSource) => {
 	return {
 		field: `${GIT_LOG_FIELD_SEP}${nonce}`,
 		record: `${GIT_LOG_RECORD_SEP}${nonce}`,
+		// The body spans lines, so it is fenced off from the header before it
+		// and the --shortstat lines git prints after it.
+		body: `${GIT_LOG_FIELD_SEP}B${nonce}`,
+		end: `${GIT_LOG_FIELD_SEP}E${nonce}`,
 	};
 };
+
+// A line of its own, anywhere in the body: a squash commit carries each
+// squashed message's lines mid-body, where git's own trailer parsing (last
+// paragraph only) would not find them. One line may list several refs.
+const REF_TRAILER = /^[ \t]*Epiq-Ref:[ \t]*(.*)$/gim;
+// A ref is the tail of a ULID: Crockford base32, which has no I, L, O or U.
+const REF_TOKEN = new RegExp(`^[0-9A-HJKMNP-TV-Z]{${NODE_REF_LENGTH}}$`, 'i');
+
+export const bodyRefs = (body: string): string[] => [
+	...new Set(
+		[...body.matchAll(REF_TRAILER)]
+			.flatMap(m => m[1]!.split(/[\s,]+/))
+			.filter(token => REF_TOKEN.test(token))
+			.map(token => token.toUpperCase()),
+	),
+];
 
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
@@ -184,7 +211,9 @@ const readSourceLog = async (
 			// log reads as it always has.
 			`--format=${separators.record}%H${separators.field}%at${
 				source.notBefore ? `${separators.field}%ct` : ''
-			}${separators.field}%an${separators.field}%ae${separators.field}%s`,
+			}${separators.field}%an${separators.field}%ae${separators.field}%s${
+				separators.body
+			}%b${separators.end}`,
 		],
 	});
 
@@ -204,8 +233,22 @@ const readSourceLog = async (
 		.split(separators.record)
 		.filter(record => record.trim().length > 0)
 		.map((record): CommitEntry | null => {
-			const [headerLine, ...statLines] = record.split('\n');
-			const fields = (headerLine ?? '').split(separators.field);
+			// Without the end marker (output in the old one-line form) the header
+			// is the first line and the rest is --shortstat, as before bodies.
+			const endAt = record.indexOf(separators.end);
+			const [firstLine = '', ...restLines] = record.split('\n');
+			const head = endAt === -1 ? firstLine : record.slice(0, endAt);
+			const statLines =
+				endAt === -1
+					? restLines
+					: record.slice(endAt + separators.end.length).split('\n');
+			const bodyAt = head.indexOf(separators.body);
+			const headerLine = bodyAt === -1 ? head : head.slice(0, bodyAt);
+			const refs =
+				bodyAt === -1
+					? []
+					: bodyRefs(head.slice(bodyAt + separators.body.length));
+			const fields = headerLine.split(separators.field);
 			const [sha, atSeconds] = fields;
 			if (source.repo && !SHA.test(sha ?? '')) return null;
 			const ctSeconds = source.notBefore ? fields[2] : undefined;
@@ -231,6 +274,7 @@ const readSourceLog = async (
 				author: cleanText(author) || 'unknown',
 				authorEmail: cleanText(authorEmail),
 				subject: cleanText(subjectParts.join(separators.field)),
+				...(refs.length > 0 ? {refs} : {}),
 				linesChanged: insertions + deletions,
 				insertions,
 				deletions,
@@ -379,7 +423,8 @@ export const getRefMatchesBySource = async (
 	// should still match, not just one pasted verbatim from the MCP response.
 	const prefix = `${ref.toUpperCase()} `;
 	const matches = (commit: CommitEntry) =>
-		commit.subject.toUpperCase().startsWith(prefix);
+		commit.subject.toUpperCase().startsWith(prefix) ||
+		commit.refs?.includes(ref.toUpperCase()) === true;
 
 	// Per source, in git log's order — so all[i + 1] is exactly the commit
 	// immediately before all[i] in that repo's real history, matched or not.
