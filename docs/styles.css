@@ -34,8 +34,7 @@
 	--line: rgba(78, 84, 133, 0.315);
 	--cyan: #75d2fd;
 	--violet: #c6a7ff;
-	--deepBlue: #2370dc;
-	/* docs group labels: a calmer blue than --deepBlue */
+	/* docs group labels and the footer's column heads */
 	--groupBlue: #5a82bd;
 	--shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
 	--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -702,7 +701,7 @@ aside:not(.docs-layout > aside) {
 	font: 12px var(--mono);
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
-	color: var(--deepBlue);
+	color: var(--groupBlue);
 	margin-bottom: 4px;
 }
 .footer-foot {
