@@ -217,41 +217,48 @@ h1,
 	line-height: 0.86;
 	max-width: 860px;
 }
-/* A sentence breaks only after its full stop, never inside it. The second
-   is muted so it and the kicker read as one quiet block under the first. */
-.hero-title .line {
-	display: inline-block;
-}
-.hero-title .line:last-child {
-	color: var(--muted);
-}
-.hero .kicker {
-	font-size: clamp(13px, 1.6vw, 16px);
-	margin-bottom: 16px;
-}
-.hero .lead {
+/* The h1 at the hero size; the second line, and the third in spaced capitals
+   like a kicker, both sized to end under "tracking" (14 of the h1's 0.5em
+   characters), so "as code" stands out past them. --s keeps the h1 within the block. */
+.hero .hero-title {
 	max-width: none;
-	font-size: clamp(18px, 2.6vw, 24px);
+	margin-bottom: 40px;
+	container-type: inline-size;
+	line-height: 1.08;
 }
-.hero .lead span {
-	color: inherit;
+.hero-title > * {
+	--s: min(90px, 100cqi / 11.15);
+	margin: 0;
+	font: inherit;
+	letter-spacing: -0.1em;
+	line-height: inherit;
 	white-space: nowrap;
 }
-.hero .lead .sep {
-	margin: 0 0.54em 0 0.3em;
-	color: var(--dim);
+.hero-title > :nth-child(1) {
+	font-size: var(--s);
 }
-/* Below the width where all three phrases fit one line they stack instead of
-   breaking mid-phrase. */
-@media (max-width: 1000px) {
-	.hero .lead span {
-		display: block;
-	}
-	.hero .lead .sep {
-		display: none;
+.hero-title > :nth-child(2) {
+	margin-top: calc(var(--s) * 0.12);
+	font-size: max(20px, var(--s) * 7 / 15.5);
+}
+.hero-title > :nth-child(3) {
+	margin-top: calc(var(--s) * 0.6);
+	font-size: max(12px, var(--s) * 7 / 34.56);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: color-mix(in srgb, var(--dim) 60%, transparent);
+}
+/* At its floor the third line's spacing tightens so it keeps to one row. */
+@media (max-width: 620px) {
+	.hero-title > :nth-child(3) {
+		letter-spacing: 0.02em;
 	}
 }
-
+/* Below their floors the two smaller lines wrap rather than shrink further. */
+.hero-title > :not(:first-child) {
+	white-space: normal;
+	text-wrap: balance;
+}
 .lead {
 	max-width: 710px;
 	text-wrap: balance;
