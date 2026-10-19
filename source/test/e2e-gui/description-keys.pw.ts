@@ -107,6 +107,7 @@ test('Escape still abandons the edit', async ({page, appUrl, pageErrors}) => {
 test('the description box grows with what is written in it', async ({
 	page,
 	appUrl,
+	pageErrors,
 }) => {
 	await openTicket(page, appUrl);
 
@@ -120,4 +121,5 @@ test('the description box grows with what is written in it', async ({
 	await expect
 		.poll(async () => (await box.boundingBox())!.height)
 		.toBeGreaterThan(360);
+	expect(pageErrors).toEqual([]);
 });

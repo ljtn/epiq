@@ -12,12 +12,11 @@ export const useAutoGrow = (
 ) => {
 	useLayoutEffect(() => {
 		const el = ref.current;
-		if (!active || !el) return;
+		// A hidden box measures nothing; it keeps the height it was shown at.
+		if (!active || !el || el.getClientRects().length === 0) return;
 
 		el.style.height = 'auto';
 		const content = el.scrollHeight;
-		// A hidden box measures nothing, so it keeps its natural height.
-		if (content === 0) return;
 
 		const capped = maxHeight !== undefined && content > maxHeight;
 		el.style.height = `${capped ? maxHeight : content}px`;
