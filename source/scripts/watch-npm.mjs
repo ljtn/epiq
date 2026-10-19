@@ -14,8 +14,9 @@ const shared = {
 
 const index = await esbuild.context({
 	...shared,
-	entryPoints: ['source/Index.tsx'],
-	outfile: 'dist/index.js',
+	entryPoints: {index: 'source/cli.ts'},
+	splitting: true,
+	outdir: 'dist',
 });
 
 const mcp = await esbuild.context({
