@@ -19,10 +19,10 @@ description: Workflow for working an epiq issue board through the epiq MCP — t
 - **Comment** on deviations, blockers, and the outcome when done.
 - **Prompt user for closing tickets and big decisions**
 - **Park decisions that are the user's to make.** A design fork, a change with blast radius beyond its ticket, anything you'd want a second opinion on - file a ticket tagged human-input-needed naming the options and the trade-offs, then carry on with whatever doesn't depend on the answer.
-- **Link commits** by starting the subject with the ticket's `ref` from the MCP response — never derive the ref from the id.
+- **Link commits** with an `Epiq-Ref: <ref>` line in the commit body, using the `ref` from the MCP response — never derive the ref from the id. Several tickets go on one line, comma-separated. A subject starting with the ref also links, but keeps the ref in the shared history.
 - *If a you decide to take a new approach*, add a "fork" tag, and document the fork in a comment, also, update the description to reflect the new plan.
 - **Attachments are permanent** in every clone (max 500 KB): only when a picture is needed, make sure images are cropped and compressed. An oversized image is permanent, for everybody — the same reason the text limits exist.
 - **Be concise.** Titles, descriptions, and comments should be scannable, not essays.
 - **When a ticket is done, Document the outcome in a comment starting with "Solution:"**. Use that exact prefix as the comment's opening line.
 - **The git user is the sole author of every commit you write.** Commit under the repo's configured user.name / user.email and nothing else: no Co-Authored-By: line, no Claude-Session: line, no 🤖 Generated with footer, and never an --author override naming Claude or a tool.
-- Always rebase onto the target, never merge into it. Rebase the branch onto the target first, then integrate with a rebase merge — gh pr merge --rebase, never --merge. Main stays a flat sequence of ref-prefixed commits, which is what the commit↔ticket linking reads. A merge commit adds a subject carrying no ref and buries the branch's commits behind it.
+- Always rebase onto the target, never merge into it. Rebase the branch onto the target first, then integrate with a rebase merge — gh pr merge --rebase, never --merge. Main stays a flat sequence of commits that each still name their tickets, which is what the commit↔ticket linking reads. A merge commit adds a subject carrying no ref and buries the branch's commits behind it.
