@@ -1243,12 +1243,9 @@ export const App = () => {
 	const selectIssueComments = (nextIssueId: string) =>
 		selectCardTab(nextIssueId, 'comments');
 
-	// The stat on a card is a picture of the ticket's whole change, so it opens
-	// the view that draws it that way rather than the commits that made it.
-	// Named in the route for this click alone — the reader's remembered choice
-	// is left as it is, the way a deep link into a commit leaves it.
+	// On whichever of the Code tab's views the reader last chose.
 	const selectIssueCode = (nextIssueId: string) =>
-		selectCardTab(nextIssueId, 'code', 'flat');
+		selectCardTab(nextIssueId, 'code');
 
 	// A log line goes where the thing it names is read: a commit to its diff, a
 	// comment among the comments, anything else to the ticket's overview. Which
