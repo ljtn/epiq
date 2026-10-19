@@ -8,7 +8,7 @@ import {
 	SelectedLineRange,
 } from '@pierre/diffs/react';
 import {useDiffWrap} from '../lib/diff-wrap';
-import {GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME, PROSE} from '../lib/gui-theme';
 import {CODE_FONT, CODE_TEXT_VARS} from '../lib/code-text.style';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
 import {
@@ -20,6 +20,7 @@ import {Button} from './Button';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
 import {FormHeader} from './FormHeader';
+import {CommitBody} from './CommitBody';
 import {FullscreenToggleButton} from './FullscreenToggleButton';
 import {PanelDockMenu} from './PanelDockMenu';
 import {AsideDock} from '../lib/aside-dock';
@@ -344,6 +345,8 @@ const PanelFiles = ({
 
 export const DiffPanel = ({
 	sha,
+	subject,
+	body,
 	files,
 	loading,
 	error,
@@ -355,6 +358,8 @@ export const DiffPanel = ({
 	onDock,
 }: {
 	sha: string;
+	subject: string;
+	body?: string;
 	files: GuiCommitDiffFile[] | null;
 	loading: boolean;
 	error: string | null;
@@ -390,6 +395,20 @@ export const DiffPanel = ({
 				</Button>
 			</div>
 		</FormHeader>
+
+		{subject && (
+			<div
+				data-testid="commit-subject"
+				style={{
+					...PROSE,
+					color: GUI_THEME.primary,
+					overflowWrap: 'anywhere',
+				}}
+			>
+				{subject}
+			</div>
+		)}
+		{body && <CommitBody body={body} />}
 
 		{loading && <Empty>Loading diff…</Empty>}
 		{!loading && error && <Empty>{error}</Empty>}

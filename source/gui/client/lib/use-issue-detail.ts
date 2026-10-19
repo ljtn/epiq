@@ -83,6 +83,7 @@ export type CommitDiffState = {
 	loading: boolean;
 	error: string | null;
 	files: GuiCommitDiffFile[] | null;
+	body?: string;
 };
 
 export type IssueDetailPanel = {
@@ -397,6 +398,7 @@ export const useIssueDetail = ({
 									loading: false,
 									error: null,
 									files: diff.files,
+									body: diff.body,
 								},
 						  }
 						: prev,

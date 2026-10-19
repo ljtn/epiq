@@ -199,6 +199,8 @@ export type GuiCommitDiff = {
 	sha: string;
 	repo?: string;
 	files: GuiCommitDiffFile[];
+	/** The message below the subject, where there is one. */
+	body?: string;
 };
 
 // A file in the compacted diff, carrying the commit a comment on it anchors

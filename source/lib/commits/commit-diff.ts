@@ -41,6 +41,29 @@ export type CommitDiff = {
 	sha: string;
 	repo?: string;
 	files: CommitDiffFile[];
+	/** The message below the subject, where there is one. */
+	body?: string;
+};
+
+// A body as it may be drawn: the commit's author chose every byte. Newlines
+// and tabs stay, being what a body is made of; other controls and the bidi
+// overrides that make text read as something else go.
+const cleanBody = (body: string): string =>
+	body
+		.replace(/\r\n?/g, '\n')
+		.replace(
+			/[\x00-\x08\x0B-\x1F\x7F\u0080-\u009f\u202a-\u202e\u2066-\u2069]/g,
+			'',
+		)
+		.trim();
+
+const commitBody = async (repoRoot: string, sha: string): Promise<string> => {
+	const result = await execGit({
+		cwd: repoRoot,
+		args: ['log', '-1', '--no-show-signature', '--format=%b', sha, '--'],
+	});
+
+	return isFail(result) ? '' : cleanBody(result.value.stdout);
 };
 
 /**
@@ -300,6 +323,9 @@ export const getCommitDiff = async (
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 	const repoRoot = repoRootResult.value;
 
+	// Beside the diff rather than after it, since it costs a spawn of its own.
+	const bodyRead = commitBody(repoRoot, input.sha);
+
 	let entriesResult = await getChangedFileBlobs(
 		repoRoot,
 		`${input.sha}~1`,
@@ -332,11 +358,13 @@ export const getCommitDiff = async (
 	if (isFail(filesResult)) return failed(filesResult.message);
 
 	const files = filesResult.value;
+	const body = await bodyRead;
 
 	return succeeded('Loaded commit diff', {
 		sha: input.sha,
 		...(input.repo ? {repo: input.repo} : {}),
 		files,
+		...(body ? {body} : {}),
 	});
 };
 
