@@ -46,11 +46,22 @@ test('a card whose ticket has commits carries its diff stat, and carries none be
 	await expect(stat).toHaveAttribute('title', '1 commit');
 
 	// And it is the way into what it counts, the way the comment count beside
-	// it is the way into the comments: the panel opens on the Code tab, in the
-	// view that draws the whole change at once — the one the stat is a picture
-	// of — rather than on whichever tab and view were last used.
+	// it is the way into the comments: the panel opens on the Code tab, in
+	// whichever of its views the reader last chose.
 	await stat.click();
 	await expect(page).toHaveURL(/tab=code/);
+	await page.getByTestId('diff-view-commits').click();
+	await expect(page).toHaveURL(/diff=commits/);
+
+	await page.getByRole('button', {name: 'Close', exact: true}).click();
+	await stat.click();
+	await expect(page).toHaveURL(/tab=code/);
+	await expect(page).toHaveURL(/diff=commits/);
+	await expect(page.getByTestId('commit-card')).toHaveCount(1);
+
+	await page.getByTestId('diff-view-flat').click();
+	await page.getByRole('button', {name: 'Close', exact: true}).click();
+	await stat.click();
 	await expect(page).toHaveURL(/diff=flat/);
 	await expect(page.getByTestId('commit-card')).toHaveCount(0);
 	await expect(page.getByTestId('file-row')).toContainText(linkedFileName(ref));
