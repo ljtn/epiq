@@ -191,9 +191,14 @@ export function DiffListUI({ticket, width, height}: Props) {
 			<Box flexDirection="column" width={width} height={height} padding={1}>
 				<Text color={theme.primary}>No commits reference this ticket.</Text>
 				<Box paddingTop={1}>
-					<Text color={theme.primary}>Commits are matched by the</Text>
+					<Text color={theme.primary}>Link one with an</Text>
+					<Text color={theme.accent}>{` Epiq-Ref: ${ref} `}</Text>
+					<Text color={theme.primary}>line in its body,</Text>
+				</Box>
+				<Box>
+					<Text color={theme.primary}>or a</Text>
 					<Text color={theme.accent}>{` ${ref} `}</Text>
-					<Text color={theme.primary}>prefix on their subject line.</Text>
+					<Text color={theme.primary}>prefix on its subject.</Text>
 				</Box>
 			</Box>
 		);

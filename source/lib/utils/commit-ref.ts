@@ -102,3 +102,17 @@ export const commitTicketRef = (
 
 	return token && knownRefs.has(token) ? token : null;
 };
+
+// Every ticket a commit links to, where the board knows it: the one its
+// subject leads with, then those its Epiq-Ref lines name.
+export const commitTicketRefs = (
+	commit: {subject: string; refs?: readonly string[]},
+	knownRefs: ReadonlySet<string>,
+): string[] => {
+	const prefix = commitTicketRef(commit.subject, knownRefs);
+	const named = (commit.refs ?? []).map(ref => ref.toUpperCase());
+
+	return [...new Set([...(prefix ? [prefix] : []), ...named])].filter(ref =>
+		knownRefs.has(ref),
+	);
+};

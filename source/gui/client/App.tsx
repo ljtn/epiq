@@ -65,7 +65,7 @@ import {DropTarget} from './lib/gui-result.model';
 import {deriveBoardStats} from '../../lib/stats/board-stats.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {issueMatchesText} from '../../lib/utils/text-match.js';
-import {commitTicketRef} from '../../lib/utils/commit-ref.js';
+import {commitTicketRefs} from '../../lib/utils/commit-ref.js';
 import {findBoard, findIssue, getResultValue} from './lib/gui-state-helper';
 import {
 	GuiCommitDiff,
@@ -1585,9 +1585,10 @@ export const App = () => {
 	// nowhere gets the bare panel.
 	const openCommitDiff = useCallback(
 		(sha: string, replace = false) => {
-			const subject =
-				history.commits.find(commit => commit.sha === sha)?.subject ?? '';
-			const ref = commitTicketRef(subject, knownTicketRefs);
+			const commit = history.commits.find(entry => entry.sha === sha);
+			const ref = commit
+				? commitTicketRefs(commit, knownTicketRefs)[0]
+				: undefined;
 
 			if (ref && boardSlug) {
 				// A bare panel left open by an earlier unlinked commit would sit in
@@ -1600,7 +1601,7 @@ export const App = () => {
 				return;
 			}
 
-			const repo = history.commits.find(commit => commit.sha === sha)?.repo;
+			const repo = commit?.repo;
 
 			setCommitDiff({sha, loading: true, error: null, files: null});
 			sendRaw({
