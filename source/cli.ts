@@ -2,6 +2,6 @@
 // NODE_ENV when first imported, so it is set before the app loads. Their
 // development build logs a performance measure per render, which Node keeps
 // for the life of the process.
-process.env['NODE_ENV'] ??= 'production';
+process.env['NODE_ENV'] ||= 'production';
 
 await import('./Index.js');
