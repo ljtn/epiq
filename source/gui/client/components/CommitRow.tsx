@@ -5,6 +5,8 @@ import {hasDiffToShow, isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {ReviewedFiles} from '../lib/reviewed-files';
 import {CommitBody} from './CommitBody';
 import {KebabMenu} from './KebabMenu';
+import {IconDots} from './IconDots';
+import {ICON_SIZE} from './IconButton';
 import {Button} from './Button';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
@@ -115,7 +117,9 @@ export const CommitRow = ({
 				</span>
 				<span
 					style={{
-						flex: 1,
+						// Its own width, so the message button sits right after it; the
+						// spacer below takes the rest of the row.
+						flex: '0 1 auto',
 						minWidth: 0,
 						overflow: 'hidden',
 						textOverflow: 'ellipsis',
@@ -135,7 +139,7 @@ export const CommitRow = ({
 						<KebabMenu
 							portal
 							popupRole="dialog"
-							icon="…"
+							icon={<IconDots size={ICON_SIZE} />}
 							title="Commit message"
 							testId="commit-message"
 						>
@@ -155,6 +159,7 @@ export const CommitRow = ({
 						</KebabMenu>
 					</span>
 				)}
+				<span style={{flex: 1}} />
 				{commit.repo && <RepoChip repo={commit.repo} />}
 				<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
 				{/* The sha is lookup chrome, not part of reading the list, so it
