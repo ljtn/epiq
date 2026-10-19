@@ -1,5 +1,8 @@
 import {RefObject, useLayoutEffect} from 'react';
 
+// Tall enough for a long text, short enough to keep what is around it in view.
+export const AUTO_GROW_MAX_HEIGHT = 480;
+
 // A textarea as tall as its text, so a long one is written without hunting
 // for the resize handle. Past `maxHeight` it scrolls instead.
 export const useAutoGrow = (

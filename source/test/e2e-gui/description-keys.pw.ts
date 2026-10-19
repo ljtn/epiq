@@ -102,3 +102,22 @@ test('Escape still abandons the edit', async ({page, appUrl, pageErrors}) => {
 
 	expect(pageErrors).toEqual([]);
 });
+
+// Past the 320px the box used to stop at.
+test('the description box grows with what is written in it', async ({
+	page,
+	appUrl,
+}) => {
+	await openTicket(page, appUrl);
+
+	const box = await startEditing(page);
+	// Shift+Enter, since Enter confirms.
+	for (let i = 0; i < 24; i++) {
+		await box.type(`line ${i}`);
+		await box.press('Shift+Enter');
+	}
+
+	await expect
+		.poll(async () => (await box.boundingBox())!.height)
+		.toBeGreaterThan(360);
+});
