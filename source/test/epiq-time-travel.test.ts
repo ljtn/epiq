@@ -132,6 +132,36 @@ import {
 	runExclusive,
 } from '../mcp/epiq-time-travel.js';
 
+// Commit timeline reads pick their own separators per read, so canned git log
+// output is written with the plain ones and re-spelled in the ones the read's
+// --format asks for.
+const cannedLog =
+	(stdout: string) =>
+	async ({args}: {args: string[]}) => {
+		const format = args
+			.find(arg => arg.startsWith('--format='))!
+			.slice('--format='.length);
+		const [, record, field, body, end] =
+			/^(.*)%H(.*)%at\2%an\2%ae\2%s(.*)%b(.*)$/s.exec(format)!;
+		const respelled = stdout
+			.split('\x1e')
+			.map(entry => {
+				if (!entry) return entry;
+				const [header = '', ...rest] = entry.split('\n');
+				return (
+					record +
+					header.split('\x1f').join(field) +
+					body +
+					end +
+					'\n' +
+					rest.join('\n')
+				);
+			})
+			.join('');
+
+		return succeeded('git log', {stdout: respelled, stderr: '', exitCode: 0});
+	};
+
 describe('epiq-time-travel', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -764,15 +794,12 @@ describe('epiq-time-travel', () => {
 		const REC = '\x1e';
 
 		it('parses git log --shortstat output into commit entries with linesChanged', async () => {
-			vi.mocked(execGit).mockResolvedValue(
-				succeeded('git log', {
-					stdout:
-						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}fix bug\n` +
+			vi.mocked(execGit).mockImplementation(
+				cannedLog(
+					`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}fix bug\n` +
 						` 2 files changed, 45 insertions(+), 12 deletions(-)\n` +
 						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}grace@example.com${SEP}add feature\n`,
-					stderr: '',
-					exitCode: 0,
-				}),
+				),
 			);
 
 			const result = await getCommitTimeline();
@@ -844,14 +871,11 @@ describe('epiq-time-travel', () => {
 		// A rebase rewrites the committer date but keeps the author date, so
 		// `--since` can match a commit that is plotted days outside the window.
 		it('drops commits whose author date falls outside the window', async () => {
-			vi.mocked(execGit).mockResolvedValue(
-				succeeded('git log', {
-					stdout:
-						`${REC}aaa111${SEP}1700000050${SEP}Ada${SEP}ada@example.com${SEP}inside the window\n` +
+			vi.mocked(execGit).mockImplementation(
+				cannedLog(
+					`${REC}aaa111${SEP}1700000050${SEP}Ada${SEP}ada@example.com${SEP}inside the window\n` +
 						`${REC}bbb222${SEP}1600000000${SEP}Grace${SEP}grace@example.com${SEP}rebased from long ago\n`,
-					stderr: '',
-					exitCode: 0,
-				}),
+				),
 			);
 
 			const result = await getCommitTimeline({
@@ -890,12 +914,10 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('reuses the unwindowed scan instead of re-invoking git log within the TTL', async () => {
-			vi.mocked(execGit).mockResolvedValue(
-				succeeded('git log', {
-					stdout: `${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}fix bug\n`,
-					stderr: '',
-					exitCode: 0,
-				}),
+			vi.mocked(execGit).mockImplementation(
+				cannedLog(
+					`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}fix bug\n`,
+				),
 			);
 
 			const first = await getCommitTimeline();
@@ -981,14 +1003,11 @@ describe('epiq-time-travel', () => {
 		const REC = '\x1e';
 
 		it('matches commits whose subject starts with "<ref> "', async () => {
-			vi.mocked(execGit).mockResolvedValue(
-				succeeded('git log', {
-					stdout:
-						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 add the tool\n` +
+			vi.mocked(execGit).mockImplementation(
+				cannedLog(
+					`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 add the tool\n` +
 						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}grace@example.com${SEP}unrelated commit\n`,
-					stderr: '',
-					exitCode: 0,
-				}),
+				),
 			);
 
 			const result = await getCommitsForRef({ref: '5S52AC8'});
@@ -999,12 +1018,10 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('requires a space after the ref, not just a text prefix', async () => {
-			vi.mocked(execGit).mockResolvedValue(
-				succeeded('git log', {
-					stdout: `${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC89 similar but longer ref\n`,
-					stderr: '',
-					exitCode: 0,
-				}),
+			vi.mocked(execGit).mockImplementation(
+				cannedLog(
+					`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC89 similar but longer ref\n`,
+				),
 			);
 
 			const result = await getCommitsForRef({ref: '5S52AC8'});
@@ -1015,14 +1032,11 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('marks two matched commits as chained when nothing sits between them', async () => {
-			vi.mocked(execGit).mockResolvedValue(
-				succeeded('git log', {
-					stdout:
-						`${REC}newer111${SEP}1700000100${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 second\n` +
+			vi.mocked(execGit).mockImplementation(
+				cannedLog(
+					`${REC}newer111${SEP}1700000100${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 second\n` +
 						`${REC}older111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 first\n`,
-					stderr: '',
-					exitCode: 0,
-				}),
+				),
 			);
 
 			const result = await getCommitsForRef({ref: '5S52AC8'});
@@ -1038,15 +1052,12 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('leaves precedingSha null when an unrelated commit breaks the chain', async () => {
-			vi.mocked(execGit).mockResolvedValue(
-				succeeded('git log', {
-					stdout:
-						`${REC}newer111${SEP}1700000200${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 second\n` +
+			vi.mocked(execGit).mockImplementation(
+				cannedLog(
+					`${REC}newer111${SEP}1700000200${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 second\n` +
 						`${REC}between${SEP}1700000100${SEP}Grace${SEP}grace@example.com${SEP}unrelated commit\n` +
 						`${REC}older111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 first\n`,
-					stderr: '',
-					exitCode: 0,
-				}),
+				),
 			);
 
 			const result = await getCommitsForRef({ref: '5S52AC8'});
@@ -1080,14 +1091,11 @@ describe('epiq-time-travel', () => {
 		// fires moments before a ticket's Commits tab does — this is the specific
 		// duplicate scan the timeline cache exists to collapse into one git call.
 		it('reuses a timeline already scanned for a different ref instead of re-scanning', async () => {
-			vi.mocked(execGit).mockResolvedValue(
-				succeeded('git log', {
-					stdout:
-						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 add the tool\n` +
+			vi.mocked(execGit).mockImplementation(
+				cannedLog(
+					`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 add the tool\n` +
 						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}grace@example.com${SEP}QG9544B add the tab\n`,
-					stderr: '',
-					exitCode: 0,
-				}),
+				),
 			);
 
 			const first = await getCommitsForRef({ref: '5S52AC8'});
@@ -1157,8 +1165,8 @@ describe('epiq-time-travel', () => {
 				}
 
 				if (args[0] === 'log' && !args.includes('--raw')) {
-					return succeeded('git log', {
-						stdout: history
+					return cannedLog(
+						history
 							.map(
 								(commit, index) =>
 									`${REC}${commit.sha}${SEP}${
@@ -1166,9 +1174,7 @@ describe('epiq-time-travel', () => {
 									}${SEP}Ada${SEP}ada@example.com${SEP}${commit.subject}`,
 							)
 							.join('\n'),
-						stderr: '',
-						exitCode: 0,
-					});
+					)({args});
 				}
 
 				if (args[0] === 'log') {
