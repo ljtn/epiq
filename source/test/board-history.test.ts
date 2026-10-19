@@ -15,7 +15,10 @@ import {
 	moveIssue,
 	moveSwimlane,
 } from '../mcp/epiq-api.js';
+import {boardsEverOnOf} from '../mcp/api/issue-projection.js';
 import {deriveGuiState} from '../mcp/api/state.js';
+import {nodeRepo} from '../lib/repository/node-repo.js';
+import {Ticket} from '../lib/model/context.model.js';
 import {setupRepo, useTempHome} from './helpers/git-repo.js';
 
 // KWYX3CX: an event belongs to the board the ticket was on when it happened,
@@ -113,10 +116,44 @@ describe('a swimlane that changes board', () => {
 		);
 
 		const other = unwrap(await createBoard({repoRoot, title: 'Elsewhere'}));
+		expect(boardsOf(issue.ref)).toEqual([home.id]);
+
 		unwrap(
 			await moveSwimlane({repoRoot, swimlaneId: lane.id, boardId: other.id}),
 		);
 
 		expect(boardsOf(issue.ref)).toContain(home.id);
+		expect(boardsOf(issue.ref)).toContain(other.id);
+	});
+});
+
+// A lane's log carries every event of every ticket in it, so reading it once
+// per ticket made a board's read quadratic in its size.
+describe('reading the boards of a lane full of tickets', () => {
+	it('reads the lane log once, not once per ticket', async () => {
+		const {repoRoot, home, lane} = await seed();
+		const tickets: Ticket[] = [];
+		for (const title of ['one', 'two', 'three']) {
+			const issue = unwrap(
+				await createIssue({repoRoot, title, parentId: lane.id}),
+			);
+			tickets.push(nodeRepo.getNode(issue.id) as Ticket);
+		}
+
+		const laneNode = nodeRepo.getNode(lane.id)!;
+		let reads = 0;
+		const log = [...(laneNode.log ?? [])];
+		const iterate = log[Symbol.iterator].bind(log);
+		log[Symbol.iterator] = () => {
+			reads++;
+			return iterate();
+		};
+		nodeRepo.updateNode({...laneNode, log});
+
+		for (const ticket of tickets) {
+			expect(boardsEverOnOf(ticket)).toEqual([home.id]);
+		}
+
+		expect(reads).toBe(1);
 	});
 });
