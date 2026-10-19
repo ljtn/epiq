@@ -123,3 +123,21 @@ test('the description box grows with what is written in it', async ({
 		.toBeGreaterThan(360);
 	expect(pageErrors).toEqual([]);
 });
+
+test('a description keeps its line breaks', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openTicket(page, appUrl);
+
+	const box = await startEditing(page);
+	await box.fill('first line\nsecond line');
+	await box.press('Enter');
+	await editorClosed(page);
+
+	const body = page.getByTestId('description-body');
+	await expect(body).toContainText('second line');
+	await expect(body.locator('br')).toHaveCount(1);
+	expect(pageErrors).toEqual([]);
+});

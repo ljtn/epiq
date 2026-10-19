@@ -45,7 +45,7 @@ export const CommentBody = ({
 	const snippet = meta && extractCommentSnippet(withoutMarker);
 
 	if (!meta || !snippet) {
-		return <MarkdownContent content={withoutMarker} softBreaks />;
+		return <MarkdownContent content={withoutMarker} />;
 	}
 
 	const location = diffLocationFromMeta(meta);
@@ -58,7 +58,7 @@ export const CommentBody = ({
 		// A flex column: sibling margins don't collapse here, so the gap between
 		// note and snippet is the gap it says it is.
 		<div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-			{lead && <MarkdownContent content={lead} softBreaks />}
+			{lead && <MarkdownContent content={lead} />}
 
 			{/* Only clickable when the marker recorded which commit the selection
 			    came from — a file can appear in several of a ticket's commits, so

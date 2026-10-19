@@ -232,15 +232,9 @@ const buildComponents = (
 	),
 });
 
-export const MarkdownContent = ({
-	content,
-	softBreaks = false,
-}: {
-	content: string;
-	// Treats single newlines as line breaks (like a chat message) instead of
-	// requiring a blank line for a new paragraph, per strict CommonMark.
-	softBreaks?: boolean;
-}) => {
+// A single newline is a line break, as it was typed, rather than CommonMark's
+// space; a blank line still starts a paragraph.
+export const MarkdownContent = ({content}: {content: string}) => {
 	const ticketRefLinks = useContext(TicketRefLinksContext);
 
 	// Built once: renderers built anew are new component types, and React
@@ -256,10 +250,10 @@ export const MarkdownContent = ({
 	const remarkPlugins = useMemo(
 		() => [
 			remarkGfm,
-			...(softBreaks ? [remarkBreaks] : []),
+			remarkBreaks,
 			...(ticketRefLinks ? [remarkTicketRefs(ticketRefLinks.isKnownRef)] : []),
 		],
-		[softBreaks, ticketRefLinks],
+		[ticketRefLinks],
 	);
 
 	return (
