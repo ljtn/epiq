@@ -8,12 +8,19 @@ import {
 } from '../../lib/utils/ticket.utils.js';
 import {ApiIssue, ApiIssueComment} from '../api-state.model.js';
 
+// A lane's log holds its tickets' events too, so it is read once per lane, not
+// once per ticket. Keyed by the node, which every update replaces.
+const boardsUnderLane = new WeakMap<object, string[]>();
+
 // Every board a lane has hung off, its current one included. A lane moves
 // between boards too (`moveSwimlane`), and reading only where it hangs today
 // would hand one board's history to another the moment somebody reorganises.
 const boardsEverUnder = (laneId: string): string[] => {
 	const lane = nodeRepo.getNode(laneId);
 	if (!lane) return [];
+
+	const cached = boardsUnderLane.get(lane);
+	if (cached) return cached;
 
 	const boards = new Set<string>();
 
@@ -25,7 +32,10 @@ const boardsEverUnder = (laneId: string): string[] => {
 		if (payload.id === laneId && payload.parent) boards.add(payload.parent);
 	}
 
-	return [...boards];
+	const result = [...boards];
+	boardsUnderLane.set(lane, result);
+
+	return result;
 };
 
 /**
