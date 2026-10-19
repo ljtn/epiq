@@ -170,6 +170,8 @@ export type GuiCommitEntry = {
 	 */
 	authorIdentity?: GuiCommitAuthor;
 	subject: string;
+	/** Refs named by `Epiq-Ref:` lines in the body. */
+	refs?: string[];
 	linesChanged: number;
 	insertions: number;
 	deletions: number;

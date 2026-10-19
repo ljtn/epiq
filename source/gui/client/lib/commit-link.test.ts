@@ -248,3 +248,25 @@ describe('linkableIssues', () => {
 		).toBe(everyBoard);
 	});
 });
+
+describe('keptCommits, for a commit linked by an Epiq-Ref line', () => {
+	const trailer: GuiCommitEntry = {
+		...commit('e', 'fix the parser'),
+		refs: ['XYZ9876'],
+	};
+
+	it('keeps it among the linked commits', () => {
+		expect(keptCommits([trailer], true, false, issueIdByRef, null)).toEqual([
+			trailer,
+		]);
+	});
+
+	it('keeps it for the ticket it names, and not for another', () => {
+		expect(
+			keptCommits([trailer], false, true, issueIdByRef, new Set(['issue-c'])),
+		).toEqual([trailer]);
+		expect(
+			keptCommits([trailer], false, true, issueIdByRef, new Set(['issue-a'])),
+		).toEqual([]);
+	});
+});

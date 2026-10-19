@@ -81,19 +81,27 @@ export const commitLinkedNothing = (
 	return git('rev-parse', 'HEAD').toString().trim();
 };
 
-/** A commit that names no ticket, for the linked-only narrowing to drop. */
+/**
+ * A commit with no ref in its subject, for the linked-only narrowing to drop —
+ * unless its body names one: each of `body` is a paragraph of the message.
+ */
 export const commitPlainFile = (
 	repoRoot: string,
 	fileName: string,
 	subject: string,
 	contents = 'one\ntwo\n',
 	date?: Date,
+	body: string[] = [],
 ): string => {
 	const git = gitIn(repoRoot, date);
 
 	fs.writeFileSync(path.join(repoRoot, fileName), contents);
 	git('add', fileName);
-	git('commit', '-q', '-m', subject);
+	git(
+		'commit',
+		'-q',
+		...[subject, ...body].flatMap(message => ['-m', message]),
+	);
 
 	return git('rev-parse', 'HEAD').toString().trim();
 };

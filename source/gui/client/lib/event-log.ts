@@ -60,9 +60,9 @@ const commitLogEntry = (commit: GuiCommitEntry): LogEntry => ({
 	// and the other by their git name, in the same window.
 	actor: {name: commitAuthorLabel(commit)},
 	diff: {insertions: commit.insertions, deletions: commit.deletions},
-	// A commit belongs to whichever ticket its subject is prefixed with,
-	// which the board resolves when the line is clicked — it already has to,
-	// for the scatter's own commit dots.
+	// A commit belongs to the ticket it links to, by subject prefix or an
+	// Epiq-Ref line, which the board resolves when the line is clicked — it
+	// already has to, for the scatter's own commit dots.
 	issue: null,
 	target: null,
 	action: null,

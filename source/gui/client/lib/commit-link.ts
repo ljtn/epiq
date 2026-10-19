@@ -1,7 +1,8 @@
 // Which commits the Code series keeps. Repository-wide by default: every
 // commit is plotted whether or not it names a ticket. Two things narrow that,
 // and either one is enough: the series select set to linked commits, which
-// keeps the ones whose subject leads with the ref of a ticket the board knows;
+// keeps the ones linked to a ticket the board knows, by a ref leading the
+// subject or an Epiq-Ref line;
 // and the board being down to the one ticket on screen, whose commits are the
 // ones linked to it whatever the select says — the same rule its events follow,
 // so the narrowing takes the picture down to one ticket rather than leaving the
@@ -12,7 +13,7 @@
 // still decides; what it narrows, where the select asks for linked commits, is
 // which tickets a link may name.
 
-import {commitTicketRef} from '../../../lib/utils/commit-ref.js';
+import {commitTicketRefs} from '../../../lib/utils/commit-ref.js';
 import {GuiBoard, GuiCommitEntry} from './gui-state.model';
 
 // The tickets a link may name, by ref, for one board or for every board. Which
@@ -91,14 +92,14 @@ export const keptCommits = (
 
 	const refs = new Set(issueIdByRef.keys());
 
-	return commits.filter(commit => {
-		const ref = commitTicketRef(commit.subject, refs);
-		if (ref === null) return false;
+	return commits.filter(commit =>
+		commitTicketRefs(commit, refs).some(ref => {
+			const issueId = issueIdByRef.get(ref);
 
-		const issueId = issueIdByRef.get(ref);
-
-		return (
-			issueId !== undefined && (keptIssues === null || keptIssues.has(issueId))
-		);
-	});
+			return (
+				issueId !== undefined &&
+				(keptIssues === null || keptIssues.has(issueId))
+			);
+		}),
+	);
 };

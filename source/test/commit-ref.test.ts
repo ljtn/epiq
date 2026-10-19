@@ -1,5 +1,9 @@
 import {describe, expect, it} from 'vitest';
-import {checkCommitRef, commitTicketRef} from '../lib/utils/commit-ref.js';
+import {
+	checkCommitRef,
+	commitTicketRef,
+	commitTicketRefs,
+} from '../lib/utils/commit-ref.js';
 
 // Real shape: a ULID whose last 7 characters are the ref.
 const ids = [
@@ -115,5 +119,30 @@ describe('commitTicketRef', () => {
 		expect(commitTicketRef('BUILD the thing', known)).toBeNull();
 		expect(commitTicketRef('fix ABCDEFG later', known)).toBeNull();
 		expect(commitTicketRef('', known)).toBeNull();
+	});
+});
+
+describe('commitTicketRefs', () => {
+	const known = new Set(['ABC1234', 'XYZ9876']);
+
+	it('reads the subject prefix and the Epiq-Ref lines, prefix first', () => {
+		expect(
+			commitTicketRefs(
+				{subject: 'XYZ9876 fix it', refs: ['abc1234', 'XYZ9876']},
+				known,
+			),
+		).toEqual(['XYZ9876', 'ABC1234']);
+	});
+
+	it('links a commit whose ref is only in its body', () => {
+		expect(
+			commitTicketRefs({subject: 'fix it', refs: ['ABC1234']}, known),
+		).toEqual(['ABC1234']);
+	});
+
+	it('leaves out refs the board does not know', () => {
+		expect(
+			commitTicketRefs({subject: 'ZZZ0000 fix', refs: ['QQQ1111']}, known),
+		).toEqual([]);
 	});
 });
