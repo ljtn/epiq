@@ -1,5 +1,7 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
+	matchPath,
+	useBlocker,
 	useMatch,
 	useNavigate,
 	useParams,
@@ -14,6 +16,7 @@ import {Button} from './components/Button';
 import {CreateNodeModal} from './components/CreateNodeModal';
 import {AddSwimlaneColumn} from './components/AddSwimlaneColumn';
 import {ConfirmModal} from './components/ConfirmModal';
+import {discardTicketDrafts, hasTicketDrafts} from './lib/ticket-drafts';
 import {DiffPanel} from './components/DiffPanel';
 import {
 	InitProjectScreen,
@@ -182,6 +185,12 @@ export const DropIndicator = () => (
 		}}
 	/>
 );
+
+const ticketInPath = (pathname: string) =>
+	(
+		matchPath('/board/:boardId/issue/:issueId', pathname) ??
+		matchPath('/board/:boardId/:issueId', pathname)
+	)?.params.issueId;
 
 export const App = () => {
 	const {boardId} = useParams<{boardId: string}>();
@@ -381,6 +390,16 @@ export const App = () => {
 	const boardSlug = selectedBoard?.ref ?? boardId;
 
 	const selectedIssue = state && issueId ? findIssue(state, issueId) : null;
+
+	// Leaving a ticket with unsent text asks first. Only leaving it: another of
+	// its tabs, or anything that keeps it open, keeps the text.
+	const leaveBlocker = useBlocker(
+		({currentLocation, nextLocation}) =>
+			Boolean(selectedIssue) &&
+			ticketInPath(currentLocation.pathname) !==
+				ticketInPath(nextLocation.pathname) &&
+			hasTicketDrafts(selectedIssue!.id),
+	);
 
 	useEffect(() => {
 		const onPaste = (event: ClipboardEvent) => {
@@ -2437,6 +2456,25 @@ export const App = () => {
 							}
 							onCreate={submitRenameSwimlane}
 							onClose={() => setRenameSwimlane(null)}
+						/>
+					)}
+
+					{leaveBlocker.state === 'blocked' && (
+						<ConfirmModal
+							eyebrow="Unsent"
+							heading="Discard what you wrote?"
+							body="This ticket has text you have not saved or sent."
+							confirmLabel="discard"
+							onConfirm={() => {
+								if (selectedIssue) discardTicketDrafts(selectedIssue.id);
+								leaveBlocker.proceed();
+							}}
+							onClose={() => {
+								leaveBlocker.reset();
+								// A card click picks the card it was aimed at before it
+								// navigates; staying means the open ticket is the pick.
+								setPickedIssueIds(selectedIssue ? [selectedIssue.id] : []);
+							}}
 						/>
 					)}
 
