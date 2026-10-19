@@ -59,6 +59,9 @@ runBin(esbuild, [
 	'--format=esm',
 	'--target=node22',
 	'--minify',
+	// React's development build logs a performance measure per render, and
+	// Node keeps every one for the life of the process.
+	'--define:process.env.NODE_ENV="production"',
 	'--alias:react-devtools-core=./source/scripts/react-devtools-stub.js',
 	'--outfile=dist/sea-inner.js',
 ]);
