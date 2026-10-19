@@ -2416,7 +2416,6 @@ export const App = () => {
 					{createIssueModal && (
 						<CreateNodeModal
 							eyebrow="New issue"
-							fieldLabel="title"
 							placeholder="issue name"
 							title={createIssueModal.title}
 							onChangeTitle={title =>
@@ -2430,7 +2429,6 @@ export const App = () => {
 					{renameSwimlane && (
 						<CreateNodeModal
 							eyebrow="Rename swimlane"
-							fieldLabel="title"
 							placeholder="swimlane name"
 							confirmLabel="rename"
 							title={renameSwimlane.title}
@@ -2545,7 +2543,6 @@ export const App = () => {
 					{createBoardTitle !== null && (
 						<CreateNodeModal
 							eyebrow="New board"
-							fieldLabel="title"
 							placeholder="board name"
 							title={createBoardTitle}
 							onChangeTitle={setCreateBoardTitle}
@@ -2557,7 +2554,6 @@ export const App = () => {
 					{renameBoard && (
 						<CreateNodeModal
 							eyebrow="Rename board"
-							fieldLabel="title"
 							placeholder="board name"
 							confirmLabel="rename"
 							title={renameBoard.title}
@@ -2572,7 +2568,6 @@ export const App = () => {
 					{createSwimlaneTitle !== null && (
 						<CreateNodeModal
 							eyebrow="New swimlane"
-							fieldLabel="title"
 							placeholder="swimlane name"
 							title={createSwimlaneTitle}
 							onChangeTitle={setCreateSwimlaneTitle}

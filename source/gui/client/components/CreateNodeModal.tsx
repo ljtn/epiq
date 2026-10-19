@@ -6,7 +6,8 @@ import {GUI_THEME} from '../lib/gui-theme';
 // only the wording differs.
 type Props = {
 	eyebrow: string;
-	fieldLabel: string;
+	// What the field is about, where the eyebrow and placeholder do not say.
+	fieldLabel?: string;
 	placeholder: string;
 	confirmLabel?: string;
 	title: string;
@@ -57,7 +58,7 @@ export const CreateNodeModal = ({
 				style={{
 					color: GUI_THEME.accent,
 					fontSize: 10,
-					marginBottom: 8,
+					marginBottom: fieldLabel ? 8 : 16,
 					letterSpacing: 1,
 					textTransform: 'uppercase',
 				}}
@@ -65,15 +66,17 @@ export const CreateNodeModal = ({
 				{eyebrow}
 			</div>
 
-			<h2
-				style={{
-					margin: '0 0 20px',
-					fontSize: 10,
-					color: GUI_THEME.primary,
-				}}
-			>
-				{fieldLabel}
-			</h2>
+			{fieldLabel && (
+				<h2
+					style={{
+						margin: '0 0 20px',
+						fontSize: 10,
+						color: GUI_THEME.primary,
+					}}
+				>
+					{fieldLabel}
+				</h2>
+			)}
 
 			<input
 				autoFocus
