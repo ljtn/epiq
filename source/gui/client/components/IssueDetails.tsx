@@ -65,7 +65,7 @@ import {AsideDock} from '../lib/aside-dock';
 import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
-import {useAutoGrow} from '../lib/use-auto-grow';
+import {AUTO_GROW_MAX_HEIGHT, useAutoGrow} from '../lib/use-auto-grow';
 import {useEditDraft} from '../lib/ticket-drafts';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
@@ -447,6 +447,10 @@ export const IssueDetails = ({
 	const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
 	useAutoGrow(titleTextareaRef, title, {active: editingTitle});
+	useAutoGrow(descriptionRef, description, {
+		active: editingDescription,
+		maxHeight: AUTO_GROW_MAX_HEIGHT,
+	});
 
 	useEffect(() => {
 		setTagName('');
@@ -658,8 +662,7 @@ export const IssueDetails = ({
 										}}
 										style={{
 											...PROSE,
-											maxHeight: 320,
-											overflowY: 'auto',
+											resize: 'none',
 											// The rendered box's own place and inset, so the text
 											// stays where it was and only the ground changes: a
 											// place to type, where a moment ago it was a thing read.

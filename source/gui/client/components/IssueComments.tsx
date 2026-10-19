@@ -24,10 +24,7 @@ import {MAX_COMMENT_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
 import {useTicketDraft} from '../lib/ticket-drafts';
-import {useAutoGrow} from '../lib/use-auto-grow';
-
-// Tall enough for a long comment, short enough to keep the thread in view.
-const COMPOSER_MAX_HEIGHT = 480;
+import {AUTO_GROW_MAX_HEIGHT, useAutoGrow} from '../lib/use-auto-grow';
 
 // A diff-selection comment's quoted code is rendered through the same
 // highlighter the diff view uses, rather than as a markdown fence — the whole
@@ -156,10 +153,10 @@ export const IssueComments = ({
 		);
 
 	const editRef = useRef<HTMLTextAreaElement | null>(null);
-	useAutoGrow(composerRef, body, {maxHeight: COMPOSER_MAX_HEIGHT});
+	useAutoGrow(composerRef, body, {maxHeight: AUTO_GROW_MAX_HEIGHT});
 	useAutoGrow(editRef, editing?.text ?? '', {
 		active: Boolean(editing),
-		maxHeight: COMPOSER_MAX_HEIGHT,
+		maxHeight: AUTO_GROW_MAX_HEIGHT,
 	});
 
 	const startEditing = (comment: GuiComment) => {
