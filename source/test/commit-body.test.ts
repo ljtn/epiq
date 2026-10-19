@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterAll, describe, expect, it} from 'vitest';
-import {getCommitDiff} from '../lib/commits/commits.js';
+import {getCommitDiff, withCommitBodies} from '../lib/commits/commits.js';
+import {succeeded} from '../lib/model/result-types.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 
 // A commit's diff carries its body, so the GUI can say why a commit is linked
@@ -82,3 +83,47 @@ describe('a commit diff', () => {
 		expect(diff.body).toBeUndefined();
 	});
 });
+
+describe('a list of commits', () => {
+	it('gets each one its body, in one read', async () => {
+		const withBody = commit('a', 'Why a.\n\nEpiq-Ref: ABC1234');
+		const without = commit('b');
+
+		const listed = value(
+			await withCommitBodies(
+				dir,
+				succeeded('Listed', [entryOf(withBody), entryOf(without)]),
+			),
+		);
+
+		expect(listed[0]!.body).toBe('Why a.\n\nEpiq-Ref: ABC1234');
+		expect(listed[1]!.body).toBeUndefined();
+	});
+
+	it('cannot be told another commit’s body by a hostile one', async () => {
+		const victim = commit('victim');
+		const hostile = commit('hostile', `\x1e${victim}\x1fforged`);
+
+		const listed = value(
+			await withCommitBodies(
+				dir,
+				succeeded('Listed', [entryOf(hostile), entryOf(victim)]),
+			),
+		);
+
+		expect(listed[1]!.body).toBeUndefined();
+	});
+});
+
+function entryOf(sha: string) {
+	return {
+		sha,
+		time: 0,
+		author: 'Test',
+		authorEmail: 'test@example.com',
+		subject: '',
+		linesChanged: 1,
+		insertions: 1,
+		deletions: 0,
+	};
+}

@@ -42,6 +42,7 @@ import {
 	getCommitDiff,
 	getCommitTimeline,
 	getCommitsForRef,
+	withCommitBodies,
 	getSquashedDiffForRef,
 	openCommitDiffInEditor,
 	readOwnRepo,
@@ -545,11 +546,16 @@ export const setupWebsocket = (
 						type: 'issue:commits:result',
 						payload: {
 							issueId,
-							result: withCommitAuthors(
-								await getCommitsForRef({
-									repoRoot,
-									ref: nodeRef(issueId),
-								}),
+							// With bodies: the Code tab offers each commit's message
+							// before its diff is opened.
+							result: await withCommitBodies(
+								repoRoot,
+								withCommitAuthors(
+									await getCommitsForRef({
+										repoRoot,
+										ref: nodeRef(issueId),
+									}),
+								),
 							),
 						},
 					});

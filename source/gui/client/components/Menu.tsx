@@ -150,9 +150,9 @@ export const Menu = ({
 // Kept between a popover and the window's edge.
 const EDGE = 8;
 
-const usePortalAnchor = (
+export const usePortalAnchor = (
 	active: boolean,
-	triggerRef: React.RefObject<HTMLButtonElement | null>,
+	triggerRef: React.RefObject<HTMLElement | null>,
 	listRef: React.RefObject<HTMLDivElement | null>,
 ) => {
 	const [anchor, setAnchor] = useState<{left: number; top: number} | null>(
@@ -166,15 +166,19 @@ const usePortalAnchor = (
 		if (!box) return;
 
 		const height = listRef.current?.offsetHeight ?? 0;
+		const width = listRef.current?.offsetWidth ?? 0;
 		const below = box.bottom + 6;
 		const above = box.top - 6 - height;
 		const flips = below + height > window.innerHeight - EDGE && above >= EDGE;
+		// Left edges aligned, unless that runs it off the window's right edge.
+		const left = Math.max(
+			EDGE,
+			Math.min(box.left, window.innerWidth - EDGE - width),
+		);
 
 		setAnchor(prev => {
 			const top = flips ? above : below;
-			return prev?.left === box.left && prev.top === top
-				? prev
-				: {left: box.left, top};
+			return prev?.left === left && prev.top === top ? prev : {left, top};
 		});
 	}, [triggerRef, listRef]);
 
