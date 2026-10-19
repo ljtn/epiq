@@ -16,20 +16,26 @@ Agents now run whole sprints unattended. Because state is an event log, you can 
 
 ## Code, linked to tickets
 
-Prefix a commit's subject with the ticket's ref to link the two:
+Link a commit to a ticket with an `Epiq-Ref:` line in its body, naming the ticket's ref:
 
 ```
-git commit -m "1YRTG8T ...<some message>"
+git commit -m "fix the parser" -m "Epiq-Ref: 1YRTG8T"
 ```
 
-Linking makes a commit show up in the ticket code-diff tab. You can comment on selected lines, and also file a new ticket straight from the selection. The MCP exploses this reference as a `ref` property agents can refer to.
+One line can name several tickets (`Epiq-Ref: 1YRTG8T, 4KQ2M7D`), it can sit anywhere in the body, and its case does not matter. Prefixing the subject with the ref works too:
 
-![A ticket's Commits tab, showing the diff of a linked commit](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/code-diff.jpeg)
+```
+git commit -m "1YRTG8T fix the parser"
+```
 
-Preserve the linking post-merge via conventions:
+Linking makes a commit show up in the ticket's Code tab, with its message. You can comment on selected lines, and also file a new ticket straight from the selection. The MCP exposes the ref as a `ref` property agents can refer to.
 
-- **Rebase-merge** It is advised to rebase-merge so the ref-prefixed commits land on `main` as they are, preserving linking post-merge.
-- Squashing _within_ one ticket's commits is fine as long as the result keeps the prefix. Do not squash commits carrying different refs into one.
+![A ticket's Code tab, showing the diff of a linked commit](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/code-diff.jpeg)
+
+How you merge decides whether the link survives:
+
+- **Epiq-Ref lines** survive a squash merge that keeps the squashed messages in its body, as git's and GitHub's default messages do, so every ticket they name stays linked. A rebase or merge commit keeps them as they are.
+- **Subject prefixes** need the commits to land as they are: rebase-merge them. Squashing _within_ one ticket's commits is fine as long as the result keeps the prefix; do not squash commits carrying different prefixes into one.
 
 ### Commits from other repos
 
