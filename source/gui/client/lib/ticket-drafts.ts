@@ -1,4 +1,4 @@
-import {useCallback, useRef, useSyncExternalStore} from 'react';
+import {useCallback, useEffect, useRef, useSyncExternalStore} from 'react';
 
 // Text a ticket's boxes hold but have not sent, kept here rather than in the
 // boxes so it outlives them: a tab switch, the film or a diff in front of the
@@ -70,4 +70,42 @@ export const useTicketDraft = <T>(
 	);
 
 	return [value, setValue];
+};
+
+// An edit of a value somebody else can change meanwhile, which remembers what
+// it opened with. Untouched, it follows the value and has nothing to save;
+// touched, it is the reader's.
+export const useEditDraft = (
+	issueId: string,
+	slot: string,
+	current: string,
+) => {
+	const [draft, setDraft] = useTicketDraft<{text: string; original: string}>(
+		issueId,
+		slot,
+		edit => edit.text !== edit.original,
+	);
+
+	useEffect(() => {
+		if (draft && draft.text === draft.original && draft.original !== current) {
+			setDraft({text: current, original: current});
+		}
+	}, [draft, current, setDraft]);
+
+	return {
+		editing: draft !== undefined,
+		text: draft?.text ?? '',
+		changed: draft !== undefined && draft.text !== draft.original,
+		setText: (update: string | ((text: string) => string)) =>
+			setDraft(edit =>
+				edit
+					? {
+							...edit,
+							text: typeof update === 'function' ? update(edit.text) : update,
+					  }
+					: undefined,
+			),
+		start: () => setDraft({text: current, original: current}),
+		stop: () => setDraft(undefined),
+	};
 };

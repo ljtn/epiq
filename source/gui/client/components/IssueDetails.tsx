@@ -66,7 +66,7 @@ import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
 import {useAutoGrow} from '../lib/use-auto-grow';
-import {useTicketDraft} from '../lib/ticket-drafts';
+import {useEditDraft} from '../lib/ticket-drafts';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 
@@ -391,25 +391,21 @@ export const IssueDetails = ({
 	// Fired when the picker opens, so the caller can fetch the list only then.
 	onOpenAssigneePicker: () => void;
 }) => {
-	// Unsent, so in the ticket's drafts: undefined while not being edited.
-	const [titleDraft, setTitleDraft] = useTicketDraft<string>(
-		issue?.id ?? '',
-		'title',
-		text => text.trim() !== issue?.title,
-	);
-	const [descriptionDraft, setDescriptionDraft] = useTicketDraft<string>(
+	// Unsent, so in the ticket's drafts.
+	const titleEdit = useEditDraft(issue?.id ?? '', 'title', issue?.title ?? '');
+	const descriptionEdit = useEditDraft(
 		issue?.id ?? '',
 		'description',
-		text => text !== issue?.description,
+		issue?.description ?? '',
 	);
-	const editingTitle = titleDraft !== undefined;
-	const editingDescription = descriptionDraft !== undefined;
-	const title = titleDraft ?? '';
-	const description = descriptionDraft ?? '';
+	const editingTitle = titleEdit.editing;
+	const editingDescription = descriptionEdit.editing;
+	const title = titleEdit.text;
+	const description = descriptionEdit.text;
 	const setEditingTitle = (editing: boolean) =>
-		setTitleDraft(editing ? issue?.title ?? '' : undefined);
+		editing ? titleEdit.start() : titleEdit.stop();
 	const setEditingDescription = (editing: boolean) =>
-		setDescriptionDraft(editing ? issue?.description ?? '' : undefined);
+		editing ? descriptionEdit.start() : descriptionEdit.stop();
 	const [tagName, setTagName] = useState('');
 	const [assigneeName, setAssigneeName] = useState('');
 	const [managingContributors, setManagingContributors] = useState(false);
@@ -476,7 +472,7 @@ export const IssueDetails = ({
 	// Below `disabled`, which it reads: a readonly ticket takes no images.
 	const descriptionImages = useImageInsert({
 		issueId: issue?.id ?? '',
-		setValue: update => setDescriptionDraft(current => update(current ?? '')),
+		setValue: descriptionEdit.setText,
 		textareaRef: descriptionRef,
 		onUploadImages: disabled ? undefined : onUploadAttachments,
 	});
@@ -499,7 +495,8 @@ export const IssueDetails = ({
 
 		if (!nextTitle) return setEditingTitle(false);
 
-		if (nextTitle !== issue.title) {
+		// Untouched, it has nothing to say, whatever the title is now.
+		if (titleEdit.changed && nextTitle !== issue.title) {
 			onEditTitle(issue.id, nextTitle);
 		}
 
@@ -509,7 +506,7 @@ export const IssueDetails = ({
 	const saveDescription = () => {
 		if (disabled || !issue) return setEditingDescription(false);
 
-		if (description !== issue.description) {
+		if (descriptionEdit.changed && description !== issue.description) {
 			onEditDescription(issue.id, description);
 		}
 
@@ -634,7 +631,9 @@ export const IssueDetails = ({
 										// this board are already past it, written from the TUI or
 										// over MCP where no such cap applies.
 										maxLength={MAX_DESCRIPTION_LENGTH}
-										onChange={event => setDescriptionDraft(event.target.value)}
+										onChange={event =>
+											descriptionEdit.setText(event.target.value)
+										}
 										onDragOver={descriptionImages.onDragOver}
 										onDragLeave={descriptionImages.onDragLeave}
 										onDrop={descriptionImages.onDrop}
@@ -1074,7 +1073,7 @@ export const IssueDetails = ({
 							value={title}
 							autoFocus
 							rows={1}
-							onChange={event => setTitleDraft(event.target.value)}
+							onChange={event => titleEdit.setText(event.target.value)}
 							onKeyDown={event => {
 								if (event.key === 'Enter') {
 									event.preventDefault();

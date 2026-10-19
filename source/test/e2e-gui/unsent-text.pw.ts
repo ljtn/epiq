@@ -105,3 +105,28 @@ test('the comment box grows with what is written in it', async ({page}) => {
 		.poll(async () => (await composer(page).boundingBox())!.height)
 		.toBeGreaterThan(before * 2);
 });
+
+test('an untouched description edit takes up somebody else’s change and never reverts it', async ({
+	page,
+	context,
+	pageErrors,
+}) => {
+	await addTicket(page, `Edited elsewhere ${Date.now()}`);
+	await page.getByRole('button', {name: 'edit'}).first().click();
+	const box = page.getByRole('textbox').last();
+	await expect(box).toHaveValue('');
+
+	const other = await context.newPage();
+	await other.goto(page.url());
+	await other.getByRole('button', {name: 'edit'}).first().click();
+	await other.getByRole('textbox').last().fill('written elsewhere');
+	await other.getByRole('textbox').last().press('Enter');
+	await expect(other.getByRole('button', {name: 'edit'}).first()).toBeVisible();
+
+	await expect(box).toHaveValue('written elsewhere');
+	await box.press('Enter');
+
+	await page.reload();
+	await expect(page.locator('aside')).toContainText('written elsewhere');
+	expect(pageErrors).toEqual([]);
+});
