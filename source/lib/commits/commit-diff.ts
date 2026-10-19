@@ -59,6 +59,8 @@ const cleanBody = (body: string): string =>
 		)
 		.trim();
 
+const BODY_BATCH = 200;
+
 const commitBody = async (repoRoot: string, sha: string): Promise<string> => {
 	const result = await execGit({
 		cwd: repoRoot,
@@ -87,25 +89,19 @@ export const withCommitBodies = async <T extends CommitEntry>(
 	const field = `\x1f${nonce}`;
 	const bodies = new Map<string, string>();
 
-	for (const source of sources.value) {
-		const shas = commits.value
-			.filter(commit => commit.repo === source.repo)
-			.map(commit => commit.sha)
-			.filter(isPlausibleSha);
-		if (shas.length === 0) continue;
-
+	const readBodies = async (cwd: string, batch: string[]) => {
 		const log = await execGit({
-			cwd: source.cwd,
+			cwd,
 			args: [
 				'log',
 				'--no-walk=unsorted',
 				'--no-show-signature',
 				`--format=${record}%H${field}%b`,
-				...shas,
+				...batch,
 				'--',
 			],
 		});
-		if (isFail(log)) continue;
+		if (isFail(log)) return;
 
 		for (const entry of log.value.stdout.split(record)) {
 			const at = entry.indexOf(field);
@@ -113,6 +109,18 @@ export const withCommitBodies = async <T extends CommitEntry>(
 
 			const body = cleanBody(entry.slice(at + field.length));
 			if (body) bodies.set(entry.slice(0, at).trim(), body);
+		}
+	};
+
+	for (const source of sources.value) {
+		const shas = commits.value
+			.filter(commit => commit.repo === source.repo)
+			.map(commit => commit.sha)
+			.filter(isPlausibleSha);
+
+		// In batches: Windows caps a command line near 32k characters.
+		for (let at = 0; at < shas.length; at += BODY_BATCH) {
+			await readBodies(source.cwd, shas.slice(at, at + BODY_BATCH));
 		}
 	}
 

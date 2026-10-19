@@ -134,6 +134,7 @@ export const CommitRow = ({
 					>
 						<KebabMenu
 							portal
+							popupRole="dialog"
 							icon="…"
 							title="Commit message"
 							testId="commit-message"
