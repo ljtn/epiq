@@ -19,6 +19,7 @@ export const KebabMenu = ({
 	title = 'Actions',
 	icon,
 	portal = false,
+	popupRole = 'menu',
 	children,
 }: {
 	items?: KebabMenuItem[];
@@ -30,6 +31,8 @@ export const KebabMenu = ({
 	// Out to the body, under the trigger, for a trigger inside an ancestor
 	// that clips.
 	portal?: boolean;
+	// 'dialog' for a popover that holds text to read rather than commands.
+	popupRole?: 'menu' | 'dialog';
 	// Rendered above the items, for a menu whose contents are a control rather
 	// than a list of commands. Handed the same close the items get, so choosing
 	// inside it dismisses the menu and shows what it did.
@@ -69,7 +72,8 @@ export const KebabMenu = ({
 	const popover = (
 		<div
 			ref={popoverRef}
-			role="menu"
+			role={popupRole}
+			aria-label={popupRole === 'dialog' ? title : undefined}
 			style={{
 				...(portal
 					? {
@@ -110,7 +114,7 @@ export const KebabMenu = ({
 				testId={testId}
 				title={title}
 				pressed={open}
-				aria-haspopup="menu"
+				aria-haspopup={popupRole}
 				aria-expanded={open}
 				onClick={() => setOpen(value => !value)}
 			>
