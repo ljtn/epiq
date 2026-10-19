@@ -88,8 +88,11 @@ const cloneVersion = (clonePath: string): number | null => {
 
 // A clone's history is somebody else's, and a subject can hold the record
 // and field separators: a separator only this read knows cannot be forged.
-const separatorsFor = (source: CommitSource) => {
-	const nonce = source.repo ? randomBytes(8).toString('hex') : '';
+// The board's own repo gets one too, as the body and end markers are a
+// separator plus a letter, which a bare separator before a name like "Erik"
+// would otherwise spell.
+const separatorsFor = () => {
+	const nonce = randomBytes(8).toString('hex');
 
 	return {
 		field: `${GIT_LOG_FIELD_SEP}${nonce}`,
@@ -188,7 +191,7 @@ const readSourceLog = async (
 		return cached.result;
 	}
 
-	const separators = separatorsFor(source);
+	const separators = separatorsFor();
 
 	const logResult = await execGit({
 		cwd: source.cwd,
