@@ -2,7 +2,7 @@ import {execGit} from '../../git/git-utils.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {isTicketNode} from '../model/context.model.js';
 import {getState, isStateInitialized} from '../state/state.js';
-import {commitTicketRef} from '../utils/commit-ref.js';
+import {commitTicketRefs} from '../utils/commit-ref.js';
 import {nodeRef} from '../utils/node-ref.js';
 import {
 	adoptStagedClone,
@@ -22,7 +22,7 @@ import {
 	type CommitRepo,
 	type RepoChange,
 } from './commit-repos.js';
-import {invalidateCommitTimelineCache} from './commit-timeline.js';
+import {bodyRefs, invalidateCommitTimelineCache} from './commit-timeline.js';
 
 // Connecting a repo makes every contributor's epiq download it, so it is never
 // one step. A first call clones it into a stage and says what it is and what
@@ -131,8 +131,9 @@ const readFacts = async (
 	]);
 	const [subject, author, date] = (latestRaw ?? '').trim().split('\0');
 
-	// Subjects only, capped: enough to count, never the whole history in memory.
-	const subjects =
+	// Subject and body, capped: enough to count, never the whole history in
+	// memory. A separator a subject carries only skews the count.
+	const log =
 		(await git(stagePath, [
 			'log',
 			'--branches',
@@ -142,9 +143,15 @@ const readFacts = async (
 			...(window
 				? [`--since=@${Math.floor(Date.parse(`${window}T00:00:00Z`) / 1000)}`]
 				: []),
-			'--format=%s',
+			'--format=%x1e%s%x1f%b',
 		])) ?? '';
-	const lines = subjects.split('\n').filter(Boolean);
+	const records = log
+		.split('\x1e')
+		.filter(Boolean)
+		.map(record => {
+			const [subject = '', body = ''] = record.split('\x1f');
+			return {subject: subject.trim(), refs: bodyRefs(body)};
+		});
 
 	return {
 		defaultBranch: head || null,
@@ -152,9 +159,10 @@ const readFacts = async (
 			subject !== undefined && subject !== '' && author && date
 				? {subject, author, date}
 				: null,
-		commits: lines.length,
-		ticketCommits: lines.filter(line => commitTicketRef(line, knownRefs))
-			.length,
+		commits: records.length,
+		ticketCommits: records.filter(
+			record => commitTicketRefs(record, knownRefs).length > 0,
+		).length,
 	};
 };
 
