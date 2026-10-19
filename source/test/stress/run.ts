@@ -1,12 +1,13 @@
 // Ten years of a twenty-person board, replayed through the real loader and the
 // real materializer, then served so it can be used rather than only measured.
 //
-// Opt-in. Nothing runs this but `npm run stress`, and nothing depends on it.
+// Opt-in at full size; CI runs `npm run stress:ci`, smaller and against budgets.
 //
 //   npm run stress                      # in a container, the default
 //   npx tsx source/test/stress/run.ts  # on this machine, if you insist
 //
-// Env: STRESS_EVENTS, STRESS_ACTORS, STRESS_YEARS, STRESS_SERVE, STRESS_DIR.
+// Env: STRESS_EVENTS, STRESS_ACTORS, STRESS_YEARS, STRESS_SERVE, STRESS_DIR,
+// STRESS_CHECK (fail over the budgets below; what CI runs).
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -30,6 +31,13 @@ const ACTORS = number('STRESS_ACTORS', 20);
 const YEARS = number('STRESS_YEARS', 10);
 const EVENTS = number('STRESS_EVENTS', ACTORS * YEARS * 12 * 400);
 const SERVE = process.env['STRESS_SERVE'] !== 'false';
+const CHECK = process.env['STRESS_CHECK'] === 'true';
+
+// About 8x what a GitHub runner takes at CI's 400k events (0.25 s and 35 ms),
+// which is still under what a cost growing faster than the log costs there:
+// a quadratic read took 3 s on an M3, more on a runner.
+const BUDGET_READ_MS = 2000;
+const BUDGET_TIMELINE_WARM_MS = 300;
 
 const ROOT =
 	process.env['STRESS_DIR'] ??
@@ -383,6 +391,21 @@ console.log(
 console.log(
 	`\n  peak rss ${mb(process.memoryUsage().rss)}   ` + `project at ${REPO}\n`,
 );
+
+if (CHECK) {
+	const read = Math.max(afterWrite, steady, afterSecond);
+	const over = [
+		read > BUDGET_READ_MS &&
+			`a read took ${secs(read)}, budget ${secs(BUDGET_READ_MS)}`,
+		perRequest > BUDGET_TIMELINE_WARM_MS &&
+			`a warm timeline request took ${perRequest.toFixed(
+				1,
+			)} ms, budget ${BUDGET_TIMELINE_WARM_MS} ms`,
+	].filter(Boolean);
+
+	for (const line of over) console.log(`  over budget: ${line}`);
+	if (over.length > 0) process.exit(1);
+}
 
 if (!SERVE) process.exit(0);
 

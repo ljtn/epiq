@@ -3,7 +3,8 @@
 # Ten years of a twenty-person board, generated and replayed in a container,
 # then served so it can be used rather than only measured.
 #
-# Opt-in, and deliberately in no pipeline: it takes minutes and wants gigabytes.
+# Opt-in: it takes minutes and wants gigabytes. CI runs a smaller one against
+# budgets, `npm run stress:ci`.
 #
 #   npm run stress                     # the default: ~960k events, serves the GUI
 #   STRESS_EVENTS=50000 npm run stress # something smaller, to see it work first
