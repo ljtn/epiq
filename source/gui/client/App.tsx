@@ -288,6 +288,7 @@ export const App = () => {
 		loading: boolean;
 		error: string | null;
 		files: GuiCommitDiffFile[] | null;
+		body?: string;
 	} | null>(null);
 	// Tracks the resizable Aside's live width so DiffPanel can pick split vs.
 	// unified — initialized from the same persisted value Aside itself reads,
@@ -1056,7 +1057,13 @@ export const App = () => {
 				if (diff) {
 					setCommitDiff(prev =>
 						prev && prev.sha === diff.sha
-							? {...prev, loading: false, error: null, files: diff.files}
+							? {
+									...prev,
+									loading: false,
+									error: null,
+									files: diff.files,
+									body: diff.body,
+							  }
 							: prev,
 					);
 				}
@@ -2232,6 +2239,12 @@ export const App = () => {
 								{({isFullscreen, toggleFullscreen}) => (
 									<DiffPanel
 										sha={commitDiff.sha}
+										subject={
+											history.commits.find(
+												commit => commit.sha === commitDiff.sha,
+											)?.subject ?? ''
+										}
+										body={commitDiff.body}
 										files={commitDiff.files}
 										loading={commitDiff.loading}
 										error={commitDiff.error}

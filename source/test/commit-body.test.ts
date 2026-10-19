@@ -1,0 +1,84 @@
+import childProcess from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {afterAll, describe, expect, it} from 'vitest';
+import {getCommitDiff} from '../lib/commits/commits.js';
+import {isFail, Result} from '../lib/model/result-types.js';
+
+// A commit's diff carries its body, so the GUI can say why a commit is linked
+// to a ticket whose ref is only in an Epiq-Ref line.
+
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-commit-body-'));
+
+afterAll(() => fs.rmSync(dir, {recursive: true, force: true}));
+
+const git = (...args: string[]) =>
+	childProcess
+		.execFileSync('git', args, {
+			cwd: dir,
+			env: {
+				...process.env,
+				GIT_AUTHOR_NAME: 'Test',
+				GIT_AUTHOR_EMAIL: 'test@example.com',
+				GIT_COMMITTER_NAME: 'Test',
+				GIT_COMMITTER_EMAIL: 'test@example.com',
+			},
+		})
+		.toString()
+		.trim();
+
+const commit = (...messages: string[]) => {
+	fs.appendFileSync(path.join(dir, 'file.txt'), `${messages[0]}\n`);
+	git('add', 'file.txt');
+	git('commit', '-q', ...messages.flatMap(message => ['-m', message]));
+	return git('rev-parse', 'HEAD');
+};
+
+const value = <T>(result: Result<T>): T => {
+	if (isFail(result)) throw new Error(result.message);
+	return result.value;
+};
+
+git('init', '-q', '-b', 'main');
+fs.mkdirSync(path.join(dir, '.epiq'));
+fs.writeFileSync(
+	path.join(dir, '.epiq', 'project.json'),
+	JSON.stringify({
+		projectId: path.basename(dir),
+		stateBranch: 'epiq/state',
+		createdAt: '2020-01-01T00:00:00.000Z',
+	}),
+);
+
+describe('a commit diff', () => {
+	it('carries the body, line for line', async () => {
+		const sha = commit(
+			'fix the parser',
+			'It dropped the last token.\nTwo lines.',
+			'Epiq-Ref: ABC1234',
+		);
+
+		const diff = value(await getCommitDiff({repoRoot: dir, sha}));
+
+		expect(diff.body).toBe(
+			'It dropped the last token.\nTwo lines.\n\nEpiq-Ref: ABC1234',
+		);
+	});
+
+	it('drops controls and bidi overrides from it, keeping newlines and tabs', async () => {
+		const sha = commit('hostile', 'a‮b\u0007c\n\td');
+
+		const diff = value(await getCommitDiff({repoRoot: dir, sha}));
+
+		expect(diff.body).toBe('abc\n\td');
+	});
+
+	it('has none for a commit with only a subject', async () => {
+		const sha = commit('just a subject');
+
+		const diff = value(await getCommitDiff({repoRoot: dir, sha}));
+
+		expect(diff.body).toBeUndefined();
+	});
+});

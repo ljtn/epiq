@@ -1958,7 +1958,8 @@ describe('epiq-time-travel', () => {
 			await getCommitDiff({sha: validSha});
 
 			expect(readGitBlobsBatch).toHaveBeenCalledTimes(1);
-			expect(execGit).toHaveBeenCalledTimes(1);
+			// The diff, and the body read beside it.
+			expect(execGit).toHaveBeenCalledTimes(2);
 		});
 
 		it('fails when the commit has no changed files', async () => {

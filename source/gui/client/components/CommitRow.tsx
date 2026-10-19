@@ -3,6 +3,7 @@ import {GuiComment, GuiRefCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {hasDiffToShow, isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {ReviewedFiles} from '../lib/reviewed-files';
+import {CommitBody} from './CommitBody';
 import {Button} from './Button';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
@@ -150,6 +151,7 @@ export const CommitRow = ({
 						borderTop: `1px solid ${GUI_THEME.line}`,
 					}}
 				>
+					{diff?.body && <CommitBody body={diff.body} />}
 					{diff?.loading && <Empty>Loading files…</Empty>}
 					{!diff?.loading && diff?.error && <Empty>{diff.error}</Empty>}
 
