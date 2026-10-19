@@ -749,9 +749,9 @@
 							be pasted or dropped straight in.
 						</p>
 						<p>
-							The Code tab lists every commit whose subject starts with the
-							ticket's ref, with its diffstat and per-file diff. Comment on any
-							line, or mark a file as reviewed.
+							The Code tab lists every commit linked to the ticket, with its
+							message, diffstat and per-file diff. Comment on any line, or mark a
+							file as reviewed.
 						</p>
 					</section>
 
@@ -846,10 +846,15 @@
 
 						<div class="docs-note">
 							<strong>Linking commits.</strong> A commit links to a ticket when
-							its subject <em>starts</em> with the ticket's ref, the seven
-							characters <code>:yank ref</code> copies:
+							its body has an <code>Epiq-Ref:</code> line naming the ticket's
+							ref, the seven characters <code>:yank ref</code> copies:
+							<code>git commit -m "fix the parser" -m "Epiq-Ref: A1B2C3D"</code>.
+							One line can name several refs, comma-separated. A subject that
+							<em>starts</em> with the ref links too:
 							<code>git commit -m "A1B2C3D fix the parser"</code>. Linked commits
-							show in the ticket's Code tab.
+							show in the ticket's Code tab. An Epiq-Ref line survives a squash
+							merge that keeps the squashed messages, as GitHub's default does;
+							a prefix needs the commits rebase-merged as they are.
 						</div>
 
 						<h3>Other MCP clients</h3>
