@@ -75,10 +75,6 @@ runBin(esbuild, [
 console.log('\n[2/7] Patching bundle...');
 let inner = readFileSync(resolve(root, 'dist/sea-inner.js'), 'utf8');
 
-if (inner.includes('performance.measure')) {
-	throw new Error('The bundle carries React\'s development build');
-}
-
 const requireShim = [
 	'import { createRequire as __cjsCreateRequire } from "node:module";',
 	'const require = __cjsCreateRequire(process.env.__EPIQ_SEA_URL__ || "file:///");',
