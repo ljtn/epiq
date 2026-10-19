@@ -252,6 +252,13 @@ h1,
 	.hero-title > :nth-child(3) {
 		letter-spacing: 0.02em;
 	}
+	/* "as code" on its own line, so --s fits the 14 of "Issue tracking". */
+	.hero-title > * {
+		--s: min(90px, 100cqi / 7.15);
+	}
+	.hero-title h1 span {
+		display: block;
+	}
 }
 /* Below their floors the two smaller lines wrap rather than shrink further. */
 .hero-title > :not(:first-child) {
@@ -744,7 +751,10 @@ aside:not(.docs-layout > aside) {
 		padding: 0 12px;
 	}
 	.hero {
-		padding-top: 52px;
+		padding: 36px 0 32px;
+	}
+	.hero-grid {
+		min-height: 0;
 	}
 	/* Keep "Issue Tracking." on one line down to 375px-wide phones. */
 	h1,
