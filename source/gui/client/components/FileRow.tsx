@@ -355,7 +355,8 @@ export const FileRow = ({
 		selectable,
 		shared,
 		additionsOnly,
-		fileComments.length,
+		// What they say, not just how many: an edited note redraws.
+		fileComments.map(entry => entry.comment.body).join('\u0000'),
 		note,
 		selection ? `${selection.start}-${selection.end}` : '',
 		hoveredRange ? `${hoveredRange.start}-${hoveredRange.end}` : '',

@@ -141,7 +141,7 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await editor.fill('looks fine after all');
 	await page.getByRole('button', {name: 'save'}).click();
 	await expect(
-		page.locator('aside').getByText('looks fine after all'),
+		page.getByTestId('tab-pane-comments').getByText('looks fine after all'),
 	).toBeVisible();
 	await expect(page.locator('aside').getByTestId('open-in-diff')).toHaveText(
 		`${fileName} line 2 (added)`,
