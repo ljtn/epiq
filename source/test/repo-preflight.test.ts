@@ -128,6 +128,15 @@ describe('connecting a repo', () => {
 		expect(done.claimedBytes).toBe(done.repos[0]!.bytes);
 	});
 
+	it('counts a commit naming a ticket only in an Epiq-Ref line', async () => {
+		const {repoRoot, ref} = await board();
+		const url = await makeUpstream(['unrelated', `fix\n\nEpiq-Ref: ${ref}`]);
+
+		const preview = value(await connectRepo({repoRoot, url}));
+		expect(preview.preview?.ticketCommits).toBe(1);
+		expect(preview.preview?.commits).toBe(2);
+	});
+
 	it('says when no commit names a ticket here', async () => {
 		const {repoRoot} = await board();
 		const url = await makeUpstream(['one', 'two']);
