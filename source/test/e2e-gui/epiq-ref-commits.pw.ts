@@ -43,7 +43,10 @@ test('a commit linked by an Epiq-Ref line is a linked commit, opens its ticket, 
 	await line.click();
 	await expect(page).toHaveURL(new RegExp(`/issue/${ref}\\?tab=code`));
 
-	const body = page.locator('aside').getByTestId('commit-body');
+	// Behind the row's … button, not inline.
+	await expect(page.locator('aside').getByTestId('commit-body')).toHaveCount(0);
+	await page.locator('aside').getByTestId('commit-message').click();
+	const body = page.getByTestId('commit-body');
 	await expect(body).toContainText('Why it was done.');
 	await expect(body).toContainText(`Epiq-Ref: ${ref}`);
 

@@ -79,6 +79,7 @@ export {
 export {
 	getCommitDiff,
 	getCommitPatch,
+	withCommitBodies,
 	getSquashedDiffForRef,
 	type CommitDiff,
 	type CommitDiffFile,

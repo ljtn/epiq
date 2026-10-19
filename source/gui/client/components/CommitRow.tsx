@@ -4,6 +4,7 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {hasDiffToShow, isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {ReviewedFiles} from '../lib/reviewed-files';
 import {CommitBody} from './CommitBody';
+import {KebabMenu} from './KebabMenu';
 import {Button} from './Button';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
@@ -123,6 +124,36 @@ export const CommitRow = ({
 				>
 					{commit.subject}
 				</span>
+				{commit.body && (
+					// Its clicks and keys are its own, not the row's toggle — the
+					// popover's too, which React bubbles through the portal.
+					<span
+						style={{flexShrink: 0}}
+						onClick={event => event.stopPropagation()}
+						onKeyDown={event => event.stopPropagation()}
+					>
+						<KebabMenu
+							portal
+							icon="…"
+							title="Commit message"
+							testId="commit-message"
+						>
+							{() => (
+								<div
+									style={{
+										width: 380,
+										maxWidth: 'calc(100vw - 32px)',
+										maxHeight: 320,
+										overflowY: 'auto',
+										padding: '0 8px',
+									}}
+								>
+									<CommitBody body={commit.body!} />
+								</div>
+							)}
+						</KebabMenu>
+					</span>
+				)}
 				{commit.repo && <RepoChip repo={commit.repo} />}
 				<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
 				{/* The sha is lookup chrome, not part of reading the list, so it
@@ -151,7 +182,6 @@ export const CommitRow = ({
 						borderTop: `1px solid ${GUI_THEME.line}`,
 					}}
 				>
-					{diff?.body && <CommitBody body={diff.body} />}
 					{diff?.loading && <Empty>Loading files…</Empty>}
 					{!diff?.loading && diff?.error && <Empty>{diff.error}</Empty>}
 

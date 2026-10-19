@@ -1,3 +1,4 @@
+import {randomBytes} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -19,6 +20,7 @@ import {
 	sourceCwdOf,
 } from './commit-sources.js';
 import {
+	CommitEntry,
 	getRefMatchesBySource,
 	RefCommitEntry,
 	withoutShared,
@@ -64,6 +66,63 @@ const commitBody = async (repoRoot: string, sha: string): Promise<string> => {
 	});
 
 	return isFail(result) ? '' : cleanBody(result.value.stdout);
+};
+
+/**
+ * A list of commits, each with its body where it has one: one `git log` per
+ * repo, which is what a ticket's commits cost. The separators carry a nonce,
+ * since a hostile body could otherwise pass text off as another commit's.
+ */
+export const withCommitBodies = async <T extends CommitEntry>(
+	repoRoot: string,
+	commits: Result<T[]>,
+): Promise<Result<Array<T & {body?: string}>>> => {
+	if (isFail(commits) || commits.value.length === 0) return commits;
+
+	const sources = await listCommitSources(repoRoot);
+	if (isFail(sources)) return commits;
+
+	const nonce = randomBytes(8).toString('hex');
+	const record = `\x1e${nonce}`;
+	const field = `\x1f${nonce}`;
+	const bodies = new Map<string, string>();
+
+	for (const source of sources.value) {
+		const shas = commits.value
+			.filter(commit => commit.repo === source.repo)
+			.map(commit => commit.sha)
+			.filter(isPlausibleSha);
+		if (shas.length === 0) continue;
+
+		const log = await execGit({
+			cwd: source.cwd,
+			args: [
+				'log',
+				'--no-walk=unsorted',
+				'--no-show-signature',
+				`--format=${record}%H${field}%b`,
+				...shas,
+				'--',
+			],
+		});
+		if (isFail(log)) continue;
+
+		for (const entry of log.value.stdout.split(record)) {
+			const at = entry.indexOf(field);
+			if (at === -1) continue;
+
+			const body = cleanBody(entry.slice(at + field.length));
+			if (body) bodies.set(entry.slice(0, at).trim(), body);
+		}
+	}
+
+	return succeeded(
+		commits.message,
+		commits.value.map(commit => {
+			const body = bodies.get(commit.sha);
+			return body ? {...commit, body} : commit;
+		}),
+	);
 };
 
 /**
