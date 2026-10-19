@@ -1,4 +1,6 @@
 process.env['EPIQ_MCP'] = 'true';
+// Read by React on import, so it is set before the imports below.
+process.env['NODE_ENV'] ||= 'production';
 
 console.log = console.error;
 console.info = console.error;
