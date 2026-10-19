@@ -10,7 +10,8 @@
 //   react-devtools-core is a dev-only optional dep that ink tries to import
 //   statically. We stub it so the bundle is fully self-contained.
 
-import {execSync, execFileSync, spawn} from 'node:child_process';
+import {execSync, spawn} from 'node:child_process';
+import {build} from 'esbuild';
 import {
 	readFileSync,
 	writeFileSync,
@@ -28,41 +29,29 @@ import {dirname, delimiter, join, resolve} from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '../..');
-// On Windows npm installs `esbuild.cmd` in .bin (no extensionless shim).
-const esbuildBin = platform === 'win32' ? 'esbuild.cmd' : 'esbuild';
-const esbuild = resolve(root, 'node_modules/.bin', esbuildBin);
 
 function run(cmd, opts = {}) {
 	console.log(`> ${cmd}`);
 	execSync(cmd, {cwd: root, stdio: 'inherit', ...opts});
 }
 
-function runBin(bin, args, opts = {}) {
-	console.log(`> ${bin} ${args.join(' ')}`);
-	// .cmd shims (Windows) can't be run via execFileSync without a shell.
-	execFileSync(bin, args, {
-		cwd: root,
-		stdio: 'inherit',
-		shell: platform === 'win32',
-		...opts,
-	});
-}
-
 mkdirSync(resolve(root, 'dist'), {recursive: true});
 
 // 1. Bundle to ESM (supports top-level await; react-devtools-core is stubbed)
 console.log('\n[1/7] Bundling to ESM...');
-runBin(esbuild, [
-	'source/Index.tsx',
-	'--bundle',
-	'--platform=node',
-	'--format=esm',
-	'--target=node22',
-	'--minify',
-	'--define:process.env.NODE_ENV="production"',
-	'--alias:react-devtools-core=./source/scripts/react-devtools-stub.js',
-	'--outfile=dist/sea-inner.js',
-]);
+// The API, not the CLI: cmd.exe on Windows strips the define's quotes.
+await build({
+	absWorkingDir: root,
+	entryPoints: ['source/Index.tsx'],
+	bundle: true,
+	platform: 'node',
+	format: 'esm',
+	target: 'node22',
+	minify: true,
+	define: {'process.env.NODE_ENV': '"production"'},
+	alias: {'react-devtools-core': './source/scripts/react-devtools-stub.js'},
+	outfile: 'dist/sea-inner.js',
+});
 
 // 2. Patch the ESM bundle:
 //    a) Inject a `require` shim — esbuild emits a CJS-compat shim that
