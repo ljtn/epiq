@@ -1,6 +1,6 @@
 import {createRoot} from 'react-dom/client';
 import {WorkerPoolContextProvider} from '@pierre/diffs/react';
-import {BrowserRouter, Navigate, Route, Routes} from 'react-router-dom';
+import {createBrowserRouter, Navigate, RouterProvider} from 'react-router-dom';
 import {App} from './App';
 import {LogWindow} from './components/LogWindow';
 import {DiffWrapProvider} from './lib/diff-wrap';
@@ -28,17 +28,19 @@ const board = (
 	</WorkerPoolContextProvider>
 );
 
+// A data router, which is what lets the board hold a navigation back to ask
+// about unsent text (`useBlocker`).
+const router = createBrowserRouter([
+	// The event log popped out of a board — see lib/log-window.
+	{path: LOG_WINDOW_PATH, element: <LogWindow />},
+	// One element for every board path, including the ticket ones. A route per
+	// shape would swap elements on selecting a ticket, remounting the board and
+	// replaying the timeline's entrance.
+	{path: '/', element: board},
+	{path: '/board/:boardId/*', element: board},
+	{path: '*', element: <Navigate to="/" replace />},
+]);
+
 createRoot(document.getElementById('root')!).render(
-	<BrowserRouter>
-		<Routes>
-			{/* The event log popped out of a board — see lib/log-window. */}
-			<Route path={LOG_WINDOW_PATH} element={<LogWindow />} />
-			{/* One element for every board path, including the ticket ones. A route
-			    per shape would swap elements on selecting a ticket, remounting the
-			    board and replaying the timeline's entrance. */}
-			<Route path="/" element={board} />
-			<Route path="/board/:boardId/*" element={board} />
-			<Route path="*" element={<Navigate to="/" replace />} />
-		</Routes>
-	</BrowserRouter>,
+	<RouterProvider router={router} />,
 );

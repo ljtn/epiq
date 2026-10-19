@@ -65,6 +65,8 @@ import {AsideDock} from '../lib/aside-dock';
 import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
+import {useAutoGrow} from '../lib/use-auto-grow';
+import {useTicketDraft} from '../lib/ticket-drafts';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 
@@ -389,14 +391,29 @@ export const IssueDetails = ({
 	// Fired when the picker opens, so the caller can fetch the list only then.
 	onOpenAssigneePicker: () => void;
 }) => {
-	const [title, setTitle] = useState('');
-	const [description, setDescription] = useState('');
+	// Unsent, so in the ticket's drafts: undefined while not being edited.
+	const [titleDraft, setTitleDraft] = useTicketDraft<string>(
+		issue?.id ?? '',
+		'title',
+		text => text.trim() !== issue?.title,
+	);
+	const [descriptionDraft, setDescriptionDraft] = useTicketDraft<string>(
+		issue?.id ?? '',
+		'description',
+		text => text !== issue?.description,
+	);
+	const editingTitle = titleDraft !== undefined;
+	const editingDescription = descriptionDraft !== undefined;
+	const title = titleDraft ?? '';
+	const description = descriptionDraft ?? '';
+	const setEditingTitle = (editing: boolean) =>
+		setTitleDraft(editing ? issue?.title ?? '' : undefined);
+	const setEditingDescription = (editing: boolean) =>
+		setDescriptionDraft(editing ? issue?.description ?? '' : undefined);
 	const [tagName, setTagName] = useState('');
 	const [assigneeName, setAssigneeName] = useState('');
 	const [managingContributors, setManagingContributors] = useState(false);
 	const [managingTags, setManagingTags] = useState(false);
-	const [editingTitle, setEditingTitle] = useState(false);
-	const [editingDescription, setEditingDescription] = useState(false);
 	const [addingTag, setAddingTag] = useState(false);
 	const [addingAssignee, setAddingAssignee] = useState(false);
 	// Tracks the resizable Aside's live width so the Code tab can pick split
@@ -433,34 +450,33 @@ export const IssueDetails = ({
 	const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
-	const resizeTitleTextarea = () => {
-		const el = titleTextareaRef.current;
-		if (!el) return;
-		el.style.height = 'auto';
-		el.style.height = `${el.scrollHeight}px`;
-	};
+	useAutoGrow(titleTextareaRef, title, {active: editingTitle});
 
 	useEffect(() => {
-		if (editingTitle) resizeTitleTextarea();
-	}, [editingTitle]);
-
-	useEffect(() => {
-		setTitle(issue?.title ?? '');
-		setDescription(issue?.description ?? '');
 		setTagName('');
 		setAssigneeName('');
-		setEditingTitle(false);
-		setEditingDescription(false);
 		setAddingTag(false);
 		setAddingAssignee(false);
-	}, [issue?.id, issue?.title, issue?.description]);
+	}, [issue?.id]);
+
+	// A tab stays mounted once opened, so what it holds — a diff selection, an
+	// open file, a scroll position — is still there on coming back to it. Only
+	// for the ticket it was opened on.
+	const [visited, setVisited] = useState<{
+		issueId?: string;
+		tabs: IssueDetailsTab[];
+	}>({tabs: []});
+	const visitedTabs = visited.issueId === issue?.id ? visited.tabs : [];
+	if (!visitedTabs.includes(activeTab)) {
+		setVisited({issueId: issue?.id, tabs: [...visitedTabs, activeTab]});
+	}
 
 	const disabled = !issue || issue.readonly;
 
 	// Below `disabled`, which it reads: a readonly ticket takes no images.
 	const descriptionImages = useImageInsert({
 		issueId: issue?.id ?? '',
-		setValue: setDescription,
+		setValue: update => setDescriptionDraft(current => update(current ?? '')),
 		textareaRef: descriptionRef,
 		onUploadImages: disabled ? undefined : onUploadAttachments,
 	});
@@ -481,10 +497,7 @@ export const IssueDetails = ({
 
 		const nextTitle = title.trim();
 
-		if (!nextTitle) {
-			setTitle(issue.title);
-			return setEditingTitle(false);
-		}
+		if (!nextTitle) return setEditingTitle(false);
 
 		if (nextTitle !== issue.title) {
 			onEditTitle(issue.id, nextTitle);
@@ -503,15 +516,9 @@ export const IssueDetails = ({
 		setEditingDescription(false);
 	};
 
-	const cancelTitle = () => {
-		setTitle(issue?.title ?? '');
-		setEditingTitle(false);
-	};
+	const cancelTitle = () => setEditingTitle(false);
 
-	const cancelDescription = () => {
-		setDescription(issue?.description ?? '');
-		setEditingDescription(false);
-	};
+	const cancelDescription = () => setEditingDescription(false);
 
 	const addTag = () => {
 		if (disabled || !issue || !tagName.trim()) return;
@@ -627,7 +634,7 @@ export const IssueDetails = ({
 										// this board are already past it, written from the TUI or
 										// over MCP where no such cap applies.
 										maxLength={MAX_DESCRIPTION_LENGTH}
-										onChange={event => setDescription(event.target.value)}
+										onChange={event => setDescriptionDraft(event.target.value)}
 										onDragOver={descriptionImages.onDragOver}
 										onDragLeave={descriptionImages.onDragLeave}
 										onDrop={descriptionImages.onDrop}
@@ -1067,10 +1074,7 @@ export const IssueDetails = ({
 							value={title}
 							autoFocus
 							rows={1}
-							onChange={event => {
-								setTitle(event.target.value);
-								resizeTitleTextarea();
-							}}
+							onChange={event => setTitleDraft(event.target.value)}
 							onKeyDown={event => {
 								if (event.key === 'Enter') {
 									event.preventDefault();
@@ -1247,10 +1251,24 @@ export const IssueDetails = ({
 											onChange={onChangeTab}
 											showCounts={panelWidth >= TAB_COUNTS_WIDTH}
 										/>
-										{activeTab === 'overview' && overviewPane}
-										{activeTab === 'comments' && commentsPane}
-										{activeTab === 'code' && commitsPane}
-										{activeTab === 'stats' && statsPane}
+										{(
+											[
+												['overview', overviewPane],
+												['comments', commentsPane],
+												['code', commitsPane],
+												['stats', statsPane],
+											] as const
+										)
+											.filter(([tab]) => visitedTabs.includes(tab))
+											.map(([tab, pane]) => (
+												<div
+													key={tab}
+													data-testid={`tab-pane-${tab}`}
+													hidden={tab !== activeTab}
+												>
+													{pane}
+												</div>
+											))}
 									</>
 								)}
 							</div>

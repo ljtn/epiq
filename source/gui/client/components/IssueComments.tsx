@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef} from 'react';
 import {GUI_THEME, PROSE, TEXT} from '../lib/gui-theme';
 import {Button} from './Button';
 import {CodeSnippet} from './CodeSnippet';
@@ -23,6 +23,11 @@ import {MarkdownContent} from './MarkdownContent';
 import {MAX_COMMENT_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
+import {useTicketDraft} from '../lib/ticket-drafts';
+import {useAutoGrow} from '../lib/use-auto-grow';
+
+// Tall enough for a long comment, short enough to keep the thread in view.
+const COMPOSER_MAX_HEIGHT = 480;
 
 // A diff-selection comment's quoted code is rendered through the same
 // highlighter the diff view uses, rather than as a markdown fence — the whole
@@ -109,7 +114,18 @@ export const IssueComments = ({
 	onUploadImages,
 	focusedCommentId = null,
 }: Props) => {
-	const [body, setBody] = useState('');
+	const [draft, setDraft] = useTicketDraft<string>(
+		issueId,
+		'comment',
+		text => text !== '',
+	);
+	const body = draft ?? '';
+	const setBody = (update: string | ((current: string) => string)) =>
+		setDraft(current => {
+			const next =
+				typeof update === 'function' ? update(current ?? '') : update;
+			return next === '' ? undefined : next;
+		});
 	const composerRef = useRef<HTMLTextAreaElement | null>(null);
 	const focusedRef = useRef<HTMLDivElement | null>(null);
 
@@ -128,16 +144,28 @@ export const IssueComments = ({
 	});
 	// The comment being rewritten, if any. A diff-linked comment only exposes
 	// its note here; the marker and quoted snippet ride along untouched.
-	const [editing, setEditing] = useState<{id: string; text: string} | null>(
-		null,
-	);
+	const [editingDraft, setEditingDraft] = useTicketDraft<{
+		id: string;
+		text: string;
+		original: string;
+	}>(issueId, 'edit', edit => edit.text !== edit.original);
+	const editing = editingDraft ?? null;
+	const setEditing = (next: {id: string; text: string} | null) =>
+		setEditingDraft(current =>
+			next ? {original: current?.original ?? next.text, ...next} : undefined,
+		);
+
+	const editRef = useRef<HTMLTextAreaElement | null>(null);
+	useAutoGrow(composerRef, body, {maxHeight: COMPOSER_MAX_HEIGHT});
+	useAutoGrow(editRef, editing?.text ?? '', {
+		active: Boolean(editing),
+		maxHeight: COMPOSER_MAX_HEIGHT,
+	});
 
 	const startEditing = (comment: GuiComment) => {
 		const meta = parseDiffCommentMeta(comment.body);
-		setEditing({
-			id: comment.id,
-			text: meta ? extractCommentLead(comment.body) : comment.body,
-		});
+		const text = meta ? extractCommentLead(comment.body) : comment.body;
+		setEditingDraft({id: comment.id, text, original: text});
 	};
 
 	const saveEdit = (comment: GuiComment) => {
@@ -255,6 +283,7 @@ export const IssueComments = ({
 								{editing?.id === comment.id ? (
 									<>
 										<Textarea
+											ref={editRef}
 											autoFocus
 											maxLength={Number.MAX_SAFE_INTEGER}
 											value={editing.text}
@@ -280,6 +309,7 @@ export const IssueComments = ({
 												borderRadius: 0,
 												background: 'transparent',
 												padding: 0,
+												resize: 'none',
 											}}
 										/>
 										<ActionRow>
@@ -336,6 +366,7 @@ export const IssueComments = ({
 							borderRadius: 0,
 							background: 'transparent',
 							padding: '12px 14px',
+							resize: 'none',
 							...composerImages.dropStyle,
 						}}
 					/>
