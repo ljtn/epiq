@@ -85,10 +85,13 @@ export const KebabMenu = ({
 					  }
 					: {position: 'absolute', top: 26, right: 0}),
 				minWidth: 140,
-				background: GUI_THEME.bg,
-				border: `1px solid ${GUI_THEME.line}`,
-				borderRadius: 8,
-				boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
+				// The surface every popover shares: Menu's.
+				background: popoverStyle.background,
+				backdropFilter: popoverStyle.backdropFilter,
+				WebkitBackdropFilter: popoverStyle.WebkitBackdropFilter,
+				border: popoverStyle.border,
+				borderRadius: popoverStyle.borderRadius,
+				boxShadow: popoverStyle.boxShadow,
 				padding: 6,
 				// Out on the body it takes the layer Menu's popovers do: over the
 				// panels, under modals and tooltips.

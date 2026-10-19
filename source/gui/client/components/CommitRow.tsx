@@ -153,7 +153,7 @@ export const CommitRow = ({
 										padding: '0 8px',
 									}}
 								>
-									<CommitBody body={commit.body!} />
+									<CommitBody body={commit.body!} color={GUI_THEME.primary} />
 								</div>
 							)}
 						</KebabMenu>
