@@ -216,9 +216,9 @@ h1,
 	line-height: 0.86;
 	max-width: 860px;
 }
-/* The h1 at the hero size; the second line, and the third in spaced capitals
-   like a kicker, both sized to end under "tracking" (14 of the h1's 0.5em
-   characters), so "as code" stands out past them. --s keeps the h1 within the block. */
+/* The h1 at the hero size; the second line sized to end under "tracking" (14
+   of the h1's 0.5em characters), so "as code" stands out past it, and the
+   third in spaced capitals to end under "code". --s keeps the h1 within the block. */
 .hero .hero-title {
 	max-width: none;
 	margin-bottom: 40px;
@@ -242,14 +242,15 @@ h1,
 }
 .hero-title > :nth-child(3) {
 	margin-top: calc(var(--s) * 0.6);
-	font-size: max(12px, var(--s) * 7 / 34.56);
-	letter-spacing: 0.12em;
+	font-size: calc(var(--s) * 0.3038);
+	letter-spacing: 0.16em;
 	text-transform: uppercase;
 	color: color-mix(in srgb, var(--dim) 60%, transparent);
 }
 /* At its floor the third line's spacing tightens so it keeps to one row. */
 @media (max-width: 620px) {
 	.hero-title > :nth-child(3) {
+		font-size: max(12px, var(--s) * 7 / 34.56);
 		letter-spacing: 0.02em;
 	}
 	/* "as code" on its own line, so --s fits the 14 of "Issue tracking". */
