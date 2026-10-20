@@ -105,8 +105,6 @@ export const Header = ({
 					{board}
 
 					{boardDetails}
-
-					<CommandPaletteHint onOpen={onOpenCommands} />
 				</div>
 
 				<div
@@ -116,6 +114,8 @@ export const Header = ({
 						gap: 24,
 					}}
 				>
+					<CommandPaletteHint onOpen={onOpenCommands} />
+
 					<div
 						style={{
 							display: 'flex',
