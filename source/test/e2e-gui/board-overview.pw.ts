@@ -58,5 +58,17 @@ test('time per lane counts only the lanes ticked, the last left out to start', a
 	await toggles.first().click();
 	await expect(boxes.first()).toBeChecked();
 
+	// With nothing ticked the bar stays as a muted track, so nothing jumps.
+	const rowTop = async () =>
+		(await toggles.first().locator('xpath=../..').boundingBox())?.y;
+	const before = await rowTop();
+	for (let index = 0; index < count; index++) {
+		if (await boxes.nth(index).isChecked()) await toggles.nth(index).click();
+	}
+	for (let index = 0; index < count; index++) {
+		await expect(boxes.nth(index)).not.toBeChecked();
+	}
+	expect(await rowTop()).toBe(before);
+
 	expect(pageErrors).toEqual([]);
 });

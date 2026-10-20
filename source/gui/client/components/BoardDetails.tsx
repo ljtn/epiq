@@ -1,4 +1,3 @@
-import React, {useState} from 'react';
 import {descriptionLimitOf} from '../../../lib/utils/text.limits.js';
 import {AsideDock} from '../lib/aside-dock';
 import {GuiBoard} from '../lib/gui-state.model';
@@ -8,14 +7,12 @@ import {DescriptionField} from './DescriptionField';
 import {DetailsHeader} from './NodeDetails';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
-import {Stat, StatRow} from './StatRow';
+import {Stat} from './StatRow';
 import {ThroughputBars} from './ThroughputBars';
 import {BoardOverviewState} from '../lib/use-board-overview';
 import {formatDuration} from '../lib/gui-format.helper';
-import {GUI_THEME} from '../lib/gui-theme';
-import {percent, seriesColor, statGrid} from '../lib/issue-stats.style';
-import {StackedBar} from './StatBars';
-import {Checkbox} from './Checkbox';
+import {seriesColor, statGrid} from '../lib/issue-stats.style';
+import {Breakdown} from './StatBars';
 
 export const BoardDetails = ({
 	dock,
@@ -35,21 +32,6 @@ export const BoardDetails = ({
 	onClose: () => void;
 }) => {
 	const overview = state?.overview ?? null;
-	// The board's last lane is where finished work waits to be released, which
-	// is time the board is not spending: left out unless ticked.
-	const [excludedByBoard, setExcludedByBoard] = useState<
-		Record<string, string[]>
-	>({});
-	const lastLaneId = board.swimlanes.at(-1)?.id;
-	const excluded =
-		excludedByBoard[board.id] ?? (lastLaneId ? [lastLaneId] : []);
-	const setExcluded = (next: string[]) =>
-		setExcludedByBoard(prev => ({...prev, [board.id]: next}));
-	const counted = (overview?.laneTime ?? []).filter(
-		lane => !excluded.includes(lane.laneId),
-	);
-	const countedMs = counted.reduce((sum, lane) => sum + lane.meanMs, 0) || 1;
-
 	const laneColor = (laneId: string) =>
 		seriesColor(
 			Math.max(
@@ -131,55 +113,24 @@ export const BoardDetails = ({
 						{overview.laneTime.length === 0 ? (
 							<Empty>Nothing closed in these weeks</Empty>
 						) : (
-							<>
-								{/* Coloured by the lane's place on the board, so a lane keeps
-								    its colour when another is left out. */}
-								<StackedBar
-									segments={counted.map(lane => ({
-										label: lane.title,
-										value: lane.meanMs,
-										color: laneColor(lane.laneId),
-									}))}
-								/>
-
-								<div style={{marginTop: 12}}>
-									{overview.laneTime.map((lane, index) => {
-										const included = !excluded.includes(lane.laneId);
-
-										return (
-											<StatRow
-												key={lane.laneId}
-												left={
-													<Checkbox
-														testId="board-lane-time-toggle"
-														label={lane.title}
-														checked={included}
-														activeColor={laneColor(lane.laneId)}
-														onChange={() =>
-															setExcluded(
-																included
-																	? [...excluded, lane.laneId]
-																	: excluded.filter(id => id !== lane.laneId),
-															)
-														}
-													/>
-												}
-												right={
-													included ? (
-														<>
-															{formatDuration(lane.meanMs) || '0s'}
-															<Dim> · {percent(lane.meanMs / countedMs)}</Dim>
-														</>
-													) : (
-														<Dim>{formatDuration(lane.meanMs) || '0s'}</Dim>
-													)
-												}
-												last={index === overview.laneTime.length - 1}
-											/>
-										);
-									})}
-								</div>
-							</>
+							// Coloured by the lane's place on the board, so a lane keeps its
+							// colour when another is left out. The board's last lane is
+							// where finished work waits to be released, time the board is
+							// not spending: left out unless ticked.
+							<Breakdown
+								key={board.id}
+								testId="board-lane-time-toggle"
+								items={overview.laneTime.map(lane => ({
+									id: lane.laneId,
+									label: lane.title,
+									value: lane.meanMs,
+									color: laneColor(lane.laneId),
+									amount: formatDuration(lane.meanMs) || '0s',
+								}))}
+								initiallyExcluded={
+									board.swimlanes.at(-1) ? [board.swimlanes.at(-1)!.id] : []
+								}
+							/>
 						)}
 					</Section>
 				</>
@@ -187,7 +138,3 @@ export const BoardDetails = ({
 		</Aside>
 	);
 };
-
-const Dim = ({children}: {children: React.ReactNode}) => (
-	<span style={{color: GUI_THEME.dim}}>{children}</span>
-);

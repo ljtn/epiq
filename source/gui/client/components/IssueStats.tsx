@@ -18,7 +18,7 @@ import {
 	inDays,
 	seriesColor,
 } from '../lib/issue-stats.style';
-import {ProportionBar, StackedBar} from './StatBars';
+import {Breakdown, ProportionBar} from './StatBars';
 import {BoardStats} from '../../../lib/stats/board-stats.js';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
@@ -319,23 +319,16 @@ export const IssueStats = ({
 			</Section>
 
 			<Section title="Languages">
-				<StackedBar
-					segments={languages.languages.map((language, index) => ({
+				<Breakdown
+					testId="languages-toggle"
+					items={languages.languages.map((language, index) => ({
+						id: language.name,
 						label: language.name,
 						value: language.added + language.removed,
 						color: seriesColor(index),
+						amount: plural(language.added + language.removed, 'line'),
 					}))}
 				/>
-
-				{languages.languages.map((language, index) => (
-					<StatRow
-						key={language.name}
-						dot={seriesColor(index)}
-						left={language.name}
-						right={percent(language.share)}
-						last={index === languages.languages.length - 1}
-					/>
-				))}
 
 				<Note when={languages.introduced.length > 0}>
 					{`New to this repository: ${languages.introduced.join(', ')}`}

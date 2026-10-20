@@ -1,3 +1,6 @@
+import React, {useState} from 'react';
+import {Checkbox} from './Checkbox';
+import {StatRow} from './StatRow';
 import {GUI_THEME} from '../lib/gui-theme';
 
 // The two bars the Stats tab draws, and the only colour on it.
@@ -110,3 +113,83 @@ export const ProportionBar = ({
 		)}
 	</div>
 );
+
+export type BreakdownItem = {
+	id: string;
+	label: string;
+	value: number;
+	color: string;
+	// The part's own amount, read beside its name: a count, a duration.
+	amount: string;
+};
+
+/**
+ * A stacked bar over a legend of coloured checkboxes, one per part, each row
+ * reading "name (amount)" and its share: unticking a part takes it out of the
+ * bar and out of the others' shares. Remounted by the caller (a `key`) when it
+ * is about something else.
+ */
+export const Breakdown = ({
+	items,
+	initiallyExcluded = [],
+	testId,
+}: {
+	items: BreakdownItem[];
+	initiallyExcluded?: readonly string[];
+	testId?: string;
+}) => {
+	const [excluded, setExcluded] =
+		useState<readonly string[]>(initiallyExcluded);
+	const included = items.filter(item => !excluded.includes(item.id));
+	const total = included.reduce((sum, item) => sum + item.value, 0);
+
+	return (
+		<>
+			{/* Nothing ticked: the bar's own track, muted, so the rows below stay
+			    where they were. */}
+			<StackedBar
+				segments={
+					total > 0
+						? included
+						: [{label: 'Nothing ticked', value: 1, color: GUI_THEME.line}]
+				}
+			/>
+
+			<div style={{marginTop: 8}}>
+				{items.map((item, index) => {
+					const on = !excluded.includes(item.id);
+
+					return (
+						<StatRow
+							key={item.id}
+							left={
+								<Checkbox
+									testId={testId}
+									label={`${item.label} (${item.amount})`}
+									checked={on}
+									activeColor={item.color}
+									onChange={() =>
+										setExcluded(
+											on
+												? [...excluded, item.id]
+												: excluded.filter(id => id !== item.id),
+										)
+									}
+								/>
+							}
+							// One element either way, so a row keeps its height.
+							right={
+								<span style={{color: on ? undefined : GUI_THEME.dim}}>
+									{on && total > 0
+										? `${Math.round((100 * item.value) / total)}%`
+										: '–'}
+								</span>
+							}
+							last={index === items.length - 1}
+						/>
+					);
+				})}
+			</div>
+		</>
+	);
+};
