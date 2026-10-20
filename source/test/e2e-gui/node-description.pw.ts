@@ -26,6 +26,15 @@ const openLanePanel = async (page: Page, name: string) => {
 	await expect(page.getByTestId('swimlane-stats')).toContainText(name);
 };
 
+// A board's row in the open switcher, by name.
+const boardRow = (page: Page, name: string) =>
+	page.getByTestId('board-switcher-row').filter({hasText: name});
+
+const openBoardDetails = async (page: Page, name: string) => {
+	await page.getByTestId('board-switcher').click();
+	await boardRow(page, name).getByTestId('board-details-open').click();
+};
+
 test.beforeEach(async ({page, appUrl}) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -109,11 +118,12 @@ test("the board's description is written in its panel, opened beside the switche
 	await page.getByPlaceholder('board name').press('Enter');
 	await expect(page.getByTestId('board-switcher')).toContainText(name);
 
-	await page.getByTestId('board-details-open').click();
+	await openBoardDetails(page, name);
 	const panel = page.getByTestId('board-details');
 	await expect(panel).toContainText('Board');
 	await expect(panel).toContainText(name);
 
+	await page.keyboard.press('Escape');
 	await page.getByTestId('board-description-edit').click();
 	await page.getByTestId('board-description-input').fill('Ship **weekly**');
 	await page.getByTestId('board-description-save').click();
@@ -133,9 +143,40 @@ test("the board's description is written in its panel, opened beside the switche
 		page.getByTestId('board-description-body').locator('strong'),
 	).toHaveText('weekly');
 
-	// The button toggles it shut, as a lane's does.
-	await page.getByTestId('board-details-open').click();
+	// The icon toggles it shut, as a lane's does.
+	await openBoardDetails(page, name);
 	await expect(panel).toHaveCount(0);
 
+	expect(pageErrors).toEqual([]);
+});
+
+test("the switcher stays open while one board's details give way to another's", async ({
+	page,
+	pageErrors,
+}) => {
+	const name = `Compared ${Date.now()}`;
+
+	await page.keyboard.press('Control+k');
+	await page.keyboard.type('new board');
+	await page.keyboard.press('Enter');
+	await page.getByPlaceholder('board name').fill(name);
+	await page.getByPlaceholder('board name').press('Enter');
+	await expect(page.getByTestId('board-switcher')).toContainText(name);
+
+	await openBoardDetails(page, 'Default');
+	const panel = page.getByTestId('board-details');
+	await expect(panel).toContainText('Default');
+
+	// Still open: the next board's icon is a click away, and lit only for the
+	// board on show.
+	const theirs = boardRow(page, name).getByTestId('board-details-open');
+	await theirs.click();
+	await expect(panel).toContainText(name);
+	await expect(theirs).toHaveAttribute('aria-pressed', 'true');
+	await expect(
+		boardRow(page, 'Default').getByTestId('board-details-open'),
+	).toHaveAttribute('aria-pressed', 'false');
+
+	await page.keyboard.press('Escape');
 	expect(pageErrors).toEqual([]);
 });

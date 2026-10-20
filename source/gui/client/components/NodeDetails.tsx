@@ -1,39 +1,10 @@
-import React from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
-import {IconButton, ICON_SIZE} from './IconButton';
-import {IconInfo} from './IconInfo';
-import {IconLaneStats} from './IconLaneStats';
 import {Button} from './Button';
 import {FormHeader} from './FormHeader';
 
 // A board's or a lane's panel: its description, and what can be said about
 // it. Kin to a ticket's panel, and named for what it belongs to so it is not
 // read as one.
-
-// Opens a board's or a lane's panel.
-export const DetailsButton = ({
-	kind,
-	testId,
-	title,
-	open,
-	onClick,
-}: {
-	// A lane's figures are its point, so it wears the chart; a board's panel
-	// opens on its description, so it wears the info mark.
-	kind: 'board' | 'swimlane';
-	testId: string;
-	title: string;
-	open: boolean;
-	onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
-}) => (
-	<IconButton testId={testId} title={title} pressed={open} onClick={onClick}>
-		{kind === 'board' ? (
-			<IconInfo size={ICON_SIZE} />
-		) : (
-			<IconLaneStats size={ICON_SIZE} />
-		)}
-	</IconButton>
-);
 
 export const DetailsHeader = ({
 	testId,

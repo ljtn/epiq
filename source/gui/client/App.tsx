@@ -128,7 +128,8 @@ import {IdentityStats} from './components/IdentityStats';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useDescriptionEditing} from './lib/use-description-editing';
 import {BoardDetails} from './components/BoardDetails';
-import {DetailsButton} from './components/NodeDetails';
+import {IconLaneStats} from './components/IconLaneStats';
+import {ICON_SIZE} from './components/IconButton';
 import {useBoardEditing} from './lib/use-board-editing';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
@@ -1987,18 +1988,26 @@ export const App = () => {
 										}
 										placeholder="Loading..."
 										onSelect={selectBoard}
+										itemAction={{
+											title: 'Board details',
+											icon: <IconLaneStats size={ICON_SIZE} />,
+											testId: 'board-details-open',
+											isOpen: id =>
+												boardDetailsOpen && selectedBoard?.id === id,
+											// A toggle on the board it is open for, as a lane's is.
+											onAction: id => {
+												if (boardDetailsOpen && selectedBoard?.id === id) {
+													setBoardDetailsOpen(false);
+													return;
+												}
+												selectBoard(id);
+												setCommitDiff(null);
+												clearPicked();
+												setStatsSwimlaneId(null);
+												setBoardDetailsOpen(true);
+											},
+										}}
 									/>
-								}
-								boardDetails={
-									selectedBoard && (
-										<DetailsButton
-											kind="board"
-											testId="board-details-open"
-											title="Board details"
-											open={boardDetailsOpen}
-											onClick={toggleBoardDetails}
-										/>
-									)
 								}
 								settings={{
 									open: settingsOpen,
