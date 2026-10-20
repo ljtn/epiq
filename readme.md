@@ -164,6 +164,10 @@ Every process — your TUI, your GUI, each agent's MCP server - writes as your u
 
 That agent then shows up in the contributor list, assigns itself rather than you, and authors its own events. This can be useful when tracing many agents at the same time. Consider reusing names instead of inventing one per session, or the registry fills with single-run identities.
 
+### Board and lane rules
+
+A board's or a lane's description holds its conventions: "tests before review", "one ticket per PR". The MCP hands them to agents where they apply. Assuming an identity returns the board rules, getting or moving a ticket returns its lane's, and creating one returns both. Agents are told to follow them unless they conflict with their user's instructions. Write them with `epiq_board_description_edit` and `epiq_swimlane_description_edit`, from the lane menu or the palette in the GUI, or with `edit description` on a selected lane or board in the TUI.
+
 ### Other MCP clients
 
 For clients that are configured by hand, add the following to the client's MCP config file — note this is **not** the same as Claude Code's `~/.claude.json`; Claude Desktop uses `claude_desktop_config.json`:
