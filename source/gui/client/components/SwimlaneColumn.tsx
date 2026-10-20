@@ -13,7 +13,6 @@ import {TicketCard} from './TicketCard';
 import {IconButton, ICON_SIZE} from './IconButton';
 import {IconPlus} from './IconPlus';
 import {KebabMenu} from './KebabMenu';
-import {NodeDescriptionPopover} from './NodeDescription';
 import {SWIMLANE_DRAG_TYPE, isSwimlaneDrag} from '../lib/gui-move-swimlane';
 import {scrollGutter} from '../lib/scroll-gutter.style';
 
@@ -38,7 +37,6 @@ export const SwimlaneColumn = ({
 	pickedIssueIds,
 	onCreateIssue,
 	onRenameSwimlane,
-	onDescribeSwimlane,
 	onDeleteSwimlane,
 	dropSide,
 	onSwimlaneDragOver,
@@ -68,7 +66,6 @@ export const SwimlaneColumn = ({
 	pickedIssueIds: readonly string[];
 	onCreateIssue: (swimlaneId: string) => void;
 	onRenameSwimlane: (swimlaneId: string) => void;
-	onDescribeSwimlane: (swimlaneId: string) => void;
 	onDeleteSwimlane: (swimlaneId: string) => void;
 	// Null unless the history player is up. `flashIssueId` is the ticket the
 	// event that just landed happened to, and `flashKey` that event's id, which
@@ -112,8 +109,8 @@ export const SwimlaneColumn = ({
 	// rather than the control out of the header.
 	const medianWait = dwell ? formatDuration(dwell.median) : '';
 	const statsTitle = medianWait
-		? `Swimlane Stats — ${medianWait} median wait time`
-		: 'Swimlane Stats';
+		? `Swimlane details — ${medianWait} median wait time`
+		: 'Swimlane details';
 
 	const cardDwell = (ticket: GuiIssue): CardDwell | null => {
 		if (!dwell) return null;
@@ -267,7 +264,9 @@ export const SwimlaneColumn = ({
 
 					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
-					{live && (
+					{/* The lane's one panel: its description, and its figures while
+					    the board is live. A dot says there are conventions to read. */}
+					<span style={{position: 'relative', display: 'flex'}}>
 						<IconButton
 							testId="swimlane-stats-open"
 							title={statsTitle}
@@ -281,20 +280,23 @@ export const SwimlaneColumn = ({
 						>
 							<IconLaneStats size={ICON_SIZE} />
 						</IconButton>
-					)}
 
-					{swimlane.description && (
-						<NodeDescriptionPopover
-							testId="swimlane-description"
-							title="Swimlane description"
-							description={swimlane.description}
-							onEdit={
-								swimlane.readonly
-									? undefined
-									: () => onDescribeSwimlane(swimlane.id)
-							}
-						/>
-					)}
+						{swimlane.description && (
+							<span
+								data-testid="swimlane-description-marker"
+								style={{
+									position: 'absolute',
+									top: 2,
+									right: 2,
+									width: 5,
+									height: 5,
+									borderRadius: 999,
+									background: GUI_THEME.accent,
+									pointerEvents: 'none',
+								}}
+							/>
+						)}
+					</span>
 
 					{swimlane.readonly && (
 						<span
@@ -331,11 +333,6 @@ export const SwimlaneColumn = ({
 									id: 'rename',
 									label: 'rename',
 									onSelect: () => onRenameSwimlane(swimlane.id),
-								},
-								{
-									id: 'describe',
-									label: 'describe',
-									onSelect: () => onDescribeSwimlane(swimlane.id),
 								},
 								{
 									id: 'delete',

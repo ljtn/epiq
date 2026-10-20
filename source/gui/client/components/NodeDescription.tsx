@@ -8,9 +8,9 @@ import {IconInfo} from './IconInfo';
 import {KebabMenu} from './KebabMenu';
 import {MarkdownContent} from './MarkdownContent';
 
-// A board's or a lane's description: read from a popover beside its title,
-// edited in a modal. Shown only where there is one, so an empty lane carries
-// no idle icon; the first one is written from the lane menu or the palette.
+// A board's description: read from a popover beside its name, edited in a
+// modal. Shown only where there is one, so a board without one carries no idle
+// icon; the first one is written from the palette. A lane's lives in its panel.
 
 export const NodeDescriptionPopover = ({
 	description,

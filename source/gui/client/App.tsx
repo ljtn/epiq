@@ -1702,8 +1702,13 @@ export const App = () => {
 		submitRenameBoard,
 	} = useBoardEditing({send, setState, selectedBoard});
 
-	const {describing, describe, closeDescription, saveDescription} =
-		useDescriptionEditing({send, state, setState});
+	const {
+		describing,
+		describe,
+		closeDescription,
+		saveDescription,
+		saveNodeDescription,
+	} = useDescriptionEditing({send, state, setState});
 
 	// Flattened once per state change rather than per keystroke: the palette
 	// matches over this on every character typed into its second step.
@@ -1798,15 +1803,11 @@ export const App = () => {
 		[offline, visibleSwimlanes],
 	);
 
-	// The lane the stats panel is for, as the board currently has it — so the
-	// figures follow a ticket dropped into the lane while the panel is open.
-	// Absent while scrubbed: every figure on that panel is measured against
-	// now, which a board being replayed is not.
+	// The lane the panel is for, as the board currently has it — so the figures
+	// follow a ticket dropped into the lane while the panel is open, and a
+	// replayed board shows the lane as it was then.
 	const statsSwimlane =
-		state?.timeTravel?.mode === 'scrub'
-			? null
-			: shownSwimlanes.find(swimlane => swimlane.id === statsSwimlaneId) ??
-			  null;
+		shownSwimlanes.find(swimlane => swimlane.id === statsSwimlaneId) ?? null;
 
 	// The dragged id comes off the drop event rather than being remembered from
 	// dragstart: a drag can begin in one window and end in this one, and the
@@ -2110,12 +2111,13 @@ export const App = () => {
 							<main
 								// The lane panel closes on a click past it, unlike the ticket
 								// panel beside it, which deliberately stays open (see
-								// details-close.pw.ts): a ticket holds a half-written
-								// description that a stray click must not throw away, and a
-								// lane's figures hold nothing at all.
+								// details-close.pw.ts) — unless the lane's description is
+								// half-written, which a stray click must not hide.
 								onClick={() => {
 									clearPicked();
-									setStatsSwimlaneId(null);
+									if (!statsSwimlaneId || !hasTicketDrafts(statsSwimlaneId)) {
+										setStatsSwimlaneId(null);
+									}
 								}}
 								style={{
 									// No inset of its own: the columns' own top edge is what lines
@@ -2179,9 +2181,6 @@ export const App = () => {
 											onFilterByTag={filterByTag}
 											onCreateIssue={openCreateIssueModal}
 											onRenameSwimlane={openRenameSwimlane}
-											onDescribeSwimlane={id =>
-												describe({kind: 'swimlane', id})
-											}
 											onDeleteSwimlane={setDeleteSwimlaneId}
 											dropSide={
 												swimlaneDropEdge?.swimlaneId === swimlane.id
@@ -2296,6 +2295,13 @@ export const App = () => {
 								dock={asideDock}
 								swimlane={statsSwimlane}
 								state={swimlaneStats}
+								live={state?.timeTravel?.mode !== 'scrub'}
+								onSaveDescription={text =>
+									saveNodeDescription(
+										{kind: 'swimlane', id: statsSwimlane.id},
+										text,
+									)
+								}
 								onClose={() => setStatsSwimlaneId(null)}
 							/>
 						)}

@@ -1,5 +1,5 @@
-// The board's and the lanes' descriptions: which one the editor is open on,
-// and the save, which applies to the board on screen before the server answers.
+// The board's and the lanes' descriptions: which one the board's editor is
+// open on, and the save.
 
 import {Dispatch, SetStateAction, useState} from 'react';
 import {
@@ -39,14 +39,10 @@ export const useDescriptionEditing = ({
 			: null;
 	})();
 
-	const saveDescription = (text: string) => {
-		if (!target) return;
-
-		const {kind, id} = target;
+	// Applied to the board on screen before the server answers.
+	const saveNodeDescription = ({kind, id}: DescribedNode, text: string) => {
 		const description = normalizeDescription(text);
 		const next = description || undefined;
-
-		setDescribing(null);
 
 		setState(prev => {
 			if (!prev) return prev;
@@ -72,10 +68,18 @@ export const useDescriptionEditing = ({
 		);
 	};
 
+	const saveDescription = (text: string) => {
+		if (!target) return;
+
+		setDescribing(null);
+		saveNodeDescription(target, text);
+	};
+
 	return {
 		describing: target,
 		describe: setDescribing,
 		closeDescription: () => setDescribing(null),
 		saveDescription,
+		saveNodeDescription,
 	};
 };

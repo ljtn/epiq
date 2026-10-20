@@ -15,9 +15,13 @@ import {Stat, StatRow} from './StatRow';
 import {StayTrend} from './StayTrend';
 import {FormHeader} from './FormHeader';
 import {Section} from './Section';
+import {DescriptionField} from './DescriptionField';
+import {useEditDraft} from '../lib/ticket-drafts';
+import {MAX_SWIMLANE_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 
-// What a column says about itself: how long things sit in it, what feeds it,
-// where they go afterwards, and what the code standing in it comes to.
+// What a column says about itself: the conventions for work in it, how long
+// things sit in it, what feeds it, where they go afterwards, and what the code
+// standing in it comes to.
 //
 // The two flow lists are the point. A lane in isolation is a number; a lane
 // that takes most of its work from Ongoing and sends nearly all of it to Done
@@ -64,13 +68,25 @@ export const SwimlaneStats = ({
 	dock,
 	swimlane,
 	state,
+	live,
+	onSaveDescription,
 	onClose,
 }: {
 	dock: AsideDock;
 	swimlane: GuiSwimlane;
 	state: SwimlaneStatsState | null;
+	// The board is showing the present. Replayed, the lane reads as it was
+	// then: its description, read-only, and none of the figures measured
+	// against now.
+	live: boolean;
+	onSaveDescription: (description: string) => void;
 	onClose: () => void;
 }) => {
+	const descriptionEdit = useEditDraft(
+		swimlane.id,
+		'description',
+		swimlane.description ?? '',
+	);
 	// The same reading the board's own cards are drawn from, so a lane whose
 	// header said one thing cannot say another here.
 	const dwell = laneDwell(swimlane.issues, Date.now());
@@ -79,18 +95,39 @@ export const SwimlaneStats = ({
 	return (
 		<Aside dock={dock}>
 			<FormHeader testId="swimlane-stats">
+				{/* Named as a lane's, so it does not read as a ticket's panel. */}
 				<div
 					style={{
-						fontSize: 13,
-						fontWeight: 600,
-						color: GUI_THEME.primary,
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap',
+						display: 'flex',
+						alignItems: 'baseline',
+						gap: 8,
 						minWidth: 0,
 					}}
 				>
-					{swimlane.title}
+					<span
+						style={{
+							color: GUI_THEME.accent,
+							fontSize: 10,
+							letterSpacing: 1,
+							textTransform: 'uppercase',
+							flexShrink: 0,
+						}}
+					>
+						Swimlane
+					</span>
+					<span
+						style={{
+							fontSize: 13,
+							fontWeight: 600,
+							color: GUI_THEME.primary,
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+							minWidth: 0,
+						}}
+					>
+						{swimlane.title}
+					</span>
 				</div>
 
 				<Button variant="ghost" onClick={onClose} title="Close">
@@ -98,96 +135,111 @@ export const SwimlaneStats = ({
 				</Button>
 			</FormHeader>
 
-			<Section title="Time in this lane" first>
-				{dwell ? (
-					<div style={statGrid(4, 2)}>
-						<Stat
-							value={formatDuration(dwell.median) || '0s'}
-							label="median stay"
-						/>
-						<Stat
-							value={formatDuration(dwell.max) || '0s'}
-							label="longest stay"
-						/>
-						<Stat
-							value={formatDuration(dwell.mean) || '0s'}
-							label="average stay"
-						/>
+			<DescriptionField
+				draft={descriptionEdit}
+				current={swimlane.description ?? ''}
+				readonly={swimlane.readonly || !live}
+				maxLength={MAX_SWIMLANE_DESCRIPTION_LENGTH}
+				onSave={onSaveDescription}
+				collapseKey={swimlane.id}
+				testId="swimlane-description"
+				placeholder="Conventions for this lane, in markdown"
+			/>
+
+			{live && (
+				<>
+					<Section title="Time in this lane">
+						{dwell ? (
+							<div style={statGrid(4, 2)}>
+								<Stat
+									value={formatDuration(dwell.median) || '0s'}
+									label="median stay"
+								/>
+								<Stat
+									value={formatDuration(dwell.max) || '0s'}
+									label="longest stay"
+								/>
+								<Stat
+									value={formatDuration(dwell.mean) || '0s'}
+									label="average stay"
+								/>
+								{stats && (
+									<Stat
+										value={formatDuration(Date.now() - stats.createdAt) || '0s'}
+										label="lane age"
+										title={`Opened ${formatAbsolute(stats.createdAt)}`}
+									/>
+								)}
+							</div>
+						) : (
+							<Empty>Nothing is waiting here</Empty>
+						)}
+
+						{stats && <StayTrend points={stats.stayTrend} />}
+					</Section>
+
+					<Section title="Code standing here">
+						{stats && stats.code.commits === 0 ? (
+							<Empty>No commits on the tickets in this lane</Empty>
+						) : (
+							stats && (
+								// The diff wears the same pill it wears on a commit row and a
+								// ticket's Code tab — a figure the reader already knows how to
+								// read, rather than two large numbers that have to say "added"
+								// and "removed" to mean anything.
+								<div
+									style={{
+										...ROW,
+										borderBottom: 'none',
+										marginTop: 12,
+										alignItems: 'center',
+									}}
+								>
+									{/* Shrinks first: the pill is the point of the row, and this
+							    panel is narrow enough for the two to collide. */}
+									<span
+										style={{
+											color: GUI_THEME.primary,
+											minWidth: 0,
+											overflow: 'hidden',
+											textOverflow: 'ellipsis',
+											whiteSpace: 'nowrap',
+										}}
+									>
+										{plural(stats.code.commits, 'commit')} ·{' '}
+										{plural(stats.code.tickets, 'ticket')}
+									</span>
+
+									<DiffStat
+										insertions={stats.code.insertions}
+										deletions={stats.code.deletions}
+									/>
+								</div>
+							)
+						)}
+					</Section>
+
+					<Section title="Usually arrives from">
+						{state?.loading && <Empty>Reading the board…</Empty>}
+						{state?.error && <Empty>{state.error}</Empty>}
 						{stats && (
-							<Stat
-								value={formatDuration(Date.now() - stats.createdAt) || '0s'}
-								label="lane age"
-								title={`Opened ${formatAbsolute(stats.createdAt)}`}
+							<FlowList
+								flows={stats.arrivesFrom}
+								empty="Nothing has ever been here"
 							/>
 						)}
-					</div>
-				) : (
-					<Empty>Nothing is waiting here</Empty>
-				)}
+					</Section>
 
-				{stats && <StayTrend points={stats.stayTrend} />}
-			</Section>
-
-			<Section title="Code standing here">
-				{stats && stats.code.commits === 0 ? (
-					<Empty>No commits on the tickets in this lane</Empty>
-				) : (
-					stats && (
-						// The diff wears the same pill it wears on a commit row and a
-						// ticket's Code tab — a figure the reader already knows how to
-						// read, rather than two large numbers that have to say "added"
-						// and "removed" to mean anything.
-						<div
-							style={{
-								...ROW,
-								borderBottom: 'none',
-								marginTop: 12,
-								alignItems: 'center',
-							}}
-						>
-							{/* Shrinks first: the pill is the point of the row, and this
-							    panel is narrow enough for the two to collide. */}
-							<span
-								style={{
-									color: GUI_THEME.primary,
-									minWidth: 0,
-									overflow: 'hidden',
-									textOverflow: 'ellipsis',
-									whiteSpace: 'nowrap',
-								}}
-							>
-								{plural(stats.code.commits, 'commit')} ·{' '}
-								{plural(stats.code.tickets, 'ticket')}
-							</span>
-
-							<DiffStat
-								insertions={stats.code.insertions}
-								deletions={stats.code.deletions}
+					<Section title="Usually moves on to">
+						{stats && (
+							<FlowList
+								flows={stats.movesOnTo}
+								empty="Nothing has left this lane yet"
 							/>
-						</div>
-					)
-				)}
-			</Section>
-
-			<Section title="Usually arrives from">
-				{state?.loading && <Empty>Reading the board…</Empty>}
-				{state?.error && <Empty>{state.error}</Empty>}
-				{stats && (
-					<FlowList
-						flows={stats.arrivesFrom}
-						empty="Nothing has ever been here"
-					/>
-				)}
-			</Section>
-
-			<Section title="Usually moves on to">
-				{stats && (
-					<FlowList
-						flows={stats.movesOnTo}
-						empty="Nothing has left this lane yet"
-					/>
-				)}
-			</Section>
+						)}
+					</Section>
+				</>
+			)}
 		</Aside>
 	);
 };
