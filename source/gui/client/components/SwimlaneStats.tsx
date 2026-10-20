@@ -7,13 +7,12 @@ import {laneDwell} from '../lib/lane-dwell';
 import {percent, ROW, seriesColor, statGrid} from '../lib/issue-stats.style';
 import {SwimlaneStatsState} from '../lib/use-swimlane-stats';
 import {Aside} from './Aside';
-import {Button} from './Button';
 import {Empty} from './FormPrimitives';
 import {DiffStat} from './DiffStat';
 import {StackedBar} from './StatBars';
 import {Stat, StatRow} from './StatRow';
 import {StayTrend} from './StayTrend';
-import {FormHeader} from './FormHeader';
+import {DetailsHeader} from './NodeDetails';
 import {Section} from './Section';
 import {DescriptionField} from './DescriptionField';
 import {useEditDraft} from '../lib/ticket-drafts';
@@ -94,46 +93,12 @@ export const SwimlaneStats = ({
 
 	return (
 		<Aside dock={dock}>
-			<FormHeader testId="swimlane-stats">
-				{/* Named as a lane's, so it does not read as a ticket's panel. */}
-				<div
-					style={{
-						display: 'flex',
-						alignItems: 'baseline',
-						gap: 8,
-						minWidth: 0,
-					}}
-				>
-					<span
-						style={{
-							color: GUI_THEME.accent,
-							fontSize: 10,
-							letterSpacing: 1,
-							textTransform: 'uppercase',
-							flexShrink: 0,
-						}}
-					>
-						Swimlane
-					</span>
-					<span
-						style={{
-							fontSize: 13,
-							fontWeight: 600,
-							color: GUI_THEME.primary,
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-							whiteSpace: 'nowrap',
-							minWidth: 0,
-						}}
-					>
-						{swimlane.title}
-					</span>
-				</div>
-
-				<Button variant="ghost" onClick={onClose} title="Close">
-					×
-				</Button>
-			</FormHeader>
+			<DetailsHeader
+				testId="swimlane-stats"
+				kind="Swimlane"
+				title={swimlane.title}
+				onClose={onClose}
+			/>
 
 			<DescriptionField
 				draft={descriptionEdit}

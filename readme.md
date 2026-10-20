@@ -166,7 +166,7 @@ That agent then shows up in the contributor list, assigns itself rather than you
 
 ### Board and lane rules
 
-A board's or a lane's description holds its conventions: "tests before review", "one ticket per PR". The MCP hands them to agents where they apply. Assuming an identity returns the board rules, getting or moving a ticket returns its lane's, and creating one returns both. Agents are told to follow them unless they conflict with their user's instructions. Write them with `epiq_board_description_edit` and `epiq_swimlane_description_edit`, in a lane's panel (the board's from the palette) in the GUI, or with `edit description` on a selected lane or board in the TUI.
+A board's or a lane's description holds its conventions: "tests before review", "one ticket per PR". The MCP hands them to agents where they apply. Assuming an identity returns the board rules, getting or moving a ticket returns its lane's, and creating one returns both. Agents are told to follow them unless they conflict with their user's instructions. Write them with `epiq_board_description_edit` and `epiq_swimlane_description_edit`, in the board's or the lane's panel in the GUI, or with `edit description` on a selected lane or board in the TUI.
 
 ### Other MCP clients
 

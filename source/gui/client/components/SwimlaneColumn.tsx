@@ -6,7 +6,7 @@ import {formatDuration} from '../lib/gui-format.helper';
 import {dwellLevel, dwellOf, laneDwell} from '../lib/lane-dwell';
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
-import {IconLaneStats} from './IconLaneStats';
+import {DetailsButton} from './NodeDetails';
 import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
@@ -265,38 +265,19 @@ export const SwimlaneColumn = ({
 					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
 					{/* The lane's one panel: its description, and its figures while
-					    the board is live. A dot says there are conventions to read. */}
-					<span style={{position: 'relative', display: 'flex'}}>
-						<IconButton
-							testId="swimlane-stats-open"
-							title={statsTitle}
-							pressed={statsOpen}
-							onClick={event => {
-								// Stopped here, or the header's own click would take the
-								// selection with it.
-								event.stopPropagation();
-								onOpenStats(swimlane.id);
-							}}
-						>
-							<IconLaneStats size={ICON_SIZE} />
-						</IconButton>
-
-						{swimlane.description && (
-							<span
-								data-testid="swimlane-description-marker"
-								style={{
-									position: 'absolute',
-									top: 2,
-									right: 2,
-									width: 5,
-									height: 5,
-									borderRadius: 999,
-									background: GUI_THEME.accent,
-									pointerEvents: 'none',
-								}}
-							/>
-						)}
-					</span>
+					    the board is live. */}
+					<DetailsButton
+						testId="swimlane-stats-open"
+						title={statsTitle}
+						open={statsOpen}
+						described={Boolean(swimlane.description)}
+						onClick={event => {
+							// Stopped here, or the header's own click would take the
+							// selection with it.
+							event.stopPropagation();
+							onOpenStats(swimlane.id);
+						}}
+					/>
 
 					{swimlane.readonly && (
 						<span
