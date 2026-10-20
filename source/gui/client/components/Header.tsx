@@ -22,6 +22,8 @@ type HeaderProps = {
 	// what everything below is showing, the timeline included, and this is the
 	// one row that outlives every panel and collapse below it.
 	board: React.ReactNode;
+	// Beside the switcher, where the board has a description to read.
+	boardDescription?: React.ReactNode;
 	// Toggles the settings panel. The ref is the panel's, which must not take
 	// a click here for a click outside.
 	settings: {
@@ -39,6 +41,7 @@ export const Header = ({
 	syncStatus,
 	onOpenCommands,
 	board,
+	boardDescription,
 	settings,
 }: HeaderProps) => {
 	const syncColor =
@@ -100,6 +103,8 @@ export const Header = ({
 					<span style={{color: GUI_THEME.dim, fontSize: 12}}>/</span>
 
 					{board}
+
+					{boardDescription}
 
 					<CommandPaletteHint onOpen={onOpenCommands} />
 				</div>

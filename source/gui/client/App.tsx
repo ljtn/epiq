@@ -126,6 +126,14 @@ import {actorDisplay} from './lib/agent-identity';
 import {IdentityAddresses} from './components/IdentityPanel';
 import {IdentityStats} from './components/IdentityStats';
 import {useIssueMutations} from './lib/use-issue-mutations';
+import {
+	DESCRIPTION_LIMITS,
+	useDescriptionEditing,
+} from './lib/use-description-editing';
+import {
+	NodeDescriptionModal,
+	NodeDescriptionPopover,
+} from './components/NodeDescription';
 import {useBoardEditing} from './lib/use-board-editing';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
@@ -1696,6 +1704,9 @@ export const App = () => {
 		submitRenameBoard,
 	} = useBoardEditing({send, setState, selectedBoard});
 
+	const {describing, describe, closeDescription, saveDescription} =
+		useDescriptionEditing({send, state, setState});
+
 	// Flattened once per state change rather than per keystroke: the palette
 	// matches over this on every character typed into its second step.
 	const searchableTickets = useMemo(
@@ -1745,6 +1756,9 @@ export const App = () => {
 			createSwimlane: () => setCreateSwimlaneTitle(''),
 			createBoard: () => setCreateBoardTitle(''),
 			renameBoard: openRenameBoard,
+			describeBoard: () => {
+				if (selectedBoard) describe({kind: 'board', id: selectedBoard.id});
+			},
 			openRepos: () => setSettings('repos'),
 			openSettings: () => setSettings('overview'),
 			openIssue: (id: string, boardRef: string) =>
@@ -1972,6 +1986,21 @@ export const App = () => {
 										onSelect={selectBoard}
 									/>
 								}
+								boardDescription={
+									selectedBoard?.description ? (
+										<NodeDescriptionPopover
+											testId="board-description"
+											title="Board description"
+											description={selectedBoard.description}
+											onEdit={
+												selectedBoard.readonly
+													? undefined
+													: () =>
+															describe({kind: 'board', id: selectedBoard.id})
+											}
+										/>
+									) : null
+								}
 								settings={{
 									open: settingsOpen,
 									// Closes whatever is open, wherever it was opened from.
@@ -2152,6 +2181,9 @@ export const App = () => {
 											onFilterByTag={filterByTag}
 											onCreateIssue={openCreateIssueModal}
 											onRenameSwimlane={openRenameSwimlane}
+											onDescribeSwimlane={id =>
+												describe({kind: 'swimlane', id})
+											}
 											onDeleteSwimlane={setDeleteSwimlaneId}
 											dropSide={
 												swimlaneDropEdge?.swimlaneId === swimlane.id
@@ -2597,6 +2629,18 @@ export const App = () => {
 							onChangeTitle={setCreateBoardTitle}
 							onCreate={createBoard}
 							onClose={() => setCreateBoardTitle(null)}
+						/>
+					)}
+
+					{describing && (
+						<NodeDescriptionModal
+							key={describing.id}
+							nodeId={describing.id}
+							eyebrow={`${describing.title} · description`}
+							current={describing.description}
+							maxLength={DESCRIPTION_LIMITS[describing.kind]}
+							onSave={saveDescription}
+							onClose={closeDescription}
 						/>
 					)}
 

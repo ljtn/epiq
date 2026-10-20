@@ -9,6 +9,14 @@ export type GuiMessage =
 	| {type: 'board:edit:title'; payload: {boardId: string; title: string}}
 	| {type: 'swimlane:create'; payload: {title: string; boardId: string}}
 	| {type: 'swimlane:edit:title'; payload: {swimlaneId: string; title: string}}
+	| {
+			type: 'board:edit:description';
+			payload: {boardId: string; description: string};
+	  }
+	| {
+			type: 'swimlane:edit:description';
+			payload: {swimlaneId: string; description: string};
+	  }
 	| {type: 'swimlane:delete'; payload: {swimlaneId: string}}
 	| {
 			type: 'swimlane:move';

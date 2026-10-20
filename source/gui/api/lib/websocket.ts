@@ -10,6 +10,8 @@ import {
 	closeIssue,
 	createBoard,
 	editBoardTitle,
+	editBoardDescription,
+	editSwimlaneDescription,
 	createIssue,
 	createSwimlane,
 	deleteSwimlane,
@@ -958,6 +960,36 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'swimlane:edit:title:result',
+						result,
+					);
+				}
+
+				if (type === 'board:edit:description') {
+					const result = await editBoardDescription({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'board:edit:description:result',
+						result,
+					);
+				}
+
+				if (type === 'swimlane:edit:description') {
+					const result = await editSwimlaneDescription({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:edit:description:result',
 						result,
 					);
 				}

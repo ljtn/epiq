@@ -52,6 +52,8 @@ export type GuiSwimlane = {
 	title: string;
 	readonly: boolean;
 	issues: GuiIssue[];
+	// The lane's conventions, as markdown; absent when it has none.
+	description?: string;
 };
 
 export type GuiBoard = {
@@ -61,6 +63,8 @@ export type GuiBoard = {
 	// The Closed board, and every board while the timeline is scrubbed.
 	readonly: boolean;
 	swimlanes: GuiSwimlane[];
+	// The board's conventions, as markdown; absent when it has none.
+	description?: string;
 };
 
 // One line of a ticket's own event log, phrased and coloured server-side.

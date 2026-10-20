@@ -24,6 +24,7 @@ import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {getAttachmentFileName} from '../../lib/media/media-store.js';
 import {logger} from '../../logger.js';
 import {ApiState, ApiSwimlane} from '../api-state.model.js';
+import {descriptionOf} from './descriptions.js';
 import {getTimeTravelStatus} from '../epiq-time-travel.js';
 import {
 	ToolInput,
@@ -219,6 +220,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 				ref: nodeRef(b.id),
 				title: b.title,
 				readonly: Boolean(b.readonly) || forceReadonly,
+				...descriptionOf(b.id),
 				swimlanes: (swimlanesByBoardId.get(b.id) ?? [])
 					.sort((a, b) => a.rank.localeCompare(b.rank))
 					.map(
@@ -247,6 +249,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										boardIds: boardsEverOnOf(issue),
 									})),
 								parentNodeId: swimlane.parentNodeId!,
+								...descriptionOf(swimlane.id),
 							} satisfies ApiSwimlane),
 					),
 			})),

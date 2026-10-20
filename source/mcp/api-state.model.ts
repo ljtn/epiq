@@ -74,6 +74,8 @@ export type ApiSwimlane = {
 	/** Present only for a load-derived lock, which knows why it exists. */
 	issues: ApiIssue[];
 	parentNodeId: string;
+	// The lane's conventions, as markdown; absent when it has none.
+	description?: string;
 };
 
 // One line of a ticket's own event log. `label` is the same phrasing the TUI
@@ -100,6 +102,8 @@ export type ApiBoard = {
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
 	swimlanes: ApiSwimlane[];
+	// The board's conventions, as markdown; absent when it has none.
+	description?: string;
 };
 
 export type ApiAttachment = {

@@ -444,6 +444,32 @@ describe('timeline-index', () => {
 			]);
 		});
 
+		it('names the lane a description belongs to, and leads nowhere', () => {
+			const at = (n: number, action: string, payload: object) => ({
+				id: ulid(baseTime + n * 1000),
+				action,
+				payload,
+				userId: 'u-1',
+				userName: 'jo',
+			});
+
+			const entries = buildTimelineEntries([
+				at(0, 'add.swimlane', {id: 'lane-1', name: 'Review', parent: 'b-1'}),
+				event(1),
+				at(2, 'edit.description', {id: 'lane-1', md: 'Tests first'}),
+				at(3, 'edit.description', {id: 'i1', md: 'Body'}),
+			] as never);
+
+			expect(
+				entries
+					.filter(entry => entry.action === 'edit.description')
+					.map(entry => [entry.label, entry.issue]),
+			).toEqual([
+				['Changed description of Review: Tests first', null],
+				['Changed description: Body', 'i1'],
+			]);
+		});
+
 		it('leaves an event under no board with none', () => {
 			const entries = buildTimelineEntries([
 				{

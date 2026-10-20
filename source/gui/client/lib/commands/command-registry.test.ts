@@ -22,6 +22,7 @@ const handlers = (): CommandHandlers => ({
 	createSwimlane: vi.fn(),
 	createBoard: vi.fn(),
 	renameBoard: vi.fn(),
+	describeBoard: vi.fn(),
 	openRepos: vi.fn(),
 	openSettings: vi.fn(),
 });

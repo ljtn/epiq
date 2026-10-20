@@ -239,9 +239,11 @@ const describeTimelineEvent = (
 	event: AppEvent,
 	names: ReadonlyMap<string, string>,
 	previousParents: Map<string, string | undefined>,
+	issue: string | null,
 ): string => {
 	const payload = event.payload as
 		| {
+				id?: string;
 				name?: string;
 				assignee?: string;
 				md?: string;
@@ -258,7 +260,15 @@ const describeTimelineEvent = (
 	if (payload?.md !== undefined) {
 		const preview = commentPreview(payload.md);
 
-		return preview ? `${action}: ${preview}` : action;
+		// A board's or lane's description belongs to no ticket, so the line names
+		// what it belongs to.
+		const owner =
+			event.action === 'edit.description' && !issue && payload.id
+				? names.get(payload.id)
+				: undefined;
+		const head = owner ? `${action} of ${owner}` : action;
+
+		return preview ? `${head}: ${preview}` : head;
 	}
 
 	// A move says which lane, and whether it changed lanes at all — "Moved
@@ -454,7 +464,12 @@ export const buildTimelineEntries = (
 						id: event.id,
 						t,
 						action: event.action,
-						label: describeTimelineEvent(event, names, previousParents),
+						label: describeTimelineEvent(
+							event,
+							names,
+							previousParents,
+							issues[index] ?? null,
+						),
 						issue: issues[index] ?? null,
 						target: targetOf(event),
 						...lanes[index]!,
