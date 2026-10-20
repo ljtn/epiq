@@ -68,14 +68,14 @@ test('a long description is clamped with a show more, not a second scrollbar', a
 	const showMore = page
 		.getByTestId('description-box')
 		.getByTestId('description-show-more');
-	await expect(showMore).toHaveText('show more');
+	await expect(showMore).toHaveText('Show more');
 
 	const clamped = await descriptionHeight(page);
 	expect(clamped).toBeLessThan(420);
 
 	await showMore.click();
 
-	await expect(showMore).toHaveText('show less');
+	await expect(showMore).toHaveText('Show less');
 	expect(await descriptionHeight(page)).toBeGreaterThan(clamped);
 	await expect(page.getByTestId('description-box')).toContainText(
 		'paragraph 59',
@@ -84,7 +84,7 @@ test('a long description is clamped with a show more, not a second scrollbar', a
 
 	// And back, so the rest of the aside is reachable again without a reload.
 	await showMore.click();
-	await expect(showMore).toHaveText('show more');
+	await expect(showMore).toHaveText('Show more');
 	expect(await descriptionHeight(page)).toBe(clamped);
 
 	expect(pageErrors).toEqual([]);

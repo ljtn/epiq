@@ -193,7 +193,7 @@ export const IssueAttachments = ({
 												textAlign: 'center',
 											}}
 										>
-											unavailable
+											Unavailable
 										</span>
 									) : (
 										<img
@@ -231,7 +231,7 @@ export const IssueAttachments = ({
 							fontSize: TEXT.label,
 						}}
 					>
-						drop an image to attach
+						Drop an image to attach
 					</div>
 				)}
 
@@ -243,7 +243,7 @@ export const IssueAttachments = ({
 							fontSize: TEXT.meta,
 						}}
 					>
-						uploading {uploadStatus.name}…
+						Uploading {uploadStatus.name}…
 					</div>
 				)}
 
@@ -288,7 +288,7 @@ export const IssueAttachments = ({
 					/>
 					<div style={{color: GUI_THEME.secondary, fontSize: TEXT.meta}}>
 						{lightbox.name} · {Math.max(1, Math.round(lightbox.bytes / 1024))}{' '}
-						KB · esc to close
+						KB · Esc to close
 					</div>
 				</div>
 			)}

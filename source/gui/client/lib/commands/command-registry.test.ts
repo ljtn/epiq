@@ -260,7 +260,7 @@ describe('the GUI command registry', () => {
 			const offered = find(CmdKeywords.ASSIGN).getArguments?.(withPeople);
 
 			expect(offered?.map(one => one.title)).toEqual(['jola']);
-			expect(offered?.[0]?.hint).toBe('you');
+			expect(offered?.[0]?.hint).toBe('You');
 		});
 
 		// The tag is applied by name, since that is what the mutation takes — a

@@ -120,9 +120,9 @@ export const SquashedDiff = ({
 
 	if (loading) return <Empty>Compacting…</Empty>;
 	if (error) return <Empty>{error}</Empty>;
-	if (!diff) return <Empty>Nothing to compact yet.</Empty>;
+	if (!diff) return <Empty>Nothing to compact yet</Empty>;
 	if (diff.files.length === 0) {
-		return <Empty>These commits changed no files.</Empty>;
+		return <Empty>These commits changed no files</Empty>;
 	}
 
 	const expandablePaths = diff.files

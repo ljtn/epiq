@@ -4,7 +4,7 @@ import {addTicket} from './ticket.js';
 
 const postComment = async (page: Page, text: string) => {
 	await page.getByPlaceholder('write a comment').fill(text);
-	await page.getByRole('button', {name: 'comment', exact: true}).click();
+	await page.getByRole('button', {name: 'Comment', exact: true}).click();
 	await expect(page.locator('aside').getByText(text)).toBeVisible();
 };
 

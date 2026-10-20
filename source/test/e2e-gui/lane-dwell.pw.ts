@@ -60,7 +60,7 @@ test('a lane opens its own stats, and says how long its tickets have sat there',
 		(await lane.locator('strong').textContent()) ?? '',
 	);
 
-	await expect(page.getByText('median stay', {exact: true})).toBeVisible();
+	await expect(page.getByText('Median stay', {exact: true})).toBeVisible();
 	await expect(page.getByText('Usually arrives from')).toBeVisible();
 	await expect(page.getByText('Usually moves on to')).toBeVisible();
 
@@ -120,7 +120,7 @@ test('a scrubbed lane opens its panel without figures', async ({
 	await expect(panel).toBeVisible();
 	await expect(page.getByText('Description', {exact: true})).toBeVisible();
 	await expect(page.getByTestId('swimlane-description-edit')).toHaveCount(0);
-	await expect(page.getByText('median stay', {exact: true})).toHaveCount(0);
+	await expect(page.getByText('Median stay', {exact: true})).toHaveCount(0);
 	await expect(page.getByText('Usually arrives from')).toHaveCount(0);
 
 	await returnToLive(page);

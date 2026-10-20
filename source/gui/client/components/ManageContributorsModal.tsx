@@ -125,7 +125,7 @@ export const ManageContributorsModal = ({
 									</span>
 								) : contributor.isRemoved ? (
 									<span style={{color: GUI_THEME.dim, fontSize: 10}}>
-										removed
+										Removed
 									</span>
 								) : (
 									<Button
@@ -154,7 +154,7 @@ export const ManageContributorsModal = ({
 											...(armed ? {border: `1px solid ${GUI_THEME.red}`} : {}),
 										}}
 									>
-										{armed && <span style={{fontSize: 10}}>confirm</span>}
+										{armed && <span style={{fontSize: 10}}>Confirm</span>}
 										<IconTrash />
 									</Button>
 								)}
@@ -165,7 +165,7 @@ export const ManageContributorsModal = ({
 
 				<div style={{display: 'flex', justifyContent: 'flex-end'}}>
 					<Button variant="ghost" onClick={onClose}>
-						close
+						Close
 					</Button>
 				</div>
 			</div>

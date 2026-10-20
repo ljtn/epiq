@@ -38,7 +38,7 @@ test('a comment being edited survives a trip to another tab', async ({
 	await addTicket(page, `Edited comment ${Date.now()}`);
 	await openComments(page);
 	await composer(page).fill('as posted');
-	await page.getByRole('button', {name: 'comment', exact: true}).click();
+	await page.getByRole('button', {name: 'Comment', exact: true}).click();
 	await expect(page.locator('aside').getByText('as posted')).toBeVisible();
 
 	await page.getByTestId('edit-comment').click();

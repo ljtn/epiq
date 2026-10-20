@@ -12,7 +12,7 @@ const pick = (title: string) => `
 const actionButtons = `
 [...document.querySelectorAll('aside button')]
 	.map(b => b.textContent.trim())
-	.filter(t => t.startsWith('close ') || t.startsWith('reopen '))
+	.filter(t => t.startsWith('Close ') || t.startsWith('Reopen '))
 `;
 
 test.setTimeout(180_000);
@@ -44,7 +44,7 @@ test('bulk actions only offer what applies to the selection', async ({
 
 	// Nothing picked is closed, so reopen has nothing to act on.
 	expect(await page.evaluate<string[]>(actionButtons)).toEqual([
-		'close 2 tickets',
+		'Close 2 tickets',
 	]);
 
 	// Closing takes them to the Closed board, where the pair is all closed and
@@ -69,7 +69,7 @@ test('bulk actions only offer what applies to the selection', async ({
 	await expect(page.locator('aside')).toContainText('2 tickets selected');
 
 	expect(await page.evaluate<string[]>(actionButtons)).toEqual([
-		'reopen 2 tickets',
+		'Reopen 2 tickets',
 	]);
 
 	expect(pageErrors).toEqual([]);

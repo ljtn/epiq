@@ -108,7 +108,7 @@ test('the comment count on a card still opens comments', async ({page}) => {
 
 	await page.getByRole('button', {name: /^Comments/}).click();
 	await page.getByPlaceholder(/comment/i).fill('a remark');
-	await page.getByRole('button', {name: 'comment', exact: true}).click();
+	await page.getByRole('button', {name: 'Comment', exact: true}).click();
 	await expect(page.getByText('a remark')).toBeVisible();
 
 	// Back to overview, then in through the card's comment count.

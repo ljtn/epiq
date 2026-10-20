@@ -124,7 +124,7 @@ export const IdentitySettings = ({
 				</div>
 				<Switch
 					testId="autosync-toggle"
-					label={settings.enabled ? 'on' : 'off'}
+					label={settings.enabled ? 'On' : 'Off'}
 					checked={settings.enabled}
 					onChange={next => onChange({autoSync: next})}
 				/>

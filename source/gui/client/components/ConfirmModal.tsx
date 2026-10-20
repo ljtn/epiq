@@ -88,7 +88,7 @@ export const ConfirmModal = ({
 				{/* Focused rather than the confirm button: a stray Enter on a
 				    destructive dialog should back out, not go through with it. */}
 				<Button autoFocus type="button" variant="ghost" onClick={onClose}>
-					cancel
+					Cancel
 				</Button>
 
 				<Button type="submit" variant="primary" style={{color: GUI_THEME.red}}>

@@ -371,7 +371,7 @@ export const BoardSeriesGroup = ({
 												onClick={() => onOnlyIdentity(axis, identity.id)}
 												style={onlyButtonStyle}
 											>
-												only
+												Only
 											</button>
 										</MenuItem>
 									))}
@@ -534,7 +534,7 @@ export const CommitSeriesGroup = ({
 									{repos.map(repo => (
 										<MenuItem key={repo || 'own'}>
 											<Checkbox
-												label={repo ? labelOf(repo) : 'this repo'}
+												label={repo ? labelOf(repo) : 'This repo'}
 												testId="commit-repo-toggle"
 												checked={!hiddenRepos.has(repo)}
 												activeColor={GUI_THEME.green}

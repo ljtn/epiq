@@ -154,7 +154,7 @@ const statusOf = (
 ): {text: string; color: string} => {
 	if (repo.overLimit) {
 		return {
-			text: `over limit of ${limit}`,
+			text: `Over limit of ${limit}`,
 			color: GUI_THEME.amber,
 		};
 	}
@@ -166,10 +166,10 @@ const statusOf = (
 		};
 	}
 
-	if (!repo.cloned) return {text: 'not fetched yet', color: GUI_THEME.dim};
+	if (!repo.cloned) return {text: 'Not fetched yet', color: GUI_THEME.dim};
 
 	return {
-		text: repo.fetchedAt ? `fetched ${timeAgo(repo.fetchedAt)}` : 'cloned',
+		text: repo.fetchedAt ? `Fetched ${timeAgo(repo.fetchedAt)}` : 'Cloned',
 		color: GUI_THEME.dim,
 	};
 };
@@ -177,14 +177,14 @@ const statusOf = (
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const BRANCHES = [
-	{id: 'default', label: 'default branch'},
-	{id: 'all', label: 'all branches'},
+	{id: 'default', label: 'Default branch'},
+	{id: 'all', label: 'All branches'},
 ];
 
 const SINCE = [
-	{id: 'board', label: 'since the board'},
-	{id: 'all', label: 'all history'},
-	{id: 'date', label: 'since a date'},
+	{id: 'board', label: 'Since the board'},
+	{id: 'all', label: 'All history'},
+	{id: 'date', label: 'Since a date'},
 ];
 
 // The shared field at the panel's type size and corner.
@@ -407,7 +407,7 @@ const PreviewCard = ({
 
 				<span style={factsStyle}>
 					<Fact name="Branch" testId="repo-preview-branch">
-						{preview.defaultBranch ?? 'none'}
+						{preview.defaultBranch ?? 'None'}
 					</Fact>
 					<Fact
 						name="Latest"
@@ -422,7 +422,7 @@ const PreviewCard = ({
 								</span>
 							</>
 						) : (
-							'no commits yet'
+							'No commits yet'
 						)}
 					</Fact>
 					<Fact name="Commits" testId="repo-preview-commits">
@@ -456,7 +456,7 @@ const PreviewCard = ({
 						disabled={confirming}
 						onClick={onCancel}
 					>
-						cancel
+						Cancel
 					</Button>
 					<Button
 						variant="primary"
@@ -464,7 +464,7 @@ const PreviewCard = ({
 						disabled={confirming}
 						onClick={onConfirm}
 					>
-						{confirming ? 'connecting…' : 'connect'}
+						{confirming ? 'Connecting…' : 'Connect'}
 					</Button>
 				</span>
 			</span>
@@ -537,7 +537,7 @@ export const ReposSettings = ({
 					<span style={lineStyle}>
 						<span style={nameStyle}>{state.own.label}</span>
 						<span style={{...statusStyle, color: GUI_THEME.dim2}}>
-							this repo
+							This repo
 						</span>
 						<span
 							title="The board's own repo — its commits are always read"
@@ -581,7 +581,7 @@ export const ReposSettings = ({
 							<IconButton
 								testId="disconnect-repo"
 								pressed={armed}
-								label={armed ? 'confirm' : undefined}
+								label={armed ? 'Confirm' : undefined}
 								onBlur={remove.disarm}
 								title={
 									armed
@@ -684,7 +684,7 @@ export const ReposSettings = ({
 								testId="connect-repo-cancel"
 								onClick={cloning ? onCancelPreview : cancelAdd}
 							>
-								cancel
+								Cancel
 							</Button>
 							<Button
 								variant="primary"
@@ -692,7 +692,7 @@ export const ReposSettings = ({
 								disabled={!typed || problem !== null || cloning}
 								onClick={submit}
 							>
-								{cloning ? 'cloning…' : 'connect'}
+								{cloning ? 'Cloning…' : 'Connect'}
 							</Button>
 						</span>
 					</span>
@@ -705,7 +705,7 @@ export const ReposSettings = ({
 						testId="connect-a-repo"
 						onClick={() => setAdding(true)}
 					>
-						+ connect a repo
+						+ Connect a repo
 					</Button>
 				</div>
 			)}

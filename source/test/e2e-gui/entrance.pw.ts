@@ -61,7 +61,7 @@ test('the entrance plays for view changes, not for incoming data', async ({
 	await page.getByTestId('add-issue').first().click();
 	const title = `E${Date.now()}`;
 	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByRole('button', {name: 'create', exact: true}).click();
+	await page.getByRole('button', {name: 'Create', exact: true}).click();
 	// The state carrying the ticket has landed once its title shows; the window
 	// after that is where an entrance would play if data alone triggered one.
 	await expect(page.getByText(title, {exact: true}).first()).toBeVisible();

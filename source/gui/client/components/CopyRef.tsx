@@ -53,7 +53,7 @@ export const CopyRef = ({refValue}: {refValue: string}) => {
 					: GUI_THEME.dim;
 			}}
 		>
-			{copied ? 'copied!' : refValue}
+			{copied ? 'Copied!' : refValue}
 		</button>
 	);
 };

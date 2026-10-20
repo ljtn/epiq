@@ -216,7 +216,7 @@ test('the topbar hint opens the palette', async ({
 
 	const hint = page.getByTestId('command-palette-hint');
 	await expect(hint).toBeVisible();
-	await expect(hint).toContainText('commands');
+	await expect(hint).toContainText('Commands');
 
 	await hint.click();
 	await expect(palette(page)).toBeVisible();

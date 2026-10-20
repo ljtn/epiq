@@ -94,7 +94,7 @@ const rowsFrom = (state: ContributorEmailsState): Row[] => {
 const Note = ({row}: {row: Row}) => {
 	const parts: React.ReactNode[] = [];
 
-	if (row.signsHere) parts.push('your git identity here');
+	if (row.signsHere) parts.push('Your Git identity here');
 
 	// Contested is the one state the board would otherwise show as a plain
 	// unresolved commit, and it is reachable with nobody doing anything wrong:
@@ -110,7 +110,7 @@ const Note = ({row}: {row: Row}) => {
 			</span>,
 		);
 	} else if (!row.mine && row.claimants.length === 1) {
-		parts.push(`claimed by ${row.claimants[0]}`);
+		parts.push(`Claimed by ${row.claimants[0]}`);
 	}
 
 	if (row.commits !== null) {
@@ -246,7 +246,7 @@ export const IdentityAddresses = ({
 					if (claim.press(row.email)) onLink(row.email);
 				}}
 			>
-				{armed ? 'confirm' : label}
+				{armed ? 'Confirm' : label}
 			</Button>
 		);
 	};
@@ -292,7 +292,7 @@ export const IdentityAddresses = ({
 					<Input
 						data-testid="identity-filter"
 						aria-label="Filter addresses"
-						placeholder="filter by address or name"
+						placeholder="Filter by address or name"
 						value={query}
 						onChange={event => setQuery(event.target.value)}
 						onKeyDown={event => {
@@ -320,7 +320,7 @@ export const IdentityAddresses = ({
 					</div>
 				) : (
 					<>
-						<Section title="Claimed git addresses" rows={claimedShown}>
+						<Section title="Claimed Git addresses" rows={claimedShown}>
 							{row =>
 								row.mine ? (
 									<Button
@@ -366,8 +366,8 @@ export const IdentityAddresses = ({
 						{claimedShown.length === 0 && unclaimed.length === 0 && (
 							<div style={{...META, paddingTop: 14}}>
 								{needle
-									? 'No address matches.'
-									: 'No addresses in this repository’s history yet.'}
+									? 'No address matches'
+									: 'No addresses in this repository’s history yet'}
 							</div>
 						)}
 					</>

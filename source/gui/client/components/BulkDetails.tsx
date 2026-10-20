@@ -88,7 +88,7 @@ export const BulkDetails = ({
 					{total} tickets selected
 				</div>
 				<Button variant="ghost" onClick={onClear}>
-					clear
+					Clear
 				</Button>
 			</FormHeader>
 
@@ -131,7 +131,7 @@ export const BulkDetails = ({
 				<AddRow>
 					<Input
 						value={tagName}
-						placeholder="new tag"
+						placeholder="New tag"
 						onChange={event => onChangeTagName(event.target.value)}
 						onKeyDown={event => {
 							if (event.key === 'Enter' && tagName.trim()) {
@@ -140,7 +140,7 @@ export const BulkDetails = ({
 						}}
 					/>
 					<Button onClick={() => tagName.trim() && onAddTag(tagName.trim())}>
-						add
+						Add
 					</Button>
 				</AddRow>
 			</Section>
@@ -182,7 +182,7 @@ export const BulkDetails = ({
 				<AddRow>
 					<Input
 						value={assigneeName}
-						placeholder="name of unknown contributor"
+						placeholder="Name of unknown contributor"
 						onChange={event => onChangeAssigneeName(event.target.value)}
 					/>
 				</AddRow>
@@ -192,13 +192,13 @@ export const BulkDetails = ({
 				<ChipRow>
 					{openCount > 0 && (
 						<Button onClick={onCloseIssues}>
-							close {openCount} {ticketWord(openCount)}
+							Close {openCount} {ticketWord(openCount)}
 						</Button>
 					)}
 
 					{closedCount > 0 && (
 						<Button onClick={onReopenIssues}>
-							reopen {closedCount} {ticketWord(closedCount)}
+							Reopen {closedCount} {ticketWord(closedCount)}
 						</Button>
 					)}
 				</ChipRow>

@@ -152,7 +152,7 @@ const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 const BOARD_GUTTER = 4;
 
 // A settings card's count, beside a title that already says what is counted.
-const countOrNone = (count: number) => (count === 0 ? 'none' : String(count));
+const countOrNone = (count: number) => (count === 0 ? 'None' : String(count));
 
 // How long the board has to be quiet before an open log asks for the window
 // again. A state broadcast is not a rare thing — a needle drag makes one every
@@ -1986,7 +1986,7 @@ export const App = () => {
 												),
 											})) ?? []
 										}
-										placeholder="Loading..."
+										placeholder="Loading…"
 										onSelect={selectBoard}
 										itemAction={{
 											title: 'Board details',
@@ -2515,7 +2515,7 @@ export const App = () => {
 					{createIssueModal && (
 						<CreateNodeModal
 							eyebrow="New issue"
-							placeholder="issue name"
+							placeholder="Issue name"
 							title={createIssueModal.title}
 							onChangeTitle={title =>
 								setCreateIssueModal(prev => (prev ? {...prev, title} : prev))
@@ -2528,8 +2528,8 @@ export const App = () => {
 					{renameSwimlane && (
 						<CreateNodeModal
 							eyebrow="Rename swimlane"
-							placeholder="swimlane name"
-							confirmLabel="rename"
+							placeholder="Swimlane name"
+							confirmLabel="Rename"
 							title={renameSwimlane.title}
 							onChangeTitle={title =>
 								setRenameSwimlane(prev => (prev ? {...prev, title} : prev))
@@ -2544,7 +2544,7 @@ export const App = () => {
 							eyebrow="Unsent"
 							heading="Discard what you wrote?"
 							body="This ticket has text you have not saved or sent."
-							confirmLabel="discard"
+							confirmLabel="Discard"
 							onConfirm={() => {
 								if (selectedIssue) discardTicketDrafts(selectedIssue.id);
 								leaveBlocker.proceed();
@@ -2571,7 +2571,7 @@ export const App = () => {
 									  } in it. Their history stays in the event log, but they leave the board.`
 									: 'The swimlane is empty, so nothing else goes with it.'
 							}
-							confirmLabel="delete"
+							confirmLabel="Delete"
 							onConfirm={confirmDeleteSwimlane}
 							onClose={() => setDeleteSwimlaneId(null)}
 						/>
@@ -2587,7 +2587,7 @@ export const App = () => {
 								{
 									id: 'identity',
 									title: 'User stats',
-									scope: 'your board',
+									scope: 'Your board',
 									// Who, beside how much: the title no longer says.
 									summary: [
 										state?.user
@@ -2608,7 +2608,7 @@ export const App = () => {
 								{
 									id: 'addresses',
 									title: 'Claimed Git addresses',
-									scope: 'your board',
+									scope: 'Your board',
 									summary: contributorEmails.data
 										? countOrNone(contributorEmails.data.mine.length)
 										: null,
@@ -2623,11 +2623,11 @@ export const App = () => {
 								{
 									id: 'sync',
 									title: 'Auto sync',
-									scope: 'this machine',
+									scope: 'This machine',
 									summary: syncSettings.data
 										? syncSettings.data.enabled
-											? 'on'
-											: 'off'
+											? 'On'
+											: 'Off'
 										: null,
 									content: (
 										<IdentitySettings
@@ -2639,7 +2639,7 @@ export const App = () => {
 								{
 									id: 'repos',
 									title: 'Connected repositories',
-									scope: 'shared with the project',
+									scope: 'Shared with the project',
 									summary: repos.data
 										? countOrNone(repos.data.repos.length)
 										: null,
@@ -2661,7 +2661,7 @@ export const App = () => {
 					{createBoardTitle !== null && (
 						<CreateNodeModal
 							eyebrow="New board"
-							placeholder="board name"
+							placeholder="Board name"
 							title={createBoardTitle}
 							onChangeTitle={setCreateBoardTitle}
 							onCreate={createBoard}
@@ -2672,8 +2672,8 @@ export const App = () => {
 					{renameBoard && (
 						<CreateNodeModal
 							eyebrow="Rename board"
-							placeholder="board name"
-							confirmLabel="rename"
+							placeholder="Board name"
+							confirmLabel="Rename"
 							title={renameBoard.title}
 							onChangeTitle={title =>
 								setRenameBoard(prev => (prev ? {...prev, title} : prev))
@@ -2686,7 +2686,7 @@ export const App = () => {
 					{createSwimlaneTitle !== null && (
 						<CreateNodeModal
 							eyebrow="New swimlane"
-							placeholder="swimlane name"
+							placeholder="Swimlane name"
 							title={createSwimlaneTitle}
 							onChangeTitle={setCreateSwimlaneTitle}
 							onCreate={createSwimlane}
