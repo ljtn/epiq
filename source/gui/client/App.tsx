@@ -113,6 +113,7 @@ import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
+import {useBoardOverview} from './lib/use-board-overview';
 import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
 import {useSyncSettings} from './lib/use-sync-settings';
@@ -474,6 +475,14 @@ export const App = () => {
 	});
 	const {stats: swimlaneStats, onMessage: onSwimlaneStatsMessage} =
 		useSwimlaneStats({swimlaneId: statsSwimlaneId, sendRaw});
+	const {overview: boardOverview, onMessage: onBoardOverviewMessage} =
+		useBoardOverview({
+			boardId:
+				boardDetailsOpen && state?.timeTravel?.mode !== 'scrub'
+					? selectedBoard?.id ?? null
+					: null,
+			sendRaw,
+		});
 
 	// The bar beside a card's ref. Repository-wide and asked for once, not per
 	// card and not on the board's own state: a commit is not an event the log
@@ -883,6 +892,7 @@ export const App = () => {
 		// scrubber's own commit dot opens.
 		onIssueDetailMessage(message);
 		onSwimlaneStatsMessage(message);
+		onBoardOverviewMessage(message);
 		onRefDiffStatsMessage(message);
 		onTicketPreviewMessage(message);
 
@@ -2327,6 +2337,8 @@ export const App = () => {
 								<BoardDetails
 									dock={asideDock}
 									board={selectedBoard}
+									overview={boardOverview}
+									live={state?.timeTravel?.mode !== 'scrub'}
 									onSaveDescription={text =>
 										saveNodeDescription(
 											{kind: 'board', id: selectedBoard.id},
