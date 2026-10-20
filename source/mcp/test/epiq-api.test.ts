@@ -2740,7 +2740,7 @@ describe('board and lane descriptions', () => {
 
 		expect(isFail(long)).toBe(true);
 		expect(scrub.message).toBe(
-			'Cannot edit a board description while time travelling',
+			'Cannot edit the board description while time travelling',
 		);
 		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
 	});
@@ -2774,6 +2774,38 @@ describe('board and lane descriptions', () => {
 		});
 
 		expect(moved.value).not.toHaveProperty('laneDescription');
+	});
+
+	it('stores a blank description as none, so blanking an empty one writes nothing', async () => {
+		const result = await tools.editSwimlaneDescription({
+			repoRoot: '/repo',
+			swimlaneId: 'swimlane-2',
+			description: '   \n',
+		});
+
+		expect(result.message).toBe('No changes made');
+		expect(result.value).toMatchObject({description: ''});
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
+	it('hands over the board rules on a move only when it crosses boards', async () => {
+		await withDescription('board-2', 'Ship weekly', async () => {
+			await withDescription('board-1', 'Small tickets', async () => {
+				const across = await tools.moveIssue({
+					repoRoot: '/repo',
+					issueId: fixtureId('issue-1'),
+					parentId: 'swimlane-3',
+				});
+				const within = await tools.moveIssue({
+					repoRoot: '/repo',
+					issueId: fixtureId('issue-1'),
+					parentId: 'swimlane-2',
+				});
+
+				expect(across.value).toMatchObject({boardDescription: 'Ship weekly'});
+				expect(within.value).not.toHaveProperty('boardDescription');
+			});
+		});
 	});
 
 	it('hands an agent the lane and board rules on create', async () => {

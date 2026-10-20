@@ -8,12 +8,11 @@ import {
 	MAX_ASSIGNEES_PER_CREATE,
 	MAX_ATTACHMENT_NAME_LENGTH,
 	MAX_COMMENT_LENGTH,
-	MAX_BOARD_DESCRIPTION_LENGTH,
 	MAX_DESCRIPTION_LENGTH,
-	MAX_SWIMLANE_DESCRIPTION_LENGTH,
 	MAX_TAG_NAME_LENGTH,
 	MAX_TAGS_PER_CREATE,
 	MAX_TITLE_LENGTH,
+	descriptionLimitOf,
 } from '../lib/utils/text.limits.js';
 import {
 	addIssueAssignee,
@@ -243,7 +242,7 @@ export const createMcpServer = () => {
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				swimlaneId: z.string().min(1),
-				description: z.string().max(MAX_SWIMLANE_DESCRIPTION_LENGTH),
+				description: z.string().max(descriptionLimitOf('swimlane')),
 			}),
 		},
 		exclusiveTool(editSwimlaneDescription),
@@ -257,7 +256,7 @@ export const createMcpServer = () => {
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				boardId: z.string().min(1),
-				description: z.string().max(MAX_BOARD_DESCRIPTION_LENGTH),
+				description: z.string().max(descriptionLimitOf('board')),
 			}),
 		},
 		exclusiveTool(editBoardDescription),

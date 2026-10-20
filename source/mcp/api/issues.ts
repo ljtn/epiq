@@ -569,7 +569,6 @@ const moveOne = (
 		id,
 		ref: nodeRef(id),
 		parentId: input.parentId,
-		...laneDescriptionOf(input.parentId),
 	});
 };
 
@@ -608,18 +607,40 @@ export async function moveIssue(
 	const idsResult = targetIds(input);
 	if (isFail(idsResult)) return idsResult;
 
+	// A ticket arriving from another board enters that board's rules too, which
+	// the agent last saw on assume, if at all.
+	const rulesOf = (() => {
+		const stateResult = getStateResult();
+		if (isFail(stateResult)) return () => ({});
+
+		const {nodes} = stateResult.value;
+		const boardOf = (laneId: string | null | undefined) =>
+			laneId ? nodes[laneId]?.parentNodeId : undefined;
+		const targetBoard = boardOf(input.parentId);
+		const crossesBoard = idsResult.value.some(
+			id => boardOf(nodes[id]?.parentNodeId) !== targetBoard,
+		);
+
+		return () => ({
+			...laneDescriptionOf(input.parentId),
+			...(crossesBoard ? boardDescriptionOf(targetBoard) : {}),
+		});
+	})();
+
 	const move = (id: string) =>
 		moveOne(id, input, actorResult.value, stateBranchRootResult.value);
 
-	if (!input.issueIds) return move(idsResult.value[0]!);
+	if (!input.issueIds) {
+		const moved = move(idsResult.value[0]!);
+		if (isFail(moved)) return moved;
+
+		return succeeded(moved.message, {...moved.value, ...rulesOf()});
+	}
 
 	const batch = batchResult('Moved', forEachTarget(idsResult.value, move));
 	if (isFail(batch)) return batch;
 
-	return succeeded(batch.message, {
-		...batch.value,
-		...laneDescriptionOf(input.parentId),
-	});
+	return succeeded(batch.message, {...batch.value, ...rulesOf()});
 }
 
 /**
