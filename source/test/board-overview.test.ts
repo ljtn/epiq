@@ -103,3 +103,97 @@ describe('a board overview', () => {
 		expect(empty.medianLeadTimeMs).toBeNull();
 	});
 });
+
+describe('a board overview, at its edges', () => {
+	const lanes = [
+		{id: 'todo', title: 'Todo'},
+		{id: 'review', title: 'Review'},
+	];
+	const derive = (
+		tickets: OverviewTicket[],
+		options: {formerLaneIds?: string[]; lanes?: typeof lanes} = {},
+	) =>
+		deriveBoardOverview({
+			boardId: 'board',
+			lanes: options.lanes ?? lanes,
+			formerLaneIds: options.formerLaneIds,
+			tickets,
+			now,
+		});
+
+	it('keeps work that passed through a lane deleted since', () => {
+		const closed = ticket('t', 'closed', [
+			event('add.issue', 'todo', 10, 'u'),
+			event('move.node', 'gone', 6, 'u'),
+			event('close.issue', 'closed', 2, 'u'),
+		]);
+		const result = derive([closed], {formerLaneIds: ['gone']});
+
+		expect(result.closed).toBe(1);
+		// Shown for the lanes that are left; the deleted one is not a row.
+		expect(result.laneTime.map(lane => [lane.laneId, lane.meanMs])).toEqual([
+			['todo', 4 * DAY],
+		]);
+	});
+
+	it('counts a close stamped ahead of now in this week', () => {
+		const ahead = ticket('t', 'closed', [
+			event('add.issue', 'todo', 3, 'u'),
+			event('close.issue', 'closed', -1 / 24, 'u'),
+		]);
+		const {closed, throughput} = derive([ahead]);
+
+		expect(closed).toBe(1);
+		expect(throughput.at(-1)?.closed).toBe(1);
+	});
+
+	it('counts a reopen into an earlier lane as sent back', () => {
+		const reopened = ticket('t', 'closed', [
+			event('add.issue', 'todo', 20, 'u'),
+			event('move.node', 'review', 15, 'u'),
+			event('close.issue', 'closed', 10, 'u'),
+			event('reopen.issue', 'todo', 8, 'u'),
+			event('close.issue', 'closed', 2, 'u'),
+		]);
+
+		expect(derive([reopened]).sentBackShare).toBe(1);
+	});
+
+	it('gives a close to the board it left from, not one it passed through', () => {
+		const moved = ticket('t', 'closed', [
+			event('add.issue', 'todo', 10, 'u'),
+			event('move.node', 'other-lane', 5, 'u'),
+			event('close.issue', 'closed', 2, 'u'),
+		]);
+
+		expect(derive([moved]).closed).toBe(0);
+		expect(
+			derive([moved], {lanes: [{id: 'other-lane', title: 'Other'}]}).closed,
+		).toBe(1);
+	});
+
+	it('takes the middle of an even count, and nothing of none', () => {
+		const closedAfter = (id: string, days: number) =>
+			ticket(id, 'closed', [
+				event('add.issue', 'todo', days + 1, 'u'),
+				event('close.issue', 'closed', 1, 'u'),
+			]);
+
+		expect(
+			derive([closedAfter('a', 2), closedAfter('b', 4)]).medianLeadTimeMs,
+		).toBe(3 * DAY);
+		expect(derive([]).medianLeadTimeMs).toBeNull();
+	});
+
+	it('buckets closes by calendar week, Monday first, the last holding now', () => {
+		const {throughput} = derive([]);
+
+		for (const week of throughput) {
+			const start = new Date(week.t);
+			expect(start.getDay()).toBe(1);
+			expect(start.getHours()).toBe(0);
+		}
+		expect(throughput.at(-1)!.t).toBeLessThanOrEqual(now);
+		expect(now - throughput.at(-1)!.t).toBeLessThan(7 * DAY);
+	});
+});

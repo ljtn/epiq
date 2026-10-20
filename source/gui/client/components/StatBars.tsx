@@ -164,7 +164,7 @@ export const Breakdown = ({
 							key={item.id}
 							left={
 								<Checkbox
-									testId={testId}
+									testId={testId && `${testId}-${item.id}`}
 									label={`${item.label} (${item.amount})`}
 									checked={on}
 									activeColor={item.color}
