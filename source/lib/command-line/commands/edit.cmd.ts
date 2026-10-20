@@ -4,12 +4,22 @@ import {materializeAndPersistAll} from '../../board/board-log.js';
 import {resolveActorId} from '../../board/board-log.js';
 import {CommandLineInput} from '../../model/action-map.model.js';
 import {BreadCrumb, findInBreadCrumb} from '../../model/app-state.model.js';
-import {isCommentNode, isTicketNode} from '../../model/context.model.js';
+import {
+	isBoardNode,
+	isCommentNode,
+	isSwimlaneNode,
+	isTicketNode,
+} from '../../model/context.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {FieldNames} from '../../repository/fielNames.js';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
+import {
+	MAX_BOARD_DESCRIPTION_LENGTH,
+	MAX_SWIMLANE_DESCRIPTION_LENGTH,
+	tooLong,
+} from '../../utils/text.limits.js';
 import {EditModifiers} from '../command-modifiers.js';
 import {actorOf} from '../../event/event.model.js';
 
@@ -18,9 +28,15 @@ export const editCommand = async (cmdState: CommandLineInput) => {
 	const selected = getRenderedChildren(contextNode.id)[selectedIndex];
 
 	// An explicit `description` modifier always targets the ticket in scope,
-	// even when a comment (a ticket descendant) is the selected node.
+	// even when a comment (a ticket descendant) is the selected node. With no
+	// ticket in scope it is the selected lane's or board's.
 	if (cmdState.modifier === EditModifiers.DESCRIPTION) {
-		return editInEditor();
+		const {breadCrumb, selectedNode} = getState();
+		const inTicket = [...breadCrumb, selectedNode].some(
+			node => node && isTicketNode(node),
+		);
+
+		return inTicket ? editInEditor() : editNodeDescriptionInEditor();
 	}
 
 	if (selected && isCommentNode(selected)) {
@@ -179,5 +195,52 @@ export const editInEditor = async () => {
 			},
 		],
 		persistRoot,
+	);
+};
+
+// A lane's or board's description: the conventions for work there.
+const editNodeDescriptionInEditor = async () => {
+	const userRes = resolveActorId();
+	if (isFail(userRes)) return failed('Unable to resolve user ID');
+
+	const {selectedNode: node} = getState();
+	if (!node || !(isBoardNode(node) || isSwimlaneNode(node))) {
+		return failed('Edit target must be an issue, swimlane or board');
+	}
+	if (node.readonly) return failed('Cannot edit readonly node');
+
+	const currentValue = node.props?.description ?? '';
+
+	const editResult = openEditorOnText(currentValue);
+	if (isFail(editResult)) return failed('Failed to edit field');
+
+	const updatedValue = editResult.value;
+
+	if (updatedValue === currentValue) {
+		return succeeded('No changes made', null);
+	}
+
+	const overLong = isBoardNode(node)
+		? tooLong('Board description', updatedValue, MAX_BOARD_DESCRIPTION_LENGTH)
+		: tooLong(
+				'Swimlane description',
+				updatedValue,
+				MAX_SWIMLANE_DESCRIPTION_LENGTH,
+		  );
+	if (overLong) return failed(overLong);
+
+	const persistRootResult = await getPersistRoot();
+	if (isFail(persistRootResult)) return persistRootResult;
+
+	return materializeAndPersistAll(
+		[
+			{
+				id: ulid(),
+				action: 'edit.description',
+				payload: {id: node.id, md: updatedValue},
+				...actorOf(userRes.value),
+			},
+		],
+		persistRootResult.value,
 	);
 };
