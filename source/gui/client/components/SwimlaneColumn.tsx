@@ -257,6 +257,7 @@ export const SwimlaneColumn = ({
 					{/* The lane's one panel: its description, and its figures while
 					    the board is live. */}
 					<DetailsButton
+						kind="swimlane"
 						testId="swimlane-stats-open"
 						title="Swimlane details"
 						open={statsOpen}
