@@ -2,7 +2,6 @@ import React from 'react';
 import {DropIndicator} from '../App';
 import {GuiComment, GuiIssue, GuiSwimlane} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
-import {formatDuration} from '../lib/gui-format.helper';
 import {dwellLevel, dwellOf, laneDwell} from '../lib/lane-dwell';
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
@@ -102,15 +101,6 @@ export const SwimlaneColumn = ({
 	// the cards under it are answers to the same question.
 	const now = Date.now();
 	const dwell = live ? laneDwell(swimlane.issues, now) : null;
-
-	// An empty lane has no median, and a lane filled in the last second rounds to
-	// nothing — `formatDuration` answers '' below its smallest unit. Either way
-	// the panel is still worth reaching, so the figure drops out of the title
-	// rather than the control out of the header.
-	const medianWait = dwell ? formatDuration(dwell.median) : '';
-	const statsTitle = medianWait
-		? `Swimlane details — ${medianWait} median wait time`
-		: 'Swimlane details';
 
 	const cardDwell = (ticket: GuiIssue): CardDwell | null => {
 		if (!dwell) return null;
@@ -268,9 +258,8 @@ export const SwimlaneColumn = ({
 					    the board is live. */}
 					<DetailsButton
 						testId="swimlane-stats-open"
-						title={statsTitle}
+						title="Swimlane details"
 						open={statsOpen}
-						described={Boolean(swimlane.description)}
 						onClick={event => {
 							// Stopped here, or the header's own click would take the
 							// selection with it.
