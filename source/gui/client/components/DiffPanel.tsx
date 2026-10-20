@@ -244,7 +244,7 @@ export const BinaryFileNotice = ({
 				{path}
 			</span>
 		)}
-		<span style={{flexShrink: 0}}>binary file</span>
+		<span style={{flexShrink: 0}}>Binary file</span>
 	</div>
 );
 
@@ -309,9 +309,9 @@ const PanelFile = ({
 				    reads as a bug rather than an explanation. */}
 				{isLargeDiff(file)
 					? `${diffLineCount(file).toLocaleString()} lines`
-					: 'large commit'}
+					: 'Large commit'}
 				<Button variant="ghost" onClick={() => setShown(true)}>
-					show diff
+					Show diff
 				</Button>
 			</span>
 		</div>
@@ -412,7 +412,7 @@ export const DiffPanel = ({
 
 		{loading && <Empty>Loading diff…</Empty>}
 		{!loading && error && <Empty>{error}</Empty>}
-		{!loading && !error && files?.length === 0 && <Empty>No changes.</Empty>}
+		{!loading && !error && files?.length === 0 && <Empty>No changes</Empty>}
 
 		{!loading && !error && files && (
 			<PanelFiles files={files} diffStyle={diffStyle} />

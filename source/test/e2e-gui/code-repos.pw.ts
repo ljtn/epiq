@@ -110,7 +110,7 @@ test('a repo is previewed, connected on the confirm, and brings its commits to t
 		const modal = page.getByTestId('settings-panel');
 		// The Repos card says how many are connected, the board's own not counted.
 		const summary = page.getByTestId('settings-summary-repos');
-		await expect(summary).toHaveText('none');
+		await expect(summary).toHaveText('None');
 
 		// The board's own repo is shown, and is not one of the connected rows:
 		// nothing to remove, nothing to set.
@@ -143,12 +143,12 @@ test('a repo is previewed, connected on the confirm, and brings its commits to t
 			/^(All \d+ contributors download|Everyone downloads) \d+(\.\d)? (B|KB|MB) on next sync\.$/,
 		);
 		const confirm = card.getByTestId('repo-preview-confirm');
-		await expect(confirm).toHaveText('connect');
+		await expect(confirm).toHaveText('Connect');
 
 		// Nothing is written until the confirm.
 		expect(connectedRepos(board)).toEqual([]);
 		await expect(modal.getByTestId('repo-row')).toHaveCount(0);
-		await expect(summary).toHaveText('none');
+		await expect(summary).toHaveText('None');
 
 		await confirm.click();
 		const row = modal.getByTestId('repo-row');
@@ -156,7 +156,7 @@ test('a repo is previewed, connected on the confirm, and brings its commits to t
 		await expect(card).toHaveCount(0);
 		await expect(summary).toHaveText('1');
 		// The staged clone is the repo's copy: fetched, and its size shown.
-		await expect(row.getByTestId('repo-status')).toHaveText(/^fetched /);
+		await expect(row.getByTestId('repo-status')).toHaveText(/^Fetched /);
 		await expect(row.getByTestId('repo-size')).toHaveText(
 			/^\d+(\.\d)? (B|KB|MB)$/,
 		);
@@ -203,7 +203,7 @@ test('a repo is previewed, connected on the confirm, and brings its commits to t
 		await row.getByTestId('disconnect-repo').click();
 		await row.getByTestId('disconnect-repo').click();
 		await expect(row).toHaveCount(0);
-		await expect(summary).toHaveText('none');
+		await expect(summary).toHaveText('None');
 		// The list says it; no line under it repeats it.
 		await expect(modal.getByTestId('repos-last-action')).toHaveCount(0);
 		expect(connectedRepos(board)).toEqual([]);
@@ -259,7 +259,7 @@ test('a preview whose commits name no ticket warns, and its cancel writes nothin
 		await openRepos(page);
 		await expect(modal.getByTestId('own-repo-row')).toBeVisible();
 		await expect(modal.getByTestId('repo-row')).toHaveCount(0);
-		await expect(page.getByTestId('settings-summary-repos')).toHaveText('none');
+		await expect(page.getByTestId('settings-summary-repos')).toHaveText('None');
 	});
 
 	fs.rmSync(upstream, {recursive: true, force: true});
@@ -312,7 +312,7 @@ test('a cancel while the preview clones, or closing the panel, leaves nothing', 
 		await modal.getByTestId('repo-url').fill(url);
 		await modal.getByTestId('connect-repo').click();
 		await expect(modal.getByTestId('repo-preview-pending')).toBeVisible();
-		await expect(modal.getByTestId('connect-repo')).toHaveText('cloning…');
+		await expect(modal.getByTestId('connect-repo')).toHaveText('Cloning…');
 
 		await expect.poll(() => holds.length).toBe(1);
 		await modal.getByTestId('connect-repo-cancel').click();
@@ -320,7 +320,7 @@ test('a cancel while the preview clones, or closing the panel, leaves nothing', 
 		expect(JSON.parse(cancels[0]!).payload).toEqual({url});
 		// The field is back, its URL kept, ready to send again.
 		await expect(modal.getByTestId('repo-preview-pending')).toHaveCount(0);
-		await expect(modal.getByTestId('connect-repo')).toHaveText('connect');
+		await expect(modal.getByTestId('connect-repo')).toHaveText('Connect');
 		await expect(modal.getByTestId('repo-url')).toHaveValue(url);
 
 		// The late answer is dropped: no card, no refusal, nothing kept.
@@ -434,10 +434,10 @@ test('a repo connected but never fetched shows no size, and one past the limit i
 		await expect(past).toHaveCount(1);
 		await expect(past.getByTestId('repo-url-shown')).toHaveValue(urls[20]!);
 		await expect(past.getByTestId('repo-status')).toHaveText(
-			'over limit of 20',
+			'Over limit of 20',
 		);
 		await expect(rows.first().getByTestId('repo-status')).toHaveText(
-			'not fetched yet',
+			'Not fetched yet',
 		);
 	});
 

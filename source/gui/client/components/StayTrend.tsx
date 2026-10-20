@@ -27,7 +27,7 @@ type Plotted = {x: number; y: number; point: Measured};
 const dayLabel = (t: number, now: number): string => {
 	const days = Math.round((now - t) / DAY);
 
-	if (days <= 0) return 'today';
+	if (days <= 0) return 'Today';
 
 	return `${formatDuration(days * DAY)} ago`;
 };
@@ -173,7 +173,7 @@ export const StayTrend = ({points}: {points: LaneStayPoint[]}) => {
 					fontSize={TEXT.label}
 					fontFamily="inherit"
 				>
-					median stay
+					Median stay
 				</text>
 
 				<text
@@ -259,7 +259,7 @@ export const StayTrend = ({points}: {points: LaneStayPoint[]}) => {
 					fontSize={TEXT.label}
 					fontFamily="inherit"
 				>
-					{hovered ? dayLabel(hovered.point.t, now) : 'today'}
+					{hovered ? dayLabel(hovered.point.t, now) : 'Today'}
 				</text>
 			</svg>
 		</div>

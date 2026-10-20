@@ -163,15 +163,15 @@ export const Header = ({
 						<span style={{color: GUI_THEME.dim}}>|</span>
 
 						{connection === 'connected' ? (
-							<span style={{color: GUI_THEME.dim}}>connected</span>
+							<span style={{color: GUI_THEME.dim}}>Connected</span>
 						) : connection === 'connecting' ? (
-							<span style={{color: GUI_THEME.dim}}>connecting…</span>
+							<span style={{color: GUI_THEME.dim}}>Connecting…</span>
 						) : connection === 'reconnecting' ? (
 							<span
 								data-testid="reconnecting"
 								style={{color: GUI_THEME.accent}}
 							>
-								reconnecting…
+								Reconnecting…
 							</span>
 						) : (
 							// The button alone says it: an offer to reconnect only makes
@@ -183,7 +183,7 @@ export const Header = ({
 								title="Not connected — reconnect now"
 								style={{color: GUI_THEME.red, fontSize: 10}}
 							>
-								reconnect
+								Reconnect
 							</Button>
 						)}
 

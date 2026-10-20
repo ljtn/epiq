@@ -66,7 +66,7 @@ test('double-clicking show more expands without opening the editor', async ({
 	// Expanded once and left there: the first click moved the toggle down the
 	// page, so the second landed on the text that grew into its place rather
 	// than collapsing the body again.
-	await expect(showMore).toHaveText('show less');
+	await expect(showMore).toHaveText('Show less');
 
 	expect(pageErrors).toEqual([]);
 });

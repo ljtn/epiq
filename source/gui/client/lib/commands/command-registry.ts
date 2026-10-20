@@ -187,7 +187,7 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 					id: person.id,
 					title: person.name,
 					color: person.color,
-					hint: person.isSelf ? 'you' : undefined,
+					hint: person.isSelf ? 'You' : undefined,
 				}));
 		},
 		run: (context, argument) => {

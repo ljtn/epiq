@@ -680,7 +680,7 @@ export const IssueDetails = ({
 										onClick={() => setManagingTags(true)}
 										title="Review and delete tags across the whole workspace"
 									>
-										manage tags…
+										Manage tags…
 									</Button>
 								</ChipRow>
 							)}
@@ -690,7 +690,7 @@ export const IssueDetails = ({
 									<Input
 										value={tagName}
 										autoFocus
-										placeholder="tag name"
+										placeholder="Tag name"
 										onChange={event => setTagName(event.target.value)}
 										onKeyDown={event => {
 											if (event.key === 'Enter') addTag();
@@ -701,7 +701,7 @@ export const IssueDetails = ({
 										}}
 									/>
 
-									<Button onClick={addTag}>add</Button>
+									<Button onClick={addTag}>Add</Button>
 								</AddRow>
 							)}
 						</Section>
@@ -791,7 +791,7 @@ export const IssueDetails = ({
 											onClick={() => setManagingContributors(true)}
 											title="Review and remove external contributors across the whole workspace"
 										>
-											manage contributors…
+											Manage contributors…
 										</Button>
 									</ChipRow>
 								)}
@@ -801,7 +801,7 @@ export const IssueDetails = ({
 									<Input
 										value={assigneeName}
 										autoFocus
-										placeholder="name of unknown contributor"
+										placeholder="Name of unknown contributor"
 										onChange={event => setAssigneeName(event.target.value)}
 										onKeyDown={event => {
 											if (event.key === 'Enter') addAssignee();
@@ -816,7 +816,7 @@ export const IssueDetails = ({
 										onClick={addAssignee}
 										title="Add someone who has not contributed to this board"
 									>
-										add
+										Add
 									</Button>
 								</AddRow>
 							)}
@@ -837,11 +837,11 @@ export const IssueDetails = ({
 								!issue.readonly &&
 								(issue.isClosed ? (
 									<Button onClick={() => onReopenIssue(issue.id)}>
-										reopen issue
+										Reopen issue
 									</Button>
 								) : (
 									<Button onClick={() => onCloseIssue(issue.id)}>
-										close issue
+										Close issue
 									</Button>
 								))
 							}

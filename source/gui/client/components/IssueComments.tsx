@@ -256,7 +256,7 @@ export const IssueComments = ({
 												title="Edit comment"
 												onClick={() => startEditing(comment)}
 											>
-												edit
+												Edit
 											</Button>
 										)}
 									{!readonly &&
@@ -284,7 +284,7 @@ export const IssueComments = ({
 											autoFocus
 											maxLength={Number.MAX_SAFE_INTEGER}
 											value={editing.text}
-											placeholder="write a comment"
+											placeholder="Write a comment"
 											onChange={event =>
 												setEditing({id: comment.id, text: event.target.value})
 											}
@@ -311,13 +311,13 @@ export const IssueComments = ({
 										/>
 										<ActionRow>
 											<Button variant="ghost" onClick={() => setEditing(null)}>
-												cancel
+												Cancel
 											</Button>
 											<Button
 												variant="primary"
 												onClick={() => saveEdit(comment)}
 											>
-												save
+												Save
 											</Button>
 										</ActionRow>
 									</>
@@ -344,7 +344,7 @@ export const IssueComments = ({
 						maxLength={Number.MAX_SAFE_INTEGER}
 						ref={composerRef}
 						value={body}
-						placeholder="write a comment"
+						placeholder="Write a comment"
 						onChange={event => setBody(event.target.value)}
 						onDragOver={composerImages.onDragOver}
 						onDragLeave={composerImages.onDragLeave}
@@ -401,7 +401,7 @@ export const IssueComments = ({
 						)}
 
 						<Button variant="primary" disabled={tooLong} onClick={addComment}>
-							comment
+							Comment
 						</Button>
 					</ActionRow>
 				</div>

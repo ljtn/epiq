@@ -19,7 +19,7 @@ const TRIGGER_WIDTH = 200;
 export const Dropdown = ({
 	value,
 	items,
-	placeholder = 'Select...',
+	placeholder = 'Select…',
 	onSelect,
 	testId,
 	portalInto,

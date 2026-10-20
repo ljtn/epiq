@@ -20,7 +20,7 @@ export const CreateNodeModal = ({
 	eyebrow,
 	fieldLabel,
 	placeholder,
-	confirmLabel = 'create',
+	confirmLabel = 'Create',
 	title,
 	onChangeTitle,
 	onCreate,
@@ -117,7 +117,7 @@ export const CreateNodeModal = ({
 				{/* Not a submit button: as Enter would activate it instead of the
 				    form's onSubmit. */}
 				<Button type="button" variant="ghost" onClick={onClose}>
-					cancel
+					Cancel
 				</Button>
 
 				<Button type="submit" variant="primary">

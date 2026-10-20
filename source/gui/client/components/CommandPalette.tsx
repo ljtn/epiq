@@ -78,7 +78,7 @@ export const CommandPalette = ({
 		);
 
 		return fresh && !exists
-			? [...found, {item: {...fresh, hint: 'new'}, hits: [], score: 0}]
+			? [...found, {item: {...fresh, hint: 'New'}, hits: [], score: 0}]
 			: found;
 	}, [step, query]);
 

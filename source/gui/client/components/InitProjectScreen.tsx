@@ -151,7 +151,7 @@ export const InitProjectScreen = ({
 									onClick={() => onOpen(project.root)}
 									data-testid="open-recent-project"
 								>
-									open
+									Open
 								</Button>
 							</div>
 						))}
@@ -170,7 +170,7 @@ export const InitProjectScreen = ({
 					<span style={{fontSize: 10, color: GUI_THEME.dim}}>{message}</span>
 
 					<Button variant="primary" onClick={onRetry}>
-						check again
+						Check again
 					</Button>
 				</div>
 			</div>

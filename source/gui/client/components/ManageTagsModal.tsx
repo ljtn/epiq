@@ -116,7 +116,7 @@ export const ManageTagsModal = ({tags, onDelete, onClose}: Props) => {
 										...(armed ? {border: `1px solid ${GUI_THEME.red}`} : {}),
 									}}
 								>
-									{armed && <span style={{fontSize: 10}}>confirm</span>}
+									{armed && <span style={{fontSize: 10}}>Confirm</span>}
 									<IconTrash />
 								</Button>
 							</div>
@@ -126,7 +126,7 @@ export const ManageTagsModal = ({tags, onDelete, onClose}: Props) => {
 
 				<div style={{display: 'flex', justifyContent: 'flex-end'}}>
 					<Button variant="ghost" onClick={onClose}>
-						close
+						Close
 					</Button>
 				</div>
 			</div>

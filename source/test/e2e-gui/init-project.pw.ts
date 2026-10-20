@@ -19,7 +19,7 @@ test('says the folder is not an epiq project instead of loading forever', async 
 	// How to get out of it.
 	await expect(screen).toContainText(':init');
 
-	await expect(page.getByText('Loading...')).toHaveCount(0);
+	await expect(page.getByText('Loading…')).toHaveCount(0);
 	expect(pageErrors).toEqual([]);
 });
 

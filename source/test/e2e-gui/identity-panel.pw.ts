@@ -337,12 +337,12 @@ test('the panel counts your own tickets, and the count follows the board', async
 	pageErrors,
 }) => {
 	const panel = await openPanel(page);
-	await expect(panel.getByTestId('identity-stats')).toContainText('commits');
-	await expect(panel.getByTestId('identity-stats')).toContainText('comments');
+	await expect(panel.getByTestId('identity-stats')).toContainText('Commits');
+	await expect(panel.getByTestId('identity-stats')).toContainText('Comments');
 
 	// Somebody has been here, so the board knows when they arrived.
-	await expect(panel.getByTestId('identity-stats')).not.toContainText(
-		'joined not yet',
+	await expect(panel.getByTestId('identity-stat-joined-value')).not.toHaveText(
+		'Not yet',
 	);
 
 	const before = await ticketsOpened(page);

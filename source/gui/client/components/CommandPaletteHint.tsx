@@ -74,7 +74,7 @@ export const CommandPaletteHint = ({onOpen}: {onOpen: () => void}) => {
 				<Key>{isApple() ? '⌘' : 'Ctrl'}</Key>
 				<Key>K</Key>
 			</span>
-			commands
+			Commands
 		</button>
 	);
 };

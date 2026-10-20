@@ -115,7 +115,7 @@ export const CollapsibleBody = ({
 							padding: '6px 8px 2px',
 						}}
 					>
-						{expanded ? 'show less' : 'show more'}
+						{expanded ? 'Show less' : 'Show more'}
 					</button>
 				</div>
 			)}

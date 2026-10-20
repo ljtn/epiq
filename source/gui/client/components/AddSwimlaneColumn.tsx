@@ -39,7 +39,7 @@ export const AddSwimlaneColumn = ({onClick}: {onClick: () => void}) => {
 			}}
 		>
 			<span style={{fontSize: 20, lineHeight: 1}}>+</span>
-			<span style={{fontSize: 12}}>new swimlane</span>
+			<span style={{fontSize: 12}}>New swimlane</span>
 		</button>
 	);
 };

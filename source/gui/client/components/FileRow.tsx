@@ -78,7 +78,7 @@ const DiffCommentAnnotation = ({
 				</span>
 			</div>
 			<div style={{marginTop: 4}}>
-				{meta.note || <em style={{color: GUI_THEME.dim}}>commented</em>}
+				{meta.note || <em style={{color: GUI_THEME.dim}}>Commented</em>}
 			</div>
 		</div>
 	);
@@ -157,7 +157,7 @@ const FileHeader = ({
 						title="Another ticket's commits also changed this file between these. What is shown is both tickets' work; read it on the Commits view."
 						style={{color: GUI_THEME.amber}}
 					>
-						also other tickets
+						Also other tickets
 					</Chip>
 				)}
 				{/* Findable when collapsed — otherwise a comment left on a file with
@@ -193,7 +193,7 @@ const FileHeader = ({
 							whiteSpace: 'nowrap',
 						}}
 					>
-						large diff
+						Large diff
 					</span>
 				)}
 			</button>
@@ -201,7 +201,7 @@ const FileHeader = ({
 			{/* Beside the toggle rather than inside it: ticking a file off must
 			    not also fold or unfold it by accident. */}
 			<Checkbox
-				label="reviewed"
+				label="Reviewed"
 				checked={reviewed}
 				onChange={onReviewed}
 				activeColor={GUI_THEME.green}
@@ -454,7 +454,7 @@ export const FileRow = ({
 							eyebrow="File a ticket"
 							fieldLabel={`${file.path} ${formatSelectionLabel(selection)}`}
 							placeholder="Ticket title"
-							confirmLabel="file ticket"
+							confirmLabel="File ticket"
 							title={ticketTitle}
 							onChangeTitle={setTicketTitle}
 							onCreate={fileTicket}

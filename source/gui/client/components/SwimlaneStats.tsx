@@ -118,20 +118,20 @@ export const SwimlaneStats = ({
 							<div style={statGrid(4, 2)}>
 								<Stat
 									value={formatDuration(dwell.median) || '0s'}
-									label="median stay"
+									label="Median stay"
 								/>
 								<Stat
 									value={formatDuration(dwell.max) || '0s'}
-									label="longest stay"
+									label="Longest stay"
 								/>
 								<Stat
 									value={formatDuration(dwell.mean) || '0s'}
-									label="average stay"
+									label="Average stay"
 								/>
 								{stats && (
 									<Stat
 										value={formatDuration(Date.now() - stats.createdAt) || '0s'}
-										label="lane age"
+										label="Lane age"
 										title={`Opened ${formatAbsolute(stats.createdAt)}`}
 									/>
 								)}

@@ -941,7 +941,7 @@ test('a comment line leads to the comment, not just its tab', async ({
 	const newer = `newer ${stamp}`;
 	for (const text of [older, newer]) {
 		await page.getByPlaceholder('write a comment').fill(text);
-		await page.getByRole('button', {name: 'comment', exact: true}).click();
+		await page.getByRole('button', {name: 'Comment', exact: true}).click();
 		await expect(page.locator('aside').getByText(text)).toBeVisible();
 	}
 

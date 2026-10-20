@@ -43,19 +43,19 @@ export const IdentityStats = ({state}: {state: PersonalStatsState}) => {
 				<Stat
 					size="compact"
 					testId="identity-stat-commits"
-					label="commits"
+					label="Commits"
 					value={stats.scanned ? String(stats.commits) : '—'}
 				/>
 				<Stat
 					size="compact"
 					testId="identity-stat-tickets"
-					label="tickets opened"
+					label="Tickets opened"
 					value={String(stats.tickets)}
 				/>
 				<Stat
 					size="compact"
 					testId="identity-stat-comments"
-					label="comments"
+					label="Comments"
 					value={String(stats.comments)}
 				/>
 				{/* Relative in the cell, exact on hover — the bargain every other
@@ -63,8 +63,8 @@ export const IdentityStats = ({state}: {state: PersonalStatsState}) => {
 				<Stat
 					size="compact"
 					testId="identity-stat-joined"
-					label="joined"
-					value={stats.joinedAt === null ? 'not yet' : timeAgo(stats.joinedAt)}
+					label="Joined"
+					value={stats.joinedAt === null ? 'Not yet' : timeAgo(stats.joinedAt)}
 					title={
 						stats.joinedAt === null ? undefined : formatAbsolute(stats.joinedAt)
 					}

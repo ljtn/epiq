@@ -71,7 +71,7 @@ export const DescriptionField = ({
 						testId={`${testId}-edit`}
 						onClick={draft.start}
 					>
-						edit
+						Edit
 					</Button>
 				)
 			}
@@ -124,10 +124,10 @@ export const DescriptionField = ({
 					<ActionRow>
 						{extraActions}
 						<Button variant="ghost" onClick={cancel}>
-							cancel
+							Cancel
 						</Button>
 						<Button variant="primary" testId={`${testId}-save`} onClick={save}>
-							save
+							Save
 						</Button>
 					</ActionRow>
 				</>

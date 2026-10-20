@@ -53,7 +53,7 @@ const Meta = ({preview}: {preview: TicketPreview}) => (
 		{preview.isClosed && (
 			<>
 				<span>·</span>
-				<span style={{color: GUI_THEME.green}}>closed</span>
+				<span style={{color: GUI_THEME.green}}>Closed</span>
 			</>
 		)}
 	</div>

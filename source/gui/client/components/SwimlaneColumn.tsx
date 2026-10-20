@@ -303,12 +303,12 @@ export const SwimlaneColumn = ({
 							items={[
 								{
 									id: 'rename',
-									label: 'rename',
+									label: 'Rename',
 									onSelect: () => onRenameSwimlane(swimlane.id),
 								},
 								{
 									id: 'delete',
-									label: 'delete',
+									label: 'Delete',
 									danger: true,
 									onSelect: () => onDeleteSwimlane(swimlane.id),
 								},

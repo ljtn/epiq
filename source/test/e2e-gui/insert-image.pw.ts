@@ -44,7 +44,7 @@ test('the description editor takes an image and leaves the reference at the curs
 	expect((await box.inputValue()).startsWith('before\n![')).toBe(true);
 
 	// And it survives the save, rendering as a real image.
-	await page.getByRole('button', {name: 'save', exact: true}).click();
+	await page.getByRole('button', {name: 'Save', exact: true}).click();
 	const image = page.locator('aside a[href^="/media/"] img').first();
 	await expect(image).toBeVisible();
 
@@ -73,7 +73,7 @@ test('the comment composer takes an image too', async ({
 	await page.getByTestId('comment-image-input').setInputFiles(pngFile);
 	await expect(composer).toHaveValue(MEDIA_REF, {timeout: 15_000});
 
-	await page.getByRole('button', {name: 'comment', exact: true}).click();
+	await page.getByRole('button', {name: 'Comment', exact: true}).click();
 
 	const image = page.locator('aside a[href^="/media/"] img').first();
 	await expect(image).toBeVisible();
