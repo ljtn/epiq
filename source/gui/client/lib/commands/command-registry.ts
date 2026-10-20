@@ -111,12 +111,12 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		run: context => context.handlers.renameBoard(),
 	},
 	{
-		id: 'gui:board:describe',
-		title: 'Edit board description',
+		id: 'gui:board:details',
+		title: 'Board details',
 		group: 'Board',
-		keywords: ['rules', 'conventions', 'instructions', 'about'],
-		unavailable: needsWritableBoard,
-		run: context => context.handlers.describeBoard(),
+		keywords: ['description', 'rules', 'conventions', 'instructions', 'about'],
+		unavailable: context => (context.board ? null : 'No board on screen'),
+		run: context => context.handlers.openBoardDetails(),
 	},
 	{
 		id: CmdKeywords.COMMENT,

@@ -72,7 +72,7 @@ export type CommandHandlers = {
 	createSwimlane: () => void;
 	createBoard: () => void;
 	renameBoard: () => void;
-	describeBoard: () => void;
+	openBoardDetails: () => void;
 	openRepos: () => void;
 	openSettings: () => void;
 };

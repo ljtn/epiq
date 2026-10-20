@@ -37,7 +37,7 @@ test("a lane's description is written in its panel, and marked on its header", a
 }) => {
 	const name = `Described ${Date.now()}`;
 	await addLane(page, name);
-	const marker = lane(page, name).getByTestId('swimlane-description-marker');
+	const marker = lane(page, name).getByTestId('swimlane-stats-open-marker');
 
 	// Nothing to read yet, so nothing marked.
 	await expect(marker).toHaveCount(0);
@@ -95,14 +95,14 @@ test('a half-written lane description keeps the panel open past a stray click', 
 	await page.getByTestId('swimlane-description-input').press('Escape');
 	await expect(page.getByTestId('swimlane-description-input')).toHaveCount(0);
 	await expect(
-		lane(page, name).getByTestId('swimlane-description-marker'),
+		lane(page, name).getByTestId('swimlane-stats-open-marker'),
 	).toHaveCount(0);
 
 	await deleteLane(page, name);
 	expect(pageErrors).toEqual([]);
 });
 
-test('the board on screen is described from the palette', async ({
+test("the board's description is written in its panel, opened beside the switcher", async ({
 	page,
 	pageErrors,
 }) => {
@@ -117,32 +117,38 @@ test('the board on screen is described from the palette', async ({
 	await page.getByPlaceholder('board name').press('Enter');
 	await expect(page.getByTestId('board-switcher')).toContainText(name);
 
-	await expect(page.getByTestId('board-description')).toHaveCount(0);
+	const marker = page.getByTestId('board-details-open-marker');
+	await expect(marker).toHaveCount(0);
+
+	await page.getByTestId('board-details-open').click();
+	const panel = page.getByTestId('board-details');
+	await expect(panel).toContainText('Board');
+	await expect(panel).toContainText(name);
+
+	await page.getByTestId('board-description-edit').click();
+	await page.getByTestId('board-description-input').fill('Ship **weekly**');
+	await page.getByTestId('board-description-save').click();
+	await expect(marker).toBeVisible();
+
+	// Persisted, and reached from the palette too.
+	await page.reload();
+	await expect(page.getByTestId('board-switcher')).toContainText(name);
+	await expect(marker).toBeVisible();
 
 	await page.keyboard.press('Control+k');
-	await page.keyboard.type('board description');
+	await page.keyboard.type('board details');
 	await expect(
 		page.getByTestId('command-palette').getByRole('option').first(),
-	).toContainText('Edit board description');
+	).toContainText('Board details');
 	await page.keyboard.press('Enter');
 
-	await page.getByTestId('description-modal-input').fill('Ship weekly');
+	await expect(
+		page.getByTestId('board-description-body').locator('strong'),
+	).toHaveText('weekly');
 
-	// Leaving with changes asks first; kept, the text is still there.
-	await page.keyboard.press('Escape');
-	const confirm = page.getByTestId('confirm-modal');
-	await expect(confirm).toContainText('Discard');
-	await confirm.getByRole('button', {name: 'cancel'}).click();
-	await expect(page.getByTestId('description-modal-input')).toHaveValue(
-		'Ship weekly',
-	);
-
-	await page.getByTestId('description-modal-save').click();
-
-	await page.getByTestId('board-description').click();
-	await expect(page.getByTestId('board-description-body')).toContainText(
-		'Ship weekly',
-	);
+	// The button toggles it shut, as a lane's does.
+	await page.getByTestId('board-details-open').click();
+	await expect(panel).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });

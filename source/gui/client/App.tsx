@@ -127,11 +127,8 @@ import {IdentityAddresses} from './components/IdentityPanel';
 import {IdentityStats} from './components/IdentityStats';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useDescriptionEditing} from './lib/use-description-editing';
-import {descriptionLimitOf} from '../../lib/utils/text.limits.js';
-import {
-	NodeDescriptionModal,
-	NodeDescriptionPopover,
-} from './components/NodeDescription';
+import {BoardDetails} from './components/BoardDetails';
+import {DetailsButton} from './components/NodeDetails';
 import {useBoardEditing} from './lib/use-board-editing';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
@@ -447,6 +444,8 @@ export const App = () => {
 	// the open ticket: it is a glance at a column rather than a place on the
 	// board worth linking somebody to.
 	const [statsSwimlaneId, setStatsSwimlaneId] = useState<string | null>(null);
+	// The board on screen's own panel, for the same reason.
+	const [boardDetailsOpen, setBoardDetailsOpen] = useState(false);
 
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
 
@@ -1153,9 +1152,10 @@ export const App = () => {
 		// The ticket panel renders only while no commit diff does, so a diff left
 		// open by an earlier dot click would hide the ticket just asked for.
 		setCommitDiff(null);
-		// One inspector, one subject: a lane's stats left open would hide the
-		// ticket just asked for the same way.
+		// One inspector, one subject: a lane's or the board's panel left open
+		// would hide the ticket just asked for the same way.
 		setStatsSwimlaneId(null);
+		setBoardDetailsOpen(false);
 
 		// A plain click both opens the ticket and makes it the selection, so a
 		// following modifier-click extends from it instead of starting over.
@@ -1176,7 +1176,16 @@ export const App = () => {
 		setCommitDiff(null);
 		clearPicked();
 		closeIssueDetails();
+		setBoardDetailsOpen(false);
 		setStatsSwimlaneId(current => (current === swimlaneId ? null : swimlaneId));
+	};
+
+	const toggleBoardDetails = () => {
+		setCommitDiff(null);
+		clearPicked();
+		closeIssueDetails();
+		setStatsSwimlaneId(null);
+		setBoardDetailsOpen(open => !open);
 	};
 
 	// Every ref that resolves to a real ticket, across every board — a ref
@@ -1242,6 +1251,7 @@ export const App = () => {
 		diffView?: DiffViewName,
 	) => {
 		setStatsSwimlaneId(null);
+		setBoardDetailsOpen(false);
 		setPickedIssueIds([nextIssueId]);
 		openIssueTab(nextIssueId, tab, boardSlug, diffView);
 	};
@@ -1702,13 +1712,7 @@ export const App = () => {
 		submitRenameBoard,
 	} = useBoardEditing({send, setState, selectedBoard});
 
-	const {
-		describing,
-		describe,
-		closeDescription,
-		saveDescription,
-		saveNodeDescription,
-	} = useDescriptionEditing({send, state, setState});
+	const {saveNodeDescription} = useDescriptionEditing({send, setState});
 
 	// Flattened once per state change rather than per keystroke: the palette
 	// matches over this on every character typed into its second step.
@@ -1759,8 +1763,8 @@ export const App = () => {
 			createSwimlane: () => setCreateSwimlaneTitle(''),
 			createBoard: () => setCreateBoardTitle(''),
 			renameBoard: openRenameBoard,
-			describeBoard: () => {
-				if (selectedBoard) describe({kind: 'board', id: selectedBoard.id});
+			openBoardDetails: () => {
+				if (!boardDetailsOpen) toggleBoardDetails();
 			},
 			openRepos: () => setSettings('repos'),
 			openSettings: () => setSettings('overview'),
@@ -1985,20 +1989,16 @@ export const App = () => {
 										onSelect={selectBoard}
 									/>
 								}
-								boardDescription={
-									selectedBoard?.description ? (
-										<NodeDescriptionPopover
-											testId="board-description"
-											title="Board description"
-											description={selectedBoard.description}
-											onEdit={
-												selectedBoard.readonly
-													? undefined
-													: () =>
-															describe({kind: 'board', id: selectedBoard.id})
-											}
+								boardDetails={
+									selectedBoard && (
+										<DetailsButton
+											testId="board-details-open"
+											title="Board details"
+											open={boardDetailsOpen}
+											described={Boolean(selectedBoard.description)}
+											onClick={toggleBoardDetails}
 										/>
-									) : null
+									)
 								}
 								settings={{
 									open: settingsOpen,
@@ -2111,12 +2111,16 @@ export const App = () => {
 							<main
 								// The lane panel closes on a click past it, unlike the ticket
 								// panel beside it, which deliberately stays open (see
-								// details-close.pw.ts) — unless the lane's description is
-								// half-written, which a stray click must not hide.
+								// details-close.pw.ts) — and so does the board's, unless the
+								// description is half-written, which a stray click must not
+								// hide.
 								onClick={() => {
 									clearPicked();
 									if (!statsSwimlaneId || !hasTicketDrafts(statsSwimlaneId)) {
 										setStatsSwimlaneId(null);
+									}
+									if (!selectedBoard || !hasTicketDrafts(selectedBoard.id)) {
+										setBoardDetailsOpen(false);
 									}
 								}}
 								style={{
@@ -2309,6 +2313,25 @@ export const App = () => {
 						{!theatre &&
 							!commitDiff &&
 							!statsSwimlane &&
+							boardDetailsOpen &&
+							selectedBoard && (
+								<BoardDetails
+									dock={asideDock}
+									board={selectedBoard}
+									onSaveDescription={text =>
+										saveNodeDescription(
+											{kind: 'board', id: selectedBoard.id},
+											text,
+										)
+									}
+									onClose={() => setBoardDetailsOpen(false)}
+								/>
+							)}
+
+						{!theatre &&
+							!commitDiff &&
+							!statsSwimlane &&
+							!boardDetailsOpen &&
 							pickedIssues.length > 1 && (
 								<BulkDetails
 									dock={asideDock}
@@ -2353,6 +2376,7 @@ export const App = () => {
 						{!theatre &&
 							!commitDiff &&
 							!statsSwimlane &&
+							!boardDetailsOpen &&
 							pickedIssues.length <= 1 &&
 							selectedIssue &&
 							state?.user && (
@@ -2633,18 +2657,6 @@ export const App = () => {
 							onChangeTitle={setCreateBoardTitle}
 							onCreate={createBoard}
 							onClose={() => setCreateBoardTitle(null)}
-						/>
-					)}
-
-					{describing && (
-						<NodeDescriptionModal
-							key={describing.id}
-							nodeId={describing.id}
-							eyebrow={`${describing.title} · description`}
-							current={describing.description}
-							maxLength={descriptionLimitOf(describing.kind)}
-							onSave={saveDescription}
-							onClose={closeDescription}
 						/>
 					)}
 
