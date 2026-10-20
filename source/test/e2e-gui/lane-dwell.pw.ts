@@ -40,8 +40,8 @@ test('a lane opens its own stats, and says how long its tickets have sat there',
 
 	const title = `Dwell ${Date.now()}`;
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(title);
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	// The scan below reads each header once, so the ticket has to be on the
 	// board before it runs. Scoped to the board: creating a ticket opens its

@@ -5,9 +5,9 @@ test('the board runs flush to the details panel', async ({page, appUrl}) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Gutter ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.getByRole('button', {name: 'close issue'})).toBeVisible();
+	await page.getByPlaceholder('ticket name').fill(`Gutter ${Date.now()}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
+	await expect(page.getByRole('button', {name: 'close ticket'})).toBeVisible();
 
 	// Any gap here is page background between a mid-card clip and the panel,
 	// which reads as a dark strip down the panel's edge.

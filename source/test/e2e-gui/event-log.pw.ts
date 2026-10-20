@@ -248,8 +248,8 @@ test('a line goes to where the thing it names is read', async ({
 	// the board and swimlanes, none of which happened to a ticket. So the line
 	// worth following has to be made here.
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Followed ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(`Followed ${Date.now()}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	// Filing one opens it, which is the URL under test — so the board goes back
 	// to showing no ticket before the click that has to produce it.
@@ -291,8 +291,8 @@ test('a line that leads somewhere says so under the pointer', async ({
 	// As above: the seeded board's own log is board- and swimlane-level events,
 	// so a line that leads anywhere has to be made here.
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Pointed ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(`Pointed ${Date.now()}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	await page.goto(boardUrl);
 	await page.getByTestId('log-toggle').click();
@@ -360,8 +360,8 @@ test('moving the timeline takes the log to its foot, wherever it was', async ({
 	const stamp = Date.now();
 	for (let index = 0; index < 10; index++) {
 		await page.getByTestId('add-issue').first().click();
-		await page.getByPlaceholder('issue name').fill(`Foot ${stamp}-${index}`);
-		await page.getByPlaceholder('issue name').press('Enter');
+		await page.getByPlaceholder('ticket name').fill(`Foot ${stamp}-${index}`);
+		await page.getByPlaceholder('ticket name').press('Enter');
 		await expect(page.locator('aside')).toContainText(`Foot ${stamp}-${index}`);
 	}
 	await page.goto(boardUrl);
@@ -443,8 +443,8 @@ test('an arrow left below the fold does not hold the pane open when the log empt
 	const stamp = Date.now();
 	for (let index = 0; index < 10; index++) {
 		await page.getByTestId('add-issue').first().click();
-		await page.getByPlaceholder('issue name').fill(`Arrow ${stamp}-${index}`);
-		await page.getByPlaceholder('issue name').press('Enter');
+		await page.getByPlaceholder('ticket name').fill(`Arrow ${stamp}-${index}`);
+		await page.getByPlaceholder('ticket name').press('Enter');
 		await expect(page.locator('aside')).toContainText(
 			`Arrow ${stamp}-${index}`,
 		);
@@ -860,8 +860,8 @@ test('the log pops out into its own window, and comes back when it closes', asyn
 
 	// A line worth following, as in the destination test above.
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Popped ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(`Popped ${Date.now()}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await page.goto(boardUrl);
 
 	const box = page.getByTestId('log-toggle');
@@ -925,8 +925,8 @@ test('a comment line leads to the comment, not just its tab', async ({
 	const boardUrl = page.url();
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Commented ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(`Commented ${Date.now()}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	// Two of them, so landing on one is a different outcome from landing on
 	// the tab: with a single comment the tab and the comment are the same

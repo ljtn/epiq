@@ -238,8 +238,8 @@ test('a swimlane dropped over a card still reorders', async ({
 		.filter({hasText: second})
 		.getByTestId('add-issue')
 		.click();
-	await page.getByPlaceholder('issue name').fill(ticket);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(ticket);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await expect(page.getByText(ticket, {exact: true}).first()).toBeVisible();

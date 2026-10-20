@@ -71,8 +71,8 @@ test('warns that the tickets go too, and cancelling keeps everything', async ({
 
 	const lane = page.locator('section').filter({hasText: name});
 	await lane.getByTestId('add-issue').click();
-	await page.getByPlaceholder('issue name').fill('Doomed ticket');
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill('Doomed ticket');
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page.getByText('Doomed ticket').first()).toBeVisible();
 
 	await laneMenu(page, name).click();

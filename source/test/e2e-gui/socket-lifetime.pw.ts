@@ -73,9 +73,9 @@ test('a ticket filed just before a board switch does not drag the reader back', 
 
 	await page.getByTestId('add-issue').first().click();
 	await page
-		.getByPlaceholder('issue name')
+		.getByPlaceholder('ticket name')
 		.fill(`Filed then left ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	await switchToBoard(page, 'QA');
 

@@ -17,8 +17,8 @@ const openTicketWithDescription = async (
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Overflow ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(`Overflow ${Date.now()}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page).toHaveURL(/\/issue\//);
 
 	await page.getByRole('button', {name: 'edit'}).first().click();

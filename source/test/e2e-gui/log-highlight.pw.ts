@@ -12,8 +12,8 @@ test('hovering an event log row singles that event out in the scatter', async ({
 
 	const title = `Highlight ${Date.now()}`;
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(title);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page).toHaveURL(/\/issue\//);
 	const ticketUrl = page.url();
 
@@ -50,8 +50,8 @@ test('an event with no dot on the chart leaves the scatter alone', async ({
 
 	const title = `Filtered out ${Date.now()}`;
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(title);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page).toHaveURL(/\/issue\//);
 	const ticketUrl = page.url();
 

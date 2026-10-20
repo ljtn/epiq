@@ -1682,7 +1682,7 @@ export const App = () => {
 	const createIssue = () => {
 		if (!createIssueModal) return;
 
-		const title = createIssueModal.title.trim() || 'New issue';
+		const title = createIssueModal.title.trim() || 'New ticket';
 		const parentId = createIssueModal.swimlaneId;
 
 		setCreateIssueModal(null);
@@ -1982,7 +1982,7 @@ export const App = () => {
 														(total, swimlane) => total + swimlane.issues.length,
 														0,
 													),
-													'issue',
+													'ticket',
 												),
 											})) ?? []
 										}
@@ -2514,8 +2514,8 @@ export const App = () => {
 
 					{createIssueModal && (
 						<CreateNodeModal
-							eyebrow="New issue"
-							placeholder="Issue name"
+							eyebrow="New ticket"
+							placeholder="Ticket name"
 							title={createIssueModal.title}
 							onChangeTitle={title =>
 								setCreateIssueModal(prev => (prev ? {...prev, title} : prev))

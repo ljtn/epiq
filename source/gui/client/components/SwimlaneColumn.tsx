@@ -287,7 +287,7 @@ export const SwimlaneColumn = ({
 						// reading the title afterwards finds the *next* lane's button
 						// rather than nothing.
 						testId="add-issue"
-						title="Add issue"
+						title="Add ticket"
 						disabled={swimlane.readonly}
 						onClick={() => onCreateIssue(swimlane.id)}
 					>

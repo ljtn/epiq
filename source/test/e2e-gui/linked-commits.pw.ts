@@ -24,8 +24,8 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 
 	const stamp = Date.now();
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Linked ${stamp}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(`Linked ${stamp}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page.locator('aside')).toContainText(`Linked ${stamp}`);
 
 	const ref = (

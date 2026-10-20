@@ -11,10 +11,10 @@ test('an ordinary title gets the app tooltip, not the browser one', async ({
 	page,
 	pageErrors,
 }) => {
-	await page.getByTitle('Add issue').first().hover();
+	await page.getByTitle('Add ticket').first().hover();
 
 	const tip = page.getByTestId('tooltip');
-	await expect(tip).toHaveText('Add issue');
+	await expect(tip).toHaveText('Add ticket');
 
 	// Portalled out, or a column's own `overflow: hidden` would cut it off.
 	await expect(
@@ -33,14 +33,14 @@ test('the title attribute is given back when the pointer leaves', async ({
 	page,
 	pageErrors,
 }) => {
-	const add = page.getByTitle('Add issue').first();
+	const add = page.getByTitle('Add ticket').first();
 	await add.hover();
 	await expect(page.getByTestId('tooltip')).toBeVisible();
 
 	await page.getByTestId('board-switcher').hover();
 	await expect(page.getByTestId('tooltip')).toHaveCount(0);
 
-	await expect(page.getByTitle('Add issue').first()).toBeVisible();
+	await expect(page.getByTitle('Add ticket').first()).toBeVisible();
 	await expect(
 		page.evaluate(`document.querySelectorAll('[data-epiq-tip]').length`),
 	).resolves.toBe(0);
@@ -49,14 +49,14 @@ test('the title attribute is given back when the pointer leaves', async ({
 });
 
 test('a keypress dismisses it', async ({page, pageErrors}) => {
-	await page.getByTitle('Add issue').first().hover();
+	await page.getByTitle('Add ticket').first().hover();
 	await expect(page.getByTestId('tooltip')).toBeVisible();
 
 	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('tooltip')).toHaveCount(0);
 
 	// And the attribute survives that route out too.
-	await expect(page.getByTitle('Add issue').first()).toBeVisible();
+	await expect(page.getByTitle('Add ticket').first()).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
 });
