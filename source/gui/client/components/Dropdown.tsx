@@ -1,4 +1,6 @@
 import {GUI_THEME} from '../lib/gui-theme';
+import React from 'react';
+import {IconButton} from './IconButton';
 import {Menu, MenuItem} from './Menu';
 
 type DropdownItem = {
@@ -23,6 +25,7 @@ export const Dropdown = ({
 	portalInto,
 	width = TRIGGER_WIDTH,
 	color,
+	itemAction,
 }: {
 	value?: DropdownItem | null;
 	items: DropdownItem[];
@@ -38,6 +41,16 @@ export const Dropdown = ({
 	// The label's colour, where the ground it sits on is lighter than the
 	// chrome's black and the quiet default reads too faint.
 	color?: string;
+	// A control at the far right of each row, beside the item rather than in
+	// it: the row selects, this does something else to that item.
+	itemAction?: {
+		title: string;
+		icon: React.ReactNode;
+		testId: string;
+		onAction: (id: string) => void;
+		// Lit, as a pressed control, for the item whose action is showing.
+		isOpen: (id: string) => boolean;
+	};
 }) => (
 	// Portalled: this sits in the topbar, which clips its children.
 	<Menu
@@ -56,7 +69,7 @@ export const Dropdown = ({
 			items.map(item => {
 				const selected = item.id === value?.id;
 
-				return (
+				const row = (
 					<MenuItem
 						key={item.id}
 						role="option"
@@ -84,6 +97,28 @@ export const Dropdown = ({
 							</span>
 						</span>
 					</MenuItem>
+				);
+
+				return itemAction ? (
+					<div
+						key={item.id}
+						data-testid={testId ? `${testId}-row` : undefined}
+						style={{display: 'flex', alignItems: 'center', gap: 2}}
+					>
+						<div style={{flex: 1, minWidth: 0}}>{row}</div>
+						<IconButton
+							testId={itemAction.testId}
+							title={`${itemAction.title}: ${item.label}`}
+							pressed={itemAction.isOpen(item.id)}
+							// The list stays open, so one board's details can be read
+							// after another's.
+							onClick={() => itemAction.onAction(item.id)}
+						>
+							{itemAction.icon}
+						</IconButton>
+					</div>
+				) : (
+					row
 				);
 			})
 		}

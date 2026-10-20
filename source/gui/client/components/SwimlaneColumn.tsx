@@ -5,7 +5,7 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {dwellLevel, dwellOf, laneDwell} from '../lib/lane-dwell';
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
-import {DetailsButton} from './NodeDetails';
+import {IconLaneStats} from './IconLaneStats';
 import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
@@ -256,18 +256,19 @@ export const SwimlaneColumn = ({
 
 					{/* The lane's one panel: its description, and its figures while
 					    the board is live. */}
-					<DetailsButton
-						kind="swimlane"
+					<IconButton
 						testId="swimlane-stats-open"
 						title="Swimlane details"
-						open={statsOpen}
+						pressed={statsOpen}
 						onClick={event => {
 							// Stopped here, or the header's own click would take the
 							// selection with it.
 							event.stopPropagation();
 							onOpenStats(swimlane.id);
 						}}
-					/>
+					>
+						<IconLaneStats size={ICON_SIZE} />
+					</IconButton>
 
 					{swimlane.readonly && (
 						<span
