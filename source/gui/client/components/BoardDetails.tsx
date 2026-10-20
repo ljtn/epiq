@@ -1,4 +1,4 @@
-import {MAX_BOARD_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
+import {descriptionLimitOf} from '../../../lib/utils/text.limits.js';
 import {AsideDock} from '../lib/aside-dock';
 import {GuiBoard} from '../lib/gui-state.model';
 import {useEditDraft} from '../lib/ticket-drafts';
@@ -36,7 +36,7 @@ export const BoardDetails = ({
 				draft={descriptionEdit}
 				current={board.description ?? ''}
 				readonly={board.readonly}
-				maxLength={MAX_BOARD_DESCRIPTION_LENGTH}
+				maxLength={descriptionLimitOf('board')}
 				onSave={onSaveDescription}
 				collapseKey={board.id}
 				testId="board-description"

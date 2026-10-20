@@ -16,7 +16,7 @@ import {DetailsHeader} from './NodeDetails';
 import {Section} from './Section';
 import {DescriptionField} from './DescriptionField';
 import {useEditDraft} from '../lib/ticket-drafts';
-import {MAX_SWIMLANE_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
+import {descriptionLimitOf} from '../../../lib/utils/text.limits.js';
 
 // What a column says about itself: the conventions for work in it, how long
 // things sit in it, what feeds it, where they go afterwards, and what the code
@@ -104,7 +104,7 @@ export const SwimlaneStats = ({
 				draft={descriptionEdit}
 				current={swimlane.description ?? ''}
 				readonly={swimlane.readonly || !live}
-				maxLength={MAX_SWIMLANE_DESCRIPTION_LENGTH}
+				maxLength={descriptionLimitOf('swimlane')}
 				onSave={onSaveDescription}
 				collapseKey={swimlane.id}
 				testId="swimlane-description"
