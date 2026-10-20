@@ -249,11 +249,11 @@ export const Aside = forwardRef<
 				// than as more of it.
 				...(bottom && !isFullscreen
 					? {
-							borderTop: `1px solid ${GUI_THEME.edge}`,
+							borderTop: `1px solid ${GUI_THEME.asideEdge}`,
 							boxShadow: '0 -10px 24px rgba(0, 0, 0, 0.45)',
 					  }
 					: {
-							borderLeft: `1px solid ${GUI_THEME.edge}`,
+							borderLeft: `1px solid ${GUI_THEME.asideEdge}`,
 							boxShadow: '-10px 0 24px rgba(0, 0, 0, 0.45)',
 					  }),
 				background: GUI_THEME.panel,
