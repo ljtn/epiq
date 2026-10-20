@@ -10,7 +10,7 @@ type Props = {
 	// `aria-checked="mixed"`, which is what the tick cannot say on its own.
 	// Ignored while `checked`, which is the stronger statement of the two.
 	mixed?: boolean;
-	// Colour when checked. Defaults to the accent.
+	// The box's colour when checked. Defaults to the accent.
 	activeColor?: string;
 	disabled?: boolean;
 	title?: string;
@@ -33,7 +33,10 @@ export const Checkbox = ({
 	testId,
 }: Props) => {
 	const partial = Boolean(mixed) && !checked;
-	const color = checked || partial ? activeColor : GUI_THEME.dim;
+	const on = checked || partial;
+	// The box carries the colour; the label stays in text ink, so a row of
+	// them reads as text rather than as a row of colours.
+	const color = on ? activeColor : GUI_THEME.dim;
 
 	return (
 		<label
@@ -44,7 +47,7 @@ export const Checkbox = ({
 				alignItems: 'center',
 				gap: 8,
 				fontSize: 11,
-				color,
+				color: on ? GUI_THEME.secondary : GUI_THEME.dim,
 				cursor: disabled ? 'not-allowed' : 'pointer',
 				opacity: disabled ? 0.4 : 1,
 				// A label that wraps takes the row's height with it.
