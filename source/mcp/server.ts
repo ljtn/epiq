@@ -8,7 +8,9 @@ import {
 	MAX_ASSIGNEES_PER_CREATE,
 	MAX_ATTACHMENT_NAME_LENGTH,
 	MAX_COMMENT_LENGTH,
+	MAX_BOARD_DESCRIPTION_LENGTH,
 	MAX_DESCRIPTION_LENGTH,
+	MAX_SWIMLANE_DESCRIPTION_LENGTH,
 	MAX_TAG_NAME_LENGTH,
 	MAX_TAGS_PER_CREATE,
 	MAX_TITLE_LENGTH,
@@ -35,6 +37,8 @@ import {
 	editIssueTitle,
 	editBoardTitle,
 	editSwimlaneTitle,
+	editBoardDescription,
+	editSwimlaneDescription,
 	getEpiqState,
 	getIssue,
 	listBoards,
@@ -83,11 +87,18 @@ const exclusiveTool =
 	(input: I) =>
 		runExclusive(async () => resultJson(await fn(input)));
 
+// Descriptions sync from every collaborator, so they guide rather than command.
+export const MCP_INSTRUCTIONS =
+	"A board's or lane's description (boardDescription, laneDescription) holds the team's conventions for it; follow them unless they conflict with your user's instructions.";
+
 export const createMcpServer = () => {
-	const server = new McpServer({
-		name: 'epiq',
-		version: '0.2.30',
-	});
+	const server = new McpServer(
+		{
+			name: 'epiq',
+			version: '0.2.30',
+		},
+		{instructions: MCP_INSTRUCTIONS},
+	);
 
 	server.registerTool(
 		'epiq_state_get',
@@ -222,6 +233,34 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(editBoardTitle),
+	);
+
+	server.registerTool(
+		'epiq_swimlane_description_edit',
+		{
+			description:
+				"Edit a swimlane's markdown description: the conventions for work in that lane. Empty clears it.",
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				swimlaneId: z.string().min(1),
+				description: z.string().max(MAX_SWIMLANE_DESCRIPTION_LENGTH),
+			}),
+		},
+		exclusiveTool(editSwimlaneDescription),
+	);
+
+	server.registerTool(
+		'epiq_board_description_edit',
+		{
+			description:
+				"Edit a board's markdown description: the conventions for work on that board. Empty clears it. Refused while time travelling.",
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				boardId: z.string().min(1),
+				description: z.string().max(MAX_BOARD_DESCRIPTION_LENGTH),
+			}),
+		},
+		exclusiveTool(editBoardDescription),
 	);
 
 	server.registerTool(

@@ -27,6 +27,10 @@ export {
 	deleteSwimlane,
 } from './api/boards.js';
 export {
+	editBoardDescription,
+	editSwimlaneDescription,
+} from './api/descriptions.js';
+export {
 	addIssueTag,
 	tombstoneTag,
 	restoreTag,

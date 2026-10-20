@@ -67,6 +67,11 @@ import {
 	batchResult,
 	forEachTarget,
 } from './issue-targets.js';
+import {
+	boardDescriptionOf,
+	laneDescriptionOf,
+	writeDescription,
+} from './descriptions.js';
 import {findWritableIssue, findWritableSwimlane} from './node-targets.js';
 
 type MoveIssueInput = ToolInput &
@@ -166,7 +171,8 @@ export const getIssue = async (input: GetIssueInput) => {
 		tags: getIssueTags(issue),
 		assignees: getIssueAssignees(issue),
 		comments: getIssueComments(issue.id),
-	} satisfies ApiIssueDetail);
+		...laneDescriptionOf(issue.parentNodeId),
+	} satisfies ApiIssueDetail & {laneDescription?: string});
 };
 
 const sameName = (a: string, b: string) =>
@@ -401,6 +407,10 @@ export const createIssue = async (input: CreateIssueInput) => {
 		description,
 		tags,
 		assignees,
+		...laneDescriptionOf(input.parentId),
+		...boardDescriptionOf(
+			ready.value.state.nodes[input.parentId]?.parentNodeId,
+		),
 	});
 };
 
@@ -559,6 +569,7 @@ const moveOne = (
 		id,
 		ref: nodeRef(id),
 		parentId: input.parentId,
+		...laneDescriptionOf(input.parentId),
 	});
 };
 
@@ -602,7 +613,13 @@ export async function moveIssue(
 
 	if (!input.issueIds) return move(idsResult.value[0]!);
 
-	return batchResult('Moved', forEachTarget(idsResult.value, move));
+	const batch = batchResult('Moved', forEachTarget(idsResult.value, move));
+	if (isFail(batch)) return batch;
+
+	return succeeded(batch.message, {
+		...batch.value,
+		...laneDescriptionOf(input.parentId),
+	});
 }
 
 /**
@@ -648,46 +665,14 @@ export const editIssueDescription = async (
 
 	const issueResult = findWritableIssue(input.issueId);
 	if (isFail(issueResult)) return issueResult;
-	const issue = issueResult.value;
 
-	const overLongDescription = tooLong(
-		'Issue description',
-		input.description,
-		MAX_DESCRIPTION_LENGTH,
-	);
-	if (overLongDescription) return failed(overLongDescription);
-
-	const currentDescription = issue.props.description ?? '';
-
-	if (currentDescription === input.description) {
-		return succeeded('No changes made', {
-			id: input.issueId,
-			ref: nodeRef(input.issueId),
-			description: currentDescription,
-		});
-	}
-
-	const event = {
-		id: ulid(),
-		...actorOf(ready.value.actor),
-		action: 'edit.description',
-		payload: {
-			id: input.issueId,
-			md: input.description,
-		},
-	} satisfies AppEvent<'edit.description'>;
-
-	const results = materializeAndPersistAll(
-		[event],
-		ready.value.boot.stateBranchRoot,
-	);
-
-	if (isFail(results)) return failed(results.message);
-
-	return succeeded('Edited issue description', {
-		id: input.issueId,
-		ref: nodeRef(input.issueId),
+	return writeDescription({
+		node: issueResult.value,
+		label: 'Issue description',
+		max: MAX_DESCRIPTION_LENGTH,
 		description: input.description,
+		actor: ready.value.actor,
+		stateBranchRoot: ready.value.boot.stateBranchRoot,
 	});
 };
 
