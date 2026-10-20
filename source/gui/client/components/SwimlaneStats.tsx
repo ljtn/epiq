@@ -4,13 +4,13 @@ import {GuiSwimlane} from '../lib/gui-state.model';
 import {formatAbsolute, formatDuration, plural} from '../lib/gui-format.helper';
 import {GUI_THEME} from '../lib/gui-theme';
 import {laneDwell} from '../lib/lane-dwell';
-import {percent, ROW, seriesColor, statGrid} from '../lib/issue-stats.style';
+import {ROW, seriesColor, statGrid} from '../lib/issue-stats.style';
 import {SwimlaneStatsState} from '../lib/use-swimlane-stats';
 import {Aside} from './Aside';
 import {Empty} from './FormPrimitives';
 import {DiffStat} from './DiffStat';
-import {StackedBar} from './StatBars';
-import {Stat, StatRow} from './StatRow';
+import {Breakdown} from './StatBars';
+import {Stat} from './StatRow';
 import {StayTrend} from './StayTrend';
 import {DetailsHeader} from './NodeDetails';
 import {Section} from './Section';
@@ -27,39 +27,34 @@ import {descriptionLimitOf} from '../../../lib/utils/text.limits.js';
 // is a description of how the board actually runs — and the exceptions in
 // those lists are where it does not.
 
-const FlowList = ({flows, empty}: {flows: LaneFlow[]; empty: string}) => {
+const FlowList = ({
+	laneId,
+	flows,
+	empty,
+	testId,
+}: {
+	laneId: string;
+	flows: LaneFlow[];
+	empty: string;
+	testId: string;
+}) => {
 	if (flows.length === 0) return <Empty>{empty}</Empty>;
 
 	return (
-		<>
-			{/* The same bar-then-rows the Stats tab draws its languages with: the
-			    split is a shape before it is a list of percentages, and the dots
-			    below repeat the colours so identity is never colour alone. */}
-			<StackedBar
-				segments={flows.map((flow, index) => ({
-					label: flow.title,
-					value: flow.count,
-					color: seriesColor(index),
-				}))}
-			/>
-
-			<div style={{marginTop: 12}}>
-				{flows.map((flow, index) => (
-					<StatRow
-						key={flow.laneId ?? 'filed'}
-						dot={seriesColor(index)}
-						left={flow.title}
-						last={index === flows.length - 1}
-						right={
-							<>
-								{percent(flow.share)}
-								<span style={{color: GUI_THEME.dim}}> · {flow.count}</span>
-							</>
-						}
-					/>
-				))}
-			</div>
-		</>
+		// The same bar-then-rows the Stats tab draws its languages with: the
+		// split is a shape before it is a list of percentages, and the
+		// checkboxes repeat the colours so identity is never colour alone.
+		<Breakdown
+			key={laneId}
+			testId={testId}
+			items={flows.map((flow, index) => ({
+				id: flow.laneId ?? 'filed',
+				label: flow.title,
+				value: flow.count,
+				color: seriesColor(index),
+				amount: String(flow.count),
+			}))}
+		/>
 	);
 };
 
@@ -189,6 +184,8 @@ export const SwimlaneStats = ({
 						{state?.error && <Empty>{state.error}</Empty>}
 						{stats && (
 							<FlowList
+								laneId={swimlane.id}
+								testId="lane-arrives-toggle"
 								flows={stats.arrivesFrom}
 								empty="Nothing has ever been here"
 							/>
@@ -198,6 +195,8 @@ export const SwimlaneStats = ({
 					<Section title="Usually moves on to">
 						{stats && (
 							<FlowList
+								laneId={swimlane.id}
+								testId="lane-moves-toggle"
 								flows={stats.movesOnTo}
 								empty="Nothing has left this lane yet"
 							/>
