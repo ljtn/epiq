@@ -91,33 +91,37 @@ test('a click on the board closes the lane panel', async ({
 });
 
 // Every figure on the panel is measured against now, which says nothing about
-// a board being drawn as it was at some other moment.
-test('no lane offers stats while the board is scrubbed', async ({
+// a board being drawn as it was at some other moment. The description is
+// still the lane's, as it was then, and read-only.
+test('a scrubbed lane opens its panel without figures', async ({
 	page,
 	appUrl,
 	pageErrors,
 }) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
-
-	await expect(
-		(await laneWithTickets(page)).getByTestId('swimlane-stats-open'),
-	).toBeVisible();
+	await laneWithTickets(page);
 
 	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 
-	// Near the present, so the past being drawn still has tickets on it — the
-	// assertion has to fail on an icon left behind, not on an empty board.
+	// Near the present, so the past being drawn still has tickets on it.
 	await page.mouse.click(box.x + box.width * 0.95, box.y + box.height / 2);
 	await expect(
 		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeEnabled();
 
-	await expect(
-		(await laneWithTickets(page)).getByTestId('swimlane-stats-open'),
-	).toHaveCount(0);
+	await (await laneWithTickets(page))
+		.getByTestId('swimlane-stats-open')
+		.click();
+
+	const panel = page.getByTestId('swimlane-stats');
+	await expect(panel).toBeVisible();
+	await expect(page.getByText('Description', {exact: true})).toBeVisible();
+	await expect(page.getByTestId('swimlane-description-edit')).toHaveCount(0);
+	await expect(page.getByText('median stay', {exact: true})).toHaveCount(0);
+	await expect(page.getByText('Usually arrives from')).toHaveCount(0);
 
 	await returnToLive(page);
 	expect(pageErrors).toEqual([]);
@@ -143,7 +147,7 @@ test('an empty lane still opens its stats, with no figure in the title', async (
 	await expect(header).toContainText('(0)');
 
 	const stats = header.getByTestId('swimlane-stats-open');
-	await expect(stats).toHaveAttribute('title', 'Swimlane Stats');
+	await expect(stats).toHaveAttribute('title', 'Swimlane details');
 
 	await stats.click();
 	await expect(page.getByTestId('swimlane-stats')).toBeVisible();

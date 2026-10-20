@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {CONTENT_FONT, GUI_THEME, PROSE, TEXT} from '../lib/gui-theme';
+import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
 	GuiContributor,
 	GuiUser,
@@ -28,17 +28,9 @@ import {TicketOnlyToggle} from './TicketOnlyToggle';
 import {PanelDockMenu} from './PanelDockMenu';
 import {IconCollapseLane} from './IconCollapseLane';
 import {IconExpandLane} from './IconExpandLane';
-import {
-	ActionRow,
-	AddRow,
-	ChipRow,
-	Empty,
-	Input,
-	Textarea,
-} from './FormPrimitives';
+import {AddRow, ChipRow, Empty, Input} from './FormPrimitives';
 import {IssueAttachments} from './IssueAttachments';
 import {AttachmentUploadStatus} from '../lib/use-issue-mutations';
-import {CollapsibleBody} from './CollapsibleBody';
 import {CommentBody, IssueComments} from './IssueComments';
 import {IssueCommits} from './IssueCommits';
 import {DiffViewSwitch} from './DiffViewSwitch';
@@ -50,7 +42,7 @@ import {
 	FileTicketParams,
 } from '../lib/diff-selection';
 import {parseDiffCommentMeta} from '../../../lib/utils/diff-comment.js';
-import {MarkdownContent} from './MarkdownContent';
+import {DescriptionField} from './DescriptionField';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
@@ -65,7 +57,7 @@ import {AsideDock} from '../lib/aside-dock';
 import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
-import {AUTO_GROW_MAX_HEIGHT, useAutoGrow} from '../lib/use-auto-grow';
+import {useAutoGrow} from '../lib/use-auto-grow';
 import {useEditDraft} from '../lib/ticket-drafts';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
@@ -399,13 +391,9 @@ export const IssueDetails = ({
 		issue?.description ?? '',
 	);
 	const editingTitle = titleEdit.editing;
-	const editingDescription = descriptionEdit.editing;
 	const title = titleEdit.text;
-	const description = descriptionEdit.text;
 	const setEditingTitle = (editing: boolean) =>
 		editing ? titleEdit.start() : titleEdit.stop();
-	const setEditingDescription = (editing: boolean) =>
-		editing ? descriptionEdit.start() : descriptionEdit.stop();
 	const [tagName, setTagName] = useState('');
 	const [assigneeName, setAssigneeName] = useState('');
 	const [managingContributors, setManagingContributors] = useState(false);
@@ -447,10 +435,6 @@ export const IssueDetails = ({
 	const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
 	useAutoGrow(titleTextareaRef, title, {active: editingTitle});
-	useAutoGrow(descriptionRef, description, {
-		active: editingDescription,
-		maxHeight: AUTO_GROW_MAX_HEIGHT,
-	});
 
 	useEffect(() => {
 		setTagName('');
@@ -507,19 +491,7 @@ export const IssueDetails = ({
 		setEditingTitle(false);
 	};
 
-	const saveDescription = () => {
-		if (disabled || !issue) return setEditingDescription(false);
-
-		if (descriptionEdit.changed && description !== issue.description) {
-			onEditDescription(issue.id, description);
-		}
-
-		setEditingDescription(false);
-	};
-
 	const cancelTitle = () => setEditingTitle(false);
-
-	const cancelDescription = () => setEditingDescription(false);
 
 	const addTag = () => {
 		if (disabled || !issue || !tagName.trim()) return;
@@ -608,136 +580,44 @@ export const IssueDetails = ({
 
 				const overviewPane = issue && (
 					<>
-						<Section
-							first={true}
-							title="Description"
-							action={
-								!issue.readonly &&
-								!editingDescription && (
-									<Button
-										variant="ghost"
-										onClick={() => setEditingDescription(true)}
-									>
-										edit
-									</Button>
+						<DescriptionField
+							draft={descriptionEdit}
+							current={issue.description ?? ''}
+							readonly={disabled}
+							// The primitive's default is 1500, which silently dropped
+							// the tail of anything longer — and seven descriptions on
+							// this board are already past it, written from the TUI or
+							// over MCP where no such cap applies.
+							maxLength={MAX_DESCRIPTION_LENGTH}
+							onSave={text => onEditDescription(issue.id, text)}
+							collapseKey={issue.id}
+							textareaRef={descriptionRef}
+							textareaProps={{
+								onDragOver: descriptionImages.onDragOver,
+								onDragLeave: descriptionImages.onDragLeave,
+								onDrop: descriptionImages.onDrop,
+								onPaste: descriptionImages.onPaste,
+								style: descriptionImages.dropStyle,
+							}}
+							extraActions={
+								descriptionImages.enabled && (
+									<AddImageButton
+										testId="description-image-input"
+										busy={descriptionImages.busy}
+										onPick={descriptionImages.pickFiles}
+										inputRef={descriptionImages.inputRef}
+										onInputChange={descriptionImages.onInputChange}
+									/>
 								)
 							}
 						>
-							{editingDescription ? (
-								<>
-									<Textarea
-										ref={descriptionRef}
-										value={description}
-										autoFocus
-										placeholder=""
-										// The primitive's default is 1500, which silently dropped
-										// the tail of anything longer — and seven descriptions on
-										// this board are already past it, written from the TUI or
-										// over MCP where no such cap applies.
-										maxLength={MAX_DESCRIPTION_LENGTH}
-										onChange={event =>
-											descriptionEdit.setText(event.target.value)
-										}
-										onDragOver={descriptionImages.onDragOver}
-										onDragLeave={descriptionImages.onDragLeave}
-										onDrop={descriptionImages.onDrop}
-										onPaste={descriptionImages.onPaste}
-										onKeyDown={event => {
-											if (event.key === 'Escape') return cancelDescription();
-											if (event.key !== 'Enter') return;
-
-											// Enter confirms, so Shift+Enter is what a paragraph
-											// break costs now. Cmd/Ctrl+Enter still confirms too,
-											// which is what the comment boxes take.
-											if (event.shiftKey) return;
-
-											// An IME is mid-word: Enter is choosing a candidate,
-											// not finishing the description. Committing here would
-											// close the editor on a half-typed character.
-											if (event.nativeEvent.isComposing) return;
-
-											// Or the newline lands in the value on its way out.
-											event.preventDefault();
-											saveDescription();
-										}}
-										style={{
-											...PROSE,
-											resize: 'none',
-											// The rendered box's own place and inset, so the text
-											// stays where it was and only the ground changes: a
-											// place to type, where a moment ago it was a thing read.
-											marginTop: 8,
-											padding: '8px 10px',
-											borderRadius: 8,
-											...descriptionImages.dropStyle,
-										}}
-									/>
-
-									<ActionRow>
-										{descriptionImages.enabled && (
-											<AddImageButton
-												testId="description-image-input"
-												busy={descriptionImages.busy}
-												onPick={descriptionImages.pickFiles}
-												inputRef={descriptionImages.inputRef}
-												onInputChange={descriptionImages.onInputChange}
-											/>
-										)}
-										<Button variant="ghost" onClick={cancelDescription}>
-											cancel
-										</Button>
-										<Button variant="primary" onClick={saveDescription}>
-											save
-										</Button>
-									</ActionRow>
-								</>
-							) : issue.description ? (
-								<div
-									data-testid="description-box"
-									title={issue.readonly ? undefined : 'Double-click to edit'}
-									style={{
-										marginTop: 8,
-										padding: '8px 10px',
-										background: GUI_THEME.panel2,
-										borderRadius: 8,
-									}}
-								>
-									{/* Keyed on the issue, so opening another ticket starts
-									    its description collapsed rather than inheriting the
-									    last one's expanded state. */}
-									<CollapsibleBody
-										key={issue.id}
-										testId="description-body"
-										onDoubleClick={event => {
-											if (issue.readonly) return;
-
-											// A description carries links, images and the code
-											// snippet's copy button. A double-click that landed
-											// on one of those was aimed at it, not at editing.
-											if (
-												(event.target as HTMLElement).closest(
-													'a, button, img, input, textarea, select',
-												)
-											)
-												return;
-
-											setEditingDescription(true);
-										}}
-									>
-										{parseDiffCommentMeta(issue.description) ? (
-											<CommentBody
-												body={issue.description}
-												onOpenDiffLocation={onOpenDiffLocation}
-											/>
-										) : (
-											<MarkdownContent content={issue.description} />
-										)}
-									</CollapsibleBody>
-								</div>
-							) : (
-								<Empty>No description</Empty>
-							)}
-						</Section>
+							{parseDiffCommentMeta(issue.description ?? '') ? (
+								<CommentBody
+									body={issue.description ?? ''}
+									onOpenDiffLocation={onOpenDiffLocation}
+								/>
+							) : undefined}
+						</DescriptionField>
 
 						<Section
 							title="Tags"
