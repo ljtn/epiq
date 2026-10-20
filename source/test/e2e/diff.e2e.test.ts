@@ -28,13 +28,18 @@ const run = async (tui: Tui, cmd: string, echo: string) => {
 const git = (cwd: string, args: string) =>
 	execSync(`git ${args}`, {cwd, stdio: 'ignore'});
 
-// A commit whose subject carries the ref is what links it to the ticket; one
-// that does not must stay out of the list, which is the half of the matching
-// that a passing "shows three commits" would not notice.
-const commit = (cwd: string, subject: string, file: string) => {
+// A commit whose subject carries the ref, or whose body has an Epiq-Ref line
+// naming it, is what links it to the ticket; one that does neither must stay
+// out of the list, which is the half of the matching that a passing "shows
+// three commits" would not notice.
+const commit = (cwd: string, subject: string, file: string, body?: string) => {
 	fs.writeFileSync(path.join(cwd, file), `export const a = '${file}';\n`);
 	git(cwd, 'add -A');
-	git(cwd, `commit -q --no-verify -m ${JSON.stringify(subject)}`);
+	git(
+		cwd,
+		`commit -q --no-verify -m ${JSON.stringify(subject)}` +
+			(body ? ` -m ${JSON.stringify(body)}` : ''),
+	);
 };
 
 beforeAll(async () => {
@@ -75,6 +80,7 @@ describe('TUI diff e2e', () => {
 				commit(tui.cwd, `${ref} the first thing`, 'one.ts');
 				commit(tui.cwd, 'ZZZZZZZ another ticket entirely', 'two.ts');
 				commit(tui.cwd, `${ref} the second thing`, 'three.ts');
+				commit(tui.cwd, 'the third thing', 'four.ts', `Epiq-Ref: ${ref}`);
 
 				// Into the ticket, then down to the Diff row. Every press is
 				// confirmed on the row it lands on before the next goes out, the
@@ -94,15 +100,17 @@ describe('TUI diff e2e', () => {
 
 				tui.input(ENTER);
 
-				// Both subjects, so the assertion cannot pass on a half-drawn list.
+				// Every subject, so the assertion cannot pass on a half-drawn list.
+				// The third is linked only by the Epiq-Ref line in its body.
 				const listed = await tui.waitFor(
 					frame =>
 						frame.includes('the first thing') &&
-						frame.includes('the second thing'),
+						frame.includes('the second thing') &&
+						frame.includes('the third thing'),
 					10_000,
 				);
 
-				expect(listed).toContain('Diff (2)');
+				expect(listed).toContain('Diff (3)');
 				expect(listed).toContain('o to open in your editor');
 				expect(listed).not.toContain('another ticket entirely');
 
@@ -113,8 +121,8 @@ describe('TUI diff e2e', () => {
 				// would pass whether or not the TUI was still alive.
 				tui.input('o');
 				tui.input(ARROW_DOWN);
-				const afterOpen = await tui.waitFor(/❯.*the first thing/, 6_000);
-				expect(afterOpen).toContain('Diff (2)');
+				const afterOpen = await tui.waitFor(/❯.*the second thing/, 6_000);
+				expect(afterOpen).toContain('Diff (3)');
 			} finally {
 				await tui.destroy();
 			}
@@ -455,11 +463,19 @@ describe('TUI diff e2e', () => {
 
 				tui.input(ENTER);
 
+				const issues = await listIssues({repoRoot: tui.cwd});
+				if (isFail(issues)) throw new Error(issues.message);
+				const ref = issues.value[0]?.ref;
+
+				// And how to link one, both ways, naming this ticket.
 				const empty = await tui.waitFor(
-					'No commits reference this ticket.',
+					frame =>
+						frame.includes('No commits reference this ticket.') &&
+						frame.includes('prefix on its subject.'),
 					10_000,
 				);
-				expect(empty).toContain('No commits reference this ticket.');
+				expect(empty).toContain(`Epiq-Ref: ${ref}`);
+				expect(empty).toContain('line in its body,');
 			} finally {
 				await tui.destroy();
 			}
