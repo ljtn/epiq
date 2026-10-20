@@ -1992,6 +1992,7 @@ export const App = () => {
 								boardDetails={
 									selectedBoard && (
 										<DetailsButton
+											kind="board"
 											testId="board-details-open"
 											title="Board details"
 											open={boardDetailsOpen}

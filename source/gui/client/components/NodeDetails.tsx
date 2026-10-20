@@ -1,6 +1,7 @@
 import React from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {IconButton, ICON_SIZE} from './IconButton';
+import {IconInfo} from './IconInfo';
 import {IconLaneStats} from './IconLaneStats';
 import {Button} from './Button';
 import {FormHeader} from './FormHeader';
@@ -11,18 +12,26 @@ import {FormHeader} from './FormHeader';
 
 // Opens a board's or a lane's panel.
 export const DetailsButton = ({
+	kind,
 	testId,
 	title,
 	open,
 	onClick,
 }: {
+	// A lane's figures are its point, so it wears the chart; a board's panel
+	// opens on its description, so it wears the info mark.
+	kind: 'board' | 'swimlane';
 	testId: string;
 	title: string;
 	open: boolean;
 	onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) => (
 	<IconButton testId={testId} title={title} pressed={open} onClick={onClick}>
-		<IconLaneStats size={ICON_SIZE} />
+		{kind === 'board' ? (
+			<IconInfo size={ICON_SIZE} />
+		) : (
+			<IconLaneStats size={ICON_SIZE} />
+		)}
 	</IconButton>
 );
 
