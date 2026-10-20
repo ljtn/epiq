@@ -38,8 +38,8 @@ test('arming a delete highlights the whole tag row', async ({
 	const second = `btag${stamp}`;
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Tags ${stamp}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(`Tags ${stamp}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page.locator('aside')).toContainText(`Tags ${stamp}`);
 
 	await addTag(page, first);
@@ -88,8 +88,8 @@ test("a tag chip is washed with the tag's own colour", async ({
 	const stamp = Date.now();
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Washed ${stamp}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(`Washed ${stamp}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page.locator('aside')).toContainText(`Washed ${stamp}`);
 
 	const name = `wash${stamp}`;

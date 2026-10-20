@@ -9,8 +9,8 @@ const openLanes = async (page: Page, appUrl: string) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Lanes ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(`Lanes ${Date.now()}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	await page.getByRole('button', {name: 'Fullscreen'}).click();
 	await expect(page.getByTestId('lane-commits')).toBeVisible();

@@ -46,8 +46,8 @@ test('a dragged-out zoom survives opening a ticket', async ({
 	// The board seeds no tickets, so there has to be a card to open.
 	const title = `Zoom target ${Date.now()}`;
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(title);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
 
 	// Back to the bare board, so the window dragged out below is the only
@@ -158,8 +158,8 @@ test('a paged-back window survives opening a ticket', async ({
 
 	const title = `Paged target ${Date.now()}`;
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(title);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
 
 	await page.goto(appUrl);

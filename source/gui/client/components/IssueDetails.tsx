@@ -837,11 +837,11 @@ export const IssueDetails = ({
 								!issue.readonly &&
 								(issue.isClosed ? (
 									<Button onClick={() => onReopenIssue(issue.id)}>
-										Reopen issue
+										Reopen ticket
 									</Button>
 								) : (
 									<Button onClick={() => onCloseIssue(issue.id)}>
-										Close issue
+										Close ticket
 									</Button>
 								))
 							}
@@ -1155,7 +1155,7 @@ export const IssueDetails = ({
 								)}
 							</div>
 						) : (
-							<Empty>Select an issue</Empty>
+							<Empty>Select a ticket</Empty>
 						)}
 
 						{managingContributors && (

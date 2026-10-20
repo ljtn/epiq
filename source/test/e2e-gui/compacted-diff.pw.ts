@@ -11,8 +11,8 @@ const openDiffTab = async (page: Page, appUrl: string, title: string) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(title);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page).toHaveURL(/\/issue\//);
 
 	return new URL(page.url()).pathname.split('/issue/')[1]!;
@@ -364,8 +364,8 @@ test('a board selection and the diff view survive each other', async ({
 
 	for (const name of [`Both a ${stamp}`, `Both b ${stamp}`]) {
 		await page.getByTestId('add-issue').first().click();
-		await page.getByPlaceholder('issue name').fill(name);
-		await page.getByPlaceholder('issue name').press('Enter');
+		await page.getByPlaceholder('ticket name').fill(name);
+		await page.getByPlaceholder('ticket name').press('Enter');
 		// This ticket's own panel: after the first pass the url is already an
 		// `/issue/` one, so a loose check passes before the second ticket exists
 		// and the board below is read without it.

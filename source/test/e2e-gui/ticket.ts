@@ -13,8 +13,8 @@ import type {Page} from '@playwright/test';
  */
 export const addTicket = async (page: Page, title: string) => {
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(title);
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
 };
 

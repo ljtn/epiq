@@ -21,8 +21,8 @@ const createTicket = async (
 	description: string,
 ): Promise<string> => {
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill(title);
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	// This ticket's own panel, not merely some `/issue/` url. Every test here
 	// creates two in a row, so on the second call the first ticket's url already

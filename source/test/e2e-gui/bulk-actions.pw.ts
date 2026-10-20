@@ -31,8 +31,8 @@ test('bulk actions only offer what applies to the selection', async ({
 
 	for (const title of titles) {
 		await page.getByTestId('add-issue').first().click();
-		await page.getByPlaceholder('issue name').fill(title);
-		await page.getByPlaceholder('issue name').press('Enter');
+		await page.getByPlaceholder('ticket name').fill(title);
+		await page.getByPlaceholder('ticket name').press('Enter');
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 		await page.goto(boardUrl);
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();

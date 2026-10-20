@@ -59,7 +59,7 @@ test('dragging a ticket to another swimlane moves it', async ({
 	const boardUrl = page.url();
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill('Alpha');
+	await page.getByPlaceholder('ticket name').fill('Alpha');
 	await page.getByRole('button', {name: 'Create', exact: true}).click();
 	await page.goto(boardUrl);
 	await expect(page.getByText('Alpha', {exact: true}).first()).toBeVisible();

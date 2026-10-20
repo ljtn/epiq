@@ -24,8 +24,8 @@ test('filing a ticket yourself is reaching for the board, and lets following go'
 	// the reader has started working rather than watching. The ordinary path
 	// still runs: the ticket is filed and opened as it always was.
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill('A followed ticket');
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill('A followed ticket');
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	// Both the log and the ticket panel are asides, and the log holds the
 	// ticket's name too — on the line that named it. Scoped to the one that is
@@ -122,8 +122,8 @@ test('changing a tab in the ticket panel leaves following', async ({
 	// Filing one opens the panel, which is the reliable way to have tabs to
 	// click — the board's own cards are not what `[draggable]` finds first.
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill('A ticket with tabs');
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill('A ticket with tabs');
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	const ticketPanel = page
 		.locator('aside')
@@ -159,8 +159,8 @@ test('going live opens the newest line at once', async ({
 
 	// Two, so the newest line leads somewhere other than where we then sit.
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill('The older one');
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill('The older one');
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	const ticketPanel = page
 		.locator('aside')
@@ -168,8 +168,8 @@ test('going live opens the newest line at once', async ({
 	await expect(ticketPanel).toContainText('The older one');
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill('The newest one');
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill('The newest one');
+	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(ticketPanel).toContainText('The newest one');
 
 	// Walk away from it by hand, which also leaves following if it were on.

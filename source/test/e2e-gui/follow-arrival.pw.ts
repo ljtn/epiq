@@ -87,8 +87,8 @@ test('a ticket filed by somebody else opens on a followed board', async ({
 		// Somewhere to be sitting, so the arrival below is not where the reader
 		// already is — following opens nothing it is already showing.
 		await page.getByTestId('add-issue').first().click();
-		await page.getByPlaceholder('issue name').fill('The ticket being read');
-		await page.getByPlaceholder('issue name').press('Enter');
+		await page.getByPlaceholder('ticket name').fill('The ticket being read');
+		await page.getByPlaceholder('ticket name').press('Enter');
 
 		const ticketPanel = page
 			.locator('aside')
@@ -149,8 +149,8 @@ test('a popped-out log keeps following, and moves the board', async ({
 		await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 		await page.getByTestId('add-issue').first().click();
-		await page.getByPlaceholder('issue name').fill('Read while popped out');
-		await page.getByPlaceholder('issue name').press('Enter');
+		await page.getByPlaceholder('ticket name').fill('Read while popped out');
+		await page.getByPlaceholder('ticket name').press('Enter');
 
 		const ticketPanel = page
 			.locator('aside')
@@ -252,8 +252,8 @@ test('scrubbing and coming back leaves the log able to follow', async ({
 		await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 		await page.getByTestId('add-issue').first().click();
-		await page.getByPlaceholder('issue name').fill('Still here afterwards');
-		await page.getByPlaceholder('issue name').press('Enter');
+		await page.getByPlaceholder('ticket name').fill('Still here afterwards');
+		await page.getByPlaceholder('ticket name').press('Enter');
 
 		const ticketPanel = page
 			.locator('aside')

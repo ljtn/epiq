@@ -95,9 +95,9 @@ export const InitProjectScreen = ({
 				<div
 					style={{fontSize: 12, color: GUI_THEME.secondary, lineHeight: 1.7}}
 				>
-					To start tracking issues here, run <span style={codeStyle}>epiq</span>{' '}
-					in that folder and type <span style={codeStyle}>:init</span>. That
-					creates, commits and pushes{' '}
+					To start tracking tickets here, run{' '}
+					<span style={codeStyle}>epiq</span> in that folder and type{' '}
+					<span style={codeStyle}>:init</span>. That creates, commits and pushes{' '}
 					<span style={codeStyle}>.epiq/project.json</span>. Then come back and
 					reload.
 				</div>

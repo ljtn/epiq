@@ -66,7 +66,7 @@ test('a colon typed into a field stays in the field', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	await page.getByTestId('add-issue').first().click();
-	const field = page.getByPlaceholder('issue name');
+	const field = page.getByPlaceholder('ticket name');
 	await field.fill('Fix');
 	await field.press(':');
 
@@ -87,7 +87,7 @@ test('it stays out of the way while you are typing', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	await page.getByTestId('add-issue').first().click();
-	const field = page.getByPlaceholder('issue name');
+	const field = page.getByPlaceholder('ticket name');
 	await field.fill('Typing');
 	await field.press('Control+k');
 

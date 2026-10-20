@@ -2,7 +2,7 @@ import {expect, test} from './fixtures.js';
 
 const openModal = async (page: import('@playwright/test').Page) => {
 	await page.getByTestId('add-issue').first().click();
-	await expect(page.getByPlaceholder('issue name')).toBeVisible();
+	await expect(page.getByPlaceholder('ticket name')).toBeVisible();
 };
 
 test.beforeEach(async ({page, appUrl}) => {
@@ -18,8 +18,8 @@ test('creates the ticket when Enter is pressed in the title field', async ({
 }) => {
 	await openModal(page);
 
-	await page.getByPlaceholder('issue name').fill('Enter submits');
-	await page.getByPlaceholder('issue name').press('Enter');
+	await page.getByPlaceholder('ticket name').fill('Enter submits');
+	await page.getByPlaceholder('ticket name').press('Enter');
 
 	// Creating navigates to the new ticket's details.
 	await expect(page).toHaveURL(/\/issue\//);
@@ -44,8 +44,8 @@ test('another client creating a ticket does not navigate this one', async ({
 
 	const title = `Someone else's ticket ${Date.now()}`;
 	await openModal(creator);
-	await creator.getByPlaceholder('issue name').fill(title);
-	await creator.getByPlaceholder('issue name').press('Enter');
+	await creator.getByPlaceholder('ticket name').fill(title);
+	await creator.getByPlaceholder('ticket name').press('Enter');
 
 	// The creator navigates to its new ticket.
 	await expect(creator).toHaveURL(/\/issue\//);
@@ -63,19 +63,19 @@ test('another client creating a ticket does not navigate this one', async ({
 test('cancel still closes without creating anything', async ({page}) => {
 	await openModal(page);
 
-	await page.getByPlaceholder('issue name').fill('Never created');
+	await page.getByPlaceholder('ticket name').fill('Never created');
 	await page.getByRole('button', {name: 'cancel'}).click();
 
-	await expect(page.getByPlaceholder('issue name')).toHaveCount(0);
+	await expect(page.getByPlaceholder('ticket name')).toHaveCount(0);
 	await expect(page.getByText('Never created')).toHaveCount(0);
 });
 
 test('Escape closes without creating anything', async ({page}) => {
 	await openModal(page);
 
-	await page.getByPlaceholder('issue name').fill('Escaped');
-	await page.getByPlaceholder('issue name').press('Escape');
+	await page.getByPlaceholder('ticket name').fill('Escaped');
+	await page.getByPlaceholder('ticket name').press('Escape');
 
-	await expect(page.getByPlaceholder('issue name')).toHaveCount(0);
+	await expect(page.getByPlaceholder('ticket name')).toHaveCount(0);
 	await expect(page.getByText('Escaped')).toHaveCount(0);
 });
