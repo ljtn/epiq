@@ -94,11 +94,6 @@ export const Header = ({
 						:epiq
 					</div>
 
-					{/* Read as a breadcrumb: the app, then the board it is showing. The
-					    slash is what makes the pair one phrase rather than two labels
-					    that happen to sit together. */}
-					<span style={{color: GUI_THEME.dim, fontSize: 12}}>/</span>
-
 					{board}
 				</div>
 
