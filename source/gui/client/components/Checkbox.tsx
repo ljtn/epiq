@@ -86,18 +86,20 @@ export const Checkbox = ({
 						cursor: 'inherit',
 					}}
 				/>
-				{(checked || partial) && (
-					<span
-						style={{
-							// A bar rather than the square: "some of this" has to be
-							// tellable from "all of it" at a glance, at 12px.
-							width: 6,
-							height: partial ? 2 : 6,
-							borderRadius: 1,
-							background: activeColor,
-						}}
-					/>
-				)}
+				{/* Drawn either way, hidden when empty: the box's baseline comes
+				    from what is in it, so a box that emptied would shift a row
+				    aligned on it. */}
+				<span
+					style={{
+						// A bar rather than the square: "some of this" has to be
+						// tellable from "all of it" at a glance, at 12px.
+						width: 6,
+						height: partial ? 2 : 6,
+						borderRadius: 1,
+						background: activeColor,
+						visibility: on ? 'visible' : 'hidden',
+					}}
+				/>
 			</span>
 			{label}
 		</label>
