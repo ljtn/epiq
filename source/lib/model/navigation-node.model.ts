@@ -14,6 +14,13 @@ export type TicketProps = {
 export type BoardProps = {
 	// Shorthand reference derived from the ULID tail
 	ref?: string;
+	// The board's conventions, as markdown
+	description?: string;
+};
+
+export type SwimlaneProps = {
+	// The lane's conventions, as markdown
+	description?: string;
 };
 
 export type FieldProps = {
@@ -28,7 +35,7 @@ export type TextProps = {
 export type NavNodePropsMap = {
 	WORKSPACE: EmptyProps;
 	BOARD: BoardProps;
-	SWIMLANE: EmptyProps;
+	SWIMLANE: SwimlaneProps;
 	TICKET: TicketProps;
 	FIELD: FieldProps;
 	FIELD_LIST: EmptyProps;

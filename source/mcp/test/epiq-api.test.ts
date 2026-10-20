@@ -3,7 +3,9 @@ import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
 import {REMOVED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
 import {
 	MAX_COMMENT_LENGTH,
+	MAX_BOARD_DESCRIPTION_LENGTH,
 	MAX_DESCRIPTION_LENGTH,
+	MAX_SWIMLANE_DESCRIPTION_LENGTH,
 	MAX_TAG_NAME_LENGTH,
 	MAX_TAGS_PER_CREATE,
 	MAX_TITLE_LENGTH,
@@ -2618,5 +2620,222 @@ describe('mcp tools', () => {
 		if (isFail(result)) {
 			expect(result.message).toBe('Issue is not closed');
 		}
+	});
+});
+
+describe('board and lane descriptions', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		resetContributorFixtures();
+	});
+
+	// Sets a description on a fixture node for one test, and puts it back.
+	const withDescription = async (
+		id: string,
+		description: string,
+		run: () => Promise<void>,
+	) => {
+		const node = nodes[id]!;
+		const props = node.props;
+		node.props = {...props, description} as typeof props;
+
+		try {
+			await run();
+		} finally {
+			node.props = props;
+		}
+	};
+
+	it('edits a lane description as one edit.description on the lane', async () => {
+		const result = await tools.editSwimlaneDescription({
+			repoRoot: '/repo',
+			swimlaneId: 'swimlane-2',
+			description: 'Only reviewed work',
+		});
+
+		expect(isFail(result)).toBe(false);
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'edit.description',
+					payload: {id: 'swimlane-2', md: 'Only reviewed work'},
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('edits a board description', async () => {
+		const result = await tools.editBoardDescription({
+			repoRoot: '/repo',
+			boardId: 'board-2',
+			description: 'Ship weekly',
+		});
+
+		expect(isFail(result)).toBe(false);
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'edit.description',
+					payload: {id: 'board-2', md: 'Ship weekly'},
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('writes nothing when the lane already says that', async () => {
+		await withDescription('swimlane-2', 'Same', async () => {
+			const result = await tools.editSwimlaneDescription({
+				repoRoot: '/repo',
+				swimlaneId: 'swimlane-2',
+				description: 'Same',
+			});
+
+			expect(result.message).toBe('No changes made');
+			expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+		});
+	});
+
+	it('refuses a locked lane, a ticket, and a lane over its cap', async () => {
+		const locked = await tools.editSwimlaneDescription({
+			repoRoot: '/repo',
+			swimlaneId: 'readonly-swimlane',
+			description: 'x',
+		});
+		const ticket = await tools.editSwimlaneDescription({
+			repoRoot: '/repo',
+			swimlaneId: fixtureId('issue-1'),
+			description: 'x',
+		});
+		const long = await tools.editSwimlaneDescription({
+			repoRoot: '/repo',
+			swimlaneId: 'swimlane-2',
+			description: 'x'.repeat(MAX_SWIMLANE_DESCRIPTION_LENGTH + 1),
+		});
+
+		expect(locked.message).toBe('Swimlane is readonly');
+		expect(ticket.message).toBe('Target must be a swimlane');
+		expect(isFail(long)).toBe(true);
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
+	it('refuses a board over its cap, and while time travelling', async () => {
+		const long = await tools.editBoardDescription({
+			repoRoot: '/repo',
+			boardId: 'board-2',
+			description: 'x'.repeat(MAX_BOARD_DESCRIPTION_LENGTH + 1),
+		});
+
+		vi.mocked(timeTravelModule.getTimeTravelStatus).mockReturnValueOnce({
+			mode: 'scrub',
+			asOfTime: 123,
+		});
+
+		const scrub = await tools.editBoardDescription({
+			repoRoot: '/repo',
+			boardId: 'board-2',
+			description: 'Later',
+		});
+
+		expect(isFail(long)).toBe(true);
+		expect(scrub.message).toBe(
+			'Cannot edit a board description while time travelling',
+		);
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
+	it('hands an agent the lane rules on get and move, and leaves them out where there are none', async () => {
+		await withDescription('swimlane-1', 'Tests first', async () => {
+			const got = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: fixtureId('issue-1'),
+			});
+			const moved = await tools.moveIssue({
+				repoRoot: '/repo',
+				issueId: fixtureId('issue-1'),
+				parentId: 'swimlane-1',
+			});
+			const movedMany = await tools.moveIssue({
+				repoRoot: '/repo',
+				issueIds: [fixtureId('issue-1')],
+				parentId: 'swimlane-1',
+			});
+
+			expect(got.value).toMatchObject({laneDescription: 'Tests first'});
+			expect(moved.value).toMatchObject({laneDescription: 'Tests first'});
+			expect(movedMany.value).toMatchObject({laneDescription: 'Tests first'});
+		});
+
+		const moved = await tools.moveIssue({
+			repoRoot: '/repo',
+			issueId: fixtureId('issue-1'),
+			parentId: 'swimlane-2',
+		});
+
+		expect(moved.value).not.toHaveProperty('laneDescription');
+	});
+
+	it('hands an agent the lane and board rules on create', async () => {
+		await withDescription('board-1', 'Small tickets', async () => {
+			await withDescription('swimlane-1', 'Tests first', async () => {
+				const result = await tools.createIssue({
+					repoRoot: '/repo',
+					title: 'New issue',
+					parentId: 'swimlane-1',
+				});
+
+				expect(result.value).toMatchObject({
+					laneDescription: 'Tests first',
+					boardDescription: 'Small tickets',
+				});
+			});
+		});
+	});
+
+	it('lists descriptions, and hands the board rules over on assume', async () => {
+		await withDescription('board-2', 'Ship weekly', async () => {
+			await withDescription('swimlane-2', '   ', async () => {
+				const boards = await tools.listBoards({repoRoot: '/repo'});
+				const lanes = await tools.listSwimlanes({
+					repoRoot: '/repo',
+					boardId: 'board-1',
+				});
+				const assumed = await tools.assumeActor({
+					repoRoot: '/repo',
+					name: 'Alice',
+				});
+
+				expect(boards.value).toContainEqual(
+					expect.objectContaining({id: 'board-2', description: 'Ship weekly'}),
+				);
+				expect(boards.value?.find(b => b.id === 'board-1')).not.toHaveProperty(
+					'description',
+				);
+				expect(
+					lanes.value?.find(l => l.id === 'swimlane-2'),
+				).not.toHaveProperty('description');
+				expect(assumed.value?.boards).toEqual([
+					{
+						id: 'board-2',
+						title: 'Other board',
+						boardDescription: 'Ship weekly',
+					},
+				]);
+			});
+		});
+	});
+
+	it('never matches a ticket query against a lane or board description', async () => {
+		await withDescription('swimlane-1', 'zebracorn', async () => {
+			await withDescription('board-1', 'zebracorn', async () => {
+				const result = await tools.listIssues({
+					repoRoot: '/repo',
+					query: 'zebracorn',
+				});
+
+				expect(result.value).toEqual([]);
+			});
+		});
 	});
 });

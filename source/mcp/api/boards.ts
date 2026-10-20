@@ -32,6 +32,7 @@ import {
 	getStateResult,
 	resolveRepoRoot,
 } from './boot.js';
+import {descriptionOf} from './descriptions.js';
 import {findWritableBoard, findWritableSwimlane} from './node-targets.js';
 
 type CreateBoardInput = ToolInput & {
@@ -82,6 +83,7 @@ export const listBoards = async (input: ToolInput = {}) => {
 			title: n.title,
 			parentId: n.parentNodeId,
 			readonly: Boolean(n.readonly),
+			...descriptionOf(n.id),
 		}));
 
 	return succeeded('Listed boards', boards);
@@ -215,6 +217,7 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 			boardId: n.parentNodeId,
 			isClosed: n.id === CLOSED_SWIMLANE_ID,
 			readonly: Boolean(n.readonly),
+			...descriptionOf(n.id),
 		}));
 
 	return succeeded('Listed swimlanes', swimlanes);

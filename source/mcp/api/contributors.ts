@@ -25,7 +25,9 @@ import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiAssignee} from '../api-state.model.js';
 import {ToolInput, bootedWithActorAndState} from './boot.js';
+import {boardDescriptionOf} from './descriptions.js';
 import {findWritableIssue} from './node-targets.js';
+import {isBoardNode} from '../../lib/model/context.model.js';
 
 type AddIssueAssigneeInput = ToolInput & {
 	issueId: string;
@@ -53,7 +55,14 @@ type RemoveIssueAssigneeInput = ToolInput & {
  */
 export const assumeActor = async (
 	input: ToolInput & {name: string},
-): Promise<Result<{userId: string; userName: string; registered: boolean}>> => {
+): Promise<
+	Result<{
+		userId: string;
+		userName: string;
+		registered: boolean;
+		boards?: {id: string; title: string; boardDescription: string}[];
+	}>
+> => {
 	const applied = applyActorNameArgument(input.name, 'name');
 	if (isFail(applied)) return failed(applied.message);
 
@@ -83,9 +92,20 @@ export const assumeActor = async (
 		if (isFail(results)) return failed(results.message);
 	}
 
+	// The conventions an agent works under, handed over when it arrives.
+	const boards = Object.values(ready.value.state.nodes)
+		.filter(n => isBoardNode(n) && !n.isDeleted)
+		.flatMap(n => {
+			const {boardDescription} = boardDescriptionOf(n.id);
+			return boardDescription
+				? [{id: n.id, title: sanitizeInlineText(n.title), boardDescription}]
+				: [];
+		});
+
 	return succeeded(`Assumed ${actor.userName}`, {
 		...actor,
 		registered: !isRegistered,
+		...(boards.length ? {boards} : {}),
 	});
 };
 

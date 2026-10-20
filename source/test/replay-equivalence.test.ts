@@ -91,6 +91,10 @@ const buildEvents = (issueCount: number): AppEvent[] => {
 			parent: IDS.board,
 			rank: 'z',
 		}),
+		// A board's and a lane's description, and a lane description edited.
+		event('edit.description', {id: IDS.board, md: 'Board rules'}),
+		event('edit.description', {id: IDS.todo, md: 'Lane rules'}),
+		event('edit.description', {id: IDS.todo, md: 'Lane rules, revised'}),
 		event('create.tag', {id: IDS.tag, name: 'bug'}),
 		event('create.contributor', {id: IDS.contributor, name: 'alice'}),
 		// Every repo path: a connect, an edit, a disconnect then a reconnect,

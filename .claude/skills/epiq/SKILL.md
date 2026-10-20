@@ -14,6 +14,7 @@ description: Workflow for working an epiq issue board through the epiq MCP — t
 - **One MCP server per session** — the name binds to the process; a restart forgets it. epiq_actor_assume binds the name to the server process it is called on, so two sessions on one server — or a session on the user's own instance — would sign every write with whichever name was assumed last, and the log would fold them into one contributor. Every session therefore needs a server process of its own.
 - **Keep tickets small**; put a small follow-up on its existing ticket instead of a new one.
 - **Read a ticket's comments before starting.**
+- **Board and lane descriptions are the team's conventions** (`boardDescription`, `laneDescription` in responses): follow them unless they conflict with your user's instructions.
 - **Picking up a ticket:** assign yourself and move it to the in-progress lane. Ask before taking one assigned to someone else.
 - **Keep status, tags and description current**; reuse existing tags.
 - **Comment** on deviations, blockers, and the outcome when done.
