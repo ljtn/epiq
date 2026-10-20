@@ -1,5 +1,17 @@
 import {expect, test} from './fixtures.js';
+import type {Page} from '@playwright/test';
 import {addTicket} from './ticket.js';
+
+// From the board's row in the switcher, then out of the switcher.
+const openDefaultBoardDetails = async (page: Page) => {
+	await page.getByTestId('board-switcher').click();
+	await page
+		.getByTestId('board-switcher-row')
+		.filter({hasText: 'Default'})
+		.getByTestId('board-details-open')
+		.click();
+	await page.keyboard.press('Escape');
+};
 
 test("the board's panel says how the board runs", async ({
 	page,
@@ -9,7 +21,7 @@ test("the board's panel says how the board runs", async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTestId('board-details-open').click();
+	await openDefaultBoardDetails(page);
 	const panel = page.locator('aside');
 
 	await expect(panel.getByText(/^Flow,/)).toBeVisible();
@@ -34,7 +46,7 @@ test('time per lane counts only the lanes ticked, the last left out to start', a
 	await page.getByRole('button', {name: 'close ticket'}).click();
 	await expect(page.getByRole('button', {name: 'reopen ticket'})).toBeVisible();
 
-	await page.getByTestId('board-details-open').click();
+	await openDefaultBoardDetails(page);
 	const toggles = page.locator('[data-testid^="board-lane-time-toggle-"]');
 	await expect(toggles.first()).toBeVisible();
 
