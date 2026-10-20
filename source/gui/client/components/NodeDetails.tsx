@@ -9,42 +9,21 @@ import {FormHeader} from './FormHeader';
 // it. Kin to a ticket's panel, and named for what it belongs to so it is not
 // read as one.
 
-// Opens a board's or a lane's panel. A dot says it has a description: the
-// conventions agents are handed there, worth reading before working in it.
+// Opens a board's or a lane's panel.
 export const DetailsButton = ({
 	testId,
 	title,
 	open,
-	described,
 	onClick,
 }: {
 	testId: string;
 	title: string;
 	open: boolean;
-	described: boolean;
 	onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) => (
-	<span style={{position: 'relative', display: 'flex'}}>
-		<IconButton testId={testId} title={title} pressed={open} onClick={onClick}>
-			<IconLaneStats size={ICON_SIZE} />
-		</IconButton>
-
-		{described && (
-			<span
-				data-testid={`${testId}-marker`}
-				style={{
-					position: 'absolute',
-					top: 2,
-					right: 2,
-					width: 5,
-					height: 5,
-					borderRadius: 999,
-					background: GUI_THEME.accent,
-					pointerEvents: 'none',
-				}}
-			/>
-		)}
-	</span>
+	<IconButton testId={testId} title={title} pressed={open} onClick={onClick}>
+		<IconLaneStats size={ICON_SIZE} />
+	</IconButton>
 );
 
 export const DetailsHeader = ({

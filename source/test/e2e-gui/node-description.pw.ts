@@ -31,30 +31,24 @@ test.beforeEach(async ({page, appUrl}) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 });
 
-test("a lane's description is written in its panel, and marked on its header", async ({
+test("a lane's description is written in its panel", async ({
 	page,
 	pageErrors,
 }) => {
 	const name = `Described ${Date.now()}`;
 	await addLane(page, name);
-	const marker = lane(page, name).getByTestId('swimlane-stats-open-marker');
-
-	// Nothing to read yet, so nothing marked.
-	await expect(marker).toHaveCount(0);
-
 	await openLanePanel(page, name);
 	await expect(page.getByTestId('swimlane-stats')).toContainText('Swimlane');
+	await expect(page.getByText('No description', {exact: true})).toBeVisible();
 	await page.getByTestId('swimlane-description-edit').click();
 	await page
 		.getByTestId('swimlane-description-input')
 		.fill('**Tests** before review');
 	await page.getByTestId('swimlane-description-save').click();
-	await expect(marker).toBeVisible();
 
 	// Persisted, not just the optimistic copy.
 	await page.reload();
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
-	await expect(marker).toBeVisible();
 
 	await openLanePanel(page, name);
 	const body = page.getByTestId('swimlane-description-body');
@@ -66,10 +60,10 @@ test("a lane's description is written in its panel, and marked on its header", a
 		'**Tests** before review',
 	);
 
-	// Emptied, the marker goes with it.
+	// Emptied, it reads as none.
 	await page.getByTestId('swimlane-description-input').fill('');
 	await page.getByTestId('swimlane-description-save').click();
-	await expect(marker).toHaveCount(0);
+	await expect(page.getByText('No description', {exact: true})).toBeVisible();
 
 	await deleteLane(page, name);
 	expect(pageErrors).toEqual([]);
@@ -94,9 +88,7 @@ test('a half-written lane description keeps the panel open past a stray click', 
 	// Escape drops the edit, as a ticket's does, and writes nothing.
 	await page.getByTestId('swimlane-description-input').press('Escape');
 	await expect(page.getByTestId('swimlane-description-input')).toHaveCount(0);
-	await expect(
-		lane(page, name).getByTestId('swimlane-stats-open-marker'),
-	).toHaveCount(0);
+	await expect(page.getByText('No description', {exact: true})).toBeVisible();
 
 	await deleteLane(page, name);
 	expect(pageErrors).toEqual([]);
@@ -117,9 +109,6 @@ test("the board's description is written in its panel, opened beside the switche
 	await page.getByPlaceholder('board name').press('Enter');
 	await expect(page.getByTestId('board-switcher')).toContainText(name);
 
-	const marker = page.getByTestId('board-details-open-marker');
-	await expect(marker).toHaveCount(0);
-
 	await page.getByTestId('board-details-open').click();
 	const panel = page.getByTestId('board-details');
 	await expect(panel).toContainText('Board');
@@ -128,12 +117,10 @@ test("the board's description is written in its panel, opened beside the switche
 	await page.getByTestId('board-description-edit').click();
 	await page.getByTestId('board-description-input').fill('Ship **weekly**');
 	await page.getByTestId('board-description-save').click();
-	await expect(marker).toBeVisible();
 
 	// Persisted, and reached from the palette too.
 	await page.reload();
 	await expect(page.getByTestId('board-switcher')).toContainText(name);
-	await expect(marker).toBeVisible();
 
 	await page.keyboard.press('Control+k');
 	await page.keyboard.type('board details');

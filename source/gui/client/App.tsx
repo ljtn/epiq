@@ -1995,7 +1995,6 @@ export const App = () => {
 											testId="board-details-open"
 											title="Board details"
 											open={boardDetailsOpen}
-											described={Boolean(selectedBoard.description)}
 											onClick={toggleBoardDetails}
 										/>
 									)

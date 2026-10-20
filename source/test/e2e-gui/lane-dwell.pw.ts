@@ -127,10 +127,9 @@ test('a scrubbed lane opens its panel without figures', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// A board nobody has filled yet still has to offer its lanes' stats. The
-// median is what goes missing, not the way in — and the title says so rather
-// than quoting an empty figure.
-test('an empty lane still opens its stats, with no figure in the title', async ({
+// A board nobody has filled yet still has to offer its lanes' panels: the
+// median is what goes missing, not the way in.
+test('an empty lane still opens its panel', async ({
 	page,
 	appUrl,
 	pageErrors,
