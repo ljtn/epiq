@@ -17,6 +17,16 @@ export const MAX_DESCRIPTION_LENGTH = 20_000;
 // there, so it stays a page of conventions, not a document.
 export const MAX_SWIMLANE_DESCRIPTION_LENGTH = 2000;
 export const MAX_BOARD_DESCRIPTION_LENGTH = 4000;
+
+export const descriptionLimitOf = (kind: 'board' | 'swimlane'): number =>
+	kind === 'board'
+		? MAX_BOARD_DESCRIPTION_LENGTH
+		: MAX_SWIMLANE_DESCRIPTION_LENGTH;
+
+// Blank reads as no description everywhere, so it is stored as none.
+export const normalizeDescription = (description: string): string =>
+	description.trim() ? description : '';
+
 export const MAX_TAG_NAME_LENGTH = 60;
 export const MAX_ASSIGNEE_NAME_LENGTH = 80;
 export const MAX_ATTACHMENT_NAME_LENGTH = 200;

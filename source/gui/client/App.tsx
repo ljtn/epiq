@@ -126,10 +126,8 @@ import {actorDisplay} from './lib/agent-identity';
 import {IdentityAddresses} from './components/IdentityPanel';
 import {IdentityStats} from './components/IdentityStats';
 import {useIssueMutations} from './lib/use-issue-mutations';
-import {
-	DESCRIPTION_LIMITS,
-	useDescriptionEditing,
-} from './lib/use-description-editing';
+import {useDescriptionEditing} from './lib/use-description-editing';
+import {descriptionLimitOf} from '../../lib/utils/text.limits.js';
 import {
 	NodeDescriptionModal,
 	NodeDescriptionPopover,
@@ -2638,7 +2636,7 @@ export const App = () => {
 							nodeId={describing.id}
 							eyebrow={`${describing.title} · description`}
 							current={describing.description}
-							maxLength={DESCRIPTION_LIMITS[describing.kind]}
+							maxLength={descriptionLimitOf(describing.kind)}
 							onSave={saveDescription}
 							onClose={closeDescription}
 						/>

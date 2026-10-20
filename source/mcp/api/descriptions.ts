@@ -15,8 +15,8 @@ import {
 	succeeded,
 } from '../../lib/model/result-types.js';
 import {
-	MAX_BOARD_DESCRIPTION_LENGTH,
-	MAX_SWIMLANE_DESCRIPTION_LENGTH,
+	descriptionLimitOf,
+	normalizeDescription,
 	tooLong,
 } from '../../lib/utils/text.limits.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
@@ -87,7 +87,7 @@ export const writeDescription = ({
 	node,
 	label,
 	max,
-	description,
+	description: given,
 	actor,
 	stateBranchRoot,
 }: {
@@ -98,12 +98,15 @@ export const writeDescription = ({
 	actor: Actor;
 	stateBranchRoot: string;
 }): Result<DescriptionEdit> => {
+	const description = normalizeDescription(given);
 	const overLong = tooLong(label, description, max);
 	if (overLong) return failed(overLong);
 
 	// A board is never forced readonly by a scrub, so the guard is here.
 	if (getTimeTravelStatus().mode !== 'live') {
-		return failed(`Cannot edit a ${label.toLowerCase()} while time travelling`);
+		return failed(
+			`Cannot edit the ${label.toLowerCase()} while time travelling`,
+		);
 	}
 
 	const edit = {id: node.id, ref: nodeRef(node.id), description};
@@ -137,7 +140,7 @@ export const editBoardDescription = async (
 	return writeDescription({
 		node: boardResult.value,
 		label: 'Board description',
-		max: MAX_BOARD_DESCRIPTION_LENGTH,
+		max: descriptionLimitOf('board'),
 		description: input.description,
 		actor: ready.value.actor,
 		stateBranchRoot: ready.value.boot.stateBranchRoot,
@@ -156,7 +159,7 @@ export const editSwimlaneDescription = async (
 	return writeDescription({
 		node: laneResult.value,
 		label: 'Swimlane description',
-		max: MAX_SWIMLANE_DESCRIPTION_LENGTH,
+		max: descriptionLimitOf('swimlane'),
 		description: input.description,
 		actor: ready.value.actor,
 		stateBranchRoot: ready.value.boot.stateBranchRoot,

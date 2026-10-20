@@ -3,19 +3,14 @@
 
 import {Dispatch, SetStateAction, useState} from 'react';
 import {
-	MAX_BOARD_DESCRIPTION_LENGTH,
-	MAX_SWIMLANE_DESCRIPTION_LENGTH,
+	descriptionLimitOf,
+	normalizeDescription,
 } from '../../../lib/utils/text.limits.js';
 import {updateSwimlaneInGuiState} from './gui-state-helper';
 import {GuiState} from './gui-state.model';
 import {BoardSocketActions} from './use-board-socket';
 
 export type DescribedNode = {kind: 'board' | 'swimlane'; id: string};
-
-export const DESCRIPTION_LIMITS = {
-	board: MAX_BOARD_DESCRIPTION_LENGTH,
-	swimlane: MAX_SWIMLANE_DESCRIPTION_LENGTH,
-} as const;
 
 export const useDescriptionEditing = ({
 	send,
@@ -44,11 +39,12 @@ export const useDescriptionEditing = ({
 			: null;
 	})();
 
-	const saveDescription = (description: string) => {
+	const saveDescription = (text: string) => {
 		if (!target) return;
 
 		const {kind, id} = target;
-		const next = description.trim() ? description : undefined;
+		const description = normalizeDescription(text);
+		const next = description || undefined;
 
 		setDescribing(null);
 

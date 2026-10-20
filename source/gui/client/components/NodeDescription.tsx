@@ -155,7 +155,7 @@ export const NodeDescriptionModal = ({
 				<Textarea
 					autoFocus
 					data-testid="description-modal-input"
-					placeholder="Conventions for this, in markdown"
+					placeholder="Conventions, in markdown"
 					maxLength={maxLength}
 					value={edit.text}
 					onChange={event => edit.setText(event.target.value)}

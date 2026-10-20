@@ -16,8 +16,8 @@ import {nodeRepo} from '../../repository/node-repo.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
 import {
-	MAX_BOARD_DESCRIPTION_LENGTH,
-	MAX_SWIMLANE_DESCRIPTION_LENGTH,
+	descriptionLimitOf,
+	normalizeDescription,
 	tooLong,
 } from '../../utils/text.limits.js';
 import {EditModifiers} from '../command-modifiers.js';
@@ -214,19 +214,18 @@ const editNodeDescriptionInEditor = async () => {
 	const editResult = openEditorOnText(currentValue);
 	if (isFail(editResult)) return failed('Failed to edit field');
 
-	const updatedValue = editResult.value;
+	const updatedValue = normalizeDescription(editResult.value);
 
 	if (updatedValue === currentValue) {
 		return succeeded('No changes made', null);
 	}
 
-	const overLong = isBoardNode(node)
-		? tooLong('Board description', updatedValue, MAX_BOARD_DESCRIPTION_LENGTH)
-		: tooLong(
-				'Swimlane description',
-				updatedValue,
-				MAX_SWIMLANE_DESCRIPTION_LENGTH,
-		  );
+	const kind = isBoardNode(node) ? 'board' : 'swimlane';
+	const overLong = tooLong(
+		kind === 'board' ? 'Board description' : 'Swimlane description',
+		updatedValue,
+		descriptionLimitOf(kind),
+	);
 	if (overLong) return failed(overLong);
 
 	const persistRootResult = await getPersistRoot();
