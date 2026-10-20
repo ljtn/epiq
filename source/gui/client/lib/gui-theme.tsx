@@ -48,6 +48,10 @@ export const GUI_THEME = {
 	// surface; this one has to hold the panel apart from the board behind it,
 	// which takes considerably more contrast.
 	edge: 'rgba(96, 116, 165, 0.55)',
+	// The side panel's edge toward the board. Quieter than `edge`: it runs the
+	// full height of the screen, and its shadow already holds the panel apart.
+	// The resize handle on it lights the accent when it is reached for.
+	asideEdge: 'rgba(96, 116, 165, 0.25)',
 	// The same edge over the chrome's ground rather than the panel's. That
 	// ground is black, so a translucent line lands on more contrast there and
 	// reads brighter at the same value — half the alpha is what makes the two
