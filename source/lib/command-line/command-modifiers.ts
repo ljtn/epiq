@@ -78,18 +78,17 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.REPO_CLONE_MAX_MB,
 ];
 
-// Which edit modifiers are valid depends on what is selected: swimlanes and
-// boards only have a title, tickets have a title and a description, and
-// comments only have their body.
+// Which edit modifiers are valid depends on what is selected: tickets,
+// swimlanes and boards have a title and a description, and comments only have
+// their body.
 export const getEditModifiers = (
 	selectedContext: AnyContext | undefined = getState().selectedNode?.context,
 ): EditModifier[] => {
 	switch (selectedContext) {
 		case 'TICKET':
-			return [EditModifiers.TITLE, EditModifiers.DESCRIPTION];
 		case 'BOARD':
 		case 'SWIMLANE':
-			return [EditModifiers.TITLE];
+			return [EditModifiers.TITLE, EditModifiers.DESCRIPTION];
 		case 'COMMENT':
 			return [EditModifiers.COMMENT];
 		default:

@@ -127,12 +127,11 @@ describe('edit description available whenever a ticket is in scope', () => {
 		});
 	}
 
-	it('does NOT offer description outside a ticket (board/swimlane)', () => {
-		const s = state(
-			{id: 'b1', title: 'Board', context: 'BOARD', parentNodeId: 'w1'},
-			[],
-			{context: 'WORKSPACE', title: 'w', id: 'w1'},
-		);
-		expect(getCmdModifiers(CmdKeywords.EDIT, s)).not.toContain('description');
-	});
+	it.each([board, swimlane])(
+		'offers description on a selected $context, for its own',
+		node => {
+			const s = state(node, [workspace], workspace);
+			expect(getCmdModifiers(CmdKeywords.EDIT, s)).toContain('description');
+		},
+	);
 });

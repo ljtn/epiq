@@ -183,20 +183,15 @@ describe('cmdValidation', () => {
 	});
 
 	describe('getEditModifiers', () => {
-		it('offers only title for swimlanes', () => {
-			expect(getEditModifiers('SWIMLANE')).toEqual([EditModifiers.TITLE]);
-		});
-
-		it('offers only title for boards', () => {
-			expect(getEditModifiers('BOARD')).toEqual([EditModifiers.TITLE]);
-		});
-
-		it('offers title and description for tickets', () => {
-			expect(getEditModifiers('TICKET')).toEqual([
-				EditModifiers.TITLE,
-				EditModifiers.DESCRIPTION,
-			]);
-		});
+		it.each(['SWIMLANE', 'BOARD', 'TICKET'] as const)(
+			'offers title and description for a %s',
+			context => {
+				expect(getEditModifiers(context)).toEqual([
+					EditModifiers.TITLE,
+					EditModifiers.DESCRIPTION,
+				]);
+			},
+		);
 
 		it('offers only comment for comments', () => {
 			expect(getEditModifiers('COMMENT')).toEqual([EditModifiers.COMMENT]);
