@@ -141,6 +141,7 @@ export type GuiMessage =
 	// happens to hold.
 	| {type: 'diff-stats:get'}
 	| {type: 'swimlane:stats:get'; payload: {swimlaneId: string}}
+	| {type: 'board:overview:get'; payload: {boardId: string}}
 	| {type: 'emails:get'}
 	| {
 			type: 'email:link';

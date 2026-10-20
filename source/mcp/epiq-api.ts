@@ -72,3 +72,4 @@ export {
 	disconnectRepo,
 	syncThenFetchRepos,
 } from './api/repos.js';
+export {getBoardOverview} from './api/board-overview.js';

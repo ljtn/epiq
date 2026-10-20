@@ -60,6 +60,7 @@ import {
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
 import {getRefDiffStats} from '../../../mcp/api/ref-diff-stats.js';
 import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
+import {getBoardOverview} from '../../../mcp/api/board-overview.js';
 import {
 	failed,
 	isFail,
@@ -619,6 +620,15 @@ export const setupWebsocket = (
 							swimlaneId,
 							result: await getSwimlaneStats({repoRoot, swimlaneId}),
 						},
+					});
+				}
+
+				if (type === 'board:overview:get') {
+					const {boardId} = message.payload;
+
+					return sendSocket(socket, {
+						type: 'board:overview:result',
+						payload: {boardId, result: getBoardOverview({boardId})},
 					});
 				}
 

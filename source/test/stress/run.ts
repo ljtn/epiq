@@ -38,6 +38,8 @@ const CHECK = process.env['STRESS_CHECK'] === 'true';
 // a quadratic read took 3 s on an M3, more on a runner.
 const BUDGET_READ_MS = 2000;
 const BUDGET_TIMELINE_WARM_MS = 300;
+// The board panel walks every ticket's log once, on opening.
+const BUDGET_BOARD_OVERVIEW_MS = 1000;
 
 const ROOT =
 	process.env['STRESS_DIR'] ??
@@ -338,6 +340,15 @@ for (const [label, days] of [
 	);
 }
 
+const overviewAt = performance.now();
+const overview = ok(api.getBoardOverview({boardId})) as {closed: number};
+const overviewMs = performance.now() - overviewAt;
+console.log(
+	`  ${'board panel overview'.padEnd(38)} ${overviewMs
+		.toFixed(1)
+		.padStart(6)} ms   ${overview.closed} closed lately`,
+);
+
 // What an edit costs, which is not what a read costs: a write grows the log,
 // and anything holding a derived view of it has to notice.
 const writeAt = performance.now();
@@ -401,6 +412,10 @@ if (CHECK) {
 			`a warm timeline request took ${perRequest.toFixed(
 				1,
 			)} ms, budget ${BUDGET_TIMELINE_WARM_MS} ms`,
+		overviewMs > BUDGET_BOARD_OVERVIEW_MS &&
+			`the board overview took ${overviewMs.toFixed(
+				1,
+			)} ms, budget ${BUDGET_BOARD_OVERVIEW_MS} ms`,
 	].filter(Boolean);
 
 	for (const line of over) console.log(`  over budget: ${line}`);
