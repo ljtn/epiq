@@ -13,6 +13,7 @@ import {TicketCard} from './TicketCard';
 import {IconButton, ICON_SIZE} from './IconButton';
 import {IconPlus} from './IconPlus';
 import {KebabMenu} from './KebabMenu';
+import {NodeDescriptionPopover} from './NodeDescription';
 import {SWIMLANE_DRAG_TYPE, isSwimlaneDrag} from '../lib/gui-move-swimlane';
 import {scrollGutter} from '../lib/scroll-gutter.style';
 
@@ -37,6 +38,7 @@ export const SwimlaneColumn = ({
 	pickedIssueIds,
 	onCreateIssue,
 	onRenameSwimlane,
+	onDescribeSwimlane,
 	onDeleteSwimlane,
 	dropSide,
 	onSwimlaneDragOver,
@@ -66,6 +68,7 @@ export const SwimlaneColumn = ({
 	pickedIssueIds: readonly string[];
 	onCreateIssue: (swimlaneId: string) => void;
 	onRenameSwimlane: (swimlaneId: string) => void;
+	onDescribeSwimlane: (swimlaneId: string) => void;
 	onDeleteSwimlane: (swimlaneId: string) => void;
 	// Null unless the history player is up. `flashIssueId` is the ticket the
 	// event that just landed happened to, and `flashKey` that event's id, which
@@ -280,6 +283,19 @@ export const SwimlaneColumn = ({
 						</IconButton>
 					)}
 
+					{swimlane.description && (
+						<NodeDescriptionPopover
+							testId="swimlane-description"
+							title="Swimlane description"
+							description={swimlane.description}
+							onEdit={
+								swimlane.readonly
+									? undefined
+									: () => onDescribeSwimlane(swimlane.id)
+							}
+						/>
+					)}
+
 					{swimlane.readonly && (
 						<span
 							title="Read-only"
@@ -315,6 +331,11 @@ export const SwimlaneColumn = ({
 									id: 'rename',
 									label: 'rename',
 									onSelect: () => onRenameSwimlane(swimlane.id),
+								},
+								{
+									id: 'describe',
+									label: 'describe',
+									onSelect: () => onDescribeSwimlane(swimlane.id),
 								},
 								{
 									id: 'delete',
