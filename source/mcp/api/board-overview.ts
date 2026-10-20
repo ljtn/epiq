@@ -24,15 +24,18 @@ export const getBoardOverview = (input: {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const nodes = Object.values(stateResult.value.nodes).filter(
-		node => !node.isDeleted,
+	const all = Object.values(stateResult.value.nodes);
+
+	const board = all.find(node => node.id === input.boardId);
+	if (!board || board.isDeleted || !isBoardNode(board)) {
+		return failed('Board not found');
+	}
+
+	const boardLanes = all.filter(
+		node => isSwimlaneNode(node) && node.parentNodeId === board.id,
 	);
-
-	const board = nodes.find(node => node.id === input.boardId);
-	if (!board || !isBoardNode(board)) return failed('Board not found');
-
-	const lanes = nodes
-		.filter(node => isSwimlaneNode(node) && node.parentNodeId === board.id)
+	const lanes = boardLanes
+		.filter(lane => !lane.isDeleted)
 		.sort((a, b) => a.rank.localeCompare(b.rank));
 
 	return succeeded(
@@ -40,13 +43,18 @@ export const getBoardOverview = (input: {
 		deriveBoardOverview({
 			boardId: board.id,
 			lanes,
-			tickets: nodes.filter(isTicketNode).map(ticket => ({
-				id: ticket.id,
-				title: ticket.title,
-				parentNodeId: ticket.parentNodeId,
-				log: ticket.log ?? [],
-				createdAt: ulidTimeMs(ticket.id),
-			})),
+			formerLaneIds: boardLanes
+				.filter(lane => lane.isDeleted)
+				.map(lane => lane.id),
+			tickets: all
+				.filter(node => !node.isDeleted)
+				.filter(isTicketNode)
+				.map(ticket => ({
+					id: ticket.id,
+					parentNodeId: ticket.parentNodeId,
+					log: ticket.log ?? [],
+					createdAt: ulidTimeMs(ticket.id),
+				})),
 			now: Date.now(),
 		}),
 	);

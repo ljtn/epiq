@@ -101,7 +101,7 @@ export const BoardDetails = ({
 										: `${Math.round(overview.sentBackShare * 100)}%`
 								}
 								label="Sent back"
-								title="Closed tickets that went back to an earlier lane at least once"
+								title="Closed tickets that went back to an earlier lane at least once, by the lanes' order today"
 							/>
 						</div>
 						{overview.throughput.some(week => week.closed > 0) && (

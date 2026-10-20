@@ -35,7 +35,7 @@ test('time per lane counts only the lanes ticked, the last left out to start', a
 	await expect(page.getByRole('button', {name: 'reopen ticket'})).toBeVisible();
 
 	await page.getByTestId('board-details-open').click();
-	const toggles = page.getByTestId('board-lane-time-toggle');
+	const toggles = page.locator('[data-testid^="board-lane-time-toggle-"]');
 	await expect(toggles.first()).toBeVisible();
 
 	const boxes = toggles.locator('input');
