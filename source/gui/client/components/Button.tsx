@@ -2,10 +2,13 @@ import React, {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-	// `primary` is the button that commits a form — one per row, and the only
-	// one with a body. `ghost` is what dismisses it, and what inline controls
-	// in a header or a card row take. Everything else is `default`.
+	// `primary` is the next step — what commits a form, one per decision — and
+	// is lit in the accent so it is found before the rest. `ghost` is what
+	// dismisses it, and what inline controls in a header or a card row take.
+	// Everything else is `default`.
 	variant?: 'default' | 'ghost' | 'chip' | 'primary';
+	// A primary step that destroys: lit in red rather than the accent.
+	danger?: boolean;
 	// A name that survives the pointer, as `IconButton` has. TooltipLayer takes
 	// `title` off whatever it describes while its tooltip is open, so a button
 	// found by its title is unfindable for as long as somebody rests on it.
@@ -36,6 +39,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			tint,
 			held = false,
 			dense = false,
+			danger = false,
 			style,
 			onMouseEnter,
 			onMouseLeave,
@@ -47,6 +51,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 		const [hovered, setHovered] = useState(false);
 
 		const isPrimary = variant === 'primary';
+		// Unlit while it cannot be taken: a step that is not available yet is
+		// not the next one.
+		const lit = isPrimary && !props.disabled;
+		const hue = danger ? GUI_THEME.red : GUI_THEME.accent;
 
 		// Four steps of the same wash: resting, under the pointer, held, and held
 		// under the pointer. The border climbs faster than the fill — it is the edge
@@ -72,14 +80,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 					WebkitAppearance: 'none',
 					background: tint
 						? `${tint}${wash}`
+						: lit
+						? `${hue}${hovered ? '33' : '1f'}`
 						: isPrimary
-						? hovered
-							? GUI_THEME.raisedHover
-							: GUI_THEME.raised
+						? GUI_THEME.raised
 						: hovered
 						? GUI_THEME.hover
 						: 'transparent',
-					color: GUI_THEME.secondary,
+					color: lit ? hue : GUI_THEME.secondary,
 					border: tint
 						? `1px solid ${tint}${edge}`
 						: isPrimary
