@@ -457,6 +457,14 @@ export const IssueDetails = ({
 
 	const disabled = !issue || issue.readonly;
 
+	const canAddTag = !disabled && !addingTag;
+	const startAddingTag = () => setAddingTag(true);
+	const canAddAssignee = !disabled && !addingAssignee;
+	const startAddingAssignee = () => {
+		setAddingAssignee(true);
+		onOpenAssigneePicker();
+	};
+
 	// Below `disabled`, which it reads: a readonly ticket takes no images.
 	const descriptionImages = useImageInsert({
 		issueId: issue?.id ?? '',
@@ -622,8 +630,8 @@ export const IssueDetails = ({
 						<Section
 							title="Tags"
 							action={
-								(!issue.readonly && !addingTag && (
-									<Button variant="ghost" onClick={() => setAddingTag(true)}>
+								(canAddTag && (
+									<Button variant="ghost" onClick={startAddingTag}>
 										+
 									</Button>
 								)) ||
@@ -636,7 +644,12 @@ export const IssueDetails = ({
 						>
 							<ChipRow>
 								{issue.tags.length === 0 ? (
-									<Empty>No tags</Empty>
+									<Empty
+										testId="tags-empty"
+										onActivate={canAddTag ? startAddingTag : undefined}
+									>
+										No tags
+									</Empty>
 								) : (
 									issue.tags.map(tag => (
 										<Button
@@ -709,14 +722,8 @@ export const IssueDetails = ({
 						<Section
 							title="Assignees"
 							action={
-								(!issue.readonly && !addingAssignee && (
-									<Button
-										variant="ghost"
-										onClick={() => {
-											setAddingAssignee(true);
-											onOpenAssigneePicker();
-										}}
-									>
+								(canAddAssignee && (
+									<Button variant="ghost" onClick={startAddingAssignee}>
 										+
 									</Button>
 								)) ||
@@ -732,7 +739,14 @@ export const IssueDetails = ({
 						>
 							<ChipRow>
 								{issue.assignees.length === 0 ? (
-									<Empty>No assignees</Empty>
+									<Empty
+										testId="assignees-empty"
+										onActivate={
+											canAddAssignee ? startAddingAssignee : undefined
+										}
+									>
+										No assignees
+									</Empty>
 								) : (
 									issue.assignees.map(assignee => (
 										<Button
