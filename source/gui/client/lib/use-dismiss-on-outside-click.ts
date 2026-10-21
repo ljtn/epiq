@@ -12,12 +12,15 @@ import {useEffect, useRef} from 'react';
  * `nested` is for a popover inside something that also closes on Escape — a
  * dropdown in the settings panel. It takes the key before the outer one and
  * claims it, so one Escape closes the list and not the panel around it.
+ *
+ * `escape: false` leaves Escape to the caller: a popover holding menus of its
+ * own, whose Escape must close the innermost one first.
  */
 export const useDismissOnOutsideClick = (
 	open: boolean,
 	onDismiss: () => void,
 	alsoInside: React.RefObject<HTMLElement | null>[] = [],
-	{nested = false}: {nested?: boolean} = {},
+	{nested = false, escape = true}: {nested?: boolean; escape?: boolean} = {},
 ): React.RefObject<HTMLDivElement | null> => {
 	const ref = useRef<HTMLDivElement | null>(null);
 
@@ -40,7 +43,8 @@ export const useDismissOnOutsideClick = (
 		};
 
 		document.addEventListener('mousedown', onPointerDown);
-		document.addEventListener('keydown', onKeyDown, {capture: nested});
+		if (escape)
+			document.addEventListener('keydown', onKeyDown, {capture: nested});
 
 		return () => {
 			document.removeEventListener('mousedown', onPointerDown);
@@ -50,7 +54,7 @@ export const useDismissOnOutsideClick = (
 		// when a click arrives, never captured, so it is deliberately not a
 		// dependency: listing it would tear these listeners down and re-add them
 		// on every render for no change in behaviour.
-	}, [open, onDismiss, nested]);
+	}, [open, onDismiss, nested, escape]);
 
 	return ref;
 };

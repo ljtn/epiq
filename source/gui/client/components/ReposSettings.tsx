@@ -10,6 +10,7 @@ import {repoUrlProblem, REPO_URL_FORMS} from '../../../lib/commits/repo-url.js';
 import {formatBytes} from '../../../lib/utils/format-bytes.js';
 import {Button} from './Button';
 import {Chip} from './Chip';
+import {DatePicker} from './DatePicker';
 import {Dropdown} from './Dropdown';
 import {Input} from './FormPrimitives';
 import {IconButton} from './IconButton';
@@ -261,8 +262,9 @@ const LabelField = ({
 };
 
 // How much history is cloned: since the board was created, all of it, or
-// since a date. The date input only appears for the third, on a line of its
-// own under the two lists, which fill the row between them.
+// since a day. The day's picker only appears for the third, on a line of its
+// own under the two lists, which fill the row between them. Choosing the third
+// opens the calendar; closing it with no day picked goes back to what was.
 const SinceField = ({
 	repo,
 	onChange,
@@ -274,6 +276,9 @@ const SinceField = ({
 }) => {
 	const isDate = DATE.test(repo.since);
 	const [picking, setPicking] = useState(false);
+	const [calendarOpen, setCalendarOpen] = useState(false);
+	// Read as the calendar closes, in the same click that picked.
+	const picked = useRef(false);
 	const selected = isDate || picking ? 'date' : repo.since;
 
 	return (
@@ -286,7 +291,12 @@ const SinceField = ({
 				value={SINCE.find(item => item.id === selected) ?? null}
 				items={SINCE}
 				onSelect={next => {
-					if (next === 'date') return setPicking(true);
+					if (next === 'date') {
+						picked.current = false;
+						setPicking(true);
+						setCalendarOpen(true);
+						return;
+					}
 
 					setPicking(false);
 					if (next !== repo.since) onChange(next);
@@ -295,21 +305,19 @@ const SinceField = ({
 
 			{(isDate || picking) && (
 				<span style={{flexBasis: '100%', display: 'flex'}}>
-					<Input
-						data-testid="repo-since-date"
-						type="date"
-						defaultValue={isDate ? repo.since : ''}
-						aria-label={`Clone ${repo.label} since`}
-						onBlur={event => {
-							const next = event.target.value;
-							// Leaving the field unchanged is not a change to send.
-							if (DATE.test(next) && next !== repo.since) onChange(next);
+					<DatePicker
+						testId="repo-since-date"
+						value={isDate ? repo.since : ''}
+						label={`Clone ${repo.label} since`}
+						portalInto={portalInto}
+						open={calendarOpen}
+						onOpenChange={next => {
+							setCalendarOpen(next);
+							if (!next && !picked.current) setPicking(false);
 						}}
-						style={{
-							...FIELD,
-							width: 'auto',
-							padding: '4px 8px',
-							fontSize: TEXT.ui,
+						onPick={day => {
+							picked.current = true;
+							if (day !== repo.since) onChange(day);
 						}}
 					/>
 				</span>

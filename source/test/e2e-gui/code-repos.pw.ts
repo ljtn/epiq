@@ -55,6 +55,42 @@ const openRepos = async (page: Page) => {
 	await expect(page.getByTestId('settings-panel')).toBeVisible();
 };
 
+/** Picks a day in the open calendar through its year and month menus. */
+const pickDay = async (page: Page, day: string) => {
+	const [year, month] = day.split('-').map(Number) as [number, number];
+	const calendar = page.getByTestId('repo-since-date-calendar');
+	await expect(calendar).toBeVisible();
+
+	await calendar.getByTestId('repo-since-date-year').click();
+	await page
+		.getByTestId('repo-since-date-year-option')
+		.filter({hasText: String(year)})
+		.click();
+	await calendar.getByTestId('repo-since-date-month').click();
+	await page
+		.getByTestId('repo-since-date-month-option')
+		.nth(month - 1)
+		.click();
+	await dayCell(page, day).getByRole('button').click();
+	await expect(calendar).toHaveCount(0);
+};
+
+const dayCell = (page: Page, day: string) =>
+	page
+		.getByTestId('repo-since-date-calendar')
+		.locator(`[data-day="${day}"]:not([data-outside])`);
+
+/** A day in the browser's own time zone, `offset` days from today. */
+const localDay = (page: Page, offset = 0) =>
+	page.evaluate(offset => {
+		const date = new Date();
+		date.setDate(date.getDate() + offset);
+		const pad = (value: number) => String(value).padStart(2, '0');
+		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+			date.getDate(),
+		)}`;
+	}, offset);
+
 /** Opens the slot at the end of the list that takes a URL. */
 const startLink = async (page: Page) => {
 	await page.getByTestId('connect-a-repo').click();
@@ -490,15 +526,14 @@ test('a repo’s options are written when they change, and only then', async ({
 			.getByTestId('repo-since-option')
 			.filter({hasText: 'since a date'})
 			.click();
-		const date = row.getByTestId('repo-since-date');
-		await date.fill('2025-03-01');
-		await date.blur();
+		await pickDay(page, '2025-03-01');
 		await expect
 			.poll(options)
 			.toEqual([{url, branches: 'all', since: '2025-03-01'}]);
 
-		// Leaving the date as it is sends nothing. A change after it is the
-		// first connect the page sends, and the socket keeps their order.
+		// Closing the calendar on the day it holds sends nothing. A change after
+		// it is the first connect the page sends, and the socket keeps their
+		// order.
 		const connects: string[] = [];
 		page.on('websocket', ws =>
 			ws.on('framesent', frame => {
@@ -508,8 +543,11 @@ test('a repo’s options are written when they change, and only then', async ({
 		);
 		await page.reload();
 		await openRepos(page);
-		await date.focus();
-		await date.blur();
+		await row.getByTestId('repo-since-date').click();
+		await expect(page.getByTestId('repo-since-date-calendar')).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(page.getByTestId('repo-since-date-calendar')).toHaveCount(0);
+		await expect(row.getByTestId('repo-since-date')).toHaveText('2025-03-01');
 		await row.getByTestId('repo-branches').click();
 		await page
 			.getByTestId('repo-branches-option')
@@ -523,6 +561,138 @@ test('a repo’s options are written when they change, and only then', async ({
 	});
 
 	expect(pageErrors).toEqual([]);
+});
+
+// The day picked is the day sent, in a zone far enough from UTC that a
+// conversion through it would land on the day before.
+test.describe('the since date picker', () => {
+	test.use({timezoneId: 'Pacific/Auckland'});
+
+	test('picks a past day by pointer or keyboard, never a future one, and backs out cleanly', async ({
+		page,
+		appUrl,
+		pageErrors,
+		repoRoot,
+		globalDir,
+	}) => {
+		await page.goto(appUrl);
+		await expect(page.getByTestId('board-switcher')).toContainText('Default');
+		const url = 'https://example.com/acme/picker.git';
+		const board = {repoRoot, globalDir};
+		const since = () => connectedRepos(board).map(repo => repo.since);
+
+		await withNoRepos(board, async () => {
+			connectByEvent(board, [url]);
+			await openRepos(page);
+			const modal = page.getByTestId('settings-panel');
+			const row = modal.getByTestId('repo-row');
+			const sinceMenu = row.getByTestId('repo-since');
+			const chooseDate = async () => {
+				await sinceMenu.click();
+				await page
+					.getByTestId('repo-since-option')
+					.filter({hasText: 'since a date'})
+					.click();
+			};
+
+			// Closed with no day picked: back to what it was, nothing sent, and
+			// the panel still open.
+			await chooseDate();
+			await expect(page.getByTestId('repo-since-date-calendar')).toBeVisible();
+			await page.keyboard.press('Escape');
+			await expect(page.getByTestId('repo-since-date-calendar')).toHaveCount(0);
+			await expect(modal).toBeVisible();
+			await expect(row.getByTestId('repo-since-date')).toHaveCount(0);
+			await expect(sinceMenu).toHaveText('Since the board');
+			expect(since()).toEqual(['board']);
+
+			// The same by a click outside it.
+			await chooseDate();
+			await modal.getByTestId('settings-header').click();
+			await expect(page.getByTestId('repo-since-date-calendar')).toHaveCount(0);
+			await expect(sinceMenu).toHaveText('Since the board');
+
+			// And by tabbing out of it, backwards past its first control.
+			await chooseDate();
+			await expect(page.getByTestId('repo-since-date-calendar')).toBeVisible();
+			for (let press = 0; press < 8; press++) {
+				if ((await page.getByTestId('repo-since-date-calendar').count()) === 0)
+					break;
+				await page.keyboard.press('Shift+Tab');
+			}
+			await expect(page.getByTestId('repo-since-date-calendar')).toHaveCount(0);
+			await expect(sinceMenu).toHaveText('Since the board');
+			expect(since()).toEqual(['board']);
+
+			// Opens on this month, with nothing after today to pick.
+			await chooseDate();
+			const today = await localDay(page);
+			await expect(dayCell(page, today)).toHaveAttribute('data-today', 'true');
+			await expect(page.getByTestId('repo-since-date-next')).toBeDisabled();
+			const pickable = await Promise.all(
+				(
+					await page
+						.getByTestId('repo-since-date-calendar')
+						.locator('[data-day]:not([data-outside]):has(button:enabled)')
+						.all()
+				).map(cell => cell.getAttribute('data-day')),
+			);
+			expect(pickable.length).toBeGreaterThan(0);
+			expect(pickable.every(day => day !== null && day <= today)).toBe(true);
+
+			// From the keyboard: the grid has focus on today, a day back, Enter.
+			await page.keyboard.press('ArrowLeft');
+			await page.keyboard.press('Enter');
+			const yesterday = await localDay(page, -1);
+			await expect.poll(since).toEqual([yesterday]);
+			await expect(row.getByTestId('repo-since-date')).toHaveText(yesterday);
+
+			await row.getByTestId('repo-since-date').click();
+			// The year list opens on the year shown.
+			await page.getByTestId('repo-since-date-year').click();
+			await expect(
+				page
+					.getByTestId('repo-since-date-year-option')
+					.filter({hasText: today.slice(0, 4)}),
+			).toBeInViewport();
+			await page.getByTestId('repo-since-date-year').click();
+
+			// By pointer, through the menus, years back: the day, not the one
+			// before it in UTC.
+			await pickDay(page, '1999-03-01');
+			await expect.poll(since).toEqual(['1999-03-01']);
+
+			// Reopened on that day's month, its year in view in the list.
+			await row.getByTestId('repo-since-date').click();
+			await expect(dayCell(page, '1999-03-01')).toHaveAttribute(
+				'data-selected',
+				'true',
+			);
+			await page.getByTestId('repo-since-date-year').click();
+			await expect(
+				page
+					.getByTestId('repo-since-date-year-option')
+					.filter({hasText: '1999'}),
+			).toBeInViewport();
+			// One Escape for the year list, one for the calendar; the panel stays.
+			await page.keyboard.press('Escape');
+			await expect(page.getByTestId('repo-since-date-year-option')).toHaveCount(
+				0,
+			);
+			await expect(page.getByTestId('repo-since-date-calendar')).toBeVisible();
+			await page.keyboard.press('Escape');
+			await expect(page.getByTestId('repo-since-date-calendar')).toHaveCount(0);
+			await expect(modal).toBeVisible();
+
+			// The calendar mark is in the theme's quiet ink, not the browser's.
+			await expect(row.getByTestId('repo-since-date-icon')).toHaveCSS(
+				'color',
+				'rgb(120, 128, 160)',
+			);
+		});
+
+		expect(pageErrors).toEqual([]);
+	});
 });
 
 // A list is fixed to the window, so one opened past its bottom edge could not
