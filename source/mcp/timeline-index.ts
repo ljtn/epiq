@@ -218,6 +218,35 @@ const lanesForEvents = (
 	});
 };
 
+// What a lane or board event is about, as it stood when the event was
+// written: its kind, and the name it had just before. Such an event has no
+// ticket for the line to sit under, so the line has to name it. Positional,
+// over the whole log, so a rename reads from the name it replaced.
+type Subject = {kind: 'board' | 'swimlane'; name: string | undefined};
+
+const subjectsForEvents = (events: AppEvent[]): (Subject | null)[] => {
+	const kinds = new Map<string, Subject['kind']>();
+	const nameById = new Map<string, string>();
+
+	return events.map(event => {
+		const {id, name} = (event.payload ?? {}) as {id?: string; name?: string};
+		if (!id) return null;
+
+		if (event.action === 'add.board') kinds.set(id, 'board');
+		if (event.action === 'add.swimlane') kinds.set(id, 'swimlane');
+
+		const kind = kinds.get(id);
+		if (!kind) return null;
+
+		const subject = {kind, name: nameById.get(id) ?? name};
+		const named =
+			event.action === 'edit.title' || event.action.startsWith('add.');
+		if (named && name !== undefined) nameById.set(id, name);
+
+		return subject;
+	});
+};
+
 // The TUI's phrasing minus the details that need state. A renamed tag reads
 // under its original name, which is what the log itself says happened.
 // How much of a comment the timeline carries. A window can hold twenty
@@ -235,11 +264,55 @@ const commentPreview = (md: string): string => {
 		: firstLine;
 };
 
+const subjectOf = ({kind, name}: Subject): string =>
+	name === undefined ? kind : `${kind} "${name}"`;
+
+// A lane's or board's own line: the kind and the name first, since nothing
+// else on the line says what it was about. Null where the generic wording
+// already says enough — its creation names what it made.
+const describeSubjectEvent = (
+	event: AppEvent,
+	subject: Subject,
+	names: ReadonlyMap<string, string>,
+	previousParents: Map<string, string | undefined>,
+): string | null => {
+	const {name, parent} = (event.payload ?? {}) as {
+		name?: string;
+		parent?: string;
+	};
+	const what = subjectOf(subject);
+
+	switch (event.action) {
+		case 'move.node': {
+			// A board's parent is the workspace, which is not worth naming.
+			if (subject.kind === 'board' || !parent) return `Moved ${what}`;
+			const board = names.get(parent);
+			if (!board) return `Moved ${what}`;
+
+			return previousParents.get(event.id) === parent
+				? `Moved ${what} within ${board}`
+				: `Moved ${what} to ${board}`;
+		}
+
+		case 'edit.title':
+			return name === undefined
+				? `Renamed ${what}`
+				: `Renamed ${what} to "${name}"`;
+		case 'delete.node':
+			return `Deleted ${what}`;
+		case 'lock.node':
+			return `Locked ${what}`;
+		default:
+			return null;
+	}
+};
+
 const describeTimelineEvent = (
 	event: AppEvent,
 	names: ReadonlyMap<string, string>,
 	previousParents: Map<string, string | undefined>,
 	issue: string | null,
+	subject: Subject | null,
 ): string => {
 	const payload = event.payload as
 		| {
@@ -262,11 +335,10 @@ const describeTimelineEvent = (
 
 		// A board's or lane's description belongs to no ticket, so the line names
 		// what it belongs to.
-		const owner =
-			event.action === 'edit.description' && !issue && payload.id
-				? names.get(payload.id)
-				: undefined;
-		const head = owner ? `${action} of ${owner}` : action;
+		const head =
+			event.action === 'edit.description' && !issue && subject
+				? `${action} of ${subjectOf(subject)}`
+				: action;
 
 		return preview ? `${head}: ${preview}` : head;
 	}
@@ -275,6 +347,16 @@ const describeTimelineEvent = (
 	// issue" answers neither, and reordering within a lane is the commoner of
 	// the two. Falls back to the bare action where the lane has no create event
 	// in the log to take a name from.
+	if (subject && !issue) {
+		const described = describeSubjectEvent(
+			event,
+			subject,
+			names,
+			previousParents,
+		);
+		if (described) return described;
+	}
+
 	if (event.action === 'move.node' && payload?.parent) {
 		const lane = names.get(payload.parent);
 
@@ -445,6 +527,7 @@ export const buildTimelineEntries = (
 	const previousParents = buildPreviousParentIndex(events);
 	const issueIndex = buildIssueIndex(events);
 	const issues = events.map(event => issueOf(event, issueIndex));
+	const subjects = subjectsForEvents(events);
 	const lanes = lanesForEvents(events, issues);
 	const boards = boardsForEvents(events);
 
@@ -469,6 +552,7 @@ export const buildTimelineEntries = (
 							names,
 							previousParents,
 							issues[index] ?? null,
+							subjects[index] ?? null,
 						),
 						issue: issues[index] ?? null,
 						target: targetOf(event),

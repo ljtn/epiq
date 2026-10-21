@@ -465,8 +465,48 @@ describe('timeline-index', () => {
 					.filter(entry => entry.action === 'edit.description')
 					.map(entry => [entry.label, entry.issue]),
 			).toEqual([
-				['Changed description of Review: Tests first', null],
+				['Changed description of swimlane "Review": Tests first', null],
 				['Changed description: Body', 'i1'],
+			]);
+		});
+
+		// A lane or board event has no ticket for its line to sit under, so the
+		// line names what it was about, by kind and by the name it had then.
+		it('names the lane or board a structural event was about', () => {
+			const at = (n: number, action: string, payload: object) => ({
+				id: ulid(baseTime + n * 1000),
+				action,
+				payload,
+				userId: 'u-1',
+				userName: 'jo',
+			});
+
+			const entries = buildTimelineEntries([
+				at(0, 'add.board', {id: 'b-1', name: 'Default', parent: 'w-1'}),
+				at(1, 'add.board', {id: 'b-2', name: 'Ops', parent: 'w-1'}),
+				at(2, 'add.swimlane', {id: 'lane-1', name: 'Ideas', parent: 'b-1'}),
+				at(3, 'add.issue', {id: 'i1', name: 'Ship', parent: 'lane-1'}),
+				at(4, 'move.node', {id: 'lane-1', parent: 'b-1', rank: 'b'}),
+				at(5, 'move.node', {id: 'lane-1', parent: 'b-2', rank: 'a'}),
+				at(6, 'move.node', {id: 'b-2', parent: 'w-1', rank: 'c'}),
+				at(7, 'edit.title', {id: 'lane-1', name: 'Later'}),
+				at(8, 'edit.title', {id: 'b-2', name: 'Operations'}),
+				at(9, 'lock.node', {id: 'lane-1'}),
+				at(10, 'move.node', {id: 'i1', parent: 'lane-1', rank: 'c'}),
+				at(11, 'delete.node', {id: 'lane-1'}),
+			] as never);
+
+			expect(entries.slice(4).map(entry => entry.label)).toEqual([
+				'Moved swimlane "Ideas" within Default',
+				// Where it went is named as it is now, as a ticket's lane is.
+				'Moved swimlane "Ideas" to Operations',
+				'Moved board "Ops"',
+				'Renamed swimlane "Ideas" to "Later"',
+				'Renamed board "Ops" to "Operations"',
+				'Locked swimlane "Later"',
+				// A ticket's move keeps its own wording, under the ticket.
+				'Moved within Later',
+				'Deleted swimlane "Later"',
 			]);
 		});
 
