@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import {AsideDock} from '../lib/aside-dock';
 import {GUI_THEME} from '../lib/gui-theme';
+import {HOVER_REACH} from './FormPrimitives';
 import {scrollGutter} from '../lib/scroll-gutter.style';
 import {ResizeHandle} from './ResizeHandle';
 
@@ -299,6 +300,10 @@ export const Aside = forwardRef<
 					minHeight: 0,
 					overflow: 'auto',
 					...scrollGutter(ASIDE_PADDING),
+					// Room on the left for a row's hover ground, which reaches past
+					// the text it lights; the pane clips at its own edge.
+					marginLeft: -HOVER_REACH,
+					paddingLeft: HOVER_REACH,
 				}}
 			>
 				<AsideHeaderSlot.Provider value={headerSlot}>
