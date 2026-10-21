@@ -400,7 +400,12 @@ export const IssueComments = ({
 							</span>
 						)}
 
-						<Button variant="primary" disabled={tooLong} onClick={addComment}>
+						<Button
+							variant="primary"
+							testId="comment-send"
+							disabled={tooLong || !body.trim()}
+							onClick={addComment}
+						>
 							Comment
 						</Button>
 					</ActionRow>

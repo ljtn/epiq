@@ -13,6 +13,28 @@ test.beforeEach(async ({page, appUrl}) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 });
 
+// The step to take next is lit in the accent; one not yet available is not.
+test('the comment button lights once there is something to send', async ({
+	page,
+	pageErrors,
+}) => {
+	await addTicket(page, `Lit comment ${Date.now()}`);
+	await page.getByRole('button', {name: /^Comments/}).click();
+	const send = page.getByTestId('comment-send');
+
+	await expect(send).toBeDisabled();
+	await expect(send).toHaveCSS('color', 'rgb(127, 138, 163)');
+
+	await page.getByPlaceholder('write a comment').fill('   ');
+	await expect(send).toBeDisabled();
+
+	await page.getByPlaceholder('write a comment').fill('ready');
+	await expect(send).toBeEnabled();
+	await expect(send).toHaveCSS('color', 'rgb(118, 212, 255)');
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('your own comment can be edited and deleted', async ({
 	page,
 	pageErrors,

@@ -147,7 +147,6 @@ export const InitProjectScreen = ({
 								</div>
 
 								<Button
-									variant="primary"
 									onClick={() => onOpen(project.root)}
 									data-testid="open-recent-project"
 								>

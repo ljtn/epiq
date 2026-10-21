@@ -91,7 +91,7 @@ export const ConfirmModal = ({
 					Cancel
 				</Button>
 
-				<Button type="submit" variant="primary" style={{color: GUI_THEME.red}}>
+				<Button type="submit" variant="primary" danger>
 					{confirmLabel}
 				</Button>
 			</div>
