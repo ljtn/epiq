@@ -27,6 +27,7 @@ export const Menu = ({
 	color = GUI_THEME.dim,
 	width,
 	minWidth,
+	maxHeight,
 	disabled = false,
 	testId,
 	title,
@@ -46,6 +47,8 @@ export const Menu = ({
 	width?: number;
 	// The popover's, when it should not simply match the trigger.
 	minWidth?: number;
+	// Scrolls past this, opening on the selected row: a long list of years.
+	maxHeight?: number;
 	disabled?: boolean;
 	testId?: string;
 	title?: string;
@@ -87,6 +90,16 @@ export const Menu = ({
 	const ref = useDismissOnOutsideClick(open, close, [listRef], {nested: true});
 	const anchor = usePortalAnchor(portal && open, triggerRef, listRef);
 
+	useLayoutEffect(() => {
+		const list = listRef.current;
+		if (!open || !maxHeight || !list) return;
+
+		const selected = list.querySelector<HTMLElement>('[aria-selected="true"]');
+		if (selected)
+			list.scrollTop =
+				selected.offsetTop - (list.clientHeight - selected.offsetHeight) / 2;
+	}, [open, maxHeight, anchor]);
+
 	const popover = (
 		<div
 			ref={listRef}
@@ -96,6 +109,7 @@ export const Menu = ({
 			style={{
 				...popoverStyle,
 				minWidth: minWidth ?? width ?? popoverStyle.minWidth,
+				...(maxHeight ? {maxHeight, overflowY: 'auto'} : {}),
 				...(portal && anchor
 					? {
 							position: 'fixed',
