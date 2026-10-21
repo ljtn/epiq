@@ -92,6 +92,8 @@ export const IssueAttachments = ({
 		if (files.length > 0) onUploadFiles?.(issueId, files);
 	};
 
+	const pickFiles = () => fileInputRef.current?.click();
+
 	const handleDrop = (event: React.DragEvent) => {
 		event.preventDefault();
 		setDragging(false);
@@ -111,7 +113,7 @@ export const IssueAttachments = ({
 					<AddImageButton
 						testId="attachment-image-input"
 						busy={uploadStatus.state === 'uploading'}
-						onPick={() => fileInputRef.current?.click()}
+						onPick={pickFiles}
 						inputRef={fileInputRef}
 						onInputChange={event => {
 							upload(imageFilesFrom(event.target.files));
@@ -141,7 +143,10 @@ export const IssueAttachments = ({
 				}}
 			>
 				{attachments.length === 0 ? (
-					<Empty>
+					<Empty
+						testId="attachments-empty"
+						onActivate={canUpload ? pickFiles : undefined}
+					>
 						{canUpload
 							? 'No attachments — drop an image here'
 							: 'No attachments'}

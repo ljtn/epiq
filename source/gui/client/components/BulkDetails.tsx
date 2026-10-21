@@ -1,3 +1,4 @@
+import {useRef} from 'react';
 import {GuiContributor, GuiIssue, GuiTag} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Aside} from './Aside';
@@ -78,6 +79,9 @@ export const BulkDetails = ({
 			),
 	);
 
+	const tagInputRef = useRef<HTMLInputElement | null>(null);
+	const assigneeInputRef = useRef<HTMLInputElement | null>(null);
+
 	const partial = (count: number) =>
 		count === total ? '' : ` ${count}/${total}`;
 
@@ -95,7 +99,12 @@ export const BulkDetails = ({
 			<Section title="Tags">
 				<ChipRow>
 					{tags.length === 0 ? (
-						<Empty>No tags</Empty>
+						<Empty
+							testId="bulk-tags-empty"
+							onActivate={() => tagInputRef.current?.focus()}
+						>
+							No tags
+						</Empty>
 					) : (
 						tags.map(({item, count}) => (
 							<Button
@@ -130,6 +139,7 @@ export const BulkDetails = ({
 
 				<AddRow>
 					<Input
+						ref={tagInputRef}
 						value={tagName}
 						placeholder="New tag"
 						onChange={event => onChangeTagName(event.target.value)}
@@ -148,7 +158,12 @@ export const BulkDetails = ({
 			<Section title="Assignees">
 				<ChipRow>
 					{assignees.length === 0 ? (
-						<Empty>No assignees</Empty>
+						<Empty
+							testId="bulk-assignees-empty"
+							onActivate={() => assigneeInputRef.current?.focus()}
+						>
+							No assignees
+						</Empty>
 					) : (
 						assignees.map(({item, count}) => (
 							<Button
@@ -181,6 +196,7 @@ export const BulkDetails = ({
 
 				<AddRow>
 					<Input
+						ref={assigneeInputRef}
 						value={assigneeName}
 						placeholder="Name of unknown contributor"
 						onChange={event => onChangeAssigneeName(event.target.value)}

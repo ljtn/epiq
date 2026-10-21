@@ -165,7 +165,12 @@ export const DescriptionField = ({
 					</CollapsibleBody>
 				</div>
 			) : (
-				<Empty>No description</Empty>
+				<Empty
+					testId={`${testId}-empty`}
+					onActivate={readonly ? undefined : draft.start}
+				>
+					No description
+				</Empty>
 			)}
 		</Section>
 	);

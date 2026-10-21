@@ -1,7 +1,8 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
+import {menuRowHoverBackground} from '../lib/select-style';
 
-export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+export const Input = (props: React.ComponentProps<'input'>) => (
 	<input
 		{...props}
 		style={{
@@ -84,8 +85,61 @@ export const ChipRow = ({children}: {children: React.ReactNode}) => (
 	</div>
 );
 
-export const Empty = ({children}: {children: React.ReactNode}) => (
-	<span style={{display: 'inline-block', marginTop: 8, color: GUI_THEME.dim}}>
-		{children}
-	</span>
-);
+const EMPTY_INSET = 6;
+
+// Given `onActivate`, it does what its section's control does: the biggest
+// target there, which otherwise reads as dead text right under it.
+export const Empty = ({
+	children,
+	onActivate,
+	testId,
+}: {
+	children: React.ReactNode;
+	onActivate?: () => void;
+	testId?: string;
+}) => {
+	const [lit, setLit] = useState(false);
+
+	if (!onActivate) {
+		return (
+			<span
+				data-testid={testId}
+				style={{display: 'inline-block', marginTop: 8, color: GUI_THEME.dim}}
+			>
+				{children}
+			</span>
+		);
+	}
+
+	return (
+		<button
+			type="button"
+			data-testid={testId}
+			onClick={onActivate}
+			onMouseEnter={() => setLit(true)}
+			onMouseLeave={() => setLit(false)}
+			onFocus={event => setLit(event.currentTarget.matches(':focus-visible'))}
+			onBlur={() => setLit(false)}
+			style={{
+				font: 'inherit',
+				display: 'block',
+				boxSizing: 'border-box',
+				// Inset by as much as it is pulled out, so the text stays where the
+				// plain one sits and only the hover ground reaches past it.
+				width: `calc(100% + ${EMPTY_INSET}px)`,
+				marginTop: 6,
+				marginLeft: -EMPTY_INSET,
+				padding: `2px ${EMPTY_INSET}px`,
+				border: 'none',
+				borderRadius: 6,
+				outline: 'none',
+				background: lit ? menuRowHoverBackground : 'transparent',
+				color: GUI_THEME.dim,
+				textAlign: 'left',
+				cursor: 'pointer',
+			}}
+		>
+			{children}
+		</button>
+	);
+};
