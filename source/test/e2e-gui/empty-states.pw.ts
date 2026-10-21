@@ -45,6 +45,28 @@ test('each empty state opens what its section control opens', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// Easy to hit, and lit like a menu row under the pointer.
+test('an empty state is a tall target lifted under the pointer', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openNewTicket(page, appUrl, 'Empty target');
+	const empty = aside(page).getByTestId('tags-empty');
+
+	const box = await empty.boundingBox();
+	expect(box?.height).toBeGreaterThanOrEqual(26);
+	await expect(empty).toHaveCSS('color', 'rgb(106, 112, 144)');
+
+	await expect(empty).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+	await empty.hover();
+	await expect(empty).toHaveCSS('background-color', 'rgba(120, 146, 204, 0.1)');
+	await expect(empty).toHaveCSS('color', 'rgb(106, 112, 144)');
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('an empty state is reached by Tab and activated by Enter', async ({
 	page,
 	appUrl,

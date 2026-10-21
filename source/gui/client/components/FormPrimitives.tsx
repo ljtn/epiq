@@ -85,7 +85,11 @@ export const ChipRow = ({children}: {children: React.ReactNode}) => (
 	</div>
 );
 
-const EMPTY_INSET = 6;
+// How far a row's hover ground reaches past the column its text keeps to.
+// The panel's pane leaves this much room for it on the left.
+export const HOVER_REACH = 6;
+const EMPTY_INSET = HOVER_REACH;
+const EMPTY_PAD_Y = 6;
 
 // Given `onActivate`, it does what its section's control does: the biggest
 // target there, which otherwise reads as dead text right under it.
@@ -125,14 +129,19 @@ export const Empty = ({
 				display: 'block',
 				boxSizing: 'border-box',
 				// Inset by as much as it is pulled out, so the text stays where the
-				// plain one sits and only the hover ground reaches past it.
+				// plain one sits and only the hover ground reaches past it. Taller than
+				// its line, for an easy target, and pulled back by the same amount
+				// above and below so nothing around it moves.
 				width: `calc(100% + ${EMPTY_INSET}px)`,
-				marginTop: 6,
+				marginTop: 8 - EMPTY_PAD_Y,
+				marginBottom: -EMPTY_PAD_Y,
 				marginLeft: -EMPTY_INSET,
-				padding: `2px ${EMPTY_INSET}px`,
+				padding: `${EMPTY_PAD_Y}px ${EMPTY_INSET}px`,
 				border: 'none',
 				borderRadius: 6,
 				outline: 'none',
+				// A menu row's hover: the blue-grey of the quiet ink it carries, so
+				// the ground and the words read as one tint.
 				background: lit ? menuRowHoverBackground : 'transparent',
 				color: GUI_THEME.dim,
 				textAlign: 'left',
