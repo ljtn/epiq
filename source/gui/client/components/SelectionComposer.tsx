@@ -1,6 +1,6 @@
 import {SelectedLineRange} from '@pierre/diffs/react';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
-import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
+import {SANS_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
 	buildDiffCommentBody,
 	formatSelectionLabel,
@@ -88,7 +88,7 @@ export const SelectionComposer = ({
 					marginTop: 8,
 					minHeight: 45,
 					font: 'inherit',
-					fontFamily: CONTENT_FONT,
+					fontFamily: SANS_FONT,
 					fontSize: TEXT.prose,
 				}}
 			/>

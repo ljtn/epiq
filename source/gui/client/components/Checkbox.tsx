@@ -1,5 +1,5 @@
 import React from 'react';
-import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
+import {SANS_FONT, GUI_THEME} from '../lib/gui-theme';
 
 type Props = {
 	label: React.ReactNode;
@@ -46,9 +46,8 @@ export const Checkbox = ({
 				display: 'flex',
 				alignItems: 'center',
 				gap: 8,
-				// A button takes the platform's face rather than inheriting one, so the
-				// label names it to read as one of them.
-				fontFamily: CONTENT_FONT,
+				// A control, so the controls' face — see SANS_FONT.
+				fontFamily: SANS_FONT,
 				fontSize: 11,
 				color: on ? GUI_THEME.secondary : GUI_THEME.dim,
 				cursor: disabled ? 'not-allowed' : 'pointer',

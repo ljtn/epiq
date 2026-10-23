@@ -1,13 +1,28 @@
-import {GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME, SANS_FONT} from '../lib/gui-theme';
 
-// Scrollbars are reachable only through pseudo-elements and the scrollbar-*
-// properties, which React style objects can't express, hence a global <style>.
+// What a React style object cannot express — a font face, an element rule,
+// pseudo-elements and the scrollbar-* properties — hence a global <style>.
 // Styling ::-webkit-scrollbar also opts out of macOS's auto-hiding overlay
 // bars, so the thumb is kept muted and the track transparent.
 const SCROLLBAR_SIZE = 3;
 
-export const GlobalScrollbarStyles = () => (
+export const GlobalStyles = () => (
 	<style>{`
+		/* Served beside main.js by build-gui.mjs. Latin only, which covers
+		   every label the GUI draws; anything outside it falls back. */
+		@font-face {
+			font-family: Inter;
+			font-style: normal;
+			font-weight: 100 900;
+			font-display: swap;
+			src: url('/inter.woff2') format('woff2');
+		}
+
+		/* A button takes the platform's face rather than inheriting one. */
+		button {
+			font-family: ${SANS_FONT};
+		}
+
 		/* Placeholders are a pseudo-element too. Unstyled they take the
 		   browser's warm grey, which sits oddly against the palette. Half of
 		   the dim: a hint of what goes here, under what is already there. */

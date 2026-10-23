@@ -45,7 +45,7 @@ import {
 import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {SwimlaneStats} from './components/SwimlaneStats';
-import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
+import {GlobalStyles} from './components/GlobalStyles';
 import {TicketPreviewLayer} from './components/TicketPreviewLayer';
 import {TooltipLayer} from './components/TooltipLayer';
 import {TicketRefLinksProvider} from './components/MarkdownContent';
@@ -140,7 +140,7 @@ import {useBoardEditing} from './lib/use-board-editing';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
-import {GUI_THEME, UI_FONT} from './lib/gui-theme';
+import {GUI_THEME, MONO_FONT} from './lib/gui-theme';
 import {issueActivityLogEntries} from './lib/event-log';
 import {plural} from './lib/gui-format.helper';
 import {REVEAL_MS, useReveal} from './lib/use-reveal';
@@ -1938,12 +1938,12 @@ export const App = () => {
 							height: '100vh',
 							background: GUI_THEME.bg,
 							color: GUI_THEME.primary,
-							fontFamily: UI_FONT,
+							fontFamily: MONO_FONT,
 							display: 'flex',
 							flexDirection: 'column',
 						}}
 					>
-						<GlobalScrollbarStyles />
+						<GlobalStyles />
 						<TooltipLayer />
 						<TicketPreviewLayer
 							previewFor={ticketPreviewFor}

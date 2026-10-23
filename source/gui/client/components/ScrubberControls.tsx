@@ -4,7 +4,7 @@
 // is TimeScrubber's.
 
 import {useRef} from 'react';
-import {GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME, SANS_FONT} from '../lib/gui-theme';
 import {useGlowGradient} from './Panel';
 import {
 	isPeriodWindow,
@@ -497,6 +497,7 @@ const LabelledGroup = ({
 					left: 0,
 					bottom: '100%',
 					marginBottom: 4,
+					fontFamily: SANS_FONT,
 					fontSize: 8,
 					lineHeight: 1,
 					letterSpacing: '0.1em',
