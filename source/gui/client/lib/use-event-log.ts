@@ -188,6 +188,7 @@ export const useEventLog = ({
 						keptIssues,
 				  )
 				: [],
+			new Set(issueIdByRef.keys()),
 		);
 	}, [
 		open,

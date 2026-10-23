@@ -12,6 +12,7 @@ const line = (id: string, actor: {name: string} | null): LogEntry => ({
 	id,
 	t: Number(id),
 	label: `line ${id}`,
+	ref: null,
 	color: '#fff',
 	actor,
 	diff: null,

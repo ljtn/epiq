@@ -6,6 +6,7 @@ const line = (id: string, over: Partial<LogEntry> = {}): LogEntry => ({
 	id,
 	t: 1,
 	label: 'filed a ticket',
+	ref: null,
 	color: '#fff',
 	actor: null,
 	diff: null,

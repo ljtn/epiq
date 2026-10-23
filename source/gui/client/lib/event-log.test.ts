@@ -188,6 +188,28 @@ describe('buildLogEntries', () => {
 		expect(rows[1]!.diff).toEqual({insertions: 2, deletions: 1});
 	});
 
+	it('splits off the ticket ref a line opens with', () => {
+		const moved = {
+			...event('a', 1, 'move.node'),
+			issue: '01KS22YK9AXCMATZXTR5JZCS5M',
+			label: '5JZCS5M moved to Done',
+		};
+		const linked = {...commit('sha1', 2), subject: '5jzcs5m fix the thing'};
+		const rows = buildLogEntries(
+			[moved, event('b', 3, 'create.issue')],
+			[linked, commit('sha2', 4)],
+			new Set(['5JZCS5M']),
+		);
+
+		expect(rows.map(row => row.ref)).toEqual([
+			'5JZCS5M',
+			'5jzcs5m',
+			null,
+			null,
+		]);
+		expect(rows[0]!.label).toBe('5JZCS5M moved to Done');
+	});
+
 	it('leaves an unsigned event with no actor', () => {
 		const rows = buildLogEntries([event('a', 1, 'create.issue')], []);
 
@@ -234,6 +256,7 @@ const row = (id: string, t: number, label = id): LogEntry => ({
 	id,
 	t,
 	label,
+	ref: null,
 	color: '#111',
 	actor: null,
 	diff: null,
