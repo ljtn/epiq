@@ -48,6 +48,7 @@ import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
 import {IssueActivity} from './IssueActivity';
 import {statsAcross} from '../lib/issue-stats.style';
+import {useAddRow} from '../lib/use-add-row';
 import {LogEntry} from '../lib/event-log';
 import {IssueStats as IssueStatsPayload} from '../../../lib/stats/issue-stats.model.js';
 import {BoardStats} from '../../../lib/stats/board-stats.js';
@@ -398,8 +399,10 @@ export const IssueDetails = ({
 	const [assigneeName, setAssigneeName] = useState('');
 	const [managingContributors, setManagingContributors] = useState(false);
 	const [managingTags, setManagingTags] = useState(false);
-	const [addingTag, setAddingTag] = useState(false);
-	const [addingAssignee, setAddingAssignee] = useState(false);
+	const tagRow = useAddRow();
+	const assigneeRow = useAddRow();
+	const addingTag = tagRow.open;
+	const addingAssignee = assigneeRow.open;
 	// Tracks the resizable Aside's live width so the Code tab can pick split
 	// vs. unified diffs — initialized from the same persisted value Aside
 	// itself reads, so the first render already picks the right layout.
@@ -433,16 +436,14 @@ export const IssueDetails = ({
 	const panelRef = useRef<HTMLElement | null>(null);
 	const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
-	const tagInputRef = useRef<HTMLInputElement | null>(null);
-	const assigneeInputRef = useRef<HTMLInputElement | null>(null);
 
 	useAutoGrow(titleTextareaRef, title, {active: editingTitle});
 
 	useEffect(() => {
 		setTagName('');
 		setAssigneeName('');
-		setAddingTag(false);
-		setAddingAssignee(false);
+		tagRow.close();
+		assigneeRow.close();
 	}, [issue?.id]);
 
 	// A tab stays mounted once opened, so what it holds — a diff selection, an
@@ -460,12 +461,14 @@ export const IssueDetails = ({
 	const disabled = !issue || issue.readonly;
 
 	const canAddTag = !disabled && !addingTag;
-	const startAddingTag = () => setAddingTag(true);
+	const startAddingTag = tagRow.start;
 	const canAddAssignee = !disabled && !addingAssignee;
-	const startAddingAssignee = () => {
-		setAddingAssignee(true);
-		onOpenAssigneePicker();
-	};
+	const startAddingAssignee = assigneeRow.start;
+
+	// The picker asks for the contributor list however it was opened.
+	useEffect(() => {
+		if (addingAssignee) onOpenAssigneePicker();
+	}, [addingAssignee]);
 
 	// Below `disabled`, which it reads: a readonly ticket takes no images.
 	const descriptionImages = useImageInsert({
@@ -503,15 +506,13 @@ export const IssueDetails = ({
 
 	const cancelTitle = () => setEditingTitle(false);
 
-	// The row stays open after an add, so several go on in a row; Escape or
-	// the section's - closes it. Focus goes back to the input, which a picked
-	// chip would otherwise take with it as it leaves the list.
+	// The row stays open after an add, so several go on in a row; it closes
+	// as focus leaves its section — see lib/use-add-row.
 	const addTag = (name = tagName.trim()) => {
 		if (disabled || !issue || !name) return;
 
 		onAddTag(issue.id, name);
 		setTagName('');
-		tagInputRef.current?.focus();
 	};
 
 	const addAssignee = () => {
@@ -519,14 +520,12 @@ export const IssueDetails = ({
 
 		onAddExternalAssignee(issue.id, assigneeName.trim());
 		setAssigneeName('');
-		assigneeInputRef.current?.focus();
 	};
 
 	const pickAssignee = (assigneeId: string) => {
 		if (disabled || !issue) return;
 
 		onAddAssignee(issue.id, assigneeId);
-		assigneeInputRef.current?.focus();
 	};
 
 	const availableTags = tags.filter(
@@ -641,6 +640,7 @@ export const IssueDetails = ({
 
 						<Section
 							title="Tags"
+							focusProps={disabled ? undefined : tagRow.sectionProps}
 							action={
 								(canAddTag && (
 									<Button variant="ghost" onClick={startAddingTag}>
@@ -648,7 +648,7 @@ export const IssueDetails = ({
 									</Button>
 								)) ||
 								(addingTag && (
-									<Button variant="ghost" onClick={() => setAddingTag(false)}>
+									<Button variant="ghost" onClick={tagRow.close}>
 										-
 									</Button>
 								))
@@ -718,16 +718,15 @@ export const IssueDetails = ({
 							{addingTag && (
 								<AddRow>
 									<Input
-										ref={tagInputRef}
+										ref={tagRow.inputRef}
 										value={tagName}
-										autoFocus
 										placeholder="Tag name"
 										onChange={event => setTagName(event.target.value)}
 										onKeyDown={event => {
 											if (event.key === 'Enter') addTag();
 											if (event.key === 'Escape') {
 												setTagName('');
-												setAddingTag(false);
+												tagRow.close();
 											}
 										}}
 									/>
@@ -739,6 +738,7 @@ export const IssueDetails = ({
 
 						<Section
 							title="Assignees"
+							focusProps={disabled ? undefined : assigneeRow.sectionProps}
 							action={
 								(canAddAssignee && (
 									<Button variant="ghost" onClick={startAddingAssignee}>
@@ -746,10 +746,7 @@ export const IssueDetails = ({
 									</Button>
 								)) ||
 								(addingAssignee && (
-									<Button
-										variant="ghost"
-										onClick={() => setAddingAssignee(false)}
-									>
+									<Button variant="ghost" onClick={assigneeRow.close}>
 										-
 									</Button>
 								))
@@ -835,16 +832,15 @@ export const IssueDetails = ({
 							{addingAssignee && (
 								<AddRow>
 									<Input
-										ref={assigneeInputRef}
+										ref={assigneeRow.inputRef}
 										value={assigneeName}
-										autoFocus
 										placeholder="Name of unknown contributor"
 										onChange={event => setAssigneeName(event.target.value)}
 										onKeyDown={event => {
 											if (event.key === 'Enter') addAssignee();
 											if (event.key === 'Escape') {
 												setAssigneeName('');
-												setAddingAssignee(false);
+												assigneeRow.close();
 											}
 										}}
 									/>

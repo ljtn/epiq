@@ -11,11 +11,14 @@ const card = (page: Page, title: string) =>
 
 const aside = (page: Page) => page.locator('aside');
 
+// The add row stays open after an add, so only the first tag opens it.
 const tagOpenTicket = async (page: Page, tag: string) => {
-	await aside(page)
-		.getByRole('button', {name: '+', exact: true})
-		.first()
-		.click();
+	if (!(await page.getByPlaceholder('tag name').isVisible())) {
+		await aside(page)
+			.getByRole('button', {name: '+', exact: true})
+			.first()
+			.click();
+	}
 	await page.getByPlaceholder('tag name').fill(tag);
 	await page.getByPlaceholder('tag name').press('Enter');
 	await expect(aside(page)).toContainText(tag);
