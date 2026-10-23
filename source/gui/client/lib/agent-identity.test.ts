@@ -14,20 +14,30 @@ describe('actorDisplay', () => {
 		});
 	});
 
+	it('keeps only the last part of a scoped name', () => {
+		expect(actorDisplay('claude/builder/sam')).toEqual({
+			label: '/sam',
+			isAgent: true,
+		});
+	});
+
 	it('leaves every other name as it is', () => {
 		expect(actorDisplay('jola')).toEqual({label: 'jola', isAgent: false});
 		expect(actorDisplay('Jonatan Lampa')).toEqual({
 			label: 'Jonatan Lampa',
 			isAgent: false,
 		});
-		// A prefix with nothing behind it, a name that is already bare, and a
-		// path-like name are none of them `provider/name`.
+		// A prefix with nothing behind it, a name that is already bare, and an
+		// empty part are none of them `provider/name`.
 		expect(actorDisplay('claude/')).toEqual({
 			label: 'claude/',
 			isAgent: false,
 		});
 		expect(actorDisplay('/peter')).toEqual({label: '/peter', isAgent: false});
-		expect(actorDisplay('a/b/c')).toEqual({label: 'a/b/c', isAgent: false});
+		expect(actorDisplay('claude//sam')).toEqual({
+			label: 'claude//sam',
+			isAgent: false,
+		});
 	});
 });
 
