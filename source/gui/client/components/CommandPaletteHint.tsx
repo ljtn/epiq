@@ -69,11 +69,12 @@ export const CommandPaletteHint = ({onOpen}: {onOpen: () => void}) => {
 				whiteSpace: 'nowrap',
 			}}
 		>
+			{/* The name, then its keys, as a menu sets an item and its shortcut. */}
+			Commands
 			<span style={{display: 'inline-flex', alignItems: 'center', gap: 3}}>
 				<Key>{isApple() ? '⌘' : 'Ctrl'}</Key>
 				<Key>K</Key>
 			</span>
-			Commands
 		</button>
 	);
 };
