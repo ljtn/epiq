@@ -40,6 +40,8 @@ export type GuiIssue = {
 	createdAt: number;
 	/** Epoch ms it last arrived in the swimlane it is in. */
 	enteredLaneAt: number;
+	/** Epoch ms anything last happened to it, by anyone. Display only. */
+	lastEventAt?: number;
 	readonly: boolean;
 	tags: GuiTag[];
 	assignees: GuiUser[];

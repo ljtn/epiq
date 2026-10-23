@@ -32,6 +32,8 @@ export type ApiIssue = {
 	 * `createdAt` for a ticket that has never moved.
 	 */
 	enteredLaneAt: number;
+	/** When anything last happened to it, by anyone: the board's state only. */
+	lastEventAt?: number;
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
 	tags: ApiTag[];
