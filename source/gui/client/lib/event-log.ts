@@ -465,7 +465,7 @@ export const EVENT_LOG_STYLES = `
 	left: 0;
 	top: 0;
 	width: var(${TIME_BLOCK_PROPERTY});
-	color: ${GUI_THEME.dim2};
+	color: ${GUI_THEME.faint};
 	font-variant-numeric: tabular-nums;
 }
 .epiq-log-line::after {

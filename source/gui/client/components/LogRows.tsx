@@ -208,7 +208,7 @@ export const EventRow = ({
 // lib/agent-identity — leaving the slash and the name; a person's name is
 // written as it is, and the full name stays in the title.
 //
-// Quieter than the time beside it and the label after it, and in nobody's
+// Quieter than the label after it, and in nobody's
 // colour: a signature repeated down every row is what the eye should skip,
 // not what it should land on.
 const ActorName = ({name}: {name: string}) => (

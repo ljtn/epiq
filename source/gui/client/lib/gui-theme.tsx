@@ -74,8 +74,9 @@ export const GUI_THEME = {
 	// over it. 4.3:1 and 5.4:1 now, against 3.2 and 4.0.
 	dim: '#6a7090',
 	dim2: 'rgb(120 128 160)',
-	// Under the ladder, for what a line carries but is not read for: a ticket
-	// ref leading a log line. About 2.8:1, so it recedes behind `secondary`.
+	// Under the ladder, for what a line carries but is not read for: a log
+	// line's time and leading ticket ref. About 2.8:1, so it recedes behind
+	// `secondary`.
 	faint: '#4e546c',
 	// What anything the pointer is over takes on, throughout: buttons, rows,
 	// menu items. A lift off whatever it sits on rather than a colour of its
