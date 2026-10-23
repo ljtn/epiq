@@ -111,13 +111,21 @@ export type IssueDetailPanel = {
 	onMessage: (message: any) => void;
 };
 
+// A ticket's code as of a scrubbed board's needle, or all of it when live.
+const codeRequest = (issueId: string, asOfTime: number | null) =>
+	asOfTime === null ? {issueId} : {issueId, asOfTime};
+
 export const useIssueDetail = ({
 	issueId,
+	asOfTime,
 	boardState,
 	paused,
 	sendRaw,
 }: {
 	issueId: string | null;
+	// The needle of a scrubbed board, or null when live: the Code tab shows
+	// the commits made by then.
+	asOfTime: number | null;
 	// Re-read when the board changes: a comment or a title edit lands as board
 	// state, and the panel's own copy would otherwise go stale.
 	boardState: unknown;
@@ -154,6 +162,16 @@ export const useIssueDetail = ({
 	// screen until the new one lands.
 	const [reposEpoch, setReposEpoch] = useState(0);
 
+	// The cut each read was last asked at. A moved needle leaves older answers
+	// in flight, and only the latest ask's reply is taken.
+	const asOf = useRef(asOfTime);
+	asOf.current = asOfTime;
+	const askedFor = useRef({
+		commits: null as number | null,
+		stats: null as number | null,
+		squashed: null as number | null,
+	});
+
 	useEffect(() => {
 		if (!issueId) {
 			setCommits(null);
@@ -165,8 +183,12 @@ export const useIssueDetail = ({
 				? {...prev, loading: true}
 				: {issueId, loading: true, error: null, commits: []},
 		);
-		sendRaw({type: 'issue:commits:get', payload: {issueId}});
-	}, [issueId, sendRaw, reposEpoch]);
+		askedFor.current.commits = asOfTime;
+		sendRaw({
+			type: 'issue:commits:get',
+			payload: codeRequest(issueId, asOfTime),
+		});
+	}, [issueId, asOfTime, sendRaw, reposEpoch]);
 
 	const [stats, setStats] = useState<IssueStatsState | null>(null);
 
@@ -200,7 +222,11 @@ export const useIssueDetail = ({
 	useEffect(() => {
 		if (!stats?.loading) return;
 
-		sendRaw({type: 'issue:stats:get', payload: {issueId: stats.issueId}});
+		askedFor.current.stats = asOf.current;
+		sendRaw({
+			type: 'issue:stats:get',
+			payload: codeRequest(stats.issueId, asOf.current),
+		});
 	}, [stats?.issueId, stats?.signature, stats?.loading, sendRaw]);
 
 	const [squashed, setSquashed] = useState<IssueSquashedDiffState | null>(null);
@@ -220,9 +246,10 @@ export const useIssueDetail = ({
 	useEffect(() => {
 		if (!squashed?.loading) return;
 
+		askedFor.current.squashed = asOf.current;
 		sendRaw({
 			type: 'issue:squashed-diff:get',
-			payload: {issueId: squashed.issueId},
+			payload: codeRequest(squashed.issueId, asOf.current),
 		});
 	}, [squashed?.issueId, squashed?.signature, squashed?.loading, sendRaw]);
 
@@ -279,10 +306,16 @@ export const useIssueDetail = ({
 			// Wrapped with the issueId it was asked for: switching tickets with the
 			// Code tab open can leave an older ticket's request in flight, and a
 			// failed Result carries no issueId to tell whose reply this is.
-			const {issueId: forIssue, result} = message.payload as {
+			const {
+				issueId: forIssue,
+				asOfTime: forCut,
+				result,
+			} = message.payload as {
 				issueId: string;
+				asOfTime: number | null;
 				result: {status: string; message: string; value?: GuiRefCommitEntry[]};
 			};
+			if (forCut !== askedFor.current.commits) return;
 
 			if (result?.status === 'fail') {
 				setCommits(prev =>
@@ -309,10 +342,16 @@ export const useIssueDetail = ({
 		if (message.type === 'issue:stats:result') {
 			// Wrapped with the issueId for the same reason the commits reply is:
 			// the Stats tab stays open across a change of ticket.
-			const {issueId: forIssue, result} = message.payload as {
+			const {
+				issueId: forIssue,
+				asOfTime: forCut,
+				result,
+			} = message.payload as {
 				issueId: string;
+				asOfTime: number | null;
 				result: {status: string; message: string; value?: IssueStats};
 			};
+			if (forCut !== askedFor.current.stats) return;
 
 			if (result?.status === 'fail') {
 				setStats(prev =>
@@ -339,10 +378,16 @@ export const useIssueDetail = ({
 		if (message.type === 'issue:squashed-diff:result') {
 			// Wrapped with the issueId like its neighbours: the compacted view
 			// stays open across a change of ticket.
-			const {issueId: forIssue, result} = message.payload as {
+			const {
+				issueId: forIssue,
+				asOfTime: forCut,
+				result,
+			} = message.payload as {
 				issueId: string;
+				asOfTime: number | null;
 				result: {status: string; message: string; value?: GuiSquashedDiff};
 			};
+			if (forCut !== askedFor.current.squashed) return;
 
 			if (result?.status === 'fail') {
 				setSquashed(prev =>

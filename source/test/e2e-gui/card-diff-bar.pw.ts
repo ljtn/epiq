@@ -10,6 +10,7 @@ import {
 	commitLinkedNothing,
 	linkedFileName,
 } from './linked-commit.js';
+import {returnToLive} from './live-board.js';
 
 // Scoped to one ticket's own card — every worker's tests share one repo and one
 // board, so other tickets on it may well have commits of their own. The row
@@ -121,6 +122,71 @@ test('a ticket whose commits changed no lines carries no stat to click', async (
 	await expect(statOn(page, ref)).toHaveCount(0);
 	await expect(
 		page.getByTestId('aside-pane').getByRole('button', {name: /^Code \(1\)/}),
+	).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
+// A board parked in the past shows a ticket's code as it stood then: the card
+// and the Code tab count the commits made by the needle, and no later one.
+test('a scrubbed card and its Code tab count only the commits made by the needle', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	// The needle is parked by a frame of the test's own, at an exact moment a
+	// click on the track could not hit.
+	let server: {send: (message: string) => void} | null = null;
+	await page.routeWebSocket(/\/ws/, ws => {
+		const connection = ws.connectToServer();
+		server = connection;
+		ws.onMessage(message => connection.send(message));
+		connection.onMessage(message => ws.send(message));
+	});
+
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const ref = await addTicketForRef(page, `Then ${Date.now()}`);
+	commitLinkedFile(repoRoot, ref, 'the early half');
+	const needle = Date.now() + 1_000;
+	// Made a whole second past the needle, as a commit's time is whole seconds.
+	// Waited for rather than dated ahead: a commit from the future would lead
+	// the shared repo's history for every test after this one.
+	await page.waitForTimeout(needle + 1_000 - Date.now());
+	commitLinkedFile(
+		repoRoot,
+		ref,
+		'the late half',
+		`later-${ref}.txt`,
+		'one\ntwo\n',
+	);
+
+	await page.reload();
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	const stat = statOn(page, ref);
+	await expect(stat).toHaveText('+5-0');
+
+	await expect.poll(() => server).not.toBeNull();
+	server!.send(
+		JSON.stringify({type: 'time-travel:scrub', payload: {targetTime: needle}}),
+	);
+	await expect(page.getByText('Read-only', {exact: true})).toBeVisible();
+
+	await expect(stat).toHaveText('+3-0');
+	await expect(stat).toHaveAttribute('title', '1 commit');
+
+	await stat.click();
+	await expect(page).toHaveURL(/tab=code/);
+	await expect(
+		page.getByTestId('aside-pane').getByRole('button', {name: /^Code \(1\)/}),
+	).toBeVisible();
+
+	await returnToLive(page);
+	await expect(stat).toHaveText('+5-0');
+	await expect(
+		page.getByTestId('aside-pane').getByRole('button', {name: /^Code \(2\)/}),
 	).toBeVisible();
 
 	expect(pageErrors).toEqual([]);

@@ -1,4 +1,9 @@
-import {GuiState, GuiIssue, GuiSwimlane} from './gui-state.model';
+import {
+	GuiState,
+	GuiIssue,
+	GuiSwimlane,
+	GuiTimeTravelStatus,
+} from './gui-state.model';
 import {Result} from './gui-result.model';
 
 export const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
@@ -90,3 +95,8 @@ export const updateIssueInGuiState = (
 		})),
 	})),
 });
+
+/** Where a scrubbed board is cut, or null when it shows the present. */
+export const scrubCut = (
+	timeTravel: GuiTimeTravelStatus | undefined,
+): number | null => (timeTravel?.mode === 'scrub' ? timeTravel.asOfTime : null);

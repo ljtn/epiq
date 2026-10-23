@@ -645,7 +645,7 @@ const parentOf = async (
  * two copies of one commit that merely sort next to each other.
  */
 export const getSquashedDiffForRef = async (
-	input: RepoInput & {ref: string},
+	input: RepoInput & {ref: string; end?: number},
 ): Promise<Result<SquashedDiff>> => {
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
@@ -657,6 +657,7 @@ export const getSquashedDiffForRef = async (
 	const bySourceResult = await getRefMatchesBySource({
 		repoRoot,
 		ref: input.ref,
+		end: input.end,
 	});
 	if (isFail(bySourceResult)) return failed(bySourceResult.message);
 
