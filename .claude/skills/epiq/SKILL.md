@@ -25,4 +25,4 @@ description: Workflow for working an epiq issue board through the epiq MCP — t
 - **Be concise, use clear language.** Titles, descriptions, and comments should be scannable, easy to understand, not essays.
 - **When a ticket is done, Document the outcome in a comment starting with "Solution:"**. Use that exact prefix as the comment's opening line.
 - **The git user is the sole author of every commit you write.** Commit under the repo's configured user.name / user.email and nothing else: no Co-Authored-By: line, no Claude-Session: line, no 🤖 Generated with footer, and never an --author override naming Claude or a tool.
-- **Keep Epiq refs through a merge:** a squash commit must carry the branch's `Epiq-Ref` lines in its body, or its commits lose their tickets.
+- On rebase or merge, make sure Epiq refs survive. Dropping them from commit messages breaks commit linking.
