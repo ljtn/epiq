@@ -43,12 +43,18 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			style,
 			onMouseEnter,
 			onMouseLeave,
+			onFocus,
+			onBlur,
 			testId,
 			...props
 		},
 		ref,
 	) => {
-		const [hovered, setHovered] = useState(false);
+		const [pointed, setPointed] = useState(false);
+		// Keyboard focus draws as the pointer does: a lift, not a ring. A click
+		// focuses a button too, but is not `:focus-visible`, so it adds nothing.
+		const [focused, setFocused] = useState(false);
+		const lifted = pointed || focused;
 
 		const isPrimary = variant === 'primary';
 		// Unlit while it cannot be taken: a step that is not available yet is
@@ -59,8 +65,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 		// Four steps of the same wash: resting, under the pointer, held, and held
 		// under the pointer. The border climbs faster than the fill — it is the edge
 		// that says which chip you are on, while the fill stays behind the name.
-		const wash = held ? (hovered ? '4d' : '3d') : hovered ? '2b' : '1c';
-		const edge = held ? 'ff' : hovered ? '7a' : '3d';
+		const wash = held ? (lifted ? '4d' : '3d') : lifted ? '2b' : '1c';
+		const edge = held ? 'ff' : lifted ? '7a' : '3d';
 
 		return (
 			<button
@@ -68,12 +74,20 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 				data-testid={testId}
 				{...props}
 				onMouseEnter={event => {
-					setHovered(true);
+					setPointed(true);
 					onMouseEnter?.(event);
 				}}
 				onMouseLeave={event => {
-					setHovered(false);
+					setPointed(false);
 					onMouseLeave?.(event);
+				}}
+				onFocus={event => {
+					setFocused(event.currentTarget.matches(':focus-visible'));
+					onFocus?.(event);
+				}}
+				onBlur={event => {
+					setFocused(false);
+					onBlur?.(event);
 				}}
 				style={{
 					appearance: 'none',
@@ -81,10 +95,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 					background: tint
 						? `${tint}${wash}`
 						: lit
-						? `${hue}${hovered ? '33' : '1f'}`
+						? `${hue}${lifted ? '33' : '1f'}`
 						: isPrimary
 						? GUI_THEME.raised
-						: hovered
+						: lifted
 						? GUI_THEME.hover
 						: 'transparent',
 					color: lit ? hue : GUI_THEME.secondary,
@@ -92,9 +106,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 						? `1px solid ${tint}${edge}`
 						: isPrimary
 						? `none`
-						: variant === 'ghost' && !hovered
+						: variant === 'ghost' && !lifted
 						? '1px solid transparent'
-						: `1px solid ${hovered ? GUI_THEME.secondary : GUI_THEME.line}`,
+						: `1px solid ${lifted ? GUI_THEME.secondary : GUI_THEME.line}`,
 					borderRadius: variant === 'chip' ? 999 : 6,
 					cursor: props.disabled ? 'default' : 'pointer',
 					// One box for every variant that draws one, so a row mixing them

@@ -78,6 +78,26 @@ test('tabbing into the tag section opens it in its input, and out closes it', as
 	expect(pageErrors).toEqual([]);
 });
 
+// Lit as the pointer lights it, and only for the keyboard.
+test('the Add button shows it has keyboard focus', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openNewTicket(page, appUrl);
+	const input = aside(page).getByPlaceholder('Tag name');
+	const add = aside(page).getByRole('button', {name: 'Add', exact: true});
+
+	await aside(page).getByTestId('tags-empty').click();
+	const resting = await add.evaluate(el => getComputedStyle(el).borderColor);
+
+	await input.press('Tab');
+	await expect(add).toBeFocused();
+	await expect(add).not.toHaveCSS('border-color', resting);
+
+	expect(pageErrors).toEqual([]);
+});
+
 // As the empty state does before there is a chip; a chip keeps its own click.
 test('a row of chips opens its picker from the ground beside them', async ({
 	page,
