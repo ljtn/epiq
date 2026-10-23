@@ -461,6 +461,48 @@ describe('epiq-time-travel', () => {
 			expect(tagged?.label).toBe('Tagged with bug');
 		});
 
+		it('keeps a tag created, deleted and restored under every board scope', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'add.board',
+					payload: {id: 'board-1', name: 'Default'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'create.tag',
+					payload: {id: 'tag-1', name: 'bug'},
+				},
+				{
+					id: ulid(baseTime + 2_000),
+					action: 'tombstone.tag',
+					payload: {id: 'tag-1'},
+				},
+				{
+					id: ulid(baseTime + 3_000),
+					action: 'restore.tag',
+					payload: {id: 'tag-1', name: 'bug'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline({boardId: 'board-1'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events.map(entry => entry.label)).toEqual([
+				'Created board "Default"',
+				'Created tag "bug"',
+				'Deleted tag bug',
+				'Restored tag bug',
+			]);
+		});
+
 		it('labels entries with the TUI log phrasing', async () => {
 			const baseTime = 1_700_000_000_000;
 			const events = [

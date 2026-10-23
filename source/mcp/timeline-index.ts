@@ -477,7 +477,8 @@ const boardsForEvents = (events: AppEvent[]): (string | null)[] => {
 
 // Events with no board are dropped, as they always were.
 /**
- * Actions about a person rather than about anything on a board.
+ * Actions about the workspace — a person, a repo, a tag — rather than about
+ * anything on one board.
  *
  * They resolve to no board, and the timeline's board narrowing drops anything
  * whose board is not the one asked for — so a claim, which decides who every
@@ -501,6 +502,9 @@ const WORKSPACE_ACTIONS = new Set<string>([
 	'connect.repo',
 	'edit.repo',
 	'disconnect.repo',
+	'create.tag',
+	'tombstone.tag',
+	'restore.tag',
 ]);
 
 export const filterEventsForBoard = (
