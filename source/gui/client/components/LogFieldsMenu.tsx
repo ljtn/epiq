@@ -32,13 +32,7 @@ export const LogFieldBox = ({
 		checked={fields[field] && !spoken}
 		disabled={spoken}
 		activeColor={GUI_THEME.dim}
-		title={
-			spoken
-				? 'The lane says who'
-				: `${fields[field] ? 'Hide' : 'Show'} the ${LOG_FIELD_NAMES[
-						field
-				  ].toLowerCase()} on each line`
-		}
+		title={spoken ? 'The lane says who' : undefined}
 		onChange={on => onChangeField(field, on)}
 	/>
 );
@@ -57,7 +51,6 @@ export const LogFieldsMenu = ({
 	<Menu
 		label="View options"
 		testId="log-fields-menu"
-		title="Choose what each line shows"
 		chevronSize={14}
 		popupRole="group"
 	>

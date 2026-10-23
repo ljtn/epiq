@@ -175,7 +175,6 @@ export const Header = ({
 								data-testid="connection-lost"
 								variant="ghost"
 								onClick={onReconnect}
-								title="Not connected — reconnect now"
 								style={{color: GUI_THEME.red, fontSize: 10}}
 							>
 								Reconnect

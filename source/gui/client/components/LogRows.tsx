@@ -88,7 +88,6 @@ export const DayDivider = ({
 			data-testid="log-day"
 			aria-expanded={open}
 			onClick={onToggle}
-			title={open ? `Fold ${label}` : `Show the ${count} lines of ${label}`}
 			style={{...style, cursor: 'pointer'}}
 		>
 			{content}
@@ -117,7 +116,6 @@ export const EarlierRow = ({
 		type="button"
 		data-testid="log-day-earlier"
 		onClick={onExpand}
-		title={`Show the ${hidden} earlier lines of ${label}`}
 		style={{
 			display: 'flex',
 			alignItems: 'center',

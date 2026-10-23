@@ -272,9 +272,7 @@ export const BoardSeriesGroup = ({
 			width={SELECT_TRIGGER_WIDTH}
 			minWidth={178}
 			disabled={!showIssues || !connected}
-			title={
-				filtered ? 'Choose what to plot' : 'Too many events to split by kind'
-			}
+			title={filtered ? undefined : 'Too many events to split by kind'}
 			popupRole="group"
 			popupLabel="Filter the board"
 			leading={
@@ -366,7 +364,7 @@ export const BoardSeriesGroup = ({
 											/>
 											<button
 												type="button"
-												title={`Show only ${identity.name}`}
+												aria-label={`Show only ${identity.name}`}
 												disabled={!showIssues}
 												onClick={() => onOnlyIdentity(axis, identity.id)}
 												style={onlyButtonStyle}
@@ -443,7 +441,7 @@ export const CommitSeriesGroup = ({
 			width={COMMIT_SELECT_WIDTH}
 			minWidth={160}
 			disabled={!showCommits || !usable}
-			title={idle ? 'Flow draws tickets only' : 'Choose which commits to plot'}
+			title={idle ? 'Flow draws tickets only' : undefined}
 			popupRole="group"
 			leading={
 				// Unlabelled, as the board series' box is.
@@ -578,7 +576,6 @@ export const ScopeSelect = ({
 		color={GUI_THEME.primary}
 		width={SCOPE_SELECT_WIDTH}
 		disabled={!connected}
-		title="Choose the window"
 	>
 		{close =>
 			SCOPES.map(option => (

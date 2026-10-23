@@ -11,7 +11,6 @@ export const AddSwimlaneColumn = ({onClick}: {onClick: () => void}) => {
 		<button
 			type="button"
 			data-testid="add-swimlane"
-			title="Add swimlane"
 			onClick={onClick}
 			onMouseEnter={() => setHovered(true)}
 			onMouseLeave={() => setHovered(false)}

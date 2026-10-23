@@ -51,7 +51,6 @@ export const CommandPaletteHint = ({onOpen}: {onOpen: () => void}) => {
 			onClick={onOpen}
 			onMouseEnter={() => setHovered(true)}
 			onMouseLeave={() => setHovered(false)}
-			title="Open the command palette"
 			aria-label="Open the command palette"
 			style={{
 				display: 'inline-flex',

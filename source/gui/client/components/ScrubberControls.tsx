@@ -543,7 +543,6 @@ export const TextFilterInput = ({
 			value={value}
 			placeholder="Ref or title"
 			aria-label="Filter tickets by ref or title"
-			title="Filter tickets by ref or title"
 			spellCheck={false}
 			onChange={event => onChange(event.target.value)}
 			onKeyDown={event => {

@@ -30,7 +30,7 @@ export const ResizeHandle = ({
 			onPointerDown={onPointerDown}
 			onMouseEnter={() => setHovered(true)}
 			onMouseLeave={() => setHovered(false)}
-			title="Drag to resize"
+			aria-label="Drag to resize"
 			style={{
 				position: 'absolute',
 				zIndex: 1,

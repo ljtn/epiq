@@ -657,7 +657,6 @@ export const IssueDetails = ({
 											variant="chip"
 											disabled={issue.readonly}
 											onClick={() => onRemoveTag(issue.id, tag.id)}
-											title="Remove tag"
 											tint={tag.color}
 											style={{color: tag.color}}
 										>
@@ -675,7 +674,6 @@ export const IssueDetails = ({
 											variant="chip"
 											disabled={issue.readonly}
 											onClick={() => onAddTag(issue.id, tag.name)}
-											title="Add existing tag"
 											tint={tag.color}
 											style={{color: tag.color, opacity: 0.55}}
 										>
@@ -754,7 +752,6 @@ export const IssueDetails = ({
 											variant="chip"
 											disabled={issue.readonly}
 											onClick={() => onRemoveAssignee(issue.id, assignee.id)}
-											title="Remove assignee"
 											style={{color: assignee.color}}
 										>
 											@{assignee.name} {!issue.readonly && '×'}
@@ -772,11 +769,9 @@ export const IssueDetails = ({
 											disabled={issue.readonly}
 											onClick={() => onAddAssignee(issue.id, assignee.id)}
 											title={
-												assignee.isSelf
-													? 'Assign yourself'
-													: !assignee.hasAuthoredAnywhere
-													? 'Has not contributed to this project'
-													: 'Add existing assignee'
+												assignee.hasAuthoredAnywhere
+													? undefined
+													: 'Has not contributed to this project'
 											}
 											style={{
 												color: assignee.isSelf
@@ -826,12 +821,7 @@ export const IssueDetails = ({
 										}}
 									/>
 
-									<Button
-										onClick={addAssignee}
-										title="Add someone who has not contributed to this board"
-									>
-										Add
-									</Button>
+									<Button onClick={addAssignee}>Add</Button>
 								</AddRow>
 							)}
 						</Section>
