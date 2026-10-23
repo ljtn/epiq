@@ -57,3 +57,10 @@
 {"v":1,"id":["01M5NE9WHM9W04Y91J3HZKJEKR","01M5NE9WHK4D6AB0Z4HM2SEW9E"],"move.node":{"id":"01M5NDXQ9V2C06HEM1A66T0JFD","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"dfffffffffffffffffffffff"}}
 {"v":1,"id":["01M5NEQRVQMQKGM7BAZ1TXSAW4","01M5NE9WHM9W04Y91J3HZKJEKR"],"move.node":{"id":"01M5NDX4GQZ7YTY38QPAKC122A","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffff7fffffffffffffffffff"}}
 {"v":1,"id":["01M5NEQRVRPRWY0D91EYR3J3DQ","01M5NEQRVQMQKGM7BAZ1TXSAW4"],"move.node":{"id":"01M5NDXQ9V2C06HEM1A66T0JFD","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffbfffffffffffffffffff"}}
+{"v":1,"id":["01M5NHZ8WRW2R6FNFD4SQ9BT6P","01M5NHD3BHWBMAFKFZXZETDGHK"],"add.issue":{"id":"01M5NHZ8WR2A2BW5D3VRJTJFV3","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","name":"docs: the website and the Code tab's empty state teach the Epiq-Ref line, not a ref prefix","rank":"ffffbfffffffffffffffffff"}}
+{"v":1,"id":["01M5NHZ8WSRV4GHM3PE74746MC","01M5NHZ8WRW2R6FNFD4SQ9BT6P"],"edit.description":{"id":"01M5NHZ8WR2A2BW5D3VRJTJFV3","md":"From jola: bring the docs in line with the Epiq-Ref convention. The readme and docs.html already describe it; the home page's \"Check the diff\" section and the GUI Code tab's empty state still say to prefix the subject with the ref."}}
+{"v":1,"id":["01M5NHZ8WTY5DD9QS5GYXAA3TE","01M5NHZ8WSRV4GHM3PE74746MC"],"add.issue.tag":{"id":"01M5NHZ8WR2A2BW5D3VRJTJFV3","tag":"01M12PMYDSM2AQZ2R4GKCDC3CP"}}
+{"v":1,"id":["01M5NHZ8WVCZ2ZPM2KB4XHEKJD","01M5NHZ8WTY5DD9QS5GYXAA3TE"],"add.issue.assignee":{"id":"01M5NHZ8WR2A2BW5D3VRJTJFV3","assignee":"AG4F85NT5WDQ4Q7G8W487JAGHH"}}
+{"v":1,"id":["01M5NHZNFF0GPV6W9V8031V39J","01M5NHZ8WVCZ2ZPM2KB4XHEKJD"],"move.node":{"id":"01M5NHZ8WR2A2BW5D3VRJTJFV3","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"ffffbfffffffffffffffffff"}}
+{"v":1,"id":["01M5NJ1A11DVQ1STF0FYM822B6","01M5NHZNFF0GPV6W9V8031V39J"],"move.node":{"id":"01M5NHZ8WR2A2BW5D3VRJTJFV3","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"7fffffffffffffffffffffff"}}
+{"v":1,"id":["01M5NJTRJ6JRJP66A3C5PNT4RY","01M5NJKJXKH925375446E9H5PT"],"move.node":{"id":"01M5NHZ8WR2A2BW5D3VRJTJFV3","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffff7fffffffffffffffff"}}
