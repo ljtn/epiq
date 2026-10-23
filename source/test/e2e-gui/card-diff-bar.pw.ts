@@ -138,6 +138,12 @@ const isCutBars = (frame: string): boolean => {
 	);
 };
 
+// A board left in the past keeps every later test in the worker there, so it
+// goes back however a test ends.
+test.afterEach(async ({page}) => {
+	await returnToLive(page);
+});
+
 // A board parked in the past shows a ticket's code as it stood then: the card
 // and the Code tab count the commits made by the needle, and no later one.
 test('a scrubbed card and its Code tab count only the commits made by the needle', async ({
@@ -171,10 +177,11 @@ test('a scrubbed card and its Code tab count only the commits made by the needle
 	const ref = await addTicketForRef(page, `Then ${Date.now()}`);
 	commitLinkedFile(repoRoot, ref, 'the early half');
 	const needle = Date.now() + 1_000;
-	// Made a whole second past the needle, as a commit's time is whole seconds.
-	// Waited for rather than dated ahead: a commit from the future would lead
-	// the shared repo's history for every test after this one.
-	await page.waitForTimeout(needle + 1_000 - Date.now());
+	const stepped = needle + 500;
+	// Made a whole second past the later needle, as a commit's time is whole
+	// seconds. Waited for rather than dated ahead: a commit from the future
+	// would lead the shared repo's history for every test after this one.
+	await page.waitForTimeout(stepped + 1_000 - Date.now());
 	commitLinkedFile(
 		repoRoot,
 		ref,
@@ -212,7 +219,7 @@ test('a scrubbed card and its Code tab count only the commits made by the needle
 	server!.send(
 		JSON.stringify({
 			type: 'time-travel:scrub',
-			payload: {targetTime: needle + 500},
+			payload: {targetTime: stepped},
 		}),
 	);
 	await expect.poll(() => held!.length).toBeGreaterThan(0);
