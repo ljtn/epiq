@@ -1421,7 +1421,8 @@ export const App = () => {
 	const [needleDragging, setNeedleDragging] = useState(false);
 	const {settle: settleNeedle} = useNeedleUrl({
 		cut: scrubCut(state?.timeTravel),
-		loaded: state !== null,
+		state,
+		socketEpoch,
 		following: theatre === null,
 		dragging: needleDragging,
 		scrubTo: scrubToTime,
