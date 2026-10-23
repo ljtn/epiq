@@ -98,6 +98,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 						? `${hue}${lifted ? '33' : '1f'}`
 						: isPrimary
 						? GUI_THEME.raised
+						: variant === 'chip'
+						? // Its own dark ground, so its edge still shows on a row lit under it.
+						  lifted
+							? `linear-gradient(${GUI_THEME.hover}, ${GUI_THEME.hover}), ${GUI_THEME.panel}`
+							: GUI_THEME.panel
 						: lifted
 						? GUI_THEME.hover
 						: 'transparent',
