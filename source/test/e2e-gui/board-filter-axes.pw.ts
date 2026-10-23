@@ -81,6 +81,36 @@ test('opening a row list does not switch its axis on', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// At the row's end, apart from the box and its name, and lit under the pointer
+// as every icon button is.
+test('a row opens its list from a chevron at the row’s end', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await page.getByTestId('series-select').click();
+	const menu = page.getByRole('group', {name: 'Filter the board'});
+	const chevron = page.getByTestId('filter-axis-actor');
+
+	const menuBox = await menu.boundingBox();
+	const chevronBox = await chevron.boundingBox();
+	expect(
+		menuBox!.x + menuBox!.width - (chevronBox!.x + chevronBox!.width),
+	).toBeLessThan(16);
+
+	await expect(chevron).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+	await chevron.hover();
+	await expect(chevron).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+	await chevron.click();
+	await expect(chevron).toHaveAttribute('aria-expanded', 'true');
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('a half-ticked list puts its row in the dash', async ({
 	page,
 	appUrl,
