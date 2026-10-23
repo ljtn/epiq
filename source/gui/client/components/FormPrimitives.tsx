@@ -99,6 +99,10 @@ export const ChipRow = ({
 }) => {
 	const [lit, setLit] = useState(false);
 
+	// Not clickable, it hears no pointer, so it would come back still lit from
+	// before — the pointer long gone, through the keyboard.
+	if (!onActivate && lit) setLit(false);
+
 	if (!onActivate) {
 		return (
 			<div style={{display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10}}>

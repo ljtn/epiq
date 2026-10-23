@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
+import {useFocusLift} from '../lib/use-focus-lift';
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 	// `primary` is the next step — what commits a form, one per decision — and
@@ -51,9 +52,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 		ref,
 	) => {
 		const [pointed, setPointed] = useState(false);
-		// Keyboard focus draws as the pointer does: a lift, not a ring. A click
-		// focuses a button too, but is not `:focus-visible`, so it adds nothing.
-		const [focused, setFocused] = useState(false);
+		const {focused, focusProps} = useFocusLift<HTMLButtonElement>({
+			onFocus,
+			onBlur,
+		});
 		const lifted = pointed || focused;
 
 		const isPrimary = variant === 'primary';
@@ -81,14 +83,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 					setPointed(false);
 					onMouseLeave?.(event);
 				}}
-				onFocus={event => {
-					setFocused(event.currentTarget.matches(':focus-visible'));
-					onFocus?.(event);
-				}}
-				onBlur={event => {
-					setFocused(false);
-					onBlur?.(event);
-				}}
+				{...focusProps}
 				style={{
 					appearance: 'none',
 					WebkitAppearance: 'none',

@@ -6,6 +6,7 @@
 
 import React, {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
+import {useFocusLift} from '../lib/use-focus-lift';
 
 export const ICON_BUTTON_SIZE = 24;
 // The glyph inside the square: what every icon here is drawn at.
@@ -52,7 +53,10 @@ export const IconButton = ({
 	'aria-label' | 'aria-haspopup' | 'aria-expanded' | 'aria-controls' | 'onBlur'
 >) => {
 	const [hovered, setHovered] = useState(false);
-	const lit = pressed === true || (hovered && !disabled);
+	const {focused, focusProps} = useFocusLift<HTMLButtonElement>({
+		onBlur: rest.onBlur,
+	});
+	const lit = pressed === true || ((hovered || focused) && !disabled);
 	const filled = tone === 'solid' && pressed === true;
 
 	return (
@@ -64,7 +68,7 @@ export const IconButton = ({
 			aria-haspopup={rest['aria-haspopup']}
 			aria-expanded={rest['aria-expanded']}
 			aria-controls={rest['aria-controls']}
-			onBlur={rest.onBlur}
+			{...focusProps}
 			data-testid={testId}
 			disabled={disabled}
 			onClick={onClick}
@@ -89,6 +93,7 @@ export const IconButton = ({
 					? GUI_THEME.hover
 					: 'transparent',
 				border: 'none',
+				outline: 'none',
 				borderRadius: 4,
 				color: filled
 					? GUI_THEME.panel

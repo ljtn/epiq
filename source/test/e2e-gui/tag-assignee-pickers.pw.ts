@@ -78,6 +78,41 @@ test('tabbing into the tag section opens it in its input, and out closes it', as
 	expect(pageErrors).toEqual([]);
 });
 
+// The pointer leaves while the row is open and hears nothing; closed again,
+// the row must not come back lit for a pointer that is long gone.
+test('a tag row opened from the keyboard does not come back lit', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openNewTicket(page, appUrl);
+	const stamp = Date.now();
+	const input = aside(page).getByPlaceholder('Tag name');
+	const row = aside(page).getByTestId('tags-row');
+
+	await aside(page).getByTestId('tags-empty').click();
+	await input.fill(`lit-${stamp}`);
+	await input.press('Enter');
+	await input.press('Escape');
+
+	const box = await row.boundingBox();
+	await page.mouse.move(box!.x + box!.width - 4, box!.y + box!.height / 2);
+	await expect(row).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+	// Back onto its chip from the keyboard, which opens the row in its input.
+	await page.keyboard.press('Shift+Tab');
+	await expect(input).toBeFocused();
+	await page.mouse.move(2, 2);
+
+	for (let step = 0; step < 200 && (await input.isVisible()); step++) {
+		await page.keyboard.press('Tab');
+	}
+	await expect(input).toBeHidden();
+	await expect(row).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+	expect(pageErrors).toEqual([]);
+});
+
 // Lit as the pointer lights it, and only for the keyboard.
 test('the Add button shows it has keyboard focus', async ({
 	page,
