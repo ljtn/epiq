@@ -433,6 +433,8 @@ export const IssueDetails = ({
 	const panelRef = useRef<HTMLElement | null>(null);
 	const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+	const tagInputRef = useRef<HTMLInputElement | null>(null);
+	const assigneeInputRef = useRef<HTMLInputElement | null>(null);
 
 	useAutoGrow(titleTextareaRef, title, {active: editingTitle});
 
@@ -501,12 +503,15 @@ export const IssueDetails = ({
 
 	const cancelTitle = () => setEditingTitle(false);
 
-	const addTag = () => {
-		if (disabled || !issue || !tagName.trim()) return;
+	// The row stays open after an add, so several go on in a row; Escape or
+	// the section's - closes it. Focus goes back to the input, which a picked
+	// chip would otherwise take with it as it leaves the list.
+	const addTag = (name = tagName.trim()) => {
+		if (disabled || !issue || !name) return;
 
-		onAddTag(issue.id, tagName.trim());
+		onAddTag(issue.id, name);
 		setTagName('');
-		setAddingTag(false);
+		tagInputRef.current?.focus();
 	};
 
 	const addAssignee = () => {
@@ -514,7 +519,14 @@ export const IssueDetails = ({
 
 		onAddExternalAssignee(issue.id, assigneeName.trim());
 		setAssigneeName('');
-		setAddingAssignee(false);
+		assigneeInputRef.current?.focus();
+	};
+
+	const pickAssignee = (assigneeId: string) => {
+		if (disabled || !issue) return;
+
+		onAddAssignee(issue.id, assigneeId);
+		assigneeInputRef.current?.focus();
 	};
 
 	const availableTags = tags.filter(
@@ -673,7 +685,7 @@ export const IssueDetails = ({
 											key={tag.id}
 											variant="chip"
 											disabled={issue.readonly}
-											onClick={() => onAddTag(issue.id, tag.name)}
+											onClick={() => addTag(tag.name)}
 											tint={tag.color}
 											style={{color: tag.color, opacity: 0.55}}
 										>
@@ -699,6 +711,7 @@ export const IssueDetails = ({
 							{addingTag && (
 								<AddRow>
 									<Input
+										ref={tagInputRef}
 										value={tagName}
 										autoFocus
 										placeholder="Tag name"
@@ -712,7 +725,7 @@ export const IssueDetails = ({
 										}}
 									/>
 
-									<Button onClick={addTag}>Add</Button>
+									<Button onClick={() => addTag()}>Add</Button>
 								</AddRow>
 							)}
 						</Section>
@@ -767,7 +780,7 @@ export const IssueDetails = ({
 											key={assignee.id}
 											variant="chip"
 											disabled={issue.readonly}
-											onClick={() => onAddAssignee(issue.id, assignee.id)}
+											onClick={() => pickAssignee(assignee.id)}
 											title={
 												assignee.hasAuthoredAnywhere
 													? undefined
@@ -808,6 +821,7 @@ export const IssueDetails = ({
 							{addingAssignee && (
 								<AddRow>
 									<Input
+										ref={assigneeInputRef}
 										value={assigneeName}
 										autoFocus
 										placeholder="Name of unknown contributor"
