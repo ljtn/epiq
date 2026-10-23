@@ -123,8 +123,11 @@ test('the Add button shows it has keyboard focus', async ({
 	const input = aside(page).getByPlaceholder('Tag name');
 	const add = aside(page).getByRole('button', {name: 'Add', exact: true});
 
+	// GUI_THEME.line, the edge of a button at rest.
+	const resting = 'rgba(70, 87, 126, 0.15)';
+
 	await aside(page).getByTestId('tags-empty').click();
-	const resting = await add.evaluate(el => getComputedStyle(el).borderColor);
+	await expect(add).toHaveCSS('border-color', resting);
 
 	await input.press('Tab');
 	await expect(add).toBeFocused();
