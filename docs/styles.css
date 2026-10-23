@@ -239,13 +239,14 @@ h1,
 .hero-title > :nth-child(2) {
 	margin-top: calc(var(--s) * 0.12);
 	font-size: max(20px, var(--s) * 7 / 15.5);
+	color: color-mix(in srgb, var(--text) 75%, transparent);
 }
 .hero-title > :nth-child(3) {
 	margin-top: calc(var(--s) * 0.6);
 	font-size: calc(var(--s) * 0.3038);
 	letter-spacing: 0.16em;
 	text-transform: uppercase;
-	color: color-mix(in srgb, var(--dim) 60%, transparent);
+	color: color-mix(in srgb, var(--dim) 75%, transparent);
 }
 /* At its floor the third line's spacing tightens so it keeps to one row. */
 @media (max-width: 620px) {
