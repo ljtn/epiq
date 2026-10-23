@@ -38,7 +38,12 @@ export const useRefDiffStats = ({
 	socketEpoch: number;
 	sendRaw: (message: unknown) => void;
 }) => {
-	const [stats, setStats] = useState<RefDiffStats>(NONE);
+	// With the cut it answers: bars of another moment are not drawn, so a moved
+	// needle shows none until its own answer lands.
+	const [held, setHeld] = useState<{
+		asOfTime: number | null;
+		stats: RefDiffStats;
+	}>({asOfTime: null, stats: NONE});
 	const askedAt = useRef(0);
 	// The cut of the latest ask: a dragged needle leaves older answers in
 	// flight, and only this one's reply is taken.
@@ -89,8 +94,8 @@ export const useRefDiffStats = ({
 		// the bars as they are. They are a decoration on the board, and a column
 		// of them blinking out says nothing the reader can act on.
 		const next = getResultValue<RefDiffStats>(message.payload.result);
-		if (next) setStats(next);
+		if (next) setHeld({asOfTime: message.payload.asOfTime, stats: next});
 	}, []);
 
-	return {stats, onMessage};
+	return {stats: held.asOfTime === asOfTime ? held.stats : NONE, onMessage};
 };
