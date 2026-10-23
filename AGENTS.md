@@ -117,9 +117,8 @@ Five places; a missed one fails quietly:
 ## Workflow
 
 - **A worktree before the first edit**, under `.claude/worktrees/<ref>-<slug>`. The repository root stays on `main`, and `main` never goes in a worktree.
-- **Every change goes through a pull request**, merged by rebase so each commit keeps its ticket ref. Never commit or merge to `main` locally.
-- **A commit subject opens with its ticket's ref** — that is how commits link to tickets — and says what is now true, in one line.
-- **Squash only trivial commits sharing one ref.**
+- **Every change goes through a pull request.** Never commit or merge to `main` locally.
+- **Link commits to tickets as the [epiq skill](.claude/skills/epiq/SKILL.md) says**, through squashes too. A commit subject says what is now true, in one line.
 - **Work the board through the epiq MCP tools**, and keep it current: a ticket moves to Ongoing when work starts; a merged ticket moves to Done and stays open until the release closes it; a follow-up folded into a ticket takes it back to Ongoing.
 - **Review findings get their own tickets**, tagged `from-review`, naming the PR.
 - **A bug fix comes with a test** that fails without the fix.
