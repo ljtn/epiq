@@ -127,16 +127,9 @@ test('a ticket whose commits changed no lines carries no stat to click', async (
 	expect(pageErrors).toEqual([]);
 });
 
-const isCutBars = (frame: string): boolean => {
-	const parsed = JSON.parse(frame) as {
-		type?: string;
-		payload?: {asOfTime?: number | null};
-	};
-
-	return (
-		parsed.type === 'diff-stats' && typeof parsed.payload?.asOfTime === 'number'
-	);
-};
+// The type of every frame the page sends, for what a needle step asks for.
+const sentType = (frame: string): string | undefined =>
+	(JSON.parse(frame) as {type?: string}).type;
 
 // A board left in the past keeps every later test in the worker there, so it
 // goes back however a test ends.
@@ -155,21 +148,22 @@ test('a scrubbed card and its Code tab count only the commits made by the needle
 	// The needle is parked by a frame of the test's own, at an exact moment a
 	// click on the track could not hit.
 	let server: {send: (message: string) => void} | null = null;
-	// The bars for the needle, held back until released, to see what the card
-	// draws while they are on their way.
-	let held: Array<() => void> | null = null;
+	const sent: string[] = [];
 	await page.routeWebSocket(/\/ws/, ws => {
 		const connection = ws.connectToServer();
 		server = connection;
-		ws.onMessage(message => connection.send(message));
-		connection.onMessage(message => {
-			if (held && typeof message === 'string' && isCutBars(message)) {
-				held.push(() => ws.send(message));
-				return;
-			}
-			ws.send(message);
+		ws.onMessage(message => {
+			if (typeof message === 'string') sent.push(sentType(message) ?? '');
+			connection.send(message);
 		});
+		connection.onMessage(message => ws.send(message));
 	});
+	const scrubTo = async (targetTime: number) => {
+		server!.send(
+			JSON.stringify({type: 'time-travel:scrub', payload: {targetTime}}),
+		);
+		await expect(page.getByText('Read-only', {exact: true})).toBeVisible();
+	};
 
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -195,51 +189,38 @@ test('a scrubbed card and its Code tab count only the commits made by the needle
 	const stat = statOn(page, ref);
 	await expect(stat).toHaveText('+5-0');
 
-	await expect.poll(() => server).not.toBeNull();
-	held = [];
-	server!.send(
-		JSON.stringify({type: 'time-travel:scrub', payload: {targetTime: needle}}),
-	);
-	await expect(page.getByText('Read-only', {exact: true})).toBeVisible();
-
-	// The present's bar is not drawn at the needle while the needle's own is
-	// on its way.
-	await expect.poll(() => held!.length).toBeGreaterThan(0);
-	await expect(stat).toHaveCount(0);
-	const release = held!;
-	held = null;
-	for (const send of release) send();
-
-	await expect(stat).toHaveText('+3-0');
-	await expect(stat).toHaveAttribute('title', '1 commit');
-
-	// A step forward keeps the earlier cut's bar while its own is on its way:
-	// it lacks only commits, never shows one not made yet.
-	held = [];
-	server!.send(
-		JSON.stringify({
-			type: 'time-travel:scrub',
-			payload: {targetTime: stepped},
-		}),
-	);
-	await expect.poll(() => held!.length).toBeGreaterThan(0);
-	await expect(stat).toHaveText('+3-0');
-	const forward = held!;
-	held = null;
-	for (const send of forward) send();
-	await expect(stat).toHaveText('+3-0');
-
+	const codeTab = (count: number) =>
+		page
+			.getByTestId('aside-pane')
+			.getByRole('button', {name: new RegExp(`^Code \\(${count}\\)`)});
 	await stat.click();
 	await expect(page).toHaveURL(/tab=code/);
-	await expect(
-		page.getByTestId('aside-pane').getByRole('button', {name: /^Code \(1\)/}),
-	).toBeVisible();
+	await expect(codeTab(2)).toBeVisible();
+
+	await expect.poll(() => server).not.toBeNull();
+	const before = sent.length;
+
+	await scrubTo(needle);
+	await expect(stat).toHaveText('+3-0');
+	await expect(stat).toHaveAttribute('title', '1 commit');
+	await expect(codeTab(1)).toBeVisible();
+
+	await scrubTo(stepped);
+	await expect(stat).toHaveText('+3-0');
+	await scrubTo(needle);
+	await expect(stat).toHaveText('+3-0');
+	await expect(codeTab(1)).toBeVisible();
+
+	// Each step is drawn from what the page already holds: a step that asked
+	// again would draw nothing, or a loading list, until its answer landed, and
+	// a dragged needle made the whole board flicker.
+	const asked = sent.slice(before);
+	expect(asked).not.toContain('diff-stats:get');
+	expect(asked).not.toContain('issue:commits:get');
 
 	await returnToLive(page);
 	await expect(stat).toHaveText('+5-0');
-	await expect(
-		page.getByTestId('aside-pane').getByRole('button', {name: /^Code \(2\)/}),
-	).toBeVisible();
+	await expect(codeTab(2)).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
 });

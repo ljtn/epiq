@@ -12,3 +12,16 @@ export type RefDiffStat = {
 
 /** Keyed by ref, upper-case, and holding only refs some commit names. */
 export type RefDiffStats = Record<string, RefDiffStat>;
+
+/** One commit's share of a ticket: when it was made, and the lines it moved. */
+export type RefCommitStat = {
+	time: number;
+	insertions: number;
+	deletions: number;
+};
+
+/**
+ * Every ref's commits, sent once, so a scrubbed board's totals at any moment
+ * are a sum on the client rather than a question per step of the needle.
+ */
+export type RefDiffTimeline = Record<string, RefCommitStat[]>;

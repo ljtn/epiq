@@ -8,13 +8,9 @@
 // by the scrubber moments earlier.
 
 import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
-import {
-	RefDiffStat,
-	RefDiffStats,
-} from '../../lib/stats/ref-diff-stats.model.js';
+import {RefDiffTimeline} from '../../lib/stats/ref-diff-stats.model.js';
 import {NODE_REF_LENGTH} from '../../lib/utils/node-ref.js';
 import {CommitEntry, getCommitTimeline} from '../../lib/commits/commits.js';
-import {inCommitWindow} from '../../lib/commits/commit-timeline.js';
 
 // Crockford base32 leaves out I, L, O and U, but this matches the same shape
 // `getCommitsForRef` does — a bare prefix of the right length, case-insensitive
@@ -33,10 +29,10 @@ const leadingRef = (subject: string): string | null => {
 	return REF_TOKEN.test(token) ? token : null;
 };
 
-export const collectRefDiffStats = (
+export const collectRefDiffTimeline = (
 	commits: readonly CommitEntry[],
-): RefDiffStats => {
-	const byRef: RefDiffStats = {};
+): RefDiffTimeline => {
+	const byRef: RefDiffTimeline = {};
 
 	for (const commit of commits) {
 		const leading = leadingRef(commit.subject);
@@ -46,35 +42,25 @@ export const collectRefDiffStats = (
 		]);
 
 		for (const ref of refs) {
-			const stat: RefDiffStat = (byRef[ref] ??= {
-				commits: 0,
-				insertions: 0,
-				deletions: 0,
+			(byRef[ref] ??= []).push({
+				time: commit.time,
+				insertions: commit.insertions,
+				deletions: commit.deletions,
 			});
-
-			stat.commits++;
-			stat.insertions += commit.insertions;
-			stat.deletions += commit.deletions;
 		}
 	}
 
 	return byRef;
 };
 
-// `end` cuts at a moment of a replayed board. Cut here rather than asked of
-// git: the full scan is the cached one, and a dragged needle asks often.
-export const getRefDiffStats = async (
-	input: {repoRoot?: string; end?: number} = {},
-): Promise<Result<RefDiffStats>> => {
+export const getRefDiffTimeline = async (
+	input: {repoRoot?: string} = {},
+): Promise<Result<RefDiffTimeline>> => {
 	const timelineResult = await getCommitTimeline({repoRoot: input.repoRoot});
 	if (isFail(timelineResult)) return timelineResult;
 
 	return succeeded(
-		'Collected diff stats by ref',
-		collectRefDiffStats(
-			timelineResult.value.filter(commit =>
-				inCommitWindow(commit.time, undefined, input.end),
-			),
-		),
+		'Collected commits by ref',
+		collectRefDiffTimeline(timelineResult.value),
 	);
 };

@@ -8,7 +8,8 @@ import {
 	resetCommitTimelineCacheForTests,
 } from '../lib/commits/commits.js';
 import {isFail, Result} from '../lib/model/result-types.js';
-import {getRefDiffStats} from '../mcp/api/ref-diff-stats.js';
+import {getRefDiffTimeline} from '../mcp/api/ref-diff-stats.js';
+import {diffStatsAt} from '../gui/client/lib/ref-diff-at.js';
 import {makeTempDir} from './helpers/git-repo.js';
 
 // A scrubbed board shows a ticket's code as of its needle: the commits made
@@ -94,8 +95,9 @@ describe('a ticket’s code at a cut', () => {
 	});
 
 	it('totals only those commits on the card', async () => {
-		const all = value(await getRefDiffStats({repoRoot: board}));
-		const cut = value(await getRefDiffStats({repoRoot: board, end: MID_JAN}));
+		const timeline = value(await getRefDiffTimeline({repoRoot: board}));
+		const all = diffStatsAt(timeline, null);
+		const cut = diffStatsAt(timeline, MID_JAN);
 
 		expect(all['B8PYTCM']).toEqual({commits: 2, insertions: 8, deletions: 0});
 		expect(cut['B8PYTCM']).toEqual({commits: 1, insertions: 3, deletions: 0});
@@ -115,7 +117,8 @@ describe('a ticket’s code at a cut', () => {
 	});
 
 	it('has nothing before the ticket’s first commit', async () => {
-		const cut = value(await getRefDiffStats({repoRoot: board, end: JAN - 500}));
+		const timeline = value(await getRefDiffTimeline({repoRoot: board}));
+		const cut = diffStatsAt(timeline, JAN - 500);
 
 		expect(cut['B8PYTCM']).toBeUndefined();
 	});
