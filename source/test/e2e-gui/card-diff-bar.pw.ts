@@ -206,6 +206,22 @@ test('a scrubbed card and its Code tab count only the commits made by the needle
 	await expect(stat).toHaveText('+3-0');
 	await expect(stat).toHaveAttribute('title', '1 commit');
 
+	// A step forward keeps the earlier cut's bar while its own is on its way:
+	// it lacks only commits, never shows one not made yet.
+	held = [];
+	server!.send(
+		JSON.stringify({
+			type: 'time-travel:scrub',
+			payload: {targetTime: needle + 500},
+		}),
+	);
+	await expect.poll(() => held!.length).toBeGreaterThan(0);
+	await expect(stat).toHaveText('+3-0');
+	const forward = held!;
+	held = null;
+	for (const send of forward) send();
+	await expect(stat).toHaveText('+3-0');
+
 	await stat.click();
 	await expect(page).toHaveURL(/tab=code/);
 	await expect(

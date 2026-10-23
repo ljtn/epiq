@@ -38,8 +38,10 @@ export const useRefDiffStats = ({
 	socketEpoch: number;
 	sendRaw: (message: unknown) => void;
 }) => {
-	// With the cut it answers: bars of another moment are not drawn, so a moved
-	// needle shows none until its own answer lands.
+	// With the cut it answers. Bars of a later moment, or of the present at a
+	// needle, would show code not yet written there, so none are drawn until the
+	// needle's own answer lands. An earlier cut's only lack commits, and stay,
+	// so a needle stepping forward does not blink the board.
 	const [held, setHeld] = useState<{
 		asOfTime: number | null;
 		stats: RefDiffStats;
@@ -97,5 +99,9 @@ export const useRefDiffStats = ({
 		if (next) setHeld({asOfTime: message.payload.asOfTime, stats: next});
 	}, []);
 
-	return {stats: held.asOfTime === asOfTime ? held.stats : NONE, onMessage};
+	const stillTrue =
+		held.asOfTime === asOfTime ||
+		(held.asOfTime !== null && asOfTime !== null && held.asOfTime <= asOfTime);
+
+	return {stats: stillTrue ? held.stats : NONE, onMessage};
 };
