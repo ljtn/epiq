@@ -489,7 +489,7 @@ export const EVENT_LOG_STYLES = `
 	text-overflow: ellipsis;
 }
 .${LOG_REF_CLASS} {
-	color: ${GUI_THEME.dim};
+	color: ${GUI_THEME.faint};
 }
 .${LOG_DIFF_CLASS} {
 	display: inline-flex;
