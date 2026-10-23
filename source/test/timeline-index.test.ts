@@ -504,8 +504,8 @@ describe('timeline-index', () => {
 				'Renamed swimlane "Ideas" to "Later"',
 				'Renamed board "Ops" to "Operations"',
 				'Locked swimlane "Later"',
-				// A ticket's move keeps its own wording, under the ticket.
-				'Moved within Later',
+				// A ticket's move opens with the ticket's ref.
+				'I1 moved within Later',
 				'Deleted swimlane "Later"',
 			]);
 		});
