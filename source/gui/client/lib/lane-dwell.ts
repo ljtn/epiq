@@ -55,3 +55,49 @@ export const dwellLevel = (
 
 	return 'none';
 };
+
+// Something happened to a ticket this recently: being worked on now.
+const LIVE_WINDOW_MS = 5 * 60 * 1000;
+// Quiet for less than this is never stalled, however brisk the lane.
+const STALL_FLOOR_MS = DAY;
+
+/** How fresh a ticket is against now. Display only; never used for order. */
+export type CardActivity = 'live' | 'stalled' | null;
+
+/**
+ * Live: anything happened to it in the last five minutes. Stalled: in a lane
+ * between the board's first and last, of at least three tickets, and quiet for
+ * longer than that lane's median stay — never under a day.
+ */
+export const cardActivity = (
+	issue: Pick<GuiIssue, 'lastEventAt'>,
+	lane: {
+		now: number;
+		middle: boolean;
+		laneMedian: number | null;
+		laneSize: number;
+	},
+): CardActivity => {
+	if (issue.lastEventAt === undefined) return null;
+
+	const quiet = lane.now - issue.lastEventAt;
+	if (quiet < LIVE_WINDOW_MS) return 'live';
+	if (!lane.middle || lane.laneMedian === null) return null;
+	if (lane.laneSize < MIN_LANE_SIZE) return null;
+
+	return quiet > Math.max(lane.laneMedian, STALL_FLOOR_MS) ? 'stalled' : null;
+};
+
+/** When the first of a lane's live tickets stops being live, or Infinity. */
+export const liveExpiry = (
+	issues: readonly Pick<GuiIssue, 'lastEventAt'>[],
+	now: number,
+): number =>
+	Math.min(
+		...issues.map(issue =>
+			issue.lastEventAt !== undefined &&
+			now - issue.lastEventAt < LIVE_WINDOW_MS
+				? issue.lastEventAt + LIVE_WINDOW_MS
+				: Infinity,
+		),
+	);

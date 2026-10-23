@@ -1,6 +1,10 @@
 import {GUI_THEME} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
-import {DIFF_STAT_METRICS, DiffStatVariant} from '../lib/diff-stat.style';
+import {
+	diffFill,
+	DIFF_STAT_METRICS,
+	DiffStatVariant,
+} from '../lib/diff-stat.style';
 import {DiffBar} from './DiffBar';
 
 export const DiffStat = ({
@@ -24,6 +28,17 @@ export const DiffStat = ({
 	if (insertions + deletions === 0) return null;
 
 	const metrics = DIFF_STAT_METRICS[variant];
+	const added = <span style={{color: GUI_THEME.green}}>+{insertions}</span>;
+	const removed = <span style={{color: GUI_THEME.red}}>-{deletions}</span>;
+	const pill = bar && (
+		<DiffBar
+			insertions={insertions}
+			deletions={deletions}
+			width={metrics.barWidth}
+			height={metrics.barHeight}
+			fill={metrics.sizedFill ? diffFill(insertions + deletions) : 1}
+		/>
+	);
 
 	return (
 		<div
@@ -40,16 +55,9 @@ export const DiffStat = ({
 				fontSize: metrics.fontSize,
 			}}
 		>
-			<span style={{color: GUI_THEME.green}}>+{insertions}</span>
-			<span style={{color: GUI_THEME.red}}>-{deletions}</span>
-			{bar && (
-				<DiffBar
-					insertions={insertions}
-					deletions={deletions}
-					width={metrics.barWidth}
-					height={metrics.barHeight}
-				/>
-			)}
+			{added}
+			{removed}
+			{pill}
 		</div>
 	);
 };

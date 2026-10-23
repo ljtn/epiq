@@ -323,6 +323,22 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		unavailable: () => null,
 		run: context => context.handlers.toggleLog(),
 	},
+	{
+		id: 'gui:density',
+		title: 'Dense cards',
+		group: 'View',
+		keywords: ['density', 'wide', 'compact', 'rows'],
+		unavailable: () => null,
+		run: context => context.handlers.toggleCardDensity(),
+	},
+	{
+		id: 'gui:density:lines',
+		title: 'Dense cards: one or two title lines',
+		group: 'View',
+		keywords: ['density', 'clamp', 'title'],
+		unavailable: () => null,
+		run: context => context.handlers.toggleDenseTitleLines(),
+	},
 ];
 
 // Unavailable last, available first — the TUI palette's rule, kept because
