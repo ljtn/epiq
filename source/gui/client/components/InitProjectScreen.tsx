@@ -1,6 +1,7 @@
 import {Button} from './Button';
+import {GlobalStyles} from './GlobalStyles';
 import {Panel} from './Panel';
-import {GUI_THEME, UI_FONT} from '../lib/gui-theme';
+import {GUI_THEME, MONO_FONT} from '../lib/gui-theme';
 
 // Mirrors the server's view of the recent-projects registry; the client cannot
 // import the Node-side module that defines it.
@@ -40,13 +41,14 @@ export const InitProjectScreen = ({
 			height: '100vh',
 			background: GUI_THEME.bg,
 			color: GUI_THEME.primary,
-			fontFamily: UI_FONT,
+			fontFamily: MONO_FONT,
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
 			padding: 30,
 		}}
 	>
+		<GlobalStyles />
 		<Panel
 			proximityReach={300}
 			style={{width: 520, background: GUI_THEME.panel}}

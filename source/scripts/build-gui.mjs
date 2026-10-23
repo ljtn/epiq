@@ -41,6 +41,11 @@ copyFileSync(
 	resolve(root, 'source/gui/favicon.ico'),
 	resolve(root, 'dist/gui/favicon.ico'),
 );
+// Flat beside the rest: build-sea.mjs embeds this directory's top level only.
+copyFileSync(
+	resolve(root, 'source/gui/fonts/inter.woff2'),
+	resolve(root, 'dist/gui/inter.woff2'),
+);
 
 // React reads `process.env.NODE_ENV` to decide which of its two runtimes it is.
 // Nothing defined it, so esbuild left the expression alone and the bundle got

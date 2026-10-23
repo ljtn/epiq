@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import {CODE_FONT} from '../lib/code-text.style';
-import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
+import {SANS_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
 	HOVER_DELAY_MS,
 	Placement,
@@ -85,7 +85,7 @@ const Card = ({preview}: {preview: TicketPreview}) => (
 	<div style={{display: 'flex', flexDirection: 'column', gap: 6}}>
 		<div
 			style={{
-				fontFamily: CONTENT_FONT,
+				fontFamily: SANS_FONT,
 				fontSize: TEXT.prose,
 				lineHeight: 1.35,
 				color: GUI_THEME.primary,
@@ -102,7 +102,7 @@ const Card = ({preview}: {preview: TicketPreview}) => (
 		{preview.excerpt !== undefined && preview.excerpt !== '' && (
 			<div
 				style={{
-					fontFamily: CONTENT_FONT,
+					fontFamily: SANS_FONT,
 					fontSize: TEXT.meta,
 					lineHeight: 1.5,
 					color: GUI_THEME.secondary,

@@ -1,13 +1,16 @@
-// UI chrome (labels, buttons, tags) stays monospace to match the rest of the
-// app; prose content (description, title, comments) uses this for readability.
-export const CONTENT_FONT =
-	'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+// Two faces, one job each. Sans for what is clicked and what people wrote:
+// buttons, toggles, group labels, titles, descriptions, comments. Inter, shipped
+// with the GUI (see GlobalStyles), so it is the same face on every machine and
+// never fetched from anywhere; the rest is what shows while it loads.
+export const SANS_FONT =
+	'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
-// The chrome's own face. Set once on the tree the app draws into, and again by
-// anything drawn outside it: a window of its own, the screen shown before there
-// is a board, and any popover portalled to the body, which inherits from there
-// rather than from the control it belongs to.
-export const UI_FONT =
+// Mono for what the board records: log lines, times, refs, ids, diff stats,
+// code — anything read in columns. Set once on the tree the app draws into, and
+// again by anything drawn outside it: a window of its own, the screen shown
+// before there is a board, and any popover portalled to the body, which
+// inherits from there rather than from the control it belongs to.
+export const MONO_FONT =
 	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
 
 // The side panel's text sizes. Prose (descriptions, comments, notes) sits a
@@ -25,7 +28,7 @@ export const TEXT = {
 // and the fields that edit them share these, so an editor opens as the same
 // text with an edge around it rather than as a different, denser thing.
 export const PROSE = {
-	fontFamily: CONTENT_FONT,
+	fontFamily: SANS_FONT,
 	fontSize: TEXT.prose,
 	lineHeight: '22px',
 	letterSpacing: '0.2px',

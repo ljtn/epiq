@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
+import {SANS_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
 	GuiContributor,
 	GuiUser,

@@ -129,6 +129,7 @@ const getContentType = (filePath: string) => {
 	if (filePath.endsWith('.css')) return 'text/css; charset=utf-8';
 	if (filePath.endsWith('.json')) return 'application/json; charset=utf-8';
 	if (filePath.endsWith('.ico')) return 'image/x-icon';
+	if (filePath.endsWith('.woff2')) return 'font/woff2';
 
 	return 'application/octet-stream';
 };

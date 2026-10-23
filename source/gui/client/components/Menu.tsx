@@ -11,7 +11,7 @@ import React, {
 	useState,
 } from 'react';
 import {createPortal} from 'react-dom';
-import {GUI_THEME, UI_FONT} from '../lib/gui-theme';
+import {GUI_THEME, MONO_FONT} from '../lib/gui-theme';
 import {
 	menuRowHoverBackground,
 	popoverStyle,
@@ -117,7 +117,7 @@ export const Menu = ({
 							top: anchor.top,
 							marginTop: 0,
 							// A portal inherits from the body, not the app.
-							fontFamily: UI_FONT,
+							fontFamily: MONO_FONT,
 					  }
 					: {}),
 			}}

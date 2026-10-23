@@ -4,10 +4,10 @@
 // back to the board, which is where the ticket or the diff opens.
 
 import {useEffect} from 'react';
-import {GUI_THEME, TEXT, UI_FONT} from '../lib/gui-theme';
+import {GUI_THEME, TEXT, MONO_FONT} from '../lib/gui-theme';
 import {useLogMirror} from '../lib/log-window';
 import {EventLog} from './EventLog';
-import {GlobalScrollbarStyles} from './GlobalScrollbarStyles';
+import {GlobalStyles} from './GlobalStyles';
 
 export const LogWindow = () => {
 	const {lines, board, open, reportPinned} = useLogMirror();
@@ -23,11 +23,11 @@ export const LogWindow = () => {
 				// The same ground the docked log takes: one log, in two places.
 				background: GUI_THEME.chrome,
 				color: GUI_THEME.primary,
-				fontFamily: UI_FONT,
+				fontFamily: MONO_FONT,
 				display: 'flex',
 			}}
 		>
-			<GlobalScrollbarStyles />
+			<GlobalStyles />
 
 			{board ? (
 				<EventLog

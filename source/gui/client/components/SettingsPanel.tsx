@@ -1,5 +1,5 @@
 import {Fragment, useEffect, useLayoutEffect, useRef, useState} from 'react';
-import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
+import {SANS_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CARD, CARD_RADIUS, META, SECTION_LABEL} from '../lib/card.style';
 import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {ASIDE_PADDING} from './Aside';
@@ -306,7 +306,7 @@ export const SettingsPanel = ({
 				display: 'flex',
 				flexDirection: 'column',
 				color: GUI_THEME.primary,
-				fontFamily: CONTENT_FONT,
+				fontFamily: SANS_FONT,
 				fontSize: TEXT.prose,
 				animation: 'epiqSettingsSlide 180ms ease-out',
 			}}

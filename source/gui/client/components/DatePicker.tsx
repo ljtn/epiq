@@ -12,7 +12,7 @@ import {
 	monthGrid,
 	stepDay,
 } from '../lib/calendar-day';
-import {GUI_THEME, UI_FONT} from '../lib/gui-theme';
+import {GUI_THEME, MONO_FONT} from '../lib/gui-theme';
 import {
 	menuRowHoverBackground,
 	popoverStyle,
@@ -301,7 +301,7 @@ export const DatePicker = ({
 				top: anchor?.top ?? 0,
 				marginTop: 0,
 				// A portal inherits from the body, not the app.
-				fontFamily: UI_FONT,
+				fontFamily: MONO_FONT,
 				// Placed before it is seen, so it does not flash at the corner;
 				// faded rather than hidden, which would refuse the grid its focus.
 				opacity: anchor ? 1 : 0,
