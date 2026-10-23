@@ -39,7 +39,7 @@ const remember = (key: string, stats: IssueStats): IssueStats => {
 };
 
 export const getIssueStats = async (
-	input: {repoRoot?: string; idOrRef: string} = {idOrRef: ''},
+	input: {repoRoot?: string; idOrRef: string; end?: number} = {idOrRef: ''},
 ): Promise<Result<IssueStats>> => {
 	const raw = input.idOrRef.trim();
 	if (!raw) return failed('idOrRef must not be empty');
@@ -61,7 +61,7 @@ export const getIssueStats = async (
 	// tab called them one — the same split between two views that the event log
 	// and the scrubber already had.
 	const commitsResult = withCommitAuthors(
-		await getCommitsForRef({repoRoot, ref}),
+		await getCommitsForRef({repoRoot, ref, end: input.end}),
 	);
 	if (isFail(commitsResult)) return failed(commitsResult.message);
 

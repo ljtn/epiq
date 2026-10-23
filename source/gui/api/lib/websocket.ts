@@ -539,7 +539,7 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'issue:commits:get') {
-					const {issueId} = message.payload;
+					const {issueId, asOfTime} = message.payload;
 
 					// Wrapped with the issueId for the same reason commit:diff:result is:
 					// switching tickets while the Code tab stays open can leave an older
@@ -549,6 +549,7 @@ export const setupWebsocket = (
 						type: 'issue:commits:result',
 						payload: {
 							issueId,
+							asOfTime: asOfTime ?? null,
 							// With bodies: the Code tab offers each commit's message
 							// before its diff is opened.
 							result: await withCommitBodies(
@@ -557,6 +558,7 @@ export const setupWebsocket = (
 									await getCommitsForRef({
 										repoRoot,
 										ref: nodeRef(issueId),
+										end: asOfTime,
 									}),
 								),
 							),
@@ -567,22 +569,24 @@ export const setupWebsocket = (
 				// The same ticket's commits as one diff, for the Diff tab's compacted
 				// view. Wrapped with the issueId like its neighbours above.
 				if (type === 'issue:squashed-diff:get') {
-					const {issueId} = message.payload;
+					const {issueId, asOfTime} = message.payload;
 
 					return sendSocket(socket, {
 						type: 'issue:squashed-diff:result',
 						payload: {
 							issueId,
+							asOfTime: asOfTime ?? null,
 							result: await getSquashedDiffForRef({
 								repoRoot,
 								ref: nodeRef(issueId),
+								end: asOfTime,
 							}),
 						},
 					});
 				}
 
 				if (type === 'issue:stats:get') {
-					const {issueId} = message.payload;
+					const {issueId, asOfTime} = message.payload;
 
 					// Wrapped with the issueId like the two above, and for the same
 					// reason: the Stats tab stays open across a change of ticket, so
@@ -591,9 +595,11 @@ export const setupWebsocket = (
 						type: 'issue:stats:result',
 						payload: {
 							issueId,
+							asOfTime: asOfTime ?? null,
 							result: await getIssueStats({
 								repoRoot,
 								idOrRef: nodeRef(issueId),
+								end: asOfTime,
 							}),
 						},
 					});
@@ -602,9 +608,14 @@ export const setupWebsocket = (
 				// Unkeyed, unlike its neighbours above: the whole board is answered
 				// in one reply, so there is no ticket for a late one to be about.
 				if (type === 'diff-stats:get') {
+					const asOfTime = message.payload?.asOfTime;
+
 					return sendSocket(socket, {
 						type: 'diff-stats',
-						payload: await getRefDiffStats({repoRoot}),
+						payload: {
+							asOfTime: asOfTime ?? null,
+							result: await getRefDiffStats({repoRoot, end: asOfTime}),
+						},
 					});
 				}
 

@@ -132,14 +132,19 @@ export type GuiMessage =
 			};
 	  }
 	| {type: 'repo:disconnect'; payload: {repo: string}}
-	| {type: 'issue:commits:get'; payload: {issueId: string}}
-	| {type: 'issue:squashed-diff:get'; payload: {issueId: string}}
-	| {type: 'issue:stats:get'; payload: {issueId: string}}
-	// Every ref's commit totals at once, for the bars on the cards. No payload:
-	// like `commits:get` it is repository-wide, and unlike it, unwindowed — a
-	// ticket's bar is what the ticket has come to, not what a scrubbed window
+	// `asOfTime` on a ticket's code, and on the bars: the needle of a scrubbed
+	// board, so only commits made by then count. Echoed in the reply.
+	| {type: 'issue:commits:get'; payload: {issueId: string; asOfTime?: number}}
+	| {
+			type: 'issue:squashed-diff:get';
+			payload: {issueId: string; asOfTime?: number};
+	  }
+	| {type: 'issue:stats:get'; payload: {issueId: string; asOfTime?: number}}
+	// Every ref's commit totals at once, for the bars on the cards. Like
+	// `commits:get` it is repository-wide, and unlike it, unwindowed — a
+	// ticket's bar is what the ticket has come to, not what a zoomed window
 	// happens to hold.
-	| {type: 'diff-stats:get'}
+	| {type: 'diff-stats:get'; payload?: {asOfTime?: number}}
 	| {type: 'swimlane:stats:get'; payload: {swimlaneId: string}}
 	| {type: 'board:overview:get'; payload: {boardId: string}}
 	| {type: 'emails:get'}

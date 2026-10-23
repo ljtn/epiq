@@ -100,12 +100,10 @@ export const SwimlaneColumn = ({
 	// This lane's stats are the ones the inspector is showing.
 	statsOpen: boolean;
 	onOpenStats: (swimlaneId: string) => void;
-	// Every ref the repository has commits for, keyed by ref. Handed down whole
-	// rather than per card: it is one answer about the whole history, and the
-	// refs in it mostly belong to tickets standing in some other lane. Read only
-	// while the board is live, for the reason the dwell is: it counts commits up
-	// to now, which says nothing about a board being replayed at some other
-	// moment.
+	// Every ref the repository has commits for, keyed by ref, counting commits
+	// up to the moment on screen. Handed down whole rather than per card: it is
+	// one answer about the whole history, and the refs in it mostly belong to
+	// tickets standing in some other lane.
 	diffStats: RefDiffStats;
 	// Neither the board's first lane nor its last: where work is under way, and
 	// so where a ticket can be stuck.
@@ -385,7 +383,7 @@ export const SwimlaneColumn = ({
 									onOpenCode={onSelectIssueCode}
 									dwell={cardDwell(ticket)}
 									activity={activityOf(ticket)}
-									diff={live ? diffStats[ticket.ref] ?? null : null}
+									diff={diffStats[ticket.ref] ?? null}
 									isolatedTagId={isolatedTagId}
 									onFilterByTag={onFilterByTag}
 									isolatedAssigneeId={isolatedAssigneeId}

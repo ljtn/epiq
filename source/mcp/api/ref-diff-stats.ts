@@ -14,6 +14,7 @@ import {
 } from '../../lib/stats/ref-diff-stats.model.js';
 import {NODE_REF_LENGTH} from '../../lib/utils/node-ref.js';
 import {CommitEntry, getCommitTimeline} from '../../lib/commits/commits.js';
+import {inCommitWindow} from '../../lib/commits/commit-timeline.js';
 
 // Crockford base32 leaves out I, L, O and U, but this matches the same shape
 // `getCommitsForRef` does — a bare prefix of the right length, case-insensitive
@@ -60,14 +61,20 @@ export const collectRefDiffStats = (
 	return byRef;
 };
 
+// `end` cuts at a moment of a replayed board. Cut here rather than asked of
+// git: the full scan is the cached one, and a dragged needle asks often.
 export const getRefDiffStats = async (
-	input: {repoRoot?: string} = {},
+	input: {repoRoot?: string; end?: number} = {},
 ): Promise<Result<RefDiffStats>> => {
 	const timelineResult = await getCommitTimeline({repoRoot: input.repoRoot});
 	if (isFail(timelineResult)) return timelineResult;
 
 	return succeeded(
 		'Collected diff stats by ref',
-		collectRefDiffStats(timelineResult.value),
+		collectRefDiffStats(
+			timelineResult.value.filter(commit =>
+				inCommitWindow(commit.time, undefined, input.end),
+			),
+		),
 	);
 };

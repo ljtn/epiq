@@ -66,7 +66,12 @@ import {deriveBoardStats} from '../../lib/stats/board-stats.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {issueMatchesText} from '../../lib/utils/text-match.js';
 import {commitTicketRefs} from '../../lib/utils/commit-ref.js';
-import {findBoard, findIssue, getResultValue} from './lib/gui-state-helper';
+import {
+	findBoard,
+	findIssue,
+	getResultValue,
+	scrubCut,
+} from './lib/gui-state-helper';
 import {
 	GuiCommitDiff,
 	GuiCommitDiffFile,
@@ -473,6 +478,7 @@ export const App = () => {
 		onMessage: onIssueDetailMessage,
 	} = useIssueDetail({
 		issueId: selectedIssue?.id ?? null,
+		asOfTime: scrubCut(state?.timeTravel),
 		boardState: state,
 		// The board's own state is what a movie is showing; the panel is not
 		// even on screen.
@@ -494,7 +500,11 @@ export const App = () => {
 	// card and not on the board's own state: a commit is not an event the log
 	// knows about.
 	const {stats: refDiffStats, onMessage: onRefDiffStatsMessage} =
-		useRefDiffStats({socketEpoch, sendRaw});
+		useRefDiffStats({
+			socketEpoch,
+			asOfTime: scrubCut(state?.timeTravel),
+			sendRaw,
+		});
 
 	// The card a linkified ticket ref shows on hover. Most of it is already in
 	// `state`; only the description excerpt is fetched.

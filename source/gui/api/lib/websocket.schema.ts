@@ -39,7 +39,10 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	bare('issues:list'),
 	bare('sync'),
 	bare('time-travel:live'),
-	bare('diff-stats:get'),
+	z.object({
+		type: z.literal('diff-stats:get'),
+		payload: z.object({asOfTime: epochMs.optional()}).optional(),
+	}),
 
 	message('project:open', z.object({root: z.string().min(1)})),
 	message(
@@ -178,9 +181,18 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 		'commit:diff:get',
 		z.object({sha: z.string(), repo: z.string().max(80).optional()}),
 	),
-	message('issue:commits:get', z.object({issueId: id})),
-	message('issue:squashed-diff:get', z.object({issueId: id})),
-	message('issue:stats:get', z.object({issueId: id})),
+	message(
+		'issue:commits:get',
+		z.object({issueId: id, asOfTime: epochMs.optional()}),
+	),
+	message(
+		'issue:squashed-diff:get',
+		z.object({issueId: id, asOfTime: epochMs.optional()}),
+	),
+	message(
+		'issue:stats:get',
+		z.object({issueId: id, asOfTime: epochMs.optional()}),
+	),
 	message('swimlane:stats:get', z.object({swimlaneId: id})),
 	message('board:overview:get', z.object({boardId: id})),
 	bare('me:stats:get'),

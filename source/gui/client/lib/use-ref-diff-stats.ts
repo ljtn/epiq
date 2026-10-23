@@ -26,8 +26,12 @@ const REFRESH_AFTER_MS = 5_000;
 
 export const useRefDiffStats = ({
 	socketEpoch,
+	asOfTime,
 	sendRaw,
 }: {
+	// The needle of a scrubbed board, or null when live: only commits made by
+	// then count.
+	asOfTime: number | null;
 	// Counts opened sockets, so it is 0 before the first one is up and rises on
 	// every reconnect — after which the socket that would have carried an
 	// earlier answer is gone, and the question has to be put again.
@@ -36,11 +40,19 @@ export const useRefDiffStats = ({
 }) => {
 	const [stats, setStats] = useState<RefDiffStats>(NONE);
 	const askedAt = useRef(0);
+	// The cut of the latest ask: a dragged needle leaves older answers in
+	// flight, and only this one's reply is taken.
+	const askedFor = useRef<number | null>(null);
 
 	const ask = useCallback(() => {
 		askedAt.current = Date.now();
-		sendRaw({type: 'diff-stats:get'});
-	}, [sendRaw]);
+		askedFor.current = asOfTime;
+		sendRaw(
+			asOfTime === null
+				? {type: 'diff-stats:get'}
+				: {type: 'diff-stats:get', payload: {asOfTime}},
+		);
+	}, [asOfTime, sendRaw]);
 
 	// Not at mount, only once a socket is up. Asking at mount as well would send
 	// the same frame twice — it is queued through the connecting socket, and
@@ -71,11 +83,12 @@ export const useRefDiffStats = ({
 
 	const onMessage = useCallback((message: any) => {
 		if (message.type !== 'diff-stats') return;
+		if (message.payload?.asOfTime !== askedFor.current) return;
 
 		// A failure — no repository to read, a git lock held elsewhere — leaves
 		// the bars as they are. They are a decoration on the board, and a column
 		// of them blinking out says nothing the reader can act on.
-		const next = getResultValue<RefDiffStats>(message.payload);
+		const next = getResultValue<RefDiffStats>(message.payload.result);
 		if (next) setStats(next);
 	}, []);
 

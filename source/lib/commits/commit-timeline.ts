@@ -396,13 +396,17 @@ export const getCommitTimeline = async (
 // commit — i.e. no other ticket's commit sits between them.
 export type RefCommitEntry = CommitEntry & {precedingSha: string | null};
 
+// `end` cuts the history at a moment, for a board being replayed there: a
+// ticket's commits are those made by then.
+type RefInput = RepoInput & {ref: string; end?: number};
+
 /**
  * A ticket's commits per source, each in its own repo's order, before a commit
  * two sources share is listed once: a fork's share of a ticket is read off its
  * own history, shared commits included.
  */
 export const getRefMatchesBySource = async (
-	input: RepoInput & {ref: string},
+	input: RefInput,
 ): Promise<Result<RefCommitEntry[][]>> => {
 	const ref = input.ref.trim();
 	if (!ref) return failed('ref must not be empty');
@@ -438,6 +442,7 @@ export const getRefMatchesBySource = async (
 
 			for (const [index, commit] of all.entries()) {
 				if (!matches(commit)) continue;
+				if (!inCommitWindow(commit.time, undefined, input.end)) continue;
 
 				const precedingCommit = all[index + 1];
 
@@ -456,7 +461,7 @@ export const getRefMatchesBySource = async (
 };
 
 export const getCommitsForRef = async (
-	input: RepoInput & {ref: string},
+	input: RefInput,
 ): Promise<Result<RefCommitEntry[]>> => {
 	const bySource = await getRefMatchesBySource(input);
 	if (isFail(bySource)) return failed(bySource.message);
