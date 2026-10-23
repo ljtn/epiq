@@ -29,6 +29,15 @@ describe('toDiffFileInput', () => {
 		expect(keys('a\n', 'b\n')).toEqual(keys('a\n', 'b\n'));
 	});
 
+	// Each has one side, which alone makes the key: added, its contents are the
+	// new side; deleted unchanged, the same contents are the old.
+	it('keys a file added apart from the same file deleted unchanged', () => {
+		const added = toDiffFileInput(file('', 'a\n')).newFile?.cacheKey;
+		const deleted = toDiffFileInput(file('a\n', '')).oldFile?.cacheKey;
+
+		expect(added).not.toEqual(deleted);
+	});
+
 	it('leaves out the side a new or deleted file does not have', () => {
 		expect(toDiffFileInput(file('', 'a\n')).oldFile).toBeNull();
 		expect(toDiffFileInput(file('a\n', '')).newFile).toBeNull();
