@@ -3,9 +3,9 @@
 // whole thing back. Presentational — props in, JSX out; the state behind them
 // is TimeScrubber's.
 
-import {useContext, useRef} from 'react';
+import {useRef} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
-import {PanelGlowContext} from './Panel';
+import {useGlowGradient} from './Panel';
 import {
 	isPeriodWindow,
 	LayoutMode,
@@ -19,6 +19,7 @@ import {AxisState} from '../lib/board-selection';
 import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
+import {DensitySwitch} from './DensitySwitch';
 import {IconButton, ICON_SIZE} from './IconButton';
 import {IconFunnel} from './IconFunnel';
 import {IconLive} from './IconLive';
@@ -187,9 +188,9 @@ export const ScrubberControls = ({
 			style={{
 				display: 'flex',
 				alignItems: 'center',
-				// Twice the gap the narrowing group keeps within itself, so the
-				// breaks between groups read as the wider ones.
-				gap: 20,
+				// Either side of the line between two groups, so a break is twice
+				// this and a line: more where the window has the room.
+				gap: 'clamp(12px, 1.4vw, 22px)',
 				// Sized by the bar rather than by what is on it: the text filter is
 				// the one control here that gives when the row is tight, and a row
 				// sized to its own content would never be tight.
@@ -199,7 +200,7 @@ export const ScrubberControls = ({
 		>
 			{/* First on the row, ahead of the periods: what the chart is redraws it
 			    whole, where a period only says how much of it to show. */}
-			<LabelledGroup label="View" style={{gap: 2}}>
+			<LabelledGroup label="Graph" style={{gap: 2}}>
 				<IconButton
 					title="Volume per period"
 					aria-label="Volume"
@@ -228,6 +229,15 @@ export const ScrubberControls = ({
 					<IconFlow size={ICON_SIZE} />
 				</IconButton>
 			</LabelledGroup>
+
+			<GroupDivider />
+
+			{/* How the board's own cards are drawn, beside how the chart is. */}
+			<LabelledGroup label="Cards">
+				<DensitySwitch disabled={!connected} />
+			</LabelledGroup>
+
+			<GroupDivider />
 
 			<LabelledGroup label="Scope">
 				{narrow ? (
@@ -291,6 +301,8 @@ export const ScrubberControls = ({
 					</div>
 				)}
 			</LabelledGroup>
+
+			<GroupDivider />
 
 			{/* A group of one, right after the window it narrows the board to: the
 			    buttons to its left say which window, and this says whether the
@@ -384,22 +396,21 @@ export const ScrubberControls = ({
 			/> */}
 			</LabelledGroup>
 
-			{/* Last on the row, past everything that draws or narrows the window:
-			    the transport is the one thing here that starts something.
+			<GroupDivider />
 
-			    Its two halves are one group and keep the narrowing group's own
-			    gap rather than the row's, which is deliberately twice that so the
-			    breaks *between* groups read as the wider ones. Live and play are
-			    the same question — the present or the past — and spacing them
-			    like two groups says they are two. */}
-			<LabelledGroup label="Play" style={{gap: 6}}>
+			{/* Last on the row, past everything that draws or narrows the window:
+			    the transport, the one thing here that starts something. Two
+			    groups, each named for what its one button does. */}
+			<LabelledGroup label="Live">
 				<LiveToggle
 					following={following}
 					disabled={!canFollow}
 					title={followTitle}
 					onChange={onChangeFollowing}
 				/>
+			</LabelledGroup>
 
+			<LabelledGroup label="Replay">
 				<ScrubberPlayButton
 					canPlay={canPlay}
 					playTitle={playTitle}
@@ -409,6 +420,42 @@ export const ScrubberControls = ({
 		</div>
 	);
 };
+
+// A hairline between two groups of the row, lit by the panel's glow exactly as
+// its border is, so a point on it is as bright as a point on the border the
+// same distance from the pointer.
+const GroupDivider = () => {
+	const ref = useRef<HTMLSpanElement>(null);
+	const {glow, gradient} = useGlowGradient(ref);
+
+	return (
+		<span
+			ref={ref}
+			aria-hidden
+			style={{
+				position: 'relative',
+				alignSelf: 'center',
+				width: 1,
+				height: GROUP_DIVIDER_HEIGHT,
+				flexShrink: 0,
+				background: GUI_THEME.line,
+			}}
+		>
+			<span
+				style={{
+					position: 'absolute',
+					inset: 0,
+					background: gradient,
+					opacity: glow.strength * glow.opacity,
+					transition: 'opacity 140ms ease',
+				}}
+			/>
+		</span>
+	);
+};
+
+// As tall as a row's controls, not the row: the group names sit above them.
+const GROUP_DIVIDER_HEIGHT = 22;
 
 // One group of the row, named. The groups were told apart by gap width alone
 // — twenty between, six or ten within — which a reader stops seeing. The name
@@ -428,15 +475,8 @@ const LabelledGroup = ({
 	style?: React.CSSProperties;
 	children: React.ReactNode;
 }) => {
-	const glow = useContext(PanelGlowContext);
 	const labelRef = useRef<HTMLSpanElement>(null);
-	// The glow is in viewport coordinates and the gradient wants the name's
-	// own, so the name is measured on the way through. It has no ref yet on
-	// the first paint, where there is nothing lit to place either.
-	const rect = labelRef.current?.getBoundingClientRect();
-	const lightAt = rect
-		? `${glow.x - rect.left}px ${glow.y - rect.top}px`
-		: '0 0';
+	const {glow, gradient} = useGlowGradient(labelRef);
 
 	return (
 		<div
@@ -477,7 +517,7 @@ const LabelledGroup = ({
 						position: 'absolute',
 						inset: 0,
 						color: 'transparent',
-						backgroundImage: `radial-gradient(${glow.radius}px circle at ${lightAt}, ${glow.color}, transparent 100%)`,
+						backgroundImage: gradient,
 						WebkitBackgroundClip: 'text',
 						backgroundClip: 'text',
 						opacity: glow.strength,
@@ -685,9 +725,9 @@ export const ReturnToNowButton = ({
 // A reader asking "am I watching the present or the past" looks in one place
 // for the answer, which is the argument for the two being neighbours.
 //
-// Lit, it wears the accent and says LIVE beside the mark — a mode that moves
-// the board on its own has to be legible across a room, not inferred from a
-// pressed box.
+// Lit, it is filled with the accent — a mode that moves the board on its own
+// has to be legible across a room, not inferred from a pressed box. Its group
+// is named Live, so the button carries no word of its own.
 export const LiveToggle = ({
 	following,
 	disabled,
@@ -701,35 +741,20 @@ export const LiveToggle = ({
 	title: string;
 	onChange: (next: boolean) => void;
 }) => (
-	// An `IconButton` in a well, exactly as the play button beside it is. This
-	// was a hand-rolled button once, for the accent fill a quiet one does not
-	// have — and paid for it three times over: it came out four pixels smaller
-	// than its neighbour, answered a pointer with no hover at all, and had to be
-	// given each of those back by hand. The fill is a tone on the shared
-	// component now, so everything else comes with it.
-	<span
-		style={{
-			...fixtureWellStyle,
-			...(disabled
-				? {background: 'transparent', borderColor: 'transparent'}
-				: {}),
-		}}
+	// A plain `IconButton`, the size of every other single icon on the row: a
+	// well around it made it the largest thing there. The accent fill is a tone
+	// on the shared component, so hover and size come with it.
+	<IconButton
+		testId="live-toggle"
+		title={title}
+		aria-label="Follow the newest event"
+		pressed={following}
+		disabled={disabled}
+		tone="solid"
+		onClick={() => onChange(!following)}
 	>
-		<IconButton
-			testId="live-toggle"
-			title={title}
-			aria-label="Follow the newest event"
-			pressed={following}
-			disabled={disabled}
-			tone="solid"
-			// Only while it is lit does the word appear, so an idle bar keeps the
-			// width of a button rather than of a label nobody needs yet.
-			label={following ? 'LIVE' : undefined}
-			onClick={() => onChange(!following)}
-		>
-			<IconLive size={ICON_SIZE} lit={following} />
-		</IconButton>
-	</span>
+		<IconLive size={ICON_SIZE} lit={following} />
+	</IconButton>
 );
 
 // The transport, wherever it is put: among the controls while the bar is open,
@@ -747,32 +772,16 @@ export const ScrubberPlayButton = ({
 	playTitle: string;
 	onPlay: () => void;
 }) => (
-	// In the same well as the panel toggles at the row's other end: it starts
-	// something rather than drawing the chart, and it is on the bar whether the
-	// charts are up or shut.
-	//
-	// The well goes when it cannot be pressed, as the Resume slot's does: a
-	// panel and a border around a button that does nothing reads as a control
-	// that has stopped working. The box is kept either way, so an unplayable
-	// window does not shift the row.
-	<span
-		style={{
-			...fixtureWellStyle,
-			...(canPlay
-				? {}
-				: {background: 'transparent', borderColor: 'transparent'}),
-		}}
+	// A plain `IconButton`, the size of every other single icon on the row.
+	<IconButton
+		testId="theatre-play"
+		title={playTitle}
+		aria-label="Play the board's history"
+		disabled={!canPlay}
+		onClick={onPlay}
 	>
-		<IconButton
-			testId="theatre-play"
-			title={playTitle}
-			aria-label="Play the board's history"
-			disabled={!canPlay}
-			onClick={onPlay}
-		>
-			<IconReplay size={ICON_SIZE} />
-		</IconButton>
-	</span>
+		<IconReplay size={ICON_SIZE} />
+	</IconButton>
 );
 
 // Deliberately one block spanning both charts and the gap: hovering a commit

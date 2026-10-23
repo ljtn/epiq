@@ -2,6 +2,7 @@ import React, {
 	createContext,
 	ElementType,
 	PropsWithChildren,
+	useContext,
 	useEffect,
 	useMemo,
 	useRef,
@@ -20,6 +21,9 @@ export type PanelGlow = {
 	y: number;
 	// 0 to 1, what the border's own glow is multiplied by.
 	strength: number;
+	// How far up the border's glow goes at full strength: a line lit to
+	// match the border wears `strength * opacity`.
+	opacity: number;
 	radius: number;
 	color: string;
 };
@@ -28,9 +32,29 @@ export const PanelGlowContext = createContext<PanelGlow>({
 	x: 0,
 	y: 0,
 	strength: 0,
+	opacity: 0,
 	radius: 0,
 	color: 'transparent',
 });
+
+/**
+ * The panel's glow as a gradient placed on one element inside it: the light
+ * is in viewport coordinates and the gradient wants the element's own, so the
+ * element is measured on the way through. Before it has a box there is
+ * nothing lit to place.
+ */
+export const useGlowGradient = (
+	ref: React.RefObject<HTMLElement | null>,
+): {glow: PanelGlow; gradient: string} => {
+	const glow = useContext(PanelGlowContext);
+	const rect = ref.current?.getBoundingClientRect();
+	const at = rect ? `${glow.x - rect.left}px ${glow.y - rect.top}px` : '0 0';
+
+	return {
+		glow,
+		gradient: `radial-gradient(${glow.radius}px circle at ${at}, ${glow.color}, transparent 100%)`,
+	};
+};
 
 type PanelProps<T extends ElementType> = PropsWithChildren<{
 	as?: T;
@@ -129,10 +153,18 @@ export const Panel = <T extends ElementType = 'div'>({
 			x: mouse.clientX,
 			y: mouse.clientY,
 			strength: glowStrength,
+			opacity: glowOpacity,
 			radius: glowRadius,
 			color: glowColor,
 		}),
-		[mouse.clientX, mouse.clientY, glowStrength, glowRadius, glowColor],
+		[
+			mouse.clientX,
+			mouse.clientY,
+			glowStrength,
+			glowOpacity,
+			glowRadius,
+			glowColor,
+		],
 	);
 
 	return (
