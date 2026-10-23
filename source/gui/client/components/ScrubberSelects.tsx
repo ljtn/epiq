@@ -21,6 +21,7 @@ import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
+import {ICON_SIZE, IconButton} from './IconButton';
 import {Menu, MenuItem, MenuSection} from './Menu';
 import {useRepoLabel} from '../lib/use-repo-label';
 import {showsRepoToggles} from '../lib/commit-repo-filter';
@@ -43,16 +44,6 @@ const CATEGORY_LABELS: Record<EventCategory, string> = {
 // Bright enough to read as part of the control. At GUI_THEME.dim it sat so
 // faint beside its label that the collapsed panel looked like it had no
 // disclosure at all.
-const disclosureStyle: React.CSSProperties = {
-	background: 'transparent',
-	border: 'none',
-	padding: 0,
-	display: 'inline-flex',
-	alignItems: 'center',
-	color: GUI_THEME.secondary,
-	cursor: 'pointer',
-};
-
 // "Board" rather than "All": as the collapsed trigger it is the only thing
 // naming the series, and a bare "All" two controls from "All boards" says
 // nothing about which is which. The commit series' trigger beside it names
@@ -300,7 +291,9 @@ export const BoardSeriesGroup = ({
 							key={axis}
 							style={{display: 'flex', flexDirection: 'column', gap: 2}}
 						>
-							<MenuItem style={{justifyContent: 'flex-start', gap: 3}}>
+							{/* Pulled in on the right, so the chevron's square sits in the
+							    row's height rather than adding to it. */}
+							<MenuItem style={{padding: '1px 2px 1px 8px'}}>
 								<Checkbox
 									label={VIEW_LABELS[option]}
 									checked={state === 'all'}
@@ -310,33 +303,23 @@ export const BoardSeriesGroup = ({
 									title={AXIS_TITLES[axis]}
 									onChange={next => onToggleAxis(axis, next)}
 								/>
-								<button
-									type="button"
+								<IconButton
 									// Named, because its title is not a handle: TooltipLayer
 									// takes that away while its own tooltip is open.
-									data-testid={`filter-axis-${axis}`}
+									testId={`filter-axis-${axis}`}
 									disabled={!showIssues || !filtered}
 									// Opening a list does not switch its axis on: reading what
 									// is under a row is not the same as filtering by it.
 									onClick={() => onSetExpandedAxis(open ? null : axis)}
 									title={open ? `Hide ${rowLabel}` : `Pick ${rowLabel}`}
 									aria-expanded={open}
-									style={{
-										...disclosureStyle,
-										// In the row's own colour, so a lit caret reads as
-										// belonging to the thing it is holding back.
-										color:
-											state === 'some'
-												? boardViewColor(option)
-												: disclosureStyle.color,
-									}}
 								>
 									{open ? (
-										<IconChevronDown size={12} />
+										<IconChevronDown size={ICON_SIZE} />
 									) : (
-										<IconChevronRight size={12} />
+										<IconChevronRight size={ICON_SIZE} />
 									)}
-								</button>
+								</IconButton>
 							</MenuItem>
 
 							{open && identitiesByAxis[axis].length > 0 && (
