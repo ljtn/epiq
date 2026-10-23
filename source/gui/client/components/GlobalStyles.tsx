@@ -8,8 +8,8 @@ const SCROLLBAR_SIZE = 3;
 
 export const GlobalStyles = () => (
 	<style>{`
-		/* Served beside main.js by build-gui.mjs. Latin only, which covers
-		   every label the GUI draws; anything outside it falls back. */
+		/* Served beside main.js by build-gui.mjs: Inter's own Latin subset,
+		   which keeps its alternates. Anything outside Latin falls back. */
 		@font-face {
 			font-family: Inter;
 			font-style: normal;
@@ -21,6 +21,16 @@ export const GlobalStyles = () => (
 		/* A button takes the platform's face rather than inheriting one. */
 		button {
 			font-family: ${SANS_FONT};
+		}
+
+		/* Inter's capital I with serifs, so I, l and 1 read apart. A face
+		   without the alternate ignores it. */
+		body,
+		button,
+		input,
+		textarea,
+		select {
+			font-feature-settings: 'cv08';
 		}
 
 		/* Placeholders are a pseudo-element too. Unstyled they take the
