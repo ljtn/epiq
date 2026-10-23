@@ -45,7 +45,8 @@ const SETTLE_MS = 2_000;
 
 export const useNeedleUrl = ({
 	cut,
-	loaded,
+	state,
+	socketEpoch,
 	following,
 	dragging,
 	scrubTo,
@@ -53,9 +54,12 @@ export const useNeedleUrl = ({
 }: {
 	// Where the board stands: a moment, or null for live.
 	cut: number | null;
-	// Whether the board's state has arrived, so `cut` is the server's answer
-	// rather than the default before it.
-	loaded: boolean;
+	// The board's state as last broadcast, or null before the first: `cut` is
+	// the server's answer only once it has arrived.
+	state: unknown;
+	// Counts opened sockets. A new one may be a restarted server, which holds
+	// no moment at all, so the URL is read again on the state it sends.
+	socketEpoch: number;
 	// False while a movie plays: it scrubs every frame, and is no moment to
 	// link to.
 	following: boolean;
@@ -86,8 +90,27 @@ export const useNeedleUrl = ({
 		settledAt.current = Date.now();
 	}, []);
 
+	const loaded = state !== null;
+	// Read again on the first state a new socket brings, and otherwise only when
+	// the URL itself has moved: a broadcast is no reason to look.
+	const reread = useRef(false);
+	const seen = useRef<number | null | typeof UNREAD>(UNREAD);
+
 	useEffect(() => {
-		if (!loaded || inUrl === written.current) return;
+		reread.current = true;
+	}, [socketEpoch]);
+
+	useEffect(() => {
+		if (!loaded) return;
+
+		const fresh = reread.current;
+		const moved = inUrl !== seen.current;
+		reread.current = false;
+		seen.current = inUrl;
+		if (!fresh && !moved) return;
+
+		if (fresh) written.current = UNREAD;
+		if (inUrl === written.current) return;
 		if (navigationType !== 'POP' && written.current !== UNREAD) return;
 
 		// A page opened without a moment leaves a board another tab parked
@@ -100,7 +123,7 @@ export const useNeedleUrl = ({
 		arriving.current = {from: cut};
 		if (inUrl === null) goLive();
 		else scrubTo(inUrl);
-	}, [loaded, inUrl]);
+	}, [state, inUrl]);
 
 	useEffect(() => {
 		if (!loaded || written.current === UNREAD) return;

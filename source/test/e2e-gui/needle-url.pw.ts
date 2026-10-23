@@ -140,3 +140,48 @@ test('opening a ticket keeps a parked board where it is', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// A restarted server holds no moment, and the tab reconnects without loading:
+// the URL is what still knows where the board was, so it is read again.
+test('a parked tab takes the board back to its moment when the server comes back without one', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	let drop = false;
+	let current: {
+		ws: {close: () => Promise<void>};
+		server: {send: (message: string) => void};
+	} | null = null;
+	await page.routeWebSocket(/\/ws/, ws => {
+		const server = ws.connectToServer();
+		current = {ws, server};
+		ws.onMessage(message => server.send(message));
+		server.onMessage(message => {
+			if (!drop) ws.send(message);
+		});
+	});
+
+	await openBoard(page, appUrl);
+	const boardUrl = page.url().split('?')[0]!;
+	const moment = Date.now() - 1_000;
+	await openBoard(page, `${boardUrl}?at=${moment}`);
+	await expect(readOnly(page)).toBeVisible();
+
+	// The server forgets the moment while this tab hears nothing of it, as a
+	// restart would, and the tab's socket then drops and comes back.
+	drop = true;
+	const lost = current!;
+	lost.server.send(JSON.stringify({type: 'time-travel:live'}));
+	await page.waitForTimeout(500);
+	await lost.ws.close();
+	drop = false;
+
+	await expect.poll(() => current).not.toBe(lost);
+	await expect(readOnly(page)).toBeVisible();
+	await page.waitForTimeout(1_000);
+	await expect(readOnly(page)).toBeVisible();
+	expect(atOf(page)).toBe(String(moment));
+
+	expect(pageErrors).toEqual([]);
+});
