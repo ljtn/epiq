@@ -3,7 +3,7 @@
 // header's board switcher all wear these, so a select reads as one kind of
 // control across the page.
 
-import {GUI_THEME} from './gui-theme';
+import {GUI_THEME, SANS_FONT} from './gui-theme';
 
 // A select. Filled rather than outlined, unlike the toggles beside it on the
 // scrubber: it is the only control there reporting a colour, and an outline in
@@ -24,7 +24,8 @@ export const selectTriggerStyle = (
 	border: 'none',
 	color: disabled ? GUI_THEME.dim : color,
 	borderRadius: 6,
-	fontFamily: 'inherit',
+	// A control, so the controls' face — see SANS_FONT.
+	fontFamily: SANS_FONT,
 	fontSize: 11,
 	padding: '5px 7px 5px 9px',
 	cursor: disabled ? 'not-allowed' : 'pointer',

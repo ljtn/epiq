@@ -11,7 +11,7 @@ import React, {
 	useState,
 } from 'react';
 import {createPortal} from 'react-dom';
-import {GUI_THEME, MONO_FONT} from '../lib/gui-theme';
+import {GUI_THEME, SANS_FONT} from '../lib/gui-theme';
 import {
 	menuRowHoverBackground,
 	popoverStyle,
@@ -109,6 +109,9 @@ export const Menu = ({
 			style={{
 				...popoverStyle,
 				minWidth: minWidth ?? width ?? popoverStyle.minWidth,
+				// What it lists are choices, so the controls' face — see SANS_FONT.
+				// Set here rather than inherited: a portal inherits from the body.
+				fontFamily: SANS_FONT,
 				...(maxHeight ? {maxHeight, overflowY: 'auto'} : {}),
 				...(portal && anchor
 					? {
@@ -116,8 +119,6 @@ export const Menu = ({
 							left: anchor.left,
 							top: anchor.top,
 							marginTop: 0,
-							// A portal inherits from the body, not the app.
-							fontFamily: MONO_FONT,
 					  }
 					: {}),
 			}}
