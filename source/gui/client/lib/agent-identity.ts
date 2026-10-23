@@ -1,7 +1,7 @@
 // An agent's board identity is `provider/name` — claude/peter, codex/fred —
-// which is how the log tells its writers apart. Drawn, the provider goes and
-// the slash stays: `/peter` is as much as a column of signatures needs to say
-// whose line it is, and the full name is in the title.
+// or scoped further, claude/builder/sam. Drawn, all but the last part goes and
+// the slash stays: `/sam` is as much as a column of signatures needs to say
+// whose line it is, and the full name is in the title and the colour.
 
 export type ActorDisplay = {
 	// What is written: the name behind its slash, or the whole name where it is
@@ -11,11 +11,10 @@ export type ActorDisplay = {
 };
 
 export const actorDisplay = (name: string): ActorDisplay => {
-	const slash = name.indexOf('/');
-	const rest = name.slice(slash + 1);
+	const parts = name.split('/');
 
-	return slash > 0 && rest.length > 0 && !rest.includes('/')
-		? {label: `/${rest}`, isAgent: true}
+	return parts.length > 1 && parts.every(part => part.length > 0)
+		? {label: `/${parts.at(-1)}`, isAgent: true}
 		: {label: name, isAgent: false};
 };
 
