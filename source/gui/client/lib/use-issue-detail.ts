@@ -7,7 +7,7 @@
 // asked for when the selected ticket changes, and each is thrown away when it
 // changes again.
 
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 // Types only, from a module that declares nothing but types and imports
 // nothing at all — so reading the server's own shape here costs the client
 // bundle nothing and cannot drag Node code across the boundary.
@@ -167,7 +167,6 @@ export const useIssueDetail = ({
 	const asOf = useRef(asOfTime);
 	asOf.current = asOfTime;
 	const askedFor = useRef({
-		commits: null as number | null,
 		stats: null as number | null,
 		squashed: null as number | null,
 	});
@@ -183,12 +182,21 @@ export const useIssueDetail = ({
 				? {...prev, loading: true}
 				: {issueId, loading: true, error: null, commits: []},
 		);
-		askedFor.current.commits = asOfTime;
-		sendRaw({
-			type: 'issue:commits:get',
-			payload: codeRequest(issueId, asOfTime),
-		});
-	}, [issueId, asOfTime, sendRaw, reposEpoch]);
+		sendRaw({type: 'issue:commits:get', payload: {issueId}});
+	}, [issueId, sendRaw, reposEpoch]);
+
+	// Fetched whole and cut here, at the needle of a scrubbed board, so a
+	// dragged needle redraws the list at once instead of reloading it.
+	const commitsAtCut = useMemo(
+		() =>
+			commits && asOfTime !== null
+				? {
+						...commits,
+						commits: commits.commits.filter(commit => commit.time <= asOfTime),
+				  }
+				: commits,
+		[commits, asOfTime],
+	);
 
 	const [stats, setStats] = useState<IssueStatsState | null>(null);
 
@@ -306,16 +314,10 @@ export const useIssueDetail = ({
 			// Wrapped with the issueId it was asked for: switching tickets with the
 			// Code tab open can leave an older ticket's request in flight, and a
 			// failed Result carries no issueId to tell whose reply this is.
-			const {
-				issueId: forIssue,
-				asOfTime: forCut,
-				result,
-			} = message.payload as {
+			const {issueId: forIssue, result} = message.payload as {
 				issueId: string;
-				asOfTime: number | null;
 				result: {status: string; message: string; value?: GuiRefCommitEntry[]};
 			};
-			if (forCut !== askedFor.current.commits) return;
 
 			if (result?.status === 'fail') {
 				setCommits(prev =>
@@ -452,7 +454,7 @@ export const useIssueDetail = ({
 
 	return {
 		detail,
-		commits,
+		commits: commitsAtCut,
 		stats,
 		loadStats,
 		squashed,

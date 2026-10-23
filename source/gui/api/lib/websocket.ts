@@ -58,7 +58,7 @@ import {
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
-import {getRefDiffStats} from '../../../mcp/api/ref-diff-stats.js';
+import {getRefDiffTimeline} from '../../../mcp/api/ref-diff-stats.js';
 import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
 import {getBoardOverview} from '../../../mcp/api/board-overview.js';
 import {
@@ -539,7 +539,7 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'issue:commits:get') {
-					const {issueId, asOfTime} = message.payload;
+					const {issueId} = message.payload;
 
 					// Wrapped with the issueId for the same reason commit:diff:result is:
 					// switching tickets while the Code tab stays open can leave an older
@@ -549,7 +549,6 @@ export const setupWebsocket = (
 						type: 'issue:commits:result',
 						payload: {
 							issueId,
-							asOfTime: asOfTime ?? null,
 							// With bodies: the Code tab offers each commit's message
 							// before its diff is opened.
 							result: await withCommitBodies(
@@ -558,7 +557,6 @@ export const setupWebsocket = (
 									await getCommitsForRef({
 										repoRoot,
 										ref: nodeRef(issueId),
-										end: asOfTime,
 									}),
 								),
 							),
@@ -608,14 +606,9 @@ export const setupWebsocket = (
 				// Unkeyed, unlike its neighbours above: the whole board is answered
 				// in one reply, so there is no ticket for a late one to be about.
 				if (type === 'diff-stats:get') {
-					const asOfTime = message.payload?.asOfTime;
-
 					return sendSocket(socket, {
 						type: 'diff-stats',
-						payload: {
-							asOfTime: asOfTime ?? null,
-							result: await getRefDiffStats({repoRoot, end: asOfTime}),
-						},
+						payload: await getRefDiffTimeline({repoRoot}),
 					});
 				}
 

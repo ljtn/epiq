@@ -39,10 +39,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	bare('issues:list'),
 	bare('sync'),
 	bare('time-travel:live'),
-	z.object({
-		type: z.literal('diff-stats:get'),
-		payload: z.object({asOfTime: epochMs.optional()}).optional(),
-	}),
+	bare('diff-stats:get'),
 
 	message('project:open', z.object({root: z.string().min(1)})),
 	message(
@@ -181,10 +178,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 		'commit:diff:get',
 		z.object({sha: z.string(), repo: z.string().max(80).optional()}),
 	),
-	message(
-		'issue:commits:get',
-		z.object({issueId: id, asOfTime: epochMs.optional()}),
-	),
+	message('issue:commits:get', z.object({issueId: id})),
 	message(
 		'issue:squashed-diff:get',
 		z.object({issueId: id, asOfTime: epochMs.optional()}),

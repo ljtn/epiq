@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import {collectRefDiffStats} from '../mcp/api/ref-diff-stats.js';
+import {collectRefDiffTimeline} from '../mcp/api/ref-diff-stats.js';
+import {diffStatsAt} from '../gui/client/lib/ref-diff-at.js';
 import {CommitEntry} from '../lib/commits/commits.js';
 
 const commit = (
@@ -19,7 +20,11 @@ const commit = (
 	deletions,
 });
 
-describe('collectRefDiffStats', () => {
+// Live totals: every commit counted, as a card on a live board draws them.
+const collectRefDiffStats = (commits: CommitEntry[]) =>
+	diffStatsAt(collectRefDiffTimeline(commits), null);
+
+describe('collectRefDiffTimeline', () => {
 	it('counts a commit that names its ref only in an Epiq-Ref line', () => {
 		const stats = collectRefDiffStats([
 			commit('pin the image tag', 10, 2, ['B8PYTCM']),

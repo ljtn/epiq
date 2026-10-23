@@ -6,16 +6,20 @@
 // outside the event log — no state change announces it — and asked again when
 // the window comes back to the front, which is when a commit made in the
 // terminal a moment ago first matters here.
+//
+// Asked for whole, never per moment: a scrubbed board's totals are summed from
+// it here, so dragging the needle asks nothing and draws every step at once.
 
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 // Types only, from a module that declares nothing but types and imports
 // nothing at all — the same boundary `use-swimlane-stats` reads its own over.
-import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
+import {RefDiffTimeline} from '../../../lib/stats/ref-diff-stats.model.js';
 import {getResultValue} from './gui-state-helper';
+import {diffStatsAt} from './ref-diff-at';
 
 // Module scope, so a board with no commits at all is handed one unchanging
 // object rather than a fresh empty one on every render.
-const NONE: RefDiffStats = {};
+const NONE: RefDiffTimeline = {};
 
 // The server holds its history scan for FULL_TIMELINE_CACHE_TTL_MS, so an ask
 // inside this window is answered from that cache and costs nothing — and one
@@ -38,28 +42,13 @@ export const useRefDiffStats = ({
 	socketEpoch: number;
 	sendRaw: (message: unknown) => void;
 }) => {
-	// With the cut it answers. Bars of a later moment, or of the present at a
-	// needle, would show code not yet written there, so none are drawn until the
-	// needle's own answer lands. An earlier cut's only lack commits, and stay,
-	// so a needle stepping forward does not blink the board.
-	const [held, setHeld] = useState<{
-		asOfTime: number | null;
-		stats: RefDiffStats;
-	}>({asOfTime: null, stats: NONE});
+	const [timeline, setTimeline] = useState<RefDiffTimeline>(NONE);
 	const askedAt = useRef(0);
-	// The cut of the latest ask: a dragged needle leaves older answers in
-	// flight, and only this one's reply is taken.
-	const askedFor = useRef<number | null>(null);
 
 	const ask = useCallback(() => {
 		askedAt.current = Date.now();
-		askedFor.current = asOfTime;
-		sendRaw(
-			asOfTime === null
-				? {type: 'diff-stats:get'}
-				: {type: 'diff-stats:get', payload: {asOfTime}},
-		);
-	}, [asOfTime, sendRaw]);
+		sendRaw({type: 'diff-stats:get'});
+	}, [sendRaw]);
 
 	// Not at mount, only once a socket is up. Asking at mount as well would send
 	// the same frame twice — it is queued through the connecting socket, and
@@ -90,18 +79,18 @@ export const useRefDiffStats = ({
 
 	const onMessage = useCallback((message: any) => {
 		if (message.type !== 'diff-stats') return;
-		if (message.payload?.asOfTime !== askedFor.current) return;
 
 		// A failure — no repository to read, a git lock held elsewhere — leaves
 		// the bars as they are. They are a decoration on the board, and a column
 		// of them blinking out says nothing the reader can act on.
-		const next = getResultValue<RefDiffStats>(message.payload.result);
-		if (next) setHeld({asOfTime: message.payload.asOfTime, stats: next});
+		const next = getResultValue<RefDiffTimeline>(message.payload);
+		if (next) setTimeline(next);
 	}, []);
 
-	const stillTrue =
-		held.asOfTime === asOfTime ||
-		(held.asOfTime !== null && asOfTime !== null && held.asOfTime <= asOfTime);
+	const stats = useMemo(
+		() => diffStatsAt(timeline, asOfTime),
+		[timeline, asOfTime],
+	);
 
-	return {stats: stillTrue ? held.stats : NONE, onMessage};
+	return {stats, onMessage};
 };
