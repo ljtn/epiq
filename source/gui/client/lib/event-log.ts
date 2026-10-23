@@ -8,6 +8,8 @@
 // the slice does not.
 
 import {formatDate, formatDayLabel} from '../../../lib/utils/date.utils.js';
+import {commitTicketRef} from '../../../lib/utils/commit-ref.js';
+import {nodeRef} from '../../../lib/utils/node-ref.js';
 import {commitAuthorLabel} from './commit-author';
 import {actorDisplayChars} from './agent-identity';
 import {
@@ -26,6 +28,9 @@ export type LogEntry = {
 	id: string;
 	t: number;
 	label: string;
+	// The ticket ref the label opens with, drawn quieter than the rest of it.
+	// Null where it opens with none.
+	ref: string | null;
 	color: string;
 	// Who did it: the event's actor in their own colour, or a commit's author,
 	// who has no identity on the board and so wears the panel's own text colour.
@@ -50,10 +55,16 @@ export type LogEntry = {
 
 // Prefixed, because a sha and a ULID share no namespace and both end up
 // as React keys in the same column.
-const commitLogEntry = (commit: GuiCommitEntry): LogEntry => ({
+const commitLogEntry = (
+	commit: GuiCommitEntry,
+	knownRefs: ReadonlySet<string> = new Set(),
+): LogEntry => ({
 	id: `commit-${commit.sha}`,
 	t: commit.time,
 	label: commit.subject,
+	ref: commitTicketRef(commit.subject, knownRefs)
+		? commit.subject.trim().split(/\s+/)[0]!
+		: null,
 	color: GUI_THEME.green,
 	// The same label the scrubber puts on this commit. Taking the raw git
 	// name here instead left one view calling somebody by their board name
@@ -75,12 +86,14 @@ const commitLogEntry = (commit: GuiCommitEntry): LogEntry => ({
 export const buildLogEntries = (
 	events: readonly GuiEventTimelineEntry[],
 	commits: readonly GuiCommitEntry[],
+	knownRefs: ReadonlySet<string> = new Set(),
 ): LogEntry[] =>
 	[
 		...events.map(event => ({
 			id: event.id,
 			t: event.t,
 			label: event.label,
+			ref: labelRef(event),
 			// The colour its dot already has on the scatter, so a kind reads the
 			// same in both places.
 			color: EVENT_CATEGORY_COLORS[categoryOf(event.action)],
@@ -91,8 +104,14 @@ export const buildLogEntries = (
 			action: event.action,
 			sha: null,
 		})),
-		...commits.map(commitLogEntry),
+		...commits.map(commit => commitLogEntry(commit, knownRefs)),
 	].sort((left, right) => left.t - right.t);
+
+const labelRef = (event: GuiEventTimelineEntry): string | null => {
+	const ref = event.issue ? nodeRef(event.issue) : null;
+
+	return ref && event.label.startsWith(`${ref} `) ? ref : null;
+};
 
 // A ticket's own history and commits as log lines, in clock order. They lead
 // nowhere: they are already about the ticket they are shown on.
@@ -105,6 +124,7 @@ export const issueActivityLogEntries = (
 			id: entry.id,
 			t: entry.t,
 			label: entry.label,
+			ref: null,
 			color: EVENT_CATEGORY_COLORS[categoryOf(entry.action)],
 			actor: {name: entry.actor.name},
 			diff: null,
@@ -362,6 +382,7 @@ export const LOG_DOT_COLOR_PROPERTY = '--epiq-log-dot';
 export const LOG_ACTOR_CLASS = 'epiq-log-actor';
 // The provider's mark in front of an agent's name — see lib/agent-identity.
 export const LOG_DIFF_CLASS = 'epiq-log-diff';
+export const LOG_REF_CLASS = 'epiq-log-ref';
 // The name is a column too, so the labels line up whoever signed each line.
 // It is as wide as the widest name in its day — see actorColumnChars — set on
 // the day and read by its rows, and capped, so one long name cannot push every
@@ -466,6 +487,9 @@ export const EVENT_LOG_STYLES = `
 	width: calc(var(${LOG_ACTOR_WIDTH_PROPERTY}) - ${LOG_COLUMN_GAP_PX}px);
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+.${LOG_REF_CLASS} {
+	color: ${GUI_THEME.dim};
 }
 .${LOG_DIFF_CLASS} {
 	display: inline-flex;

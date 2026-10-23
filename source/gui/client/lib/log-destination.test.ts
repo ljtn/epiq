@@ -10,6 +10,7 @@ const entry = (over: Partial<LogEntry>): LogEntry => ({
 	id: 'e1',
 	t: 1,
 	label: 'a line',
+	ref: null,
 	color: '#111',
 	actor: null,
 	diff: null,

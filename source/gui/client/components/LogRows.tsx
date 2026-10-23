@@ -6,6 +6,7 @@ import {
 	LogEntry,
 	LOG_ACTOR_CLASS,
 	LOG_DIFF_CLASS,
+	LOG_REF_CLASS,
 	LOG_DOT_COLOR_PROPERTY,
 	LOG_LANE_ALL_CLASS,
 	LOG_LANE_PROPERTY,
@@ -196,7 +197,10 @@ export const EventRow = ({
 				<DiffStat {...entry.diff} bar={false} />
 			</span>
 		)}
-		{showLabel && entry.label}
+		{showLabel && entry.ref && (
+			<span className={LOG_REF_CLASS}>{entry.ref}</span>
+		)}
+		{showLabel && entry.label.slice(entry.ref?.length ?? 0)}
 	</div>
 );
 
