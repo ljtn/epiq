@@ -46,6 +46,16 @@ export const laneVisits = (
 	return visits;
 };
 
+/** When anything last happened to the ticket, by anyone: its log's latest event. */
+export const lastEventTime = (
+	log: readonly AppEvent[],
+	createdAt: number,
+): number =>
+	log.reduce((latest, event) => {
+		const time = getEventTime(event);
+		return time === null ? latest : Math.max(latest, clampUlidTime(time));
+	}, createdAt);
+
 /**
  * When the ticket last arrived in the lane it is in now. Falls back to
  * `createdAt` for a log that never names a parent.
