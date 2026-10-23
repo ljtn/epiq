@@ -1,0 +1,6 @@
+{"v":1,"id":["01M5N2TH1RN2TB73EMWBADPV55","01M5N2J3KSVMAHRP5Q2JNWXME4"],"create.contributor":{"id":"AG4F85NT5WDQ4Q7G8W487JAGHH","name":"claude/builder/sam"}}
+{"v":1,"id":["01M5N2TNT1S7M01NTSV96FWNR0","01M5N2TH1RN2TB73EMWBADPV55"],"add.issue":{"id":"01M5N2TNSZVM2QX3E66MDJ4SFK","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","name":"hero: the subtitle a step below the headline, the capitals line readable","rank":"ffffbfffffffffffffffffff"}}
+{"v":1,"id":["01M5N2TNT5P297W7DEKDFN7EB0","01M5N2TNT1S7M01NTSV96FWNR0"],"edit.description":{"id":"01M5N2TNSZVM2QX3E66MDJ4SFK","md":"The hero's three lines step down in brightness: the headline stays full text colour, \"Preserve context, trace, replay\" takes the text colour at 75%, and the spaced capitals line takes --dim at 75% (was 60%). Nothing outside the hero changes."}}
+{"v":1,"id":["01M5N2TNT77QVANWZMZ8RMN2WW","01M5N2TNT5P297W7DEKDFN7EB0"],"add.issue.tag":{"id":"01M5N2TNSZVM2QX3E66MDJ4SFK","tag":"01M12PMYDSM2AQZ2R4GKCDC3CP"}}
+{"v":1,"id":["01M5N2TNT8RMYXZ90YK4NV5Z5J","01M5N2TNT77QVANWZMZ8RMN2WW"],"add.issue.assignee":{"id":"01M5N2TNSZVM2QX3E66MDJ4SFK","assignee":"AG4F85NT5WDQ4Q7G8W487JAGHH"}}
+{"v":1,"id":["01M5N2VF6D2YEAZJ25MC2GXD7Q","01M5N2TNT8RMYXZ90YK4NV5Z5J"],"move.node":{"id":"01M5N2TNSZVM2QX3E66MDJ4SFK","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"7fffffffffffffffffffffff"}}
