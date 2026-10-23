@@ -1,8 +1,6 @@
 import React, {memo, useMemo, useState} from 'react';
 import {
-	DiffFileInput,
 	DiffLineAnnotation,
-	FileContents,
 	FileDiffMetadata,
 	MultiFileDiff,
 	SelectedLineRange,
@@ -11,6 +9,7 @@ import {useDiffWrap} from '../lib/diff-wrap';
 import {GUI_THEME, PROSE} from '../lib/gui-theme';
 import {CODE_FONT, CODE_TEXT_VARS} from '../lib/code-text.style';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
+import {toDiffFileInput} from '../lib/diff-file-input';
 import {
 	diffLineCount,
 	isLargeDiff,
@@ -31,23 +30,6 @@ import {useDiffWorkersUsable} from '../lib/diffs-worker-pool';
 // fixed dark palette), so there is no pair to switch between. github-dark with
 // its comments brought forward — see lib/diff-theme.
 const PIERRE_THEME = EPIQ_DIFF_THEME;
-
-// Independently-nullable before/after strings don't structurally match
-// DiffFileInput's three-branch union (it forbids "both null"), so this picks
-// the one branch that fits rather than letting TypeScript infer a wider type.
-const toDiffFileInput = (file: GuiCommitDiffFile): DiffFileInput => {
-	const oldFile: FileContents = {name: file.path, contents: file.before};
-	const newFile: FileContents = {name: file.path, contents: file.after};
-
-	// Empty means "did not exist at this revision", same convention the server
-	// side already uses (a missing git blob reads as ''). A genuinely empty
-	// file on one side, that also exists, is indistinguishable from this and
-	// renders as added/deleted rather than an empty-content change.
-	if (file.before === '' && file.after !== '') return {oldFile: null, newFile};
-	if (file.after === '' && file.before !== '') return {oldFile, newFile: null};
-
-	return {oldFile, newFile};
-};
 
 // The box a file's diff sits in. Shared with whatever stands in for the diff
 // while it is collapsed, so a file looks the same shut as open.
