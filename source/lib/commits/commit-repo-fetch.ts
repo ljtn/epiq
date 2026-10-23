@@ -495,16 +495,16 @@ const deepenPastWindow = async (
 	return isFail(result) ? failed(result.message) : succeeded('Deepened', null);
 };
 
-// A window with no commits in it is not an error worth failing a clone over:
-// git refuses `--shallow-since` when it selects nothing, and one commit is
-// the smallest history there is. That commit is a shallow boundary, which the
-// timeline leaves out, so the repo simply shows nothing yet.
-const NOTHING_SELECTED =
-	/no commits selected for shallow requests|error processing shallow info/i;
-
 /**
  * A whole clone at `pending`, beside the clone it is to become, or nothing
  * there at all: whatever fails takes the directory with it.
+ *
+ * A window with no commits in it is not an error worth failing a clone over:
+ * git refuses `--shallow-since` when it selects nothing, and one commit is the
+ * smallest history there is. That commit is a shallow boundary, which the
+ * timeline leaves out, so the repo simply shows nothing yet. Not every host
+ * passes git's reason on (SSH can leave only "the remote end hung up"), so any
+ * failed windowed clone gets that one retry.
  */
 const buildClone = async (
 	pending: string,
@@ -515,59 +515,49 @@ const buildClone = async (
 	fs.mkdirSync(clonesDir, {recursive: true});
 	fs.rmSync(pending, {recursive: true, force: true});
 
-	const args = (window: string[]) => [
-		'clone',
-		'--bare',
-		'--no-tags',
-		// Explicit both ways: a window implies --single-branch otherwise.
-		repo.branches === 'default' ? '--single-branch' : '--no-single-branch',
-		...window,
-		'--',
-		repo.url,
-		pending,
-	];
+	const attempt = async (
+		window: string[],
+		deepen: boolean,
+	): Promise<Result<null>> => {
+		const cloneResult = await transfer(
+			clonesDir,
+			[
+				'clone',
+				'--bare',
+				'--no-tags',
+				// Explicit both ways: a window implies --single-branch otherwise.
+				repo.branches === 'default' ? '--single-branch' : '--no-single-branch',
+				...window,
+				'--',
+				repo.url,
+				pending,
+			],
+			pending,
+		);
+		if (isFail(cloneResult)) return failed(cloneResult.message);
 
-	let cloneResult = await transfer(
-		clonesDir,
-		args(since ? [shallowSince(since)] : []),
-		pending,
-	);
-	let windowed = since !== null;
+		// A bare clone records no fetch refspec, so a later fetch would reach
+		// only the remote's HEAD.
+		const refspecResult = await refspecFor(pending, repo.branches);
+		if (isFail(refspecResult)) return failed(refspecResult.message);
 
-	if (
-		isFail(cloneResult) &&
-		since &&
-		NOTHING_SELECTED.test(cloneResult.message)
-	) {
+		await localGit({
+			cwd: pending,
+			args: ['config', 'remote.origin.fetch', refspecResult.value],
+		});
+
+		return deepen ? deepenPastWindow(pending) : succeeded('Cloned', null);
+	};
+
+	let result = await attempt(since ? [shallowSince(since)] : [], !!since);
+	if (isFail(result) && since) {
 		fs.rmSync(pending, {recursive: true, force: true});
-		cloneResult = await transfer(clonesDir, args(['--depth=1']), pending);
-		windowed = false;
+		result = await attempt(['--depth=1'], false);
 	}
 
-	if (isFail(cloneResult)) {
+	if (isFail(result)) {
 		fs.rmSync(pending, {recursive: true, force: true});
-		return failed(cloneResult.message);
-	}
-
-	// A bare clone records no fetch refspec, so a later fetch would reach only
-	// the remote's HEAD.
-	const refspecResult = await refspecFor(pending, repo.branches);
-	if (isFail(refspecResult)) {
-		fs.rmSync(pending, {recursive: true, force: true});
-		return failed(refspecResult.message);
-	}
-
-	await localGit({
-		cwd: pending,
-		args: ['config', 'remote.origin.fetch', refspecResult.value],
-	});
-
-	if (windowed) {
-		const deepenResult = await deepenPastWindow(pending);
-		if (isFail(deepenResult)) {
-			fs.rmSync(pending, {recursive: true, force: true});
-			return failed(deepenResult.message);
-		}
+		return failed(result.message);
 	}
 
 	return succeeded('Built clone', null);
@@ -830,9 +820,23 @@ const fetchRepo = async (
 			undo: before,
 		});
 	}
+
+	// A wider window that selects nothing is refused, and not every host says
+	// why: with nothing in it there was nothing to add, so a plain fetch
+	// stands in. Any other cause fails that one too.
+	const widened = window[0]?.startsWith('--shallow-since') ?? false;
+	const fellBack = isFail(fetchResult) && widened;
+	if (fellBack) {
+		fetchResult = await transfer(
+			clonePath,
+			['fetch', '--prune', '--no-tags', 'origin'],
+			clonePath,
+			{undo: before},
+		);
+	}
 	if (isFail(fetchResult)) return failed(fetchResult.message);
 
-	if (window[0]?.startsWith('--shallow-since')) {
+	if (widened && !fellBack) {
 		const deepenResult = await deepenPastWindow(clonePath, before);
 		if (isFail(deepenResult)) return failed(deepenResult.message);
 	}
