@@ -19,6 +19,8 @@ const handlers = (): CommandHandlers => ({
 	startTheatre: vi.fn(),
 	returnToLive: vi.fn(),
 	toggleLog: vi.fn(),
+	toggleCardDensity: vi.fn(),
+	toggleDenseTitleLines: vi.fn(),
 	createSwimlane: vi.fn(),
 	createBoard: vi.fn(),
 	renameBoard: vi.fn(),

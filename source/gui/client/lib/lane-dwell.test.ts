@@ -1,6 +1,12 @@
 import {describe, expect, it} from 'vitest';
 import {GuiIssue} from './gui-state.model';
-import {dwellLevel, dwellOf, laneDwell} from './lane-dwell';
+import {
+	cardActivity,
+	dwellLevel,
+	dwellOf,
+	laneDwell,
+	liveExpiry,
+} from './lane-dwell';
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -115,5 +121,47 @@ describe('dwellLevel', () => {
 
 		// Well past both floors, but no further out of line than its neighbours.
 		expect(dwellLevel(24 * 24 * HOUR, slow, 3)).toBe('none');
+	});
+});
+
+describe("a card's activity", () => {
+	const MINUTE = 60 * 1000;
+	const middleLane = {now: NOW, middle: true, laneMedian: 2 * DAY, laneSize: 5};
+	const quietFor = (ms: number) => ({lastEventAt: NOW - ms});
+
+	it('is live for five minutes after anything happens to it', () => {
+		expect(cardActivity(quietFor(4 * MINUTE), middleLane)).toBe('live');
+		expect(cardActivity(quietFor(6 * MINUTE), middleLane)).toBeNull();
+	});
+
+	it("is stalled when quiet past its lane's median stay", () => {
+		expect(cardActivity(quietFor(3 * DAY), middleLane)).toBe('stalled');
+		expect(cardActivity(quietFor(DAY), middleLane)).toBeNull();
+	});
+
+	it('is never stalled under a day, however brisk the lane', () => {
+		const brisk = {...middleLane, laneMedian: HOUR};
+		expect(cardActivity(quietFor(20 * HOUR), brisk)).toBeNull();
+		expect(cardActivity(quietFor(25 * HOUR), brisk)).toBe('stalled');
+	});
+
+	it('is never stalled in the first or last lane, or a lane too small to judge', () => {
+		expect(
+			cardActivity(quietFor(9 * DAY), {...middleLane, middle: false}),
+		).toBeNull();
+		expect(
+			cardActivity(quietFor(9 * DAY), {...middleLane, laneSize: 2}),
+		).toBeNull();
+	});
+
+	it('says nothing of a ticket with no time to read', () => {
+		expect(cardActivity({}, middleLane)).toBeNull();
+	});
+
+	it("expires at the first live ticket's five minutes", () => {
+		expect(
+			liveExpiry([quietFor(MINUTE), quietFor(3 * MINUTE), quietFor(DAY)], NOW),
+		).toBe(NOW + 2 * MINUTE);
+		expect(liveExpiry([quietFor(DAY), {}], NOW)).toBe(Infinity);
 	});
 });

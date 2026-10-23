@@ -1,8 +1,14 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {DropIndicator} from '../App';
 import {GuiComment, GuiIssue, GuiSwimlane} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
-import {dwellLevel, dwellOf, laneDwell} from '../lib/lane-dwell';
+import {
+	cardActivity,
+	dwellLevel,
+	dwellOf,
+	laneDwell,
+	liveExpiry,
+} from '../lib/lane-dwell';
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
 import {IconLaneStats} from './IconLaneStats';
@@ -23,6 +29,7 @@ const COLUMN_PADDING = 12;
 
 export const SwimlaneColumn = ({
 	swimlane,
+	middle = false,
 	selected,
 	selectedIssueId,
 	onSelectIssueComments,
@@ -33,6 +40,8 @@ export const SwimlaneColumn = ({
 	onSelectIssue,
 	isolatedTagId,
 	onFilterByTag,
+	isolatedAssigneeId,
+	onFilterByAssignee,
 	pickedIssueIds,
 	onCreateIssue,
 	onRenameSwimlane,
@@ -62,6 +71,8 @@ export const SwimlaneColumn = ({
 	onSelectIssue: (issueId: string, options: {toggle: boolean}) => void;
 	isolatedTagId: string | null;
 	onFilterByTag: (tagId: string) => void;
+	isolatedAssigneeId: string | null;
+	onFilterByAssignee: (assigneeId: string) => void;
 	pickedIssueIds: readonly string[];
 	onCreateIssue: (swimlaneId: string) => void;
 	onRenameSwimlane: (swimlaneId: string) => void;
@@ -96,11 +107,39 @@ export const SwimlaneColumn = ({
 	// to now, which says nothing about a board being replayed at some other
 	// moment.
 	diffStats: RefDiffStats;
+	// Neither the board's first lane nor its last: where work is under way, and
+	// so where a ticket can be stuck.
+	middle?: boolean;
 }) => {
 	// One reading for the whole column, so the header's figures and the clocks on
 	// the cards under it are answers to the same question.
 	const now = Date.now();
 	const dwell = live ? laneDwell(swimlane.issues, now) : null;
+
+	// Nothing else redraws a quiet board, so a live mark would outlast its five
+	// minutes: the column redraws itself once, as the first of them runs out.
+	const [, redraw] = useState(0);
+	const liveUntil = live ? liveExpiry(swimlane.issues, now) : Infinity;
+	useEffect(() => {
+		if (!Number.isFinite(liveUntil)) return;
+
+		const timer = setTimeout(
+			() => redraw(count => count + 1),
+			Math.max(0, liveUntil - Date.now()) + 50,
+		);
+
+		return () => clearTimeout(timer);
+	}, [liveUntil]);
+
+	const activityOf = (ticket: GuiIssue) =>
+		live
+			? cardActivity(ticket, {
+					now,
+					middle,
+					laneMedian: dwell?.median ?? null,
+					laneSize: swimlane.issues.length,
+			  })
+			: null;
 
 	const cardDwell = (ticket: GuiIssue): CardDwell | null => {
 		if (!dwell) return null;
@@ -345,9 +384,12 @@ export const SwimlaneColumn = ({
 									onOpenComments={onSelectIssueComments}
 									onOpenCode={onSelectIssueCode}
 									dwell={cardDwell(ticket)}
+									activity={activityOf(ticket)}
 									diff={live ? diffStats[ticket.ref] ?? null : null}
 									isolatedTagId={isolatedTagId}
 									onFilterByTag={onFilterByTag}
+									isolatedAssigneeId={isolatedAssigneeId}
+									onFilterByAssignee={onFilterByAssignee}
 									commentCount={commentsByIssueId[ticket.id]?.length ?? 0}
 									onDragOverIssue={targetIndex =>
 										onDragOverIssue(swimlane.id, targetIndex)
