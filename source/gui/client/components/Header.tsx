@@ -22,6 +22,9 @@ type HeaderProps = {
 	// what everything below is showing, the timeline included, and this is the
 	// one row that outlives every panel and collapse below it.
 	board: React.ReactNode;
+	// What the whole app is doing, in the bar's middle: the follow notice.
+	// While there is one, the bar's top edge carries the accent too.
+	notice?: React.ReactNode;
 	// Toggles the settings panel. The ref is the panel's, which must not take
 	// a click here for a click outside.
 	settings: {
@@ -39,6 +42,7 @@ export const Header = ({
 	syncStatus,
 	onOpenCommands,
 	board,
+	notice,
 	settings,
 }: HeaderProps) => {
 	const syncColor =
@@ -72,15 +76,23 @@ export const Header = ({
 				borderLeft: 'none',
 				borderRight: 'none',
 				borderTop: 'none',
+				// The app's live edge while it moves on its own: drawn in, not
+				// added, so the bar keeps its height and nothing below it moves.
+				boxShadow: notice ? `inset 0 1px 0 ${GUI_THEME.accent}` : undefined,
 			}}
 		>
 			<div
 				style={{
 					height: '100%',
 					width: '100%',
-					display: 'flex',
+					// Two equal sides around the middle, so a notice sits at the
+					// centre while both fit; a side that needs more takes it,
+					// pushing the notice over rather than running into it.
+					display: 'grid',
+					// The middle may shrink, its sentence cut, before the sides do.
+					gridTemplateColumns: '1fr minmax(0, auto) 1fr',
 					alignItems: 'center',
-					justifyContent: 'space-between',
+					columnGap: 24,
 				}}
 			>
 				<div style={{display: 'flex', alignItems: 'center', gap: 14}}>
@@ -97,10 +109,13 @@ export const Header = ({
 					{board}
 				</div>
 
+				<div style={{minWidth: 0}}>{notice}</div>
+
 				<div
 					style={{
 						display: 'flex',
 						alignItems: 'center',
+						justifyContent: 'flex-end',
 						gap: 24,
 					}}
 				>
