@@ -16,6 +16,27 @@ const historyLength = (page: Page) =>
 		() => (globalThis as unknown as {history: {length: number}}).history.length,
 	);
 
+// The moment the URL comes to rest on. A reply to an earlier step of the drag
+// can land after the release and be written first, then replaced by the
+// release's own.
+const settledAt = async (page: Page): Promise<string | null> => {
+	let previous: string | null | undefined;
+
+	await expect
+		.poll(
+			() => {
+				const at = atOf(page);
+				const still = at !== null && at === previous;
+				previous = at;
+				return still;
+			},
+			{intervals: [300]},
+		)
+		.toBe(true);
+
+	return previous ?? null;
+};
+
 const readOnly = (page: Page) => page.getByText('Read-only', {exact: true});
 
 const openBoard = async (page: Page, url: string) => {
@@ -49,8 +70,8 @@ test('a dragged needle adds one history entry where it is let go of, and Back an
 	await page.mouse.up();
 
 	await expect(readOnly(page)).toBeVisible();
-	await expect.poll(() => atOf(page)).not.toBeNull();
-	const at = atOf(page);
+	const at = await settledAt(page);
+	expect(at).not.toBeNull();
 	expect(await historyLength(page)).toBe(before + 1);
 
 	await page.goBack();
