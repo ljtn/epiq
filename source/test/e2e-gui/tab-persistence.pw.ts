@@ -35,9 +35,7 @@ test('the open tab carries across ticket selections', async ({
 		.click();
 	await openFromBoard(page, second);
 	await expect(page).toHaveURL(/tab=code/);
-	await expect(
-		page.getByText(/no commits reference this ticket/i),
-	).toBeVisible();
+	await expect(page.getByText(/no linked commits/i)).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
 });
@@ -69,16 +67,12 @@ test('switching tickets with the Code tab already open still loads the new ticke
 	// Neither ticket has any linked commits, so the tab settles on the empty
 	// state — the interesting assertion is that it settles at all, not what
 	// it settles on.
-	await expect(
-		page.getByText(/no commits reference this ticket/i),
-	).toBeVisible();
+	await expect(page.getByText(/no linked commits/i)).toBeVisible();
 
 	await openFromBoard(page, second);
 	await expect(page).toHaveURL(/tab=code/);
 	await expect(page.getByText('Loading commits…')).toBeHidden();
-	await expect(
-		page.getByText(/no commits reference this ticket/i),
-	).toBeVisible();
+	await expect(page.getByText(/no linked commits/i)).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
 });

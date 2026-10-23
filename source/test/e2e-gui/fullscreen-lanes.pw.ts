@@ -36,9 +36,7 @@ test('a wide fullscreen panel shows every pane side by side', async ({
 	// Each lane holds its pane's actual content, not just a heading.
 	await expect(page.getByText('No description')).toBeVisible();
 	await expect(page.getByPlaceholder(/comment/i)).toBeVisible();
-	await expect(
-		page.getByText(/no commits reference this ticket/i),
-	).toBeVisible();
+	await expect(page.getByText(/no linked commits/i)).toBeVisible();
 
 	// The commits lane is the wide one: at least twice any other.
 	const widthOf = async (lane: string) =>
