@@ -41,9 +41,6 @@ const CATEGORY_LABELS: Record<EventCategory, string> = {
 	assigning: 'Assignees',
 };
 
-// Bright enough to read as part of the control. At GUI_THEME.dim it sat so
-// faint beside its label that the collapsed panel looked like it had no
-// disclosure at all.
 // "Board" rather than "All": as the collapsed trigger it is the only thing
 // naming the series, and a bare "All" two controls from "All boards" says
 // nothing about which is which. The commit series' trigger beside it names
