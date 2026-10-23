@@ -127,6 +127,17 @@ test('a ticket whose commits changed no lines carries no stat to click', async (
 	expect(pageErrors).toEqual([]);
 });
 
+const isCutBars = (frame: string): boolean => {
+	const parsed = JSON.parse(frame) as {
+		type?: string;
+		payload?: {asOfTime?: number | null};
+	};
+
+	return (
+		parsed.type === 'diff-stats' && typeof parsed.payload?.asOfTime === 'number'
+	);
+};
+
 // A board parked in the past shows a ticket's code as it stood then: the card
 // and the Code tab count the commits made by the needle, and no later one.
 test('a scrubbed card and its Code tab count only the commits made by the needle', async ({
@@ -138,11 +149,20 @@ test('a scrubbed card and its Code tab count only the commits made by the needle
 	// The needle is parked by a frame of the test's own, at an exact moment a
 	// click on the track could not hit.
 	let server: {send: (message: string) => void} | null = null;
+	// The bars for the needle, held back until released, to see what the card
+	// draws while they are on their way.
+	let held: Array<() => void> | null = null;
 	await page.routeWebSocket(/\/ws/, ws => {
 		const connection = ws.connectToServer();
 		server = connection;
 		ws.onMessage(message => connection.send(message));
-		connection.onMessage(message => ws.send(message));
+		connection.onMessage(message => {
+			if (held && typeof message === 'string' && isCutBars(message)) {
+				held.push(() => ws.send(message));
+				return;
+			}
+			ws.send(message);
+		});
 	});
 
 	await page.goto(appUrl);
@@ -169,10 +189,19 @@ test('a scrubbed card and its Code tab count only the commits made by the needle
 	await expect(stat).toHaveText('+5-0');
 
 	await expect.poll(() => server).not.toBeNull();
+	held = [];
 	server!.send(
 		JSON.stringify({type: 'time-travel:scrub', payload: {targetTime: needle}}),
 	);
 	await expect(page.getByText('Read-only', {exact: true})).toBeVisible();
+
+	// The present's bar is not drawn at the needle while the needle's own is
+	// on its way.
+	await expect.poll(() => held!.length).toBeGreaterThan(0);
+	await expect(stat).toHaveCount(0);
+	const release = held!;
+	held = null;
+	for (const send of release) send();
 
 	await expect(stat).toHaveText('+3-0');
 	await expect(stat).toHaveAttribute('title', '1 commit');
