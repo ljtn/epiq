@@ -253,7 +253,6 @@ export const IssueComments = ({
 											<Button
 												variant="ghost"
 												testId="edit-comment"
-												title="Edit comment"
 												onClick={() => startEditing(comment)}
 											>
 												Edit
