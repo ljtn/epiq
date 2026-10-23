@@ -654,7 +654,14 @@ export const IssueDetails = ({
 								))
 							}
 						>
-							<ChipRow>
+							<ChipRow
+								testId="tags-row"
+								onActivate={
+									canAddTag && issue.tags.length > 0
+										? startAddingTag
+										: undefined
+								}
+							>
 								{issue.tags.length === 0 ? (
 									<Empty
 										testId="tags-empty"
@@ -748,7 +755,14 @@ export const IssueDetails = ({
 								))
 							}
 						>
-							<ChipRow>
+							<ChipRow
+								testId="assignees-row"
+								onActivate={
+									canAddAssignee && issue.assignees.length > 0
+										? startAddingAssignee
+										: undefined
+								}
+							>
 								{issue.assignees.length === 0 ? (
 									<Empty
 										testId="assignees-empty"

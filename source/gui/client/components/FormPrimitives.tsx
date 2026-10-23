@@ -79,17 +79,62 @@ export const AddRow = ({children}: {children: React.ReactNode}) => (
 	<div style={{display: 'flex', gap: 8, marginTop: 10}}>{children}</div>
 );
 
-export const ChipRow = ({children}: {children: React.ReactNode}) => (
-	<div style={{display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10}}>
-		{children}
-	</div>
-);
-
 // How far a row's hover ground reaches past the column its text keeps to.
 // The panel's pane leaves this much room for it on the left.
 export const HOVER_REACH = 6;
 const EMPTY_INSET = HOVER_REACH;
 const EMPTY_PAD_Y = 6;
+
+// Given `onActivate`, the row's own ground does what its section's control
+// does, as `Empty` does before there is a chip: only a click on the ground
+// between and beside the chips, never one on a chip, which has its own.
+export const ChipRow = ({
+	children,
+	onActivate,
+	testId,
+}: {
+	children: React.ReactNode;
+	onActivate?: () => void;
+	testId?: string;
+}) => {
+	const [lit, setLit] = useState(false);
+
+	if (!onActivate) {
+		return (
+			<div style={{display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10}}>
+				{children}
+			</div>
+		);
+	}
+
+	const onGround = (event: React.MouseEvent) =>
+		event.target === event.currentTarget;
+
+	return (
+		<div
+			data-testid={testId}
+			onClick={event => onGround(event) && onActivate()}
+			onMouseMove={event => setLit(onGround(event))}
+			onMouseLeave={() => setLit(false)}
+			style={{
+				display: 'flex',
+				gap: 8,
+				flexWrap: 'wrap',
+				// Pulled out and padded back as `Empty` is, so the chips stay put and
+				// only the ground reaches past them.
+				marginTop: 10 - EMPTY_PAD_Y,
+				marginBottom: -EMPTY_PAD_Y,
+				marginLeft: -EMPTY_INSET,
+				padding: `${EMPTY_PAD_Y}px ${EMPTY_INSET}px`,
+				borderRadius: 6,
+				background: lit ? menuRowHoverBackground : 'transparent',
+				cursor: lit ? 'pointer' : undefined,
+			}}
+		>
+			{children}
+		</div>
+	);
+};
 
 // Given `onActivate`, it does what its section's control does: the biggest
 // target there, which otherwise reads as dead text right under it.
