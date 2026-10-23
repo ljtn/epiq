@@ -42,10 +42,13 @@ copyFileSync(
 	resolve(root, 'dist/gui/favicon.ico'),
 );
 // Flat beside the rest: build-sea.mjs embeds this directory's top level only.
-copyFileSync(
-	resolve(root, 'source/gui/fonts/inter.woff2'),
-	resolve(root, 'dist/gui/inter.woff2'),
-);
+// The licence goes with it, since the font's own metadata does not carry it.
+for (const name of ['inter.woff2', 'inter-OFL.txt']) {
+	copyFileSync(
+		resolve(root, 'source/gui/fonts', name),
+		resolve(root, 'dist/gui', name),
+	);
+}
 
 // React reads `process.env.NODE_ENV` to decide which of its two runtimes it is.
 // Nothing defined it, so esbuild left the expression alone and the bundle got

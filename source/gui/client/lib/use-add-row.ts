@@ -21,11 +21,15 @@ export const useAddRow = () => {
 		const down = () => (pressing.current = true);
 		const up = () => (pressing.current = false);
 		document.addEventListener('pointerdown', down, true);
+		// A cancel ends a press too — a touch turned scroll, the OS taking the
+		// pointer — or a later Tab out would wait for some unrelated click.
 		document.addEventListener('pointerup', up, true);
+		document.addEventListener('pointercancel', up, true);
 
 		return () => {
 			document.removeEventListener('pointerdown', down, true);
 			document.removeEventListener('pointerup', up, true);
+			document.removeEventListener('pointercancel', up, true);
 		};
 	}, [open]);
 
@@ -60,14 +64,15 @@ export const useAddRow = () => {
 			if (!pressing.current) return close();
 
 			// After the click the release makes, which the same task dispatches.
-			document.addEventListener(
-				'pointerup',
-				() =>
-					setTimeout(() => {
-						if (!section.contains(document.activeElement)) close();
-					}),
-				{once: true, capture: true},
-			);
+			const settle = () => {
+				document.removeEventListener('pointerup', settle, true);
+				document.removeEventListener('pointercancel', settle, true);
+				setTimeout(() => {
+					if (!section.contains(document.activeElement)) close();
+				});
+			};
+			document.addEventListener('pointerup', settle, true);
+			document.addEventListener('pointercancel', settle, true);
 		},
 		onMouseDown: (event: React.MouseEvent) => {
 			if (open && event.target !== inputRef.current) event.preventDefault();
