@@ -227,8 +227,8 @@ export const IssueCommits = ({
 	if (commits.length === 0) {
 		return (
 			<Empty>
-				No commits reference this ticket yet. Prefix a commit message with{' '}
-				<CopyRef refValue={issueRef} /> to link it here.
+				No commits reference this ticket yet. Add an Epiq-Ref:{' '}
+				<CopyRef refValue={issueRef} /> line to a commit's body to link it here.
 			</Empty>
 		);
 	}
