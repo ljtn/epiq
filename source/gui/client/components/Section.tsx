@@ -7,13 +7,20 @@ export const Section = ({
 	action,
 	children,
 	first = false,
+	focusProps,
 }: {
 	first?: boolean;
 	title: string;
 	action?: React.ReactNode;
 	children: React.ReactNode;
+	// For a section that follows the focus inside it — see lib/use-add-row.
+	focusProps?: Pick<
+		React.DOMAttributes<HTMLElement>,
+		'onFocus' | 'onBlur' | 'onMouseDown'
+	>;
 }) => (
 	<section
+		{...focusProps}
 		style={{
 			padding: first ? '0 0 18px' : '18px 0',
 			borderTop: first ? 'none' : `1px solid ${GUI_THEME.line}`,

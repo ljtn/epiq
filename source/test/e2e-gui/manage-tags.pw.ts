@@ -10,13 +10,15 @@ const deleteTag = (page: Page, name: string) =>
 		.filter({hasText: name})
 		.getByTestId('delete-tag');
 
-// Adding a tag closes the add row again, so each one starts by reopening it.
+// The add row stays open after an add, so only the first tag opens it.
 const addTag = async (page: Page, name: string) => {
-	await page
-		.locator('aside section')
-		.filter({has: page.getByText('Tags', {exact: true})})
-		.getByRole('button', {name: '+', exact: true})
-		.click();
+	if (!(await page.getByPlaceholder('tag name').isVisible())) {
+		await page
+			.locator('aside section')
+			.filter({has: page.getByText('Tags', {exact: true})})
+			.getByRole('button', {name: '+', exact: true})
+			.click();
+	}
 	await page.getByPlaceholder('tag name').fill(name);
 	await page.getByPlaceholder('tag name').press('Enter');
 	await expect(page.locator('aside')).toContainText(name);
@@ -45,12 +47,7 @@ test('arming a delete highlights the whole tag row', async ({
 	await addTag(page, first);
 	await addTag(page, second);
 
-	// Reopen the add row once more: that is where the manage entry point lives.
-	await page
-		.locator('aside section')
-		.filter({has: page.getByText('Tags', {exact: true})})
-		.getByRole('button', {name: '+', exact: true})
-		.click();
+	// Still open from the adds: that is where the manage entry point lives.
 	await page.getByRole('button', {name: 'manage tags…'}).click();
 
 	const armed = page.locator(

@@ -37,6 +37,47 @@ test('the tag row stays open for one tag after another', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+test('the tag row closes when a click lands outside it', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openNewTicket(page, appUrl);
+	const input = aside(page).getByPlaceholder('Tag name');
+
+	await aside(page).getByTestId('tags-empty').click();
+	await expect(input).toBeFocused();
+
+	await aside(page).getByText('Assignees', {exact: true}).click();
+	await expect(input).toBeHidden();
+
+	expect(pageErrors).toEqual([]);
+});
+
+// Open for as long as focus is inside, whichever way it arrives.
+test('tabbing into the tag section opens it in its input, and out closes it', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openNewTicket(page, appUrl);
+	const input = aside(page).getByPlaceholder('Tag name');
+
+	await aside(page).getByTestId('description-edit').focus();
+	for (let step = 0; step < 5 && !(await input.isVisible()); step++) {
+		await page.keyboard.press('Tab');
+	}
+	await expect(input).toBeFocused();
+
+	// Past the suggestions, Add and out of the section.
+	for (let step = 0; step < 200 && (await input.isVisible()); step++) {
+		await page.keyboard.press('Tab');
+	}
+	await expect(input).toBeHidden();
+
+	expect(pageErrors).toEqual([]);
+});
+
 // As the empty state does before there is a chip; a chip keeps its own click.
 test('a row of chips opens its picker from the ground beside them', async ({
 	page,
