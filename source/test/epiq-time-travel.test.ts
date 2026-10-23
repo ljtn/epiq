@@ -592,7 +592,7 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(true);
 			if (isFail(result)) return;
 
-			expect(result.value.events.at(-1)?.label).toBe('Moved to Done');
+			expect(result.value.events.at(-1)?.label).toBe('I1 moved to Done');
 		});
 
 		// The ticket never left the lane, so "Moved to Todo" would read as a lane
@@ -626,7 +626,7 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(true);
 			if (isFail(result)) return;
 
-			expect(result.value.events.at(-1)?.label).toBe('Moved within Todo');
+			expect(result.value.events.at(-1)?.label).toBe('I1 moved within Todo');
 		});
 
 		// Where the ticket sat before a move is routinely outside the window being
@@ -666,13 +666,13 @@ describe('epiq-time-travel', () => {
 			if (isFail(result)) return;
 
 			expect(result.value.events.map(entry => entry.label)).toEqual([
-				'Moved within Todo',
+				'I1 moved within Todo',
 			]);
 		});
 
 		// A lane with no create event in the log has no name to give, and a raw
 		// ULID reads worse than saying less.
-		it('falls back to the bare action for a lane it cannot name', async () => {
+		it('names the ticket alone for a lane it cannot name', async () => {
 			const baseTime = 1_700_000_000_000;
 			const events = [
 				{
@@ -696,7 +696,7 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(true);
 			if (isFail(result)) return;
 
-			expect(result.value.events.at(-1)?.label).toBe('Moved issue');
+			expect(result.value.events.at(-1)?.label).toBe('I1 moved');
 		});
 
 		it('sorts the entries by time regardless of log order', async () => {

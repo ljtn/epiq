@@ -23,6 +23,7 @@ import {describeRepoEvent, isRepoAction} from '../lib/board/board-repos.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {projectLogNames} from '../lib/board/log-names.js';
 import {Identity, identityOf} from '../lib/model/identity.js';
+import {nodeRef} from '../lib/utils/node-ref.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 
 // The same shape every surface labels somebody with, and resolved the same
@@ -357,14 +358,17 @@ const describeTimelineEvent = (
 		if (described) return described;
 	}
 
+	// A ticket's move opens with its ref, as a commit line does: the board-wide
+	// log otherwise never says which ticket moved.
 	if (event.action === 'move.node' && payload?.parent) {
 		const lane = names.get(payload.parent);
+		const moved = issue ? `${nodeRef(issue)} moved` : 'Moved';
 
-		if (!lane) return action;
+		if (!lane) return issue ? moved : action;
 
 		return previousParents.get(event.id) === payload.parent
-			? `Moved within ${lane}`
-			: `Moved to ${lane}`;
+			? `${moved} within ${lane}`
+			: `${moved} to ${lane}`;
 	}
 
 	if (isRepoAction(event.action)) {
