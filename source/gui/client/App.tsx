@@ -121,6 +121,7 @@ import {
 } from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
+import {useNeedleUrl} from './lib/needle-url';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useBoardOverview} from './lib/use-board-overview';
@@ -1417,6 +1418,16 @@ export const App = () => {
 		send('time-travel:live', {});
 	};
 
+	const [needleDragging, setNeedleDragging] = useState(false);
+	const {settle: settleNeedle} = useNeedleUrl({
+		cut: scrubCut(state?.timeTravel),
+		loaded: state !== null,
+		following: theatre === null,
+		dragging: needleDragging,
+		scrubTo: scrubToTime,
+		goLive: returnToLive,
+	});
+
 	// Plays the window the scrubber is showing. Its own timeline is the script:
 	// the same events it has drawn, in the order the clock put them in.
 	const startTheatre = () => {
@@ -2076,6 +2087,8 @@ export const App = () => {
 								highlightEventId={hoveredLogEventId}
 								timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 								onScrub={scrubToTime}
+								onNeedleDragging={setNeedleDragging}
+								onNeedleSettle={settleNeedle}
 								onReturnToLive={returnToLive}
 								onPlayTheatre={startTheatre}
 								theatreOpen={theatre !== null}

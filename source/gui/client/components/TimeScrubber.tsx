@@ -113,6 +113,8 @@ export const TimeScrubber = ({
 	historyId,
 	timeTravel,
 	onScrub,
+	onNeedleDragging,
+	onNeedleSettle,
 	onReturnToLive,
 	onRequestHistory,
 	boardId,
@@ -156,6 +158,10 @@ export const TimeScrubber = ({
 	historyId: number;
 	timeTravel: GuiTimeTravelStatus;
 	onScrub: (targetTime: number) => void;
+	// A needle held and dragged, and a needle let go of: a drag scrubs every
+	// step, and only where it is let go is a place to come back to.
+	onNeedleDragging: (dragging: boolean) => void;
+	onNeedleSettle: () => void;
 	onReturnToLive: () => void;
 	// Undefined start/end asks for the default "all time" window. Both series
 	// must come from one call: they share an axis derived from both, so
@@ -772,6 +778,13 @@ export const TimeScrubber = ({
 
 	const dragging = dragFraction !== null || rangeDrag !== null;
 
+	const needleDragging = dragFraction !== null;
+	useEffect(() => {
+		onNeedleDragging(needleDragging);
+		// A scrubber gone mid-drag holds nothing any more.
+		return () => onNeedleDragging(false);
+	}, [needleDragging]);
+
 	// Both series as one list for the canvas, in the order they should stack:
 	// commits first, board events over them, as the old zIndex did.
 	const commitPoints = useMemo(
@@ -1018,6 +1031,7 @@ export const TimeScrubber = ({
 		rangeDragRef.current = null;
 
 		if (draggedTo !== null) {
+			onNeedleSettle();
 			dispatchScrub(draggedTo, true);
 			setDragFraction(null);
 			setRangeDrag(null);
@@ -1047,6 +1061,7 @@ export const TimeScrubber = ({
 				return;
 			}
 
+			onNeedleSettle();
 			dispatchScrub(from, true);
 			return;
 		}
@@ -1309,8 +1324,12 @@ export const TimeScrubber = ({
 				onToggleCommitRepo,
 				allBoards,
 				onChangeScope: changeScope,
-				onChangeWindowOnly: (next: boolean) =>
-					onChangeSelection({windowOnly: next}),
+				// Narrowing to the window is about the present: it takes a parked
+				// board back to live.
+				onChangeWindowOnly: (next: boolean) => {
+					onChangeSelection({windowOnly: next});
+					if (timeTravel.mode === 'scrub') onReturnToLive();
+				},
 				onChangeLayoutMode: changeLayoutMode,
 				onChangeShowIssues,
 				onChangeShowCommits,
