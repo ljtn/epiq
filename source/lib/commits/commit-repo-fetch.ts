@@ -471,8 +471,31 @@ const hasRefs = async (clonePath: string): Promise<boolean> => {
  * date is taken at the local time of day, which moves the cut with the hour
  * the clone happened to run at.
  */
-const shallowSince = (since: string) =>
-	`--shallow-since=@${Math.floor(Date.parse(`${since}T00:00:00Z`) / 1000)}`;
+const sinceEpoch = (since: string) =>
+	Math.floor(Date.parse(`${since}T00:00:00Z`) / 1000);
+
+const shallowSince = (since: string) => `--shallow-since=@${sinceEpoch(since)}`;
+
+/**
+ * Whether any branch tip falls in the window, by committer date as
+ * `--shallow-since` cuts. With none, git had nothing to select; with one, a
+ * refused window was some other failure.
+ */
+const windowHoldsCommits = async (
+	clonePath: string,
+	since: string,
+): Promise<boolean> => {
+	const result = await localGit({
+		cwd: clonePath,
+		args: ['for-each-ref', '--format=%(committerdate:unix)', 'refs/heads/'],
+	});
+	if (isFail(result)) return true;
+
+	return result.value.stdout
+		.split('\n')
+		.filter(Boolean)
+		.some(time => Number(time) >= sinceEpoch(since));
+};
 
 /**
  * `--shallow-since` cuts *at* the oldest commit in the window: that commit is
@@ -503,8 +526,9 @@ const deepenPastWindow = async (
  * git refuses `--shallow-since` when it selects nothing, and one commit is the
  * smallest history there is. That commit is a shallow boundary, which the
  * timeline leaves out, so the repo simply shows nothing yet. Not every host
- * passes git's reason on (SSH can leave only "the remote end hung up"), so any
- * failed windowed clone gets that one retry.
+ * passes git's reason on (SSH can leave only "the remote end hung up"), so a
+ * failed windowed clone is retried that way, and the retry stands only when
+ * it shows the window was empty.
  */
 const buildClone = async (
 	pending: string,
@@ -551,8 +575,12 @@ const buildClone = async (
 
 	let result = await attempt(since ? [shallowSince(since)] : [], !!since);
 	if (isFail(result) && since) {
+		const windowed = result;
 		fs.rmSync(pending, {recursive: true, force: true});
 		result = await attempt(['--depth=1'], false);
+		if (!isFail(result) && (await windowHoldsCommits(pending, since))) {
+			result = windowed;
+		}
 	}
 
 	if (isFail(result)) {
@@ -823,16 +851,20 @@ const fetchRepo = async (
 
 	// A wider window that selects nothing is refused, and not every host says
 	// why: with nothing in it there was nothing to add, so a plain fetch
-	// stands in. Any other cause fails that one too.
-	const widened = window[0]?.startsWith('--shallow-since') ?? false;
+	// stands in, and stands only when it shows the window was empty.
+	const widened = since !== null && window.length > 0;
 	const fellBack = isFail(fetchResult) && widened;
 	if (fellBack) {
+		const widening = fetchResult;
 		fetchResult = await transfer(
 			clonePath,
 			['fetch', '--prune', '--no-tags', 'origin'],
 			clonePath,
 			{undo: before},
 		);
+		if (!isFail(fetchResult) && (await windowHoldsCommits(clonePath, since))) {
+			return failed(widening.message);
+		}
 	}
 	if (isFail(fetchResult)) return failed(fetchResult.message);
 
