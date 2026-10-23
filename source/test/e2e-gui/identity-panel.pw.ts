@@ -117,9 +117,9 @@ test('a click inside the panel does not dismiss it', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The topbar moves down when the follow banner rises above it, without
-// changing its own size: the panel must move with it rather than overlap it.
-test('the panel keeps to the topbar as the follow banner comes and goes', async ({
+// The follow notice sits inside the topbar, so it moves nothing: the panel
+// below the bar stays where it is as the notice comes and goes.
+test('the panel stays put as the follow notice comes and goes', async ({
 	page,
 	pageErrors,
 }) => {
@@ -129,19 +129,13 @@ test('the panel keeps to the topbar as the follow banner comes and goes', async 
 	// A click event alone: the dismiss listens for the press, and the panel is
 	// meant to stay.
 	await page.getByTestId('live-toggle').dispatchEvent('click');
-	const banner = page.getByTestId('follow-banner');
-	await expect(banner).toBeVisible();
-	const height = (await banner.boundingBox())!.height;
-
-	await expect
-		.poll(async () => (await panel.boundingBox())!.y)
-		.toBeCloseTo(before + height, 0);
+	const notice = page.getByTestId('follow-banner');
+	await expect(notice).toBeVisible();
+	expect((await panel.boundingBox())!.y).toBeCloseTo(before, 0);
 
 	await page.getByTestId('live-toggle').dispatchEvent('click');
-	await expect(banner).toHaveCount(0);
-	await expect
-		.poll(async () => (await panel.boundingBox())!.y)
-		.toBeCloseTo(before, 0);
+	await expect(notice).toHaveCount(0);
+	expect((await panel.boundingBox())!.y).toBeCloseTo(before, 0);
 
 	expect(pageErrors).toEqual([]);
 });

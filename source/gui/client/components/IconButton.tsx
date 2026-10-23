@@ -78,8 +78,12 @@ export const IconButton = ({
 				width: label === undefined ? ICON_BUTTON_SIZE : undefined,
 				height: ICON_BUTTON_SIZE,
 				flexShrink: 0,
-				padding: label === undefined ? 0 : '0 6px 0 5px',
-				background: filled
+				padding: label === undefined ? (filled ? 1 : 0) : '0 6px 0 5px',
+				// A fill a pixel in from the box's edge: a solid square at the full
+				// size reads larger than the bare icons beside it.
+				backgroundClip: filled ? 'content-box' : undefined,
+				// The colour alone: the `background` shorthand would reset the clip.
+				backgroundColor: filled
 					? GUI_THEME.accent
 					: lit
 					? GUI_THEME.hover

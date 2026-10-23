@@ -123,7 +123,8 @@ test('the comment count on a card still opens comments', async ({page}) => {
 	expect(
 		await count.evaluate(
 			node =>
-				(node as unknown as {style: {background: string}}).style.background,
+				(node as unknown as {style: {backgroundColor: string}}).style
+					.backgroundColor,
 		),
 	).toBe('transparent');
 

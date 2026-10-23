@@ -78,15 +78,7 @@ test('each group on the controls row wears its name above it', async ({
 					],
 			),
 		),
-	).toEqual([
-		'Graph',
-		'Cards',
-		'Scope',
-		'Narrow',
-		'Filter',
-		'Live',
-		'Replay',
-	]);
+	).toEqual(['Graph', 'Cards', 'Scope', 'Narrow', 'Filter', 'Live', 'Replay']);
 
 	for (const group of await groups.all()) {
 		const box = await group.boundingBox();
