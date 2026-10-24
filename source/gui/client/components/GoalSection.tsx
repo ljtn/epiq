@@ -139,9 +139,6 @@ export const GoalSection = ({
 							background: goals.get(option.id)?.color ?? 'transparent',
 						}}
 					/>
-					<span style={{color: GUI_THEME.dim, fontSize: 10, flexShrink: 0}}>
-						{option.ref}
-					</span>
 					<span
 						style={{
 							overflow: 'hidden',

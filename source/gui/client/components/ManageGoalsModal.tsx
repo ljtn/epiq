@@ -8,7 +8,7 @@ import {IconTrash} from './IconTrash';
 
 type Props = {
 	goals: GoalIndex;
-	// Every ticket there is, for the goals' titles and refs.
+	// Every ticket there is, for the goals' titles.
 	issues: GuiIssue[];
 	onOpen: (goalId: string) => void;
 	onRemove: (goalId: string) => void;
@@ -128,9 +128,6 @@ export const ManageGoalsModal = ({
 										textAlign: 'left',
 									}}
 								>
-									<span style={{fontSize: 10, color: GUI_THEME.dim}}>
-										{issue.ref}
-									</span>
 									<span style={{fontSize: 12, color: goal.color}}>
 										{issue.title}
 									</span>
