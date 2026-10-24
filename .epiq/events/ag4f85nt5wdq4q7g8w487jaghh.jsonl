@@ -72,3 +72,9 @@
 {"v":1,"id":["01M5NKAX38NMQZB6YH2DY21GW8","01M5NK15QTJE44K3DY1NXTP509"],"move.node":{"id":"01M5NK0W03FYF8YPMKJ2F0FJC8","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01M5NKBSPB13CYJKCTMC1CTBPF","01M5NKAX38NMQZB6YH2DY21GW8"],"move.node":{"id":"01M5ND8G09ZYCPZXSDTHWY3CDW","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffffbfffffffffffffffff"}}
 {"v":1,"id":["01M5NKGMWGCV82MC8WE9CPNF8J","01M5NKBSPB13CYJKCTMC1CTBPF"],"move.node":{"id":"01M5NK0W03FYF8YPMKJ2F0FJC8","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffffdfffffffffffffffff"}}
+{"v":1,"id":["01M5QH78GT2S0DYX7ARPE42FKE","01M5NNBG3BCF3ZSYHJCW5JFPP7"],"add.issue":{"id":"01M5QH78GSAG61HWAPA5JNR19G","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","name":"GUI header shows when a newer epiq is out","rank":"ffffbfffffffffffffffffff"}}
+{"v":1,"id":["01M5QH78GVQ897JEF025WYG9KE","01M5QH78GT2S0DYX7ARPE42FKE"],"edit.description":{"id":"01M5QH78GSAG61HWAPA5JNR19G","md":"Like the TUI's version pill, but more polished: the header version shows the newer release, and the GUI can offer its notes and the update command.\n\nThe server runs the check (the same daily-cached npm lookup), and the client is told over the socket."}}
+{"v":1,"id":["01M5QH78GWE8SFNMXR7RJY4FRT","01M5QH78GVQ897JEF025WYG9KE"],"add.issue.tag":{"id":"01M5QH78GSAG61HWAPA5JNR19G","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
+{"v":1,"id":["01M5QH78GXTTTNWM2CFJ0Q02KS","01M5QH78GWE8SFNMXR7RJY4FRT"],"add.issue.assignee":{"id":"01M5QH78GSAG61HWAPA5JNR19G","assignee":"AG4F85NT5WDQ4Q7G8W487JAGHH"}}
+{"v":1,"id":["01M5QM6H9MPCPY1FA3S041X1J0","01M5QH78GXTTTNWM2CFJ0Q02KS"],"move.node":{"id":"01M5QH78GSAG61HWAPA5JNR19G","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"bfffffffffffffffffffffff"}}
+{"v":1,"id":["01M5QMJG9E3TBC85HVZFGRDXRB","01M5QM6H9MPCPY1FA3S041X1J0"],"move.node":{"id":"01M5QH78GSAG61HWAPA5JNR19G","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffffefffffffffffffffff"}}
