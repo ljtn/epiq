@@ -371,6 +371,14 @@ const describeTimelineEvent = (
 			: `${moved} to ${lane}`;
 	}
 
+	// So does a close or a reopen, which is otherwise one bare word.
+	if (
+		(event.action === 'close.issue' || event.action === 'reopen.issue') &&
+		issue
+	) {
+		return `${nodeRef(issue)} ${action.toLowerCase()}`;
+	}
+
 	if (isRepoAction(event.action)) {
 		return [action, describeRepoEvent(event)].filter(Boolean).join(' ');
 	}
