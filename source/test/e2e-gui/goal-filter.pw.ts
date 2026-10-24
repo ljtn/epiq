@@ -86,8 +86,11 @@ test('clicking the goal a ticket is in opens the picker, which can take it out o
 	await putOpenTicketInGoal(page, goal);
 
 	// Not a tag: a click asks what to change it to, and takes nothing away.
+	// The box it opens to stands where the folded one stood.
+	const folded = await page.getByTestId('goal-current').boundingBox();
 	await page.getByTestId('goal-current').click();
 	await expect(page.getByTestId('goal-search')).toBeFocused();
+	expect(await page.getByTestId('goal-search').boundingBox()).toEqual(folded);
 
 	// Typing lists matches only, so Enter picks one rather than leaving.
 	await page.getByTestId('goal-search').fill(goal);

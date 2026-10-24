@@ -13,11 +13,7 @@ import {GoalLabel} from './GoalLabel';
 import {ManageGoalsModal} from './ManageGoalsModal';
 import {MenuItem} from './Menu';
 import {Section} from './Section';
-import {
-	popoverStyle,
-	selectLabelStyle,
-	selectTriggerStyle,
-} from '../lib/select-style';
+import {popoverStyle, selectLabelStyle} from '../lib/select-style';
 import {IconChevronDown} from './IconChevronDown';
 
 const PICK_LIMIT = 8;
@@ -242,12 +238,23 @@ export const GoalSection = ({
 					disabled={disabled}
 					onClick={row.start}
 					style={{
-						...selectTriggerStyle(issue.goal?.color ?? GUI_THEME.dim, disabled),
+						// The search box's face, so opening it changes nothing but the text.
+						font: 'inherit',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'space-between',
+						gap: 6,
 						width: '100%',
+						boxSizing: 'border-box',
 						marginTop: 10,
-						fontFamily: 'inherit',
-						fontSize: 12,
-						padding: '7px 10px',
+						background: GUI_THEME.well,
+						color: issue.goal ? GUI_THEME.primary : GUI_THEME.dim,
+						border: `1px solid ${GUI_THEME.line}`,
+						borderRadius: 8,
+						padding: '8px 10px',
+						textAlign: 'left',
+						cursor: disabled ? 'not-allowed' : 'pointer',
+						opacity: disabled ? 0.4 : 1,
 					}}
 				>
 					<span
