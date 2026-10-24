@@ -17,7 +17,7 @@ const PICK_LIMIT = 8;
 
 // The wheel at the saturation and lightness a name's own colour is drawn at,
 // so a picked colour sits among tags and auto colours as one of them; under
-// it, the same hues in pastel.
+// it, the same hues muted.
 const SWATCH_ROWS = [
 	[
 		'#cc6666',
@@ -34,18 +34,18 @@ const SWATCH_ROWS = [
 		'#cc6699',
 	],
 	[
-		'#e0aeae',
-		'#e0c7ae',
-		'#e0e0ae',
-		'#c7e0ae',
-		'#aee0ae',
-		'#aee0c7',
-		'#aee0e0',
-		'#aec7e0',
-		'#aeaee0',
-		'#c7aee0',
-		'#e0aee0',
-		'#e0aec7',
+		'#a97070',
+		'#a98c70',
+		'#a9a970',
+		'#8ca970',
+		'#70a970',
+		'#70a98c',
+		'#70a9a9',
+		'#708ca9',
+		'#7070a9',
+		'#8c70a9',
+		'#a970a9',
+		'#a9708c',
 	],
 ];
 
