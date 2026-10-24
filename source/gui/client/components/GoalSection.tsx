@@ -16,23 +16,82 @@ import {Section} from './Section';
 const PICK_LIMIT = 8;
 
 // The wheel at the saturation and lightness a name's own colour is drawn at,
-// so a picked colour sits among tags and auto colours as one of them.
-const SWATCHES = [
-	'#cc6666',
-	'#cc9966',
-	'#cccc66',
-	'#99cc66',
-	'#66cc66',
-	'#66cc99',
-	'#66cccc',
-	'#6699cc',
-	'#6666cc',
-	'#9966cc',
-	'#cc66cc',
-	'#cc6699',
+// so a picked colour sits among tags and auto colours as one of them; under
+// it, the same hues in pastel.
+const SWATCH_ROWS = [
+	[
+		'#cc6666',
+		'#cc9966',
+		'#cccc66',
+		'#99cc66',
+		'#66cc66',
+		'#66cc99',
+		'#66cccc',
+		'#6699cc',
+		'#6666cc',
+		'#9966cc',
+		'#cc66cc',
+		'#cc6699',
+	],
+	[
+		'#e0aeae',
+		'#e0c7ae',
+		'#e0e0ae',
+		'#c7e0ae',
+		'#aee0ae',
+		'#aee0c7',
+		'#aee0e0',
+		'#aec7e0',
+		'#aeaee0',
+		'#c7aee0',
+		'#e0aee0',
+		'#e0aec7',
+	],
 ];
 
 const SWATCH_SIZE = 16;
+const SWATCH_GAP = 6;
+
+const Swatch = ({
+	swatch,
+	color,
+	disabled,
+	onPick,
+}: {
+	swatch: string;
+	color?: string;
+	disabled: boolean;
+	onPick: (color: string) => void;
+}) => {
+	const held = color === swatch;
+
+	return (
+		<button
+			type="button"
+			data-testid={`goal-color-${swatch.slice(1)}`}
+			aria-label={swatch}
+			aria-pressed={held}
+			disabled={disabled}
+			onClick={() => !held && onPick(swatch)}
+			style={{
+				width: SWATCH_SIZE,
+				height: SWATCH_SIZE,
+				padding: 0,
+				borderRadius: 999,
+				borderWidth: 0,
+				display: 'inline-flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				color: GUI_THEME.bg,
+				background: swatch,
+				opacity: held || !color ? 1 : 0.55,
+				cursor: disabled ? 'default' : 'pointer',
+			}}
+		>
+			{held && <IconCheck size={11} />}
+		</button>
+	);
+};
 
 const GoalColors = ({
 	color,
@@ -49,9 +108,8 @@ const GoalColors = ({
 		data-testid="goal-colors"
 		style={{
 			display: 'flex',
-			flexWrap: 'wrap',
-			alignItems: 'center',
-			gap: 6,
+			alignItems: 'flex-start',
+			gap: SWATCH_GAP,
 			padding: '6px 0 8px',
 		}}
 	>
@@ -66,37 +124,24 @@ const GoalColors = ({
 		>
 			Auto
 		</Button>
-		{SWATCHES.map(swatch => {
-			const held = color === swatch;
-
-			return (
-				<button
-					key={swatch}
-					type="button"
-					data-testid={`goal-color-${swatch.slice(1)}`}
-					aria-label={swatch}
-					aria-pressed={held}
-					disabled={disabled}
-					onClick={() => !held && onPick(swatch)}
-					style={{
-						width: SWATCH_SIZE,
-						height: SWATCH_SIZE,
-						padding: 0,
-						borderRadius: 999,
-						borderWidth: 0,
-						display: 'inline-flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						color: GUI_THEME.bg,
-						background: swatch,
-						opacity: held || !color ? 1 : 0.55,
-						cursor: disabled ? 'default' : 'pointer',
-					}}
+		<div style={{display: 'flex', flexDirection: 'column', gap: SWATCH_GAP}}>
+			{SWATCH_ROWS.map(row => (
+				<div
+					key={row[0]}
+					style={{display: 'flex', flexWrap: 'wrap', gap: SWATCH_GAP}}
 				>
-					{held && <IconCheck size={11} />}
-				</button>
-			);
-		})}
+					{row.map(swatch => (
+						<Swatch
+							key={swatch}
+							swatch={swatch}
+							color={color}
+							disabled={disabled}
+							onPick={onPick}
+						/>
+					))}
+				</div>
+			))}
+		</div>
 	</div>
 );
 
