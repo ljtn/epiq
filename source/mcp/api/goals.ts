@@ -13,12 +13,14 @@ import {
 	goalRefusal,
 	findTicket,
 	getTicketGoal,
+	goalMembers,
 } from '../../lib/utils/goal.utils.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiGoalRef} from '../api-state.model.js';
 import {Actor, bootedWithActorAndState, ToolInput} from './boot.js';
 import {findWritableIssue} from './node-targets.js';
+import {createIssue} from './issues.js';
 
 /** The goal a ticket belongs to, as it reads now, or none. */
 export const getIssueGoal = (ticket: Ticket): ApiGoalRef | undefined => {
@@ -95,4 +97,66 @@ export const setIssueGoal = async (
 		action: 'set.issue.goal',
 		payload: {id: issue.id, goal: goal.id},
 	});
+};
+
+/**
+ * A new goal for a ticket: a ticket of its own, filed in the same lane, that
+ * the ticket then belongs to.
+ */
+export const createIssueGoal = async (
+	input: ToolInput & {issueId: string; title: string},
+) => {
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+
+	const issueResult = findWritableIssue(input.issueId);
+	if (isFail(issueResult)) return issueResult;
+	const issue = issueResult.value;
+
+	if (goalMembers(issue.id).length > 0) {
+		return failed(`${nodeRef(issue.id)} is a goal; it is in none itself`);
+	}
+
+	const created = await createIssue({
+		repoRoot: input.repoRoot,
+		title: input.title,
+		parentId: issue.parentNodeId!,
+	});
+	if (isFail(created)) return created;
+
+	return setIssueGoal({
+		repoRoot: input.repoRoot,
+		issueId: issue.id,
+		goal: created.value.id,
+	});
+};
+
+/**
+ * Takes every ticket out of a goal, in one write. The goal's own ticket
+ * stays where it is: it was a ticket before anything belonged to it.
+ */
+export const dissolveGoal = async (input: ToolInput & {goalId: string}) => {
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+
+	const goal = findTicket(input.goalId);
+	if (!goal) return failed('Goal ticket not found');
+
+	const members = goalMembers(goal.id).filter(member => !member.readonly);
+	if (members.length === 0) {
+		return succeeded('No changes made', {id: goal.id, ref: nodeRef(goal.id)});
+	}
+
+	const results = materializeAndPersistAll(
+		members.map(member => ({
+			id: ulid(),
+			...actorOf(ready.value.actor),
+			action: 'set.issue.goal' as const,
+			payload: {id: member.id},
+		})),
+		ready.value.boot.stateBranchRoot,
+	);
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Saved', {id: goal.id, ref: nodeRef(goal.id)});
 };

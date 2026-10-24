@@ -104,3 +104,45 @@ test('clicking the goal a ticket is in opens the picker, which can take it out o
 
 	expect(pageErrors).toEqual([]);
 });
+
+test('a new goal is named in the picker, and removing it takes its tickets out', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const goal = `Fresh ${stamp}`;
+	const member = `Joiner ${stamp}`;
+
+	await addTicket(page, member);
+	const section = page
+		.locator('aside section')
+		.filter({has: page.getByTestId('goal-empty')});
+	await section.getByRole('button', {name: '+', exact: true}).click();
+	await page.getByTestId('goal-search').fill(goal);
+	await page.getByTestId('goal-create').click();
+	await expect(page.getByTestId('goal-current')).toHaveText(goal);
+
+	// The goal is a ticket of its own, in the same lane.
+	await expect(card(page, goal)).toHaveCount(2);
+
+	await page.getByTestId('goal-current').click();
+	await page.getByTestId('goal-manage').click();
+	const row = page.getByTestId('manage-goal-row').filter({hasText: goal});
+	await row.getByTestId('remove-goal').click();
+	await row.getByTestId('remove-goal').click();
+	await expect(
+		page.getByTestId('manage-goal-row').filter({hasText: goal}),
+	).toHaveCount(0);
+	await page
+		.getByTestId('manage-goals')
+		.getByRole('button', {name: 'Close', exact: true})
+		.click();
+
+	await expect(page.getByTestId('goal-empty')).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});

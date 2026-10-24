@@ -10,6 +10,7 @@ import {GoalIndex, GoalSummary} from '../lib/goal-index';
 import {Button} from './Button';
 import {AddRow, ChipRow, Empty, Input} from './FormPrimitives';
 import {GoalLabel} from './GoalLabel';
+import {ManageGoalsModal} from './ManageGoalsModal';
 import {MenuItem} from './Menu';
 import {Section} from './Section';
 import {popoverStyle} from '../lib/select-style';
@@ -24,6 +25,8 @@ export const GoalSection = ({
 	goals,
 	candidates,
 	onSetGoal,
+	onCreateGoal,
+	onRemoveGoal,
 	onOpenIssue,
 }: {
 	issue: GuiIssue;
@@ -32,11 +35,14 @@ export const GoalSection = ({
 	// Every ticket there is, for the picker.
 	candidates: GuiIssue[];
 	onSetGoal: (issueId: string, goal: string | null) => void;
+	onCreateGoal: (issueId: string, title: string) => void;
+	onRemoveGoal: (goalId: string) => void;
 	onOpenIssue: (issueId: string) => void;
 }) => {
 	const row = useAddRow();
 	const [query, setQuery] = useState('');
 	const [lit, setLit] = useState(0);
+	const [managing, setManaging] = useState(false);
 	const disabled = issue.readonly;
 
 	// A goal is in none itself; any other ticket opens to the picker.
@@ -78,6 +84,21 @@ export const GoalSection = ({
 		row.close();
 		setQuery('');
 	};
+
+	const typed = query.trim();
+	const create = () => {
+		onCreateGoal(issue.id, typed);
+		row.close();
+		setQuery('');
+	};
+	// Offered unless a goal by that name is already listed to pick.
+	const canCreate =
+		typed !== '' &&
+		!options.some(
+			option =>
+				goals.has(option.id) &&
+				option.title.toLowerCase() === typed.toLowerCase(),
+		);
 
 	// The rows the dropdown lists, the lit one picked by Enter.
 	const choices = [
@@ -130,6 +151,29 @@ export const GoalSection = ({
 				</span>
 			),
 		})),
+		...(canCreate
+			? [
+					{
+						key: 'create',
+						testId: 'goal-create',
+						choose: create,
+						content: <span>New goal “{typed}”</span>,
+					},
+			  ]
+			: []),
+		...(!needle
+			? [
+					{
+						key: 'manage',
+						testId: 'goal-manage',
+						choose: () => {
+							row.close();
+							setManaging(true);
+						},
+						content: <span style={{color: GUI_THEME.dim}}>Manage goals…</span>,
+					},
+			  ]
+			: []),
 	];
 	// Clamped: the list shrinks as the query narrows it.
 	const litAt = Math.min(lit, choices.length - 1);
@@ -233,7 +277,7 @@ export const GoalSection = ({
 							ref={row.inputRef}
 							data-testid="goal-search"
 							value={query}
-							placeholder="Goal, or any ticket by title"
+							placeholder="Find a goal, or name a new one"
 							onChange={event => {
 								setQuery(event.target.value);
 								setLit(0);
@@ -278,6 +322,18 @@ export const GoalSection = ({
 						)}
 					</div>
 				</div>
+			)}
+			{managing && (
+				<ManageGoalsModal
+					goals={goals}
+					issues={candidates}
+					onOpen={goalId => {
+						setManaging(false);
+						onOpenIssue(goalId);
+					}}
+					onRemove={onRemoveGoal}
+					onClose={() => setManaging(false)}
+				/>
 			)}
 		</Section>
 	);

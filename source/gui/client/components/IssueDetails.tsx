@@ -303,6 +303,8 @@ export const IssueDetails = ({
 	goals = EMPTY_GOALS,
 	goalCandidates = [],
 	onSetGoal,
+	onCreateGoal,
+	onRemoveGoal,
 	onOpenIssue,
 	commits,
 	commitsLoading,
@@ -394,6 +396,8 @@ export const IssueDetails = ({
 	goals?: GoalIndex;
 	goalCandidates?: GuiIssue[];
 	onSetGoal?: (issueId: string, goal: string | null) => void;
+	onCreateGoal?: (issueId: string, title: string) => void;
+	onRemoveGoal?: (goalId: string) => void;
 	onOpenIssue?: (issueId: string) => void;
 }) => {
 	// Unsent, so in the ticket's drafts.
@@ -748,13 +752,15 @@ export const IssueDetails = ({
 							)}
 						</Section>
 
-						{onSetGoal && onOpenIssue && (
+						{onSetGoal && onCreateGoal && onRemoveGoal && onOpenIssue && (
 							<GoalSection
 								issue={issue}
 								asGoal={goals.get(issue.id) ?? null}
 								goals={goals}
 								candidates={goalCandidates}
 								onSetGoal={onSetGoal}
+								onCreateGoal={onCreateGoal}
+								onRemoveGoal={onRemoveGoal}
 								onOpenIssue={onOpenIssue}
 							/>
 						)}

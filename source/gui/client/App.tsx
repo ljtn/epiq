@@ -1417,6 +1417,8 @@ export const App = () => {
 		addIssueTag,
 		removeIssueTag,
 		setIssueGoal,
+		createIssueGoal,
+		dissolveGoal,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,
@@ -2524,6 +2526,8 @@ export const App = () => {
 										goals={goalIndex}
 										goalCandidates={goalCandidates}
 										onSetGoal={setIssueGoal}
+										onCreateGoal={createIssueGoal}
+										onRemoveGoal={dissolveGoal}
 										onOpenIssue={id => openIssueTab(id, 'overview')}
 										onAddAssignee={addIssueAssignee}
 										onAddExternalAssignee={addExternalIssueAssignee}

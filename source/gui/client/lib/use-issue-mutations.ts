@@ -88,6 +88,14 @@ export const useIssueMutations = ({
 		send('issue:goal:set', {issueId, goal});
 	};
 
+	const createIssueGoal = (issueId: string, title: string) => {
+		send('issue:goal:create', {issueId, title});
+	};
+
+	const dissolveGoal = (goalId: string) => {
+		send('goal:dissolve', {goalId});
+	};
+
 	const removeIssueTag = (issueId: string, tagId: string) => {
 		setState(prev => {
 			if (!prev) return prev;
@@ -346,6 +354,8 @@ export const useIssueMutations = ({
 		addIssueTag,
 		removeIssueTag,
 		setIssueGoal,
+		createIssueGoal,
+		dissolveGoal,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,

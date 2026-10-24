@@ -13,6 +13,8 @@ import {
 	listBoards,
 	listSwimlanes,
 	setIssueGoal,
+	createIssueGoal,
+	dissolveGoal,
 } from '../mcp/epiq-api.js';
 import {deriveGuiState} from '../mcp/api/state.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
@@ -203,5 +205,43 @@ describe('replaying goal events', () => {
 
 		expect(isFail(own as Result)).toBe(true);
 		expect(issueOf(part).goal).toBeUndefined();
+	});
+});
+
+describe('making and removing goals', () => {
+	it('makes a new goal ticket in the same lane and puts the ticket in it', async () => {
+		const {repoRoot, file} = await seed();
+		const part = await file('Part');
+
+		unwrap(await createIssueGoal({repoRoot, issueId: part, title: 'Bigger'}));
+
+		const goal = issueOf(part).goal!;
+		expect(goal.title).toBe('Bigger');
+		expect(issueOf(goal.id).parentNodeId).toBe(issueOf(part).parentNodeId);
+	});
+
+	it('refuses a goal for a ticket that is one', async () => {
+		const {repoRoot, file} = await seed();
+		const epic = await file('Epic');
+		const part = await file('Part');
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: epic}));
+
+		const result = await createIssueGoal({repoRoot, issueId: epic, title: 'X'});
+		expect(isFail(result) && result.message).toMatch(/is a goal/);
+	});
+
+	it('takes every ticket out of a goal and leaves its ticket', async () => {
+		const {repoRoot, file} = await seed();
+		const epic = await file('Epic');
+		const one = await file('One');
+		const two = await file('Two');
+		unwrap(await setIssueGoal({repoRoot, issueId: one, goal: epic}));
+		unwrap(await setIssueGoal({repoRoot, issueId: two, goal: epic}));
+
+		unwrap(await dissolveGoal({repoRoot, goalId: epic}));
+
+		expect(issueOf(one).goal).toBeUndefined();
+		expect(issueOf(two).goal).toBeUndefined();
+		expect(issueOf(epic).title).toBe('Epic');
 	});
 });
