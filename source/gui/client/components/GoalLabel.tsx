@@ -1,40 +1,22 @@
-// A goal, named in its colour on a square label with a short bar of it, so it
-// never reads as a tag: in a card's corner, leading a dense card's bottom
-// line, or in the ticket panel. On the goal's own ticket it is filled.
+// A goal, named in its colour beside a bar of it in the goal dropdown's dark
+// frame, so it never reads as a tag and looks the same on a card as in the
+// ticket panel.
 
 import React from 'react';
-import {GoalTabMetrics} from '../lib/card-density';
+import {GUI_THEME} from '../lib/gui-theme';
 
-// A colour's wash: the same hue, faint enough for text in the full colour to
-// read on it.
-const wash = (color: string) => `${color}2e`;
-
-type Place =
-	| {kind: 'corner'; tab: GoalTabMetrics}
-	| {kind: 'line'}
-	| {kind: 'panel'};
+type Place = {kind: 'line'; height: number} | {kind: 'panel'};
 
 const placeStyle = (place: Place): React.CSSProperties => {
-	if (place.kind === 'corner') {
-		return {
-			position: 'absolute',
-			top: place.tab.top,
-			left: place.tab.left,
-			maxWidth: '70%',
-			height: place.tab.height,
-			padding: '0 7px',
-			fontSize: 10,
-			lineHeight: `${place.tab.height}px`,
-		};
-	}
-
 	if (place.kind === 'line') {
 		return {
 			maxWidth: '45%',
 			flexShrink: 0,
-			padding: '0 6px',
-			fontSize: 10,
-			lineHeight: '12px',
+			height: place.height,
+			gap: 6,
+			padding: '0 7px 0 5px',
+			borderRadius: 4,
+			fontSize: 11,
 		};
 	}
 
@@ -42,9 +24,10 @@ const placeStyle = (place: Place): React.CSSProperties => {
 	return {
 		alignSelf: 'flex-start',
 		maxWidth: '100%',
-		padding: '3px 10px',
+		gap: 8,
+		padding: '5px 10px',
+		borderRadius: 8,
 		fontSize: 12,
-		lineHeight: '18px',
 	};
 };
 
@@ -63,36 +46,56 @@ export const GoalLabel = ({
 	label: string;
 	place: Place;
 	testId: string;
-	// The goal's own ticket: filled, so it reads as the thing the others
-	// point at.
+	// The goal's own ticket: bold, as the thing the others point at.
 	strong?: boolean;
-	// Held on, as a narrowed tag chip is: filled too.
+	// Held on, as a narrowed tag chip is.
 	pressed?: boolean;
 	disabled?: boolean;
 	onPress?: () => void;
 	pressTitle?: string;
 }) => {
-	const filled = strong || pressed;
 	const style: React.CSSProperties = {
 		...placeStyle(place),
+		display: 'inline-flex',
+		alignItems: 'center',
 		boxSizing: 'border-box',
-		borderRadius: 0,
-		borderWidth: `0 0 0 ${place.kind === 'panel' ? 3 : 2}px`,
-		borderStyle: 'solid',
-		borderColor: color,
-		overflow: 'hidden',
-		textOverflow: 'ellipsis',
-		whiteSpace: 'nowrap',
+		minWidth: 0,
+		lineHeight: 1,
 		fontFamily: 'inherit',
-		fontWeight: filled ? 600 : 500,
-		color: filled ? '#0b0d12' : color,
-		background: filled ? color : wash(color),
+		fontWeight: strong ? 600 : 400,
+		// Its colour carries the name, so a lane's goals tell apart at a glance.
+		color,
+		background: GUI_THEME.well,
+		// Held on, the frame takes the goal's colour.
+		border: `1px solid ${pressed ? color : GUI_THEME.line}`,
 	};
+	const content = (
+		<>
+			<span
+				aria-hidden
+				style={{
+					width: place.kind === 'panel' ? 3 : 2,
+					height: place.kind === 'panel' ? 14 : '60%',
+					flexShrink: 0,
+					background: color,
+				}}
+			/>
+			<span
+				style={{
+					overflow: 'hidden',
+					textOverflow: 'ellipsis',
+					whiteSpace: 'nowrap',
+				}}
+			>
+				{label}
+			</span>
+		</>
+	);
 
 	if (!onPress) {
 		return (
 			<span data-testid={testId} title={label} style={style}>
-				{label}
+				{content}
 			</span>
 		);
 	}
@@ -111,7 +114,7 @@ export const GoalLabel = ({
 			}}
 			style={{...style, cursor: disabled ? 'default' : 'pointer'}}
 		>
-			{label}
+			{content}
 		</button>
 	);
 };

@@ -9,16 +9,9 @@ import {createContext, useContext, useState} from 'react';
 
 export type CardDensity = 'wide' | 'dense';
 
-// The goal's label in a card's corner, which the card's top makes room for.
-export type GoalTabMetrics = {top: number; left: number; height: number};
-
 export type CardMetrics = {
 	// The card's box.
 	padding: string;
-	// The goal's label in the corner, inside the top padding the card already
-	// has; null where there is none to spare, and the label leads the line
-	// under the title instead. Either way a goal never makes a card taller.
-	goalTab: GoalTabMetrics | null;
 	minHeight: number;
 	radius: number;
 	// Between one card and the next in a lane.
@@ -26,6 +19,9 @@ export type CardMetrics = {
 	// The title's line, which the controls beside it centre on.
 	titleLineHeight: number;
 	titleFontSize: number;
+	// The line under the title, which the goal's label stands as tall as: a
+	// tag chip's height on a wide card, so a goal or a tag never grows one.
+	metaLineHeight: number;
 	// The line the drop indicator draws between two cards, and its air.
 	dropMargin: string;
 };
@@ -33,22 +29,22 @@ export type CardMetrics = {
 export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	wide: {
 		padding: '12px 18px 12px 0',
-		goalTab: {top: 0, left: 0, height: 12},
 		minHeight: 58,
 		radius: 8,
 		gap: 12,
 		titleLineHeight: 16,
 		titleFontSize: 12,
+		metaLineHeight: 17,
 		dropMargin: '4px 8px 8px',
 	},
 	dense: {
 		padding: '7px 11px',
-		goalTab: null,
 		minHeight: 0,
 		radius: 6,
 		gap: 4,
 		titleLineHeight: 15,
 		titleFontSize: 12,
+		metaLineHeight: 13,
 		dropMargin: '1px 8px 2px',
 	},
 };

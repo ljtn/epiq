@@ -610,11 +610,7 @@ export const TicketCard = ({
 			strong
 			color={asGoal.color}
 			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
-			place={
-				view.metrics.goalTab
-					? {kind: 'corner', tab: view.metrics.goalTab}
-					: {kind: 'line'}
-			}
+			place={{kind: 'line', height: view.metrics.metaLineHeight}}
 			{...goalFilter}
 		/>
 	) : ticket.goal ? (
@@ -622,11 +618,7 @@ export const TicketCard = ({
 			testId="ticket-goal"
 			color={ticket.goal.color}
 			label={ticket.goal.title}
-			place={
-				view.metrics.goalTab
-					? {kind: 'corner', tab: view.metrics.goalTab}
-					: {kind: 'line'}
-			}
+			place={{kind: 'line', height: view.metrics.metaLineHeight}}
 			{...goalFilter}
 		/>
 	) : null;
@@ -714,10 +706,9 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
-			{view.metrics.goalTab && goalLabel}
 			{dense ? (
 				<DenseBody
-					goal={view.metrics.goalTab ? null : goalLabel}
+					goal={goalLabel}
 					ticket={ticket}
 					diff={diff}
 					view={view}
@@ -848,7 +839,7 @@ export const TicketCard = ({
 						{/* What identifies and measures it on one line, its tags at the
 						    far end as on a dense card; where they do not fit, they wrap
 						    under it rather than squeeze the ref and the name. */}
-						{(ticket.ref || ticket.tags.length > 0) && (
+						{(goalLabel || ticket.ref || ticket.tags.length > 0) && (
 							<div
 								style={{
 									display: 'flex',
@@ -856,10 +847,12 @@ export const TicketCard = ({
 									alignItems: 'center',
 									columnGap: CARD_DIFF_GAP,
 									rowGap: 6,
+									minHeight: view.metrics.metaLineHeight,
 									color: GUI_THEME.dim2,
 									fontSize: 10,
 								}}
 							>
+								{goalLabel}
 								{ticket.ref && <CopyRef refValue={ticket.ref} />}
 								<AssigneeName
 									assignees={ticket.assignees}

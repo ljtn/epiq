@@ -248,7 +248,7 @@ export const GoalSection = ({
 						boxSizing: 'border-box',
 						marginTop: 10,
 						background: GUI_THEME.well,
-						color: issue.goal ? GUI_THEME.primary : GUI_THEME.dim,
+						color: issue.goal?.color ?? GUI_THEME.dim,
 						border: `1px solid ${GUI_THEME.line}`,
 						borderRadius: 8,
 						padding: '8px 10px',
