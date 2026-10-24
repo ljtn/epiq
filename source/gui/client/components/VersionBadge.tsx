@@ -73,6 +73,12 @@ export const VersionBadge = ({
 	);
 };
 
+const releaseVersionStyle: React.CSSProperties = {
+	color: GUI_THEME.secondary,
+	fontFamily: MONO_FONT,
+	fontSize: 12,
+};
+
 const UpdatePopover = ({
 	ref,
 	update,
@@ -166,19 +172,18 @@ const UpdatePopover = ({
 							gap: 8,
 						}}
 					>
-						<a
-							href={release.url}
-							target="_blank"
-							rel="noreferrer"
-							style={{
-								color: GUI_THEME.secondary,
-								fontFamily: MONO_FONT,
-								fontSize: 12,
-								textDecoration: 'none',
-							}}
-						>
-							{release.version}
-						</a>
+						{release.url ? (
+							<a
+								href={release.url}
+								target="_blank"
+								rel="noreferrer"
+								style={{...releaseVersionStyle, textDecoration: 'none'}}
+							>
+								{release.version}
+							</a>
+						) : (
+							<span style={releaseVersionStyle}>{release.version}</span>
+						)}
 						{release.publishedAt && (
 							<span
 								title={formatAbsolute(Date.parse(release.publishedAt))}

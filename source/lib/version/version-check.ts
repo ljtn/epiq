@@ -63,8 +63,14 @@ const fetchJson = async (url: string): Promise<unknown> => {
 	}
 };
 
-/** The JSON at `url`, or null on any failure; never throws. */
-const cachedJson = (url: string): Promise<unknown> => {
+/**
+ * The JSON at `url`, or null on any failure; never throws. An answer that is
+ * not yet `complete` is retried as soon as a failure would be.
+ */
+const cachedJson = (
+	url: string,
+	complete: (body: unknown) => boolean = () => true,
+): Promise<unknown> => {
 	const cached = responses.get(url);
 	if (cached && Date.now() - cached.at < cached.ttl) {
 		return Promise.resolve(cached.body);
@@ -76,7 +82,7 @@ const cachedJson = (url: string): Promise<unknown> => {
 	const request = fetchJson(url).then(body => {
 		responses.set(url, {
 			at: Date.now(),
-			ttl: body === null ? RETRY_MS : CACHE_MS,
+			ttl: body !== null && complete(body) ? CACHE_MS : RETRY_MS,
 			body,
 		});
 		inFlight.delete(url);
@@ -165,20 +171,30 @@ const toRelease = (raw: unknown): Release | null => {
 		version: normalizeVersion(release.tag_name),
 		url: typeof release.html_url === 'string' ? release.html_url : '',
 		publishedAt:
-			typeof release.published_at === 'string' ? release.published_at : null,
+			typeof release.published_at === 'string' &&
+			!Number.isNaN(Date.parse(release.published_at))
+				? release.published_at
+				: null,
 		sections:
 			typeof release.body === 'string' ? parseReleaseNotes(release.body) : [],
 	};
 };
 
-const getReleases = async (): Promise<Release[]> => {
-	const raw = await cachedJson(RELEASES_URL);
-	if (!Array.isArray(raw)) return [];
+const toReleases = (raw: unknown): Release[] =>
+	Array.isArray(raw)
+		? raw.map(toRelease).filter((release): release is Release => !!release)
+		: [];
 
-	return raw
-		.map(toRelease)
-		.filter((release): release is Release => release !== null);
-};
+// npm is published before its GitHub release leaves prerelease, so a list
+// without `latest` is a gap that closes within the hour, not the day's answer.
+const getReleases = async (latest: string): Promise<Release[]> =>
+	toReleases(
+		await cachedJson(RELEASES_URL, raw =>
+			toReleases(raw).some(
+				release => compareVersions(release.version, latest) === 0,
+			),
+		),
+	);
 
 /** The releases after `current` up to and including `latest`, newest first. */
 export const releasesBetween = (
@@ -211,7 +227,7 @@ export const getUpdateInfo = async (current: string): Promise<UpdateInfo> => {
 		};
 	}
 
-	const all = await getReleases();
+	const all = await getReleases(status.latest);
 
 	return {
 		...status,

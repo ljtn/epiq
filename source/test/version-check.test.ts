@@ -140,6 +140,40 @@ describe('getUpdateInfo over the network', () => {
 		expect(fetch).toHaveBeenCalledTimes(2);
 	});
 
+	it('asks GitHub again within the hour while npm is ahead of its release', async () => {
+		vi.useFakeTimers({toFake: ['Date']});
+		let published = false;
+		const fetch = vi.fn(async (url: string) =>
+			Response.json(
+				url.includes('npmjs')
+					? {version: '1.1.0'}
+					: [
+							{tag_name: 'v1.1.0', prerelease: !published, body: '- New'},
+							{tag_name: 'v1.0.0', published_at: 'not a date'},
+					  ],
+			),
+		);
+		vi.stubGlobal('fetch', fetch);
+
+		const early = await getUpdateInfo('1.0.0');
+		expect(early).toMatchObject({latest: '1.1.0', releases: []});
+		expect(early.currentPublishedAt).toBeNull();
+
+		published = true;
+		vi.advanceTimersByTime(30 * 60 * 1000);
+		await getUpdateInfo('1.0.0');
+		expect(fetch).toHaveBeenCalledTimes(2);
+
+		vi.advanceTimersByTime(31 * 60 * 1000);
+		const late = await getUpdateInfo('1.0.0');
+		expect(late.releases.map(r => r.version)).toEqual(['1.1.0']);
+		expect(fetch).toHaveBeenCalledTimes(3);
+
+		vi.advanceTimersByTime(2 * 60 * 60 * 1000);
+		await getUpdateInfo('1.0.0');
+		expect(fetch).toHaveBeenCalledTimes(3);
+	});
+
 	it('takes a malformed answer as no update', async () => {
 		vi.stubGlobal(
 			'fetch',
