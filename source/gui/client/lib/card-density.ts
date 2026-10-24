@@ -10,12 +10,13 @@ import {createContext, useContext, useState} from 'react';
 export type CardDensity = 'wide' | 'dense';
 
 // The goal's label in a card's corner, which the card's top makes room for.
-export type GoalTabMetrics = {inset: number; height: number};
+export type GoalTabMetrics = {top: number; left: number; height: number};
 
 export type CardMetrics = {
 	// The card's box.
 	padding: string;
-	// The same box on a card in a goal, its top making room for the label.
+	// The same box on a card in a goal: a dense card's top makes room for the
+	// label; a wide card's already has it, so a goal never grows one.
 	goalPadding: string;
 	goalTab: GoalTabMetrics;
 	minHeight: number;
@@ -32,8 +33,9 @@ export type CardMetrics = {
 export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	wide: {
 		padding: '12px 18px 12px 0',
-		goalPadding: '26px 18px 12px 0',
-		goalTab: {inset: 4, height: 16},
+		goalPadding: '12px 18px 12px 0',
+		// Over the title's column, hung from the card's top edge.
+		goalTab: {top: 0, left: 30, height: 12},
 		minHeight: 58,
 		radius: 8,
 		gap: 12,
@@ -44,7 +46,7 @@ export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	dense: {
 		padding: '7px 11px',
 		goalPadding: '20px 11px 7px',
-		goalTab: {inset: 3, height: 14},
+		goalTab: {top: 3, left: 3, height: 14},
 		minHeight: 0,
 		radius: 6,
 		gap: 4,

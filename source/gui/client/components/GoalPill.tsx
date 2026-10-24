@@ -47,8 +47,8 @@ export const GoalPill = ({
 		? {
 				...square,
 				position: 'absolute',
-				top: tab.inset,
-				left: tab.inset,
+				top: tab.top,
+				left: tab.left,
 				height: tab.height,
 				padding: '0 7px',
 		  }

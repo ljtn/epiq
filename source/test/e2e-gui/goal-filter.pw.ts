@@ -42,6 +42,11 @@ test("clicking a goal's pill narrows the board to the goal, and the URL carries 
 	await page.goto(boardUrl);
 	await expect(card(page, other)).toBeVisible();
 
+	// The label sits in room the card already has.
+	const height = async (title: string) =>
+		(await card(page, title).boundingBox())?.height;
+	expect(await height(member)).toBe(await height(other));
+
 	const pill = card(page, member).getByTestId('ticket-goal');
 	await pill.click();
 
