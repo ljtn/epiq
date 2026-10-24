@@ -345,8 +345,11 @@ const DenseBody = ({
 	isolatedAssigneeId,
 	onFilterByAssignee,
 	onOpenCode,
+	goal,
 }: {
 	ticket: GuiIssue;
+	// Its goal's label, leading the title's line.
+	goal: React.ReactNode;
 	diff: RefDiffStat | null;
 	view: CardDensityView;
 	activity: CardActivity;
@@ -358,24 +361,36 @@ const DenseBody = ({
 }) => {
 	return (
 		<>
-			{view.titleLines === 1 ? (
-				<OneLineTitle title={ticket.title} view={view} />
-			) : (
-				<div
-					data-testid="ticket-title"
-					style={{
-						fontSize: view.metrics.titleFontSize,
-						lineHeight: `${view.metrics.titleLineHeight}px`,
-						overflow: 'hidden',
-						display: '-webkit-box',
-						WebkitBoxOrient: 'vertical',
-						WebkitLineClamp: 2,
-						wordBreak: 'break-word',
-					}}
-				>
-					{ticket.title}
+			<div
+				style={{
+					display: 'flex',
+					alignItems: 'flex-start',
+					gap: 6,
+					minWidth: 0,
+				}}
+			>
+				{goal}
+				<div style={{flex: 1, minWidth: 0}}>
+					{view.titleLines === 1 ? (
+						<OneLineTitle title={ticket.title} view={view} />
+					) : (
+						<div
+							data-testid="ticket-title"
+							style={{
+								fontSize: view.metrics.titleFontSize,
+								lineHeight: `${view.metrics.titleLineHeight}px`,
+								overflow: 'hidden',
+								display: '-webkit-box',
+								WebkitBoxOrient: 'vertical',
+								WebkitLineClamp: 2,
+								wordBreak: 'break-word',
+							}}
+						>
+							{ticket.title}
+						</div>
+					)}
 				</div>
-			)}
+			</div>
 
 			<div
 				style={{
@@ -605,7 +620,7 @@ export const TicketCard = ({
 			strong
 			color={asGoal.color}
 			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
-			tab={view.metrics.goalTab}
+			tab={view.metrics.goalTab ?? 'inline'}
 			{...goalFilter}
 		/>
 	) : ticket.goal ? (
@@ -613,7 +628,7 @@ export const TicketCard = ({
 			testId="ticket-goal"
 			color={ticket.goal.color}
 			label={ticket.goal.title}
-			tab={view.metrics.goalTab}
+			tab={view.metrics.goalTab ?? 'inline'}
 			{...goalFilter}
 		/>
 	) : null;
@@ -686,7 +701,7 @@ export const TicketCard = ({
 				// air around its title is what keeps a column of them from
 				// running together.
 				// None on the left: the index's box is the margin there.
-				padding: goalPill ? view.metrics.goalPadding : view.metrics.padding,
+				padding: view.metrics.padding,
 				minHeight: view.metrics.minHeight,
 				boxSizing: 'border-box',
 				borderRadius: view.metrics.radius,
@@ -701,9 +716,10 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
-			{goalPill}
+			{view.metrics.goalTab && goalPill}
 			{dense ? (
 				<DenseBody
+					goal={view.metrics.goalTab ? null : goalPill}
 					ticket={ticket}
 					diff={diff}
 					view={view}

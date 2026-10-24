@@ -46,6 +46,13 @@ test("clicking a goal's pill narrows the board to the goal, and the URL carries 
 	const height = async (title: string) =>
 		(await card(page, title).boundingBox())?.height;
 	expect(await height(member)).toBe(await height(other));
+	await page.getByTestId('card-density-dense').click();
+	await expect(page.getByTestId('card-density-dense')).toHaveAttribute(
+		'aria-pressed',
+		'true',
+	);
+	expect(await height(member)).toBe(await height(other));
+	await page.getByTestId('card-density-wide').click();
 
 	const pill = card(page, member).getByTestId('ticket-goal');
 	await pill.click();

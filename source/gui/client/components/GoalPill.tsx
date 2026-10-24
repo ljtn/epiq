@@ -30,9 +30,9 @@ export const GoalPill = ({
 	isolated?: boolean;
 	onFilter?: () => void;
 	filterTitle?: string;
-	// Where a card draws it as the square label in its corner; without one,
-	// the panel's pill.
-	tab?: GoalTabMetrics;
+	// A card's square label: in its corner where the card has the room, else
+	// leading its title's line. Without either, the panel's pill.
+	tab?: GoalTabMetrics | 'inline';
 }) => {
 	const filled = strong || isolated;
 	const square: React.CSSProperties = {
@@ -43,22 +43,25 @@ export const GoalPill = ({
 		borderStyle: 'solid',
 		borderColor: color,
 	};
-	const shape: React.CSSProperties = tab
-		? {
-				...square,
-				position: 'absolute',
-				top: tab.top,
-				left: tab.left,
-				height: tab.height,
-				padding: '0 7px',
-		  }
-		: {
-				alignSelf: 'flex-start',
-				maxWidth: '100%',
-				padding: '1px 7px',
-				borderRadius: 999,
-				borderWidth: 0,
-		  };
+	const shape: React.CSSProperties =
+		tab === 'inline'
+			? {...square, maxWidth: '45%', flexShrink: 0, padding: '0 6px'}
+			: tab
+			? {
+					...square,
+					position: 'absolute',
+					top: tab.top,
+					left: tab.left,
+					height: tab.height,
+					padding: '0 7px',
+			  }
+			: {
+					alignSelf: 'flex-start',
+					maxWidth: '100%',
+					padding: '1px 7px',
+					borderRadius: 999,
+					borderWidth: 0,
+			  };
 	const style: React.CSSProperties = {
 		...shape,
 		overflow: 'hidden',
@@ -66,7 +69,7 @@ export const GoalPill = ({
 		whiteSpace: 'nowrap',
 		fontFamily: 'inherit',
 		fontSize: 10,
-		lineHeight: tab ? `${tab.height}px` : '15px',
+		lineHeight: tab === 'inline' ? '15px' : tab ? `${tab.height}px` : '15px',
 		fontWeight: filled ? 600 : 500,
 		color: filled ? '#0b0d12' : color,
 		background: filled ? color : wash(color),

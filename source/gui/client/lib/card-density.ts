@@ -15,10 +15,10 @@ export type GoalTabMetrics = {top: number; left: number; height: number};
 export type CardMetrics = {
 	// The card's box.
 	padding: string;
-	// The same box on a card in a goal: a dense card's top makes room for the
-	// label; a wide card's already has it, so a goal never grows one.
-	goalPadding: string;
-	goalTab: GoalTabMetrics;
+	// The goal's label in the corner, inside the top padding the card already
+	// has; null where there is none to spare, and the label leads the title's
+	// line instead. Either way a goal never makes a card taller.
+	goalTab: GoalTabMetrics | null;
 	minHeight: number;
 	radius: number;
 	// Between one card and the next in a lane.
@@ -33,9 +33,7 @@ export type CardMetrics = {
 export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	wide: {
 		padding: '12px 18px 12px 0',
-		goalPadding: '12px 18px 12px 0',
-		// Over the title's column, hung from the card's top edge.
-		goalTab: {top: 0, left: 30, height: 12},
+		goalTab: {top: 0, left: 0, height: 12},
 		minHeight: 58,
 		radius: 8,
 		gap: 12,
@@ -45,8 +43,7 @@ export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	},
 	dense: {
 		padding: '7px 11px',
-		goalPadding: '20px 11px 7px',
-		goalTab: {top: 3, left: 3, height: 14},
+		goalTab: null,
 		minHeight: 0,
 		radius: 6,
 		gap: 4,
