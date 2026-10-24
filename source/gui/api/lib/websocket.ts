@@ -93,6 +93,8 @@ import {
 import {GuiMessage} from './websocket.model.js';
 import {isForeignOrigin} from './origin-guard.js';
 import {parseGuiMessage} from './websocket.schema.js';
+import {getUpdateInfo} from '../../../lib/version/version-check.js';
+import {EPIQ_VERSION} from '../../../version.js';
 import {issueDetail, issuePreview, slimStateResult} from './slim-state.js';
 
 /**
@@ -386,6 +388,13 @@ export const setupWebsocket = (
 					return sendSocket(socket, {
 						type: 'me:stats',
 						payload: await getPersonalStats({repoRoot}),
+					});
+				}
+
+				if (type === 'version:get') {
+					return sendSocket(socket, {
+						type: 'version',
+						payload: await getUpdateInfo(EPIQ_VERSION),
 					});
 				}
 

@@ -167,6 +167,9 @@ export type GuiMessage =
 	// mutating message — there is no event to refuse while history is being
 	// read.
 	| {type: 'settings:get'}
+	// Whether a newer epiq is out, and what it brings. Asked once per socket;
+	// the server caches the answer for a day.
+	| {type: 'version:get'}
 	| {
 			// Whichever of the two the panel changed. Partial because the toggle
 			// and the interval are separate controls over one file, and sending
