@@ -348,7 +348,7 @@ const DenseBody = ({
 	goal,
 }: {
 	ticket: GuiIssue;
-	// Its goal's label, leading the title's line.
+	// Its goal's label, leading the line under the title.
 	goal: React.ReactNode;
 	diff: RefDiffStat | null;
 	view: CardDensityView;
@@ -361,36 +361,24 @@ const DenseBody = ({
 }) => {
 	return (
 		<>
-			<div
-				style={{
-					display: 'flex',
-					alignItems: 'flex-start',
-					gap: 6,
-					minWidth: 0,
-				}}
-			>
-				{goal}
-				<div style={{flex: 1, minWidth: 0}}>
-					{view.titleLines === 1 ? (
-						<OneLineTitle title={ticket.title} view={view} />
-					) : (
-						<div
-							data-testid="ticket-title"
-							style={{
-								fontSize: view.metrics.titleFontSize,
-								lineHeight: `${view.metrics.titleLineHeight}px`,
-								overflow: 'hidden',
-								display: '-webkit-box',
-								WebkitBoxOrient: 'vertical',
-								WebkitLineClamp: 2,
-								wordBreak: 'break-word',
-							}}
-						>
-							{ticket.title}
-						</div>
-					)}
+			{view.titleLines === 1 ? (
+				<OneLineTitle title={ticket.title} view={view} />
+			) : (
+				<div
+					data-testid="ticket-title"
+					style={{
+						fontSize: view.metrics.titleFontSize,
+						lineHeight: `${view.metrics.titleLineHeight}px`,
+						overflow: 'hidden',
+						display: '-webkit-box',
+						WebkitBoxOrient: 'vertical',
+						WebkitLineClamp: 2,
+						wordBreak: 'break-word',
+					}}
+				>
+					{ticket.title}
 				</div>
-			</div>
+			)}
 
 			<div
 				style={{
@@ -402,6 +390,8 @@ const DenseBody = ({
 					minWidth: 0,
 				}}
 			>
+				{goal}
+
 				{ticket.ref && (
 					<span
 						data-testid="ticket-ref"

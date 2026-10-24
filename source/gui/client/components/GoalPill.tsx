@@ -31,7 +31,7 @@ export const GoalPill = ({
 	onFilter?: () => void;
 	filterTitle?: string;
 	// A card's square label: in its corner where the card has the room, else
-	// leading its title's line. Without either, the panel's pill.
+	// leading the line under its title. Without either, the panel's pill.
 	tab?: GoalTabMetrics | 'inline';
 }) => {
 	const filled = strong || isolated;
@@ -69,7 +69,7 @@ export const GoalPill = ({
 		whiteSpace: 'nowrap',
 		fontFamily: 'inherit',
 		fontSize: 10,
-		lineHeight: tab === 'inline' ? '15px' : tab ? `${tab.height}px` : '15px',
+		lineHeight: tab === 'inline' ? '12px' : tab ? `${tab.height}px` : '15px',
 		fontWeight: filled ? 600 : 500,
 		color: filled ? '#0b0d12' : color,
 		background: filled ? color : wash(color),

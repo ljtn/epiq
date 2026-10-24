@@ -16,8 +16,8 @@ export type CardMetrics = {
 	// The card's box.
 	padding: string;
 	// The goal's label in the corner, inside the top padding the card already
-	// has; null where there is none to spare, and the label leads the title's
-	// line instead. Either way a goal never makes a card taller.
+	// has; null where there is none to spare, and the label leads the line
+	// under the title instead. Either way a goal never makes a card taller.
 	goalTab: GoalTabMetrics | null;
 	minHeight: number;
 	radius: number;
