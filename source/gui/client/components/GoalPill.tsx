@@ -60,7 +60,9 @@ export const GoalPill = ({
 			? {
 					...square,
 					maxWidth: '40%',
-					flexShrink: 0,
+					// Gives before the assignee's slot does, so the diff stays where
+					// it is on every card in the lane.
+					flexShrink: 1000,
 					minWidth: 0,
 					padding: '0 6px',
 			  }
