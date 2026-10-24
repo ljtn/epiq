@@ -9,7 +9,7 @@ import {GuiIssue} from '../lib/gui-state.model';
 import {GoalIndex, GoalSummary} from '../lib/goal-index';
 import {Button} from './Button';
 import {AddRow, ChipRow, Empty, Input} from './FormPrimitives';
-import {GoalPill} from './GoalPill';
+import {GoalLabel} from './GoalLabel';
 import {Section} from './Section';
 
 const PICK_LIMIT = 8;
@@ -90,8 +90,9 @@ export const GoalSection = ({
 			{asGoal ? (
 				<>
 					<ChipRow testId="goal-own-row">
-						<GoalPill
+						<GoalLabel
 							testId="goal-own"
+							place={{kind: 'panel'}}
 							strong
 							color={asGoal.color}
 							label={`Goal · ${asGoal.done}/${asGoal.members.length} done`}
@@ -143,15 +144,15 @@ export const GoalSection = ({
 				</>
 			) : issue.goal ? (
 				<ChipRow testId="goal-row" onActivate={start}>
-					<Button
-						variant="chip"
+					<GoalLabel
+						testId="goal-current"
+						place={{kind: 'panel'}}
+						color={issue.goal.color}
+						label={`${issue.goal.title}${disabled ? '' : ' ×'}`}
 						disabled={disabled}
-						tint={issue.goal.color}
-						style={{color: issue.goal.color}}
-						onClick={() => onSetGoal(issue.id, null)}
-					>
-						{issue.goal.title} {!disabled && '×'}
-					</Button>
+						onPress={() => onSetGoal(issue.id, null)}
+						pressTitle="Leave this goal"
+					/>
 				</ChipRow>
 			) : (
 				<ChipRow testId="goal-row">
@@ -186,15 +187,14 @@ export const GoalSection = ({
 								const color = goals.get(option.id)?.color ?? GUI_THEME.dim;
 
 								return (
-									<Button
+									<GoalLabel
 										key={option.id}
-										variant="chip"
-										tint={color}
-										onClick={() => pick(option.id)}
-										style={{color}}
-									>
-										+ {label(option)}
-									</Button>
+										testId="goal-option"
+										place={{kind: 'panel'}}
+										color={color}
+										label={`+ ${label(option)}`}
+										onPress={() => pick(option.id)}
+									/>
 								);
 							})
 						)}

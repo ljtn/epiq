@@ -22,7 +22,7 @@ import {
 	useCardDensityView,
 } from '../lib/card-density';
 import {Button} from './Button';
-import {GoalPill} from './GoalPill';
+import {GoalLabel} from './GoalLabel';
 import {GoalSummary} from '../lib/goal-index';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
@@ -597,28 +597,36 @@ export const TicketCard = ({
 	const goalFilter =
 		goalId !== null && onFilterByGoal
 			? {
-					isolated: goalIsolated,
-					onFilter: () => onFilterByGoal(goalId),
-					filterTitle: goalIsolated
+					pressed: goalIsolated,
+					onPress: () => onFilterByGoal(goalId),
+					pressTitle: goalIsolated
 						? 'Show every ticket again'
 						: 'Show only this goal',
 			  }
 			: {};
-	const goalPill = asGoal ? (
-		<GoalPill
+	const goalLabel = asGoal ? (
+		<GoalLabel
 			testId="ticket-goal-own"
 			strong
 			color={asGoal.color}
 			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
-			tab={view.metrics.goalTab ?? 'inline'}
+			place={
+				view.metrics.goalTab
+					? {kind: 'corner', tab: view.metrics.goalTab}
+					: {kind: 'line'}
+			}
 			{...goalFilter}
 		/>
 	) : ticket.goal ? (
-		<GoalPill
+		<GoalLabel
 			testId="ticket-goal"
 			color={ticket.goal.color}
 			label={ticket.goal.title}
-			tab={view.metrics.goalTab ?? 'inline'}
+			place={
+				view.metrics.goalTab
+					? {kind: 'corner', tab: view.metrics.goalTab}
+					: {kind: 'line'}
+			}
 			{...goalFilter}
 		/>
 	) : null;
@@ -706,10 +714,10 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
-			{view.metrics.goalTab && goalPill}
+			{view.metrics.goalTab && goalLabel}
 			{dense ? (
 				<DenseBody
-					goal={view.metrics.goalTab ? null : goalPill}
+					goal={view.metrics.goalTab ? null : goalLabel}
 					ticket={ticket}
 					diff={diff}
 					view={view}
