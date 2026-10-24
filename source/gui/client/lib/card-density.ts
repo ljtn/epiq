@@ -12,7 +12,8 @@ export type CardDensity = 'wide' | 'dense';
 export type CardMetrics = {
 	// The card's box.
 	padding: string;
-	// The same box on a card in a goal, its top making room for the goal's tab.
+	// The same box on a card in a goal: a wide card's top makes room for the
+	// goal's label, which a dense card carries on its bottom line instead.
 	goalPadding: string;
 	minHeight: number;
 	radius: number;
@@ -38,7 +39,7 @@ export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	},
 	dense: {
 		padding: '7px 11px',
-		goalPadding: '24px 11px 7px',
+		goalPadding: '7px 11px',
 		minHeight: 0,
 		radius: 6,
 		gap: 4,

@@ -21,7 +21,7 @@ export const GoalPill = ({
 	isolated = false,
 	onFilter,
 	filterTitle,
-	corner = false,
+	variant = 'pill',
 }: {
 	color: string;
 	label: string;
@@ -33,31 +33,44 @@ export const GoalPill = ({
 	isolated?: boolean;
 	onFilter?: () => void;
 	filterTitle?: string;
-	// Drawn as the card's corner label rather than a pill.
-	corner?: boolean;
+	// A card draws it as a square label: in its corner, or on a dense card's
+	// bottom line; the panel, as a pill.
+	variant?: 'pill' | 'corner' | 'inline';
 }) => {
 	const filled = strong || isolated;
-	const shape: React.CSSProperties = !corner
-		? {
-				alignSelf: 'flex-start',
-				maxWidth: '100%',
-				padding: '1px 7px',
-				borderRadius: 999,
-				borderWidth: 0,
-		  }
-		: {
-				position: 'absolute',
-				top: GOAL_TAB_INSET,
-				left: GOAL_TAB_INSET,
-				maxWidth: '70%',
-				height: GOAL_TAB_HEIGHT,
-				boxSizing: 'border-box',
-				padding: '0 7px',
-				borderRadius: 0,
-				borderWidth: '0 0 0 2px',
-				borderStyle: 'solid',
-				borderColor: color,
-		  };
+	const square: React.CSSProperties = {
+		maxWidth: '70%',
+		boxSizing: 'border-box',
+		borderRadius: 0,
+		borderWidth: '0 0 0 2px',
+		borderStyle: 'solid',
+		borderColor: color,
+	};
+	const shape: React.CSSProperties =
+		variant === 'corner'
+			? {
+					...square,
+					position: 'absolute',
+					top: GOAL_TAB_INSET,
+					left: GOAL_TAB_INSET,
+					height: GOAL_TAB_HEIGHT,
+					padding: '0 7px',
+			  }
+			: variant === 'inline'
+			? {
+					...square,
+					maxWidth: '40%',
+					flexShrink: 0,
+					minWidth: 0,
+					padding: '0 6px',
+			  }
+			: {
+					alignSelf: 'flex-start',
+					maxWidth: '100%',
+					padding: '1px 7px',
+					borderRadius: 999,
+					borderWidth: 0,
+			  };
 	const style: React.CSSProperties = {
 		...shape,
 		overflow: 'hidden',
@@ -65,7 +78,12 @@ export const GoalPill = ({
 		whiteSpace: 'nowrap',
 		fontFamily: 'inherit',
 		fontSize: 10,
-		lineHeight: !corner ? '15px' : `${GOAL_TAB_HEIGHT}px`,
+		lineHeight:
+			variant === 'corner'
+				? `${GOAL_TAB_HEIGHT}px`
+				: variant === 'inline'
+				? '14px'
+				: '15px',
 		fontWeight: filled ? 600 : 500,
 		color: filled ? '#0b0d12' : color,
 		background: filled ? color : wash(color),

@@ -345,8 +345,11 @@ const DenseBody = ({
 	isolatedAssigneeId,
 	onFilterByAssignee,
 	onOpenCode,
+	goal,
 }: {
 	ticket: GuiIssue;
+	// Its goal's label, on the bottom line where it costs no height.
+	goal: React.ReactNode;
 	diff: RefDiffStat | null;
 	view: CardDensityView;
 	activity: CardActivity;
@@ -422,6 +425,8 @@ const DenseBody = ({
 				<DiffButton diff={diff} onOpen={onOpenCode} variant="row" />
 
 				<span style={{flex: 1}} />
+
+				{goal}
 
 				<span
 					style={{
@@ -605,7 +610,7 @@ export const TicketCard = ({
 			strong
 			color={asGoal.color}
 			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
-			corner
+			variant={dense ? 'inline' : 'corner'}
 			{...goalFilter}
 		/>
 	) : ticket.goal ? (
@@ -613,7 +618,7 @@ export const TicketCard = ({
 			testId="ticket-goal"
 			color={ticket.goal.color}
 			label={ticket.goal.title}
-			corner
+			variant={dense ? 'inline' : 'corner'}
 			{...goalFilter}
 		/>
 	) : null;
@@ -701,9 +706,10 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
-			{goalPill}
+			{!dense && goalPill}
 			{dense ? (
 				<DenseBody
+					goal={goalPill}
 					ticket={ticket}
 					diff={diff}
 					view={view}
