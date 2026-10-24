@@ -11,10 +11,7 @@ const putOpenTicketInGoal = async (page: Page, goal: string) => {
 		.filter({has: page.getByTestId('goal-empty')});
 	await section.getByRole('button', {name: '+', exact: true}).click();
 	await page.getByTestId('goal-search').fill(goal);
-	await page
-		.locator('aside')
-		.getByRole('button', {name: new RegExp(goal)})
-		.click();
+	await page.getByTestId('goal-option').filter({hasText: goal}).click();
 	await expect(page.getByTestId('goal-current')).toHaveText(goal);
 };
 
@@ -95,6 +92,11 @@ test('clicking the goal a ticket is in opens the picker, which can take it out o
 	await page.getByTestId('goal-current').click();
 	await expect(page.getByTestId('goal-search')).toBeFocused();
 	await expect(page.getByTestId('goal-current')).toHaveText(goal);
+
+	// Typing lists matches only, so Enter picks one rather than leaving.
+	await page.getByTestId('goal-search').fill(goal);
+	await expect(page.getByTestId('goal-leave')).toHaveCount(0);
+	await page.getByTestId('goal-search').fill('');
 
 	await page.getByTestId('goal-leave').click();
 	await expect(page.getByTestId('goal-empty')).toBeVisible();

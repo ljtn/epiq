@@ -10,7 +10,9 @@ import {GoalIndex, GoalSummary} from '../lib/goal-index';
 import {Button} from './Button';
 import {AddRow, ChipRow, Empty, Input} from './FormPrimitives';
 import {GoalLabel} from './GoalLabel';
+import {MenuItem} from './Menu';
 import {Section} from './Section';
+import {popoverStyle} from '../lib/select-style';
 
 const PICK_LIMIT = 8;
 
@@ -34,6 +36,7 @@ export const GoalSection = ({
 }) => {
 	const row = useAddRow();
 	const [query, setQuery] = useState('');
+	const [lit, setLit] = useState(0);
 	const disabled = issue.readonly;
 
 	// A goal is in none itself; any other ticket opens to the picker.
@@ -69,6 +72,67 @@ export const GoalSection = ({
 		row.close();
 		setQuery('');
 	};
+
+	const leave = () => {
+		onSetGoal(issue.id, null);
+		row.close();
+		setQuery('');
+	};
+
+	// The rows the dropdown lists, the lit one picked by Enter.
+	const choices = [
+		// Not while searching, or Enter would take the ticket out of its goal.
+		...(issue.goal && !needle
+			? [
+					{
+						key: 'none',
+						testId: 'goal-leave',
+						choose: leave,
+						content: <span style={{color: GUI_THEME.dim}}>No goal</span>,
+					},
+			  ]
+			: []),
+		...options.map(option => ({
+			key: option.id,
+			testId: 'goal-option',
+			choose: () => pick(option.id),
+			content: (
+				<span
+					style={{
+						display: 'flex',
+						alignItems: 'baseline',
+						gap: 8,
+						minWidth: 0,
+						flex: 1,
+					}}
+				>
+					<span
+						aria-hidden
+						style={{
+							width: 2,
+							alignSelf: 'stretch',
+							flexShrink: 0,
+							background: goals.get(option.id)?.color ?? 'transparent',
+						}}
+					/>
+					<span style={{color: GUI_THEME.dim, fontSize: 10, flexShrink: 0}}>
+						{option.ref}
+					</span>
+					<span
+						style={{
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+						}}
+					>
+						{option.title}
+					</span>
+				</span>
+			),
+		})),
+	];
+	// Clamped: the list shrinks as the query narrows it.
+	const litAt = Math.min(lit, choices.length - 1);
 
 	return (
 		<Section
@@ -163,55 +227,57 @@ export const GoalSection = ({
 			)}
 
 			{picking && (
-				<>
+				<div style={{position: 'relative'}}>
 					<AddRow>
 						<Input
 							ref={row.inputRef}
 							data-testid="goal-search"
 							value={query}
 							placeholder="Goal, or any ticket by title"
-							onChange={event => setQuery(event.target.value)}
+							onChange={event => {
+								setQuery(event.target.value);
+								setLit(0);
+							}}
 							onKeyDown={event => {
-								if (event.key === 'Enter' && options[0]) pick(options[0].id);
+								if (
+									(event.key === 'ArrowDown' || event.key === 'ArrowUp') &&
+									choices.length > 0
+								) {
+									event.preventDefault();
+									const step = event.key === 'ArrowDown' ? 1 : -1;
+									setLit(at => (at + step + choices.length) % choices.length);
+								}
+								if (event.key === 'Enter') choices[litAt]?.choose();
 								if (event.key === 'Escape') row.close();
 							}}
 						/>
 					</AddRow>
-					<ChipRow testId="goal-options">
-						{issue.goal && (
-							<Button
-								variant="ghost"
-								testId="goal-leave"
-								onClick={() => {
-									onSetGoal(issue.id, null);
-									row.close();
-								}}
-							>
-								No goal
-							</Button>
-						)}
-						{options.length === 0 ? (
-							<Empty>
-								{needle ? 'No ticket matches' : 'Type to find a ticket'}
-							</Empty>
+					<div
+						data-testid="goal-options"
+						role="listbox"
+						style={{...popoverStyle, right: 0, whiteSpace: undefined}}
+					>
+						{choices.length === 0 ? (
+							<MenuItem>
+								<span style={{color: GUI_THEME.dim}}>
+									{needle ? 'No ticket matches' : 'Type to find a ticket'}
+								</span>
+							</MenuItem>
 						) : (
-							options.map(option => {
-								const color = goals.get(option.id)?.color ?? GUI_THEME.dim;
-
-								return (
-									<GoalLabel
-										key={option.id}
-										testId="goal-option"
-										place={{kind: 'panel'}}
-										color={color}
-										label={`+ ${label(option)}`}
-										onPress={() => pick(option.id)}
-									/>
-								);
-							})
+							choices.map((choice, at) => (
+								<MenuItem
+									key={choice.key}
+									role="option"
+									testId={choice.testId}
+									selected={at === litAt}
+									onSelect={choice.choose}
+								>
+									{choice.content}
+								</MenuItem>
+							))
 						)}
-					</ChipRow>
-				</>
+					</div>
+				</div>
 			)}
 		</Section>
 	);
