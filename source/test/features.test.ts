@@ -157,6 +157,51 @@ describe('a ticket in a feature', () => {
 	});
 });
 
+describe('the terminal mark on a feature', () => {
+	it('counts a member as soon as it joins', async () => {
+		const {repoRoot, file} = await seed();
+		const epic = await file('Epic');
+		const one = await file('One');
+		const two = await file('Two');
+		const mark = () => featureMark(nodeRepo.getNode(epic) as Ticket, 30)?.text;
+
+		expect(mark()).toBeUndefined();
+		unwrap(await setIssueFeature({repoRoot, issueId: one, feature: epic}));
+		expect(mark()).toBe('◆ feature (1)');
+		unwrap(await setIssueFeature({repoRoot, issueId: two, feature: epic}));
+		expect(mark()).toBe('◆ feature (2)');
+		unwrap(await setIssueFeature({repoRoot, issueId: one, feature: null}));
+		expect(mark()).toBe('◆ feature (1)');
+	});
+});
+
+describe('a ticket whose feature is gone', () => {
+	it('can become a feature itself', async () => {
+		const {repoRoot, branchRoot, file, actor} = await seed();
+		const gone = await file('Gone');
+		const orphan = await file('Orphan');
+		const joiner = await file('Joiner');
+
+		unwrap(await setIssueFeature({repoRoot, issueId: orphan, feature: gone}));
+		unwrap(
+			materializeAndPersistAll(
+				[
+					{
+						id: '01M5Z00000000000000000000D',
+						...actor,
+						action: 'delete.node',
+						payload: {id: gone},
+					},
+				] as AppEvent[],
+				branchRoot,
+			),
+		);
+
+		unwrap(await setIssueFeature({repoRoot, issueId: joiner, feature: orphan}));
+		expect(issueOf(joiner).feature!.id).toBe(orphan);
+	});
+});
+
 describe('replaying feature events', () => {
 	it('skips a ticket named as its own feature, and drops a colour it cannot read', async () => {
 		const {file, actor} = await seed();

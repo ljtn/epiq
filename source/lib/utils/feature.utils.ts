@@ -39,16 +39,34 @@ export const getTicketFeature = (ticket: Ticket): Ticket | undefined =>
 export const featureColor = (feature: Ticket): string =>
 	feature.props.color ?? getStringColor(sanitizeInlineText(feature.title));
 
-export const featureMembers = (featureId: string): Ticket[] =>
-	liveTickets().filter(ticket => ticket.props.feature === featureId);
+// Who belongs to which feature, worked out once per state: a terminal row asks
+// for every ticket on screen, on every key press. Keyed by the state object,
+// which every write replaces, batched ones included; the nodes map is not, as
+// a batch writes into it in place.
+const membersCache = new WeakMap<object, Map<string, Ticket[]>>();
 
-/** Every ticket some ticket belongs to. */
-export const existingFeatures = (): Ticket[] => {
-	const tickets = liveTickets();
-	const ids = new Set(tickets.flatMap(ticket => ticket.props.feature ?? []));
+const membersByFeature = (): Map<string, Ticket[]> => {
+	const state = getState();
+	const cached = membersCache.get(state);
+	if (cached) return cached;
 
-	return tickets.filter(ticket => ids.has(ticket.id));
+	const members = new Map<string, Ticket[]>();
+	for (const ticket of liveTickets()) {
+		const feature = ticket.props?.feature;
+		if (feature)
+			members.set(feature, [...(members.get(feature) ?? []), ticket]);
+	}
+
+	membersCache.set(state, members);
+	return members;
 };
+
+export const featureMembers = (featureId: string): Ticket[] =>
+	membersByFeature().get(featureId) ?? [];
+
+/** Every live ticket some ticket belongs to. */
+export const existingFeatures = (): Ticket[] =>
+	[...membersByFeature().keys()].flatMap(id => findTicket(id) ?? []);
 
 /** Why `ticket` may not be put in `feature`, or null when it may. */
 export const featureRefusal = (
@@ -57,7 +75,8 @@ export const featureRefusal = (
 ): string | null => {
 	if (feature.id === ticket.id) return 'A ticket is not its own feature';
 
-	if (feature.props.feature) {
+	// Its feature as it stands now: a link to one since deleted is no feature.
+	if (getTicketFeature(feature)) {
 		return `${nodeRef(
 			feature.id,
 		)} is itself in a feature; pick that feature instead`;
