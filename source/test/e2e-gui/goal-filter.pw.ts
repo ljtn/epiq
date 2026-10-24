@@ -15,9 +15,7 @@ const putOpenTicketInGoal = async (page: Page, goal: string) => {
 		.locator('aside')
 		.getByRole('button', {name: new RegExp(goal)})
 		.click();
-	await expect(
-		page.locator('aside section').filter({hasText: /^Goal/}),
-	).toContainText(`${goal} ×`);
+	await expect(page.getByTestId('goal-current')).toHaveText(goal);
 };
 
 test("clicking a goal's pill narrows the board to the goal, and the URL carries it", async ({
@@ -73,6 +71,34 @@ test("clicking a goal's pill narrows the board to the goal, and the URL carries 
 	await page.getByTestId('ticket-goal-own').click();
 	await expect(card(page, other)).toBeVisible();
 	await expect(page).not.toHaveURL(/goal=/);
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('clicking the goal a ticket is in opens the picker, which can take it out of the goal', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const goal = `Larger ${stamp}`;
+	const member = `Part ${stamp}`;
+
+	await addTicket(page, goal);
+	await addTicket(page, member);
+	await putOpenTicketInGoal(page, goal);
+
+	// Not a tag: a click asks what to change it to, and takes nothing away.
+	await page.getByTestId('goal-current').click();
+	await expect(page.getByTestId('goal-search')).toBeFocused();
+	await expect(page.getByTestId('goal-current')).toHaveText(goal);
+
+	await page.getByTestId('goal-leave').click();
+	await expect(page.getByTestId('goal-empty')).toBeVisible();
+	await expect(page.getByTestId('goal-search')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });

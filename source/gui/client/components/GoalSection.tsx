@@ -148,10 +148,10 @@ export const GoalSection = ({
 						testId="goal-current"
 						place={{kind: 'panel'}}
 						color={issue.goal.color}
-						label={`${issue.goal.title}${disabled ? '' : ' ×'}`}
-						disabled={disabled}
-						onPress={() => onSetGoal(issue.id, null)}
-						pressTitle="Leave this goal"
+						label={issue.goal.title}
+						disabled={disabled || row.open}
+						onPress={row.start}
+						pressTitle="Change goal"
 					/>
 				</ChipRow>
 			) : (
@@ -178,6 +178,18 @@ export const GoalSection = ({
 						/>
 					</AddRow>
 					<ChipRow testId="goal-options">
+						{issue.goal && (
+							<Button
+								variant="ghost"
+								testId="goal-leave"
+								onClick={() => {
+									onSetGoal(issue.id, null);
+									row.close();
+								}}
+							>
+								No goal
+							</Button>
+						)}
 						{options.length === 0 ? (
 							<Empty>
 								{needle ? 'No ticket matches' : 'Type to find a ticket'}
