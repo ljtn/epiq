@@ -8,12 +8,17 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {GuiIssue} from '../lib/gui-state.model';
 import {GoalIndex, GoalSummary} from '../lib/goal-index';
 import {Button} from './Button';
-import {AddRow, ChipRow, Empty, Input} from './FormPrimitives';
+import {AddRow, ChipRow, Input} from './FormPrimitives';
 import {GoalLabel} from './GoalLabel';
 import {ManageGoalsModal} from './ManageGoalsModal';
 import {MenuItem} from './Menu';
 import {Section} from './Section';
-import {popoverStyle} from '../lib/select-style';
+import {
+	popoverStyle,
+	selectLabelStyle,
+	selectTriggerStyle,
+} from '../lib/select-style';
+import {IconChevronDown} from './IconChevronDown';
 
 const PICK_LIMIT = 8;
 
@@ -47,7 +52,6 @@ export const GoalSection = ({
 
 	// A goal is in none itself; any other ticket opens to the picker.
 	const canOpen = !disabled && !asGoal;
-	const start = canOpen && !row.open ? row.start : undefined;
 	const picking = row.open && !asGoal;
 
 	const needle = query.trim().toLowerCase();
@@ -179,22 +183,7 @@ export const GoalSection = ({
 	const litAt = Math.min(lit, choices.length - 1);
 
 	return (
-		<Section
-			title="Goal"
-			focusProps={canOpen ? row.sectionProps : undefined}
-			action={
-				(start && (
-					<Button variant="ghost" onClick={start}>
-						+
-					</Button>
-				)) ||
-				(row.open && (
-					<Button variant="ghost" onClick={row.close}>
-						-
-					</Button>
-				))
-			}
-		>
+		<Section title="Goal" focusProps={canOpen ? row.sectionProps : undefined}>
 			{asGoal ? (
 				<>
 					<ChipRow testId="goal-own-row">
@@ -250,24 +239,44 @@ export const GoalSection = ({
 						))}
 					</div>
 				</>
-			) : issue.goal ? (
-				<ChipRow testId="goal-row" onActivate={start}>
-					<GoalLabel
-						testId="goal-current"
-						place={{kind: 'panel'}}
-						color={issue.goal.color}
-						label={issue.goal.title}
-						disabled={disabled || row.open}
-						onPress={row.start}
-						pressTitle="Change goal"
-					/>
-				</ChipRow>
-			) : (
-				<ChipRow testId="goal-row">
-					<Empty testId="goal-empty" onActivate={start}>
-						No goal
-					</Empty>
-				</ChipRow>
+			) : picking ? null : (
+				<button
+					type="button"
+					data-testid="goal-current"
+					disabled={disabled}
+					onClick={row.start}
+					style={{
+						...selectTriggerStyle(issue.goal?.color ?? GUI_THEME.dim, disabled),
+						width: '100%',
+						marginTop: 10,
+						fontFamily: 'inherit',
+						fontSize: 12,
+						padding: '7px 10px',
+					}}
+				>
+					<span
+						style={{
+							...selectLabelStyle,
+							display: 'flex',
+							alignItems: 'center',
+							gap: 8,
+						}}
+					>
+						{issue.goal && (
+							<span
+								aria-hidden
+								style={{
+									width: 3,
+									height: 14,
+									flexShrink: 0,
+									background: issue.goal.color,
+								}}
+							/>
+						)}
+						{issue.goal?.title ?? 'No goal'}
+					</span>
+					<IconChevronDown size={12} />
+				</button>
 			)}
 
 			{picking && (

@@ -6,10 +6,7 @@ const card = (page: Page, title: string) =>
 	page.locator('[draggable="true"]').filter({hasText: title});
 
 const putOpenTicketInGoal = async (page: Page, goal: string) => {
-	const section = page
-		.locator('aside section')
-		.filter({has: page.getByTestId('goal-empty')});
-	await section.getByRole('button', {name: '+', exact: true}).click();
+	await page.getByTestId('goal-current').click();
 	await page.getByTestId('goal-search').fill(goal);
 	await page.getByTestId('goal-option').filter({hasText: goal}).click();
 	await expect(page.getByTestId('goal-current')).toHaveText(goal);
@@ -91,7 +88,6 @@ test('clicking the goal a ticket is in opens the picker, which can take it out o
 	// Not a tag: a click asks what to change it to, and takes nothing away.
 	await page.getByTestId('goal-current').click();
 	await expect(page.getByTestId('goal-search')).toBeFocused();
-	await expect(page.getByTestId('goal-current')).toHaveText(goal);
 
 	// Typing lists matches only, so Enter picks one rather than leaving.
 	await page.getByTestId('goal-search').fill(goal);
@@ -99,7 +95,7 @@ test('clicking the goal a ticket is in opens the picker, which can take it out o
 	await page.getByTestId('goal-search').fill('');
 
 	await page.getByTestId('goal-leave').click();
-	await expect(page.getByTestId('goal-empty')).toBeVisible();
+	await expect(page.getByTestId('goal-current')).toHaveText('No goal');
 	await expect(page.getByTestId('goal-search')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
@@ -118,10 +114,7 @@ test('a new goal is named in the picker, and removing it takes its tickets out',
 	const member = `Joiner ${stamp}`;
 
 	await addTicket(page, member);
-	const section = page
-		.locator('aside section')
-		.filter({has: page.getByTestId('goal-empty')});
-	await section.getByRole('button', {name: '+', exact: true}).click();
+	await page.getByTestId('goal-current').click();
 	await page.getByTestId('goal-search').fill(goal);
 	await page.getByTestId('goal-create').click();
 	await expect(page.getByTestId('goal-current')).toHaveText(goal);
@@ -142,7 +135,7 @@ test('a new goal is named in the picker, and removing it takes its tickets out',
 		.getByRole('button', {name: 'Close', exact: true})
 		.click();
 
-	await expect(page.getByTestId('goal-empty')).toBeVisible();
+	await expect(page.getByTestId('goal-current')).toHaveText('No goal');
 
 	expect(pageErrors).toEqual([]);
 });
