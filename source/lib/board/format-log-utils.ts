@@ -32,6 +32,7 @@ export const formatLogAction = (action: string): string => {
 		'reopen.issue': 'Reopened',
 		'add.issue.tag': 'Tagged with',
 		'remove.issue.tag': 'Removed tag',
+		'set.issue.goal': 'Set goal',
 		'lock.node': 'Locked node',
 		'move.node': 'Moved issue',
 		'add.issue.comment': 'Commented',
@@ -113,6 +114,11 @@ const formatAttachmentKb = (bytes: number): string =>
 const getDeletedAttachmentName = (attachmentId: string): string =>
 	nodeRepo.getAttachment(attachmentId)?.name ?? '';
 
+// The goal's title as it reads now, or nothing: a cleared goal, or one
+// this board no longer has.
+const goalTitle = (goalId: string | undefined): string =>
+	(goalId && nodeRepo.getNode(goalId)?.title) || '';
+
 const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
 		case 'add.issue.tag': {
@@ -133,6 +139,9 @@ const formatEventDetails = (event: AppEvent): string => {
 			const tag = getState().tags[event.payload.id];
 			return tag ? `"${tag.name}"` : '';
 		}
+
+		case 'set.issue.goal':
+			return goalTitle(event.payload.goal) || 'none';
 
 		case 'add.issue.assignee': {
 			const contributor = getState().contributors[event.payload.assignee];
@@ -230,6 +239,9 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 			const contributor = getState().contributors[event.payload.assignee];
 			return contributor ? contributor.name : '';
 		}
+
+		case 'set.issue.goal':
+			return goalTitle(event.payload.goal);
 
 		case 'tombstone.tag': {
 			const tag = getState().tags[event.payload.id];

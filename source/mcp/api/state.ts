@@ -38,6 +38,7 @@ import {
 	getIssueTags,
 	getIssueAssignees,
 } from './issue-projection.js';
+import {goalFields} from './goals.js';
 import {getAttachmentMaxKb} from './attachments.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {getPersistFileName} from '../../lib/board/board-log.js';
@@ -248,6 +249,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										readonly: Boolean(issue.readonly) || forceReadonly,
 										tags: getIssueTags(issue),
 										assignees: getIssueAssignees(issue),
+										...goalFields(issue),
 										parentNodeId: issue.parentNodeId!,
 										isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
 										boardIds: boardsEverOnOf(issue),

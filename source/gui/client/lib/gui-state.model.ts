@@ -45,8 +45,17 @@ export type GuiIssue = {
 	readonly: boolean;
 	tags: GuiTag[];
 	assignees: GuiUser[];
+	/** The goal it belongs to, as that ticket reads now. */
+	goal?: GuiGoalRef;
 	/** Every board it has lived on, this one included. */
 	boardIds: string[];
+};
+
+export type GuiGoalRef = {
+	id: string;
+	ref: string;
+	title: string;
+	color: string;
 };
 
 export type GuiSwimlane = {

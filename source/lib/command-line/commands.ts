@@ -24,6 +24,10 @@ import {reopenIssueCommand} from './commands/reopen-issue.cmd.js';
 import {renameCommand} from './commands/rename.cmd.js';
 import {untagTicketCommand} from './commands/untag-ticket.cmd.js';
 import {tagTicketCommand} from './commands/tag-ticket.cmd.js';
+import {
+	goalTicketCommand,
+	ungoalTicketCommand,
+} from './commands/goal-ticket.cmd.js';
 import {assignUserCommand} from './commands/assign-user.cmd.js';
 import {unassignUserCommand} from './commands/unassign-user.cmd.js';
 import {commentCommand} from './commands/comment.cmd.js';
@@ -151,6 +155,20 @@ export const commands: CommandLineActionEntry[] = [
 		description: 'Add or create a tag on the selected issue',
 		mode: Mode.COMMAND_LINE,
 		action: tagTicketCommand,
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.GoalTicket,
+		description: 'Put the selected issue in a goal, named by its ref',
+		mode: Mode.COMMAND_LINE,
+		action: goalTicketCommand,
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.UngoalTicket,
+		description: 'Take the selected issue out of its goal',
+		mode: Mode.COMMAND_LINE,
+		action: ungoalTicketCommand,
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{

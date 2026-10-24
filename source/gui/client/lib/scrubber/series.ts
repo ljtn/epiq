@@ -138,6 +138,7 @@ const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 	'delete.issue.comment': 'comments',
 	'add.issue.tag': 'tagging',
 	'remove.issue.tag': 'tagging',
+	'set.issue.goal': 'tagging',
 	'create.tag': 'tagging',
 	'tombstone.tag': 'tagging',
 	'restore.tag': 'tagging',

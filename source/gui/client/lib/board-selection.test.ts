@@ -64,6 +64,7 @@ describe('selection in the URL', () => {
 			only: {tag: ['bug', 'docs'], assignee: ['jola']},
 			windowOnly: true,
 			ticketOnly: false,
+			goal: 'G1',
 		};
 
 		expect(readSelectionParams(params(written(selection)))).toEqual(selection);
@@ -162,6 +163,7 @@ describe('applySelectionPatch', () => {
 		only: {tag: ['bug']},
 		windowOnly: false,
 		ticketOnly: false,
+		goal: null,
 	};
 
 	it('starts a new scope at its most recent period', () => {
@@ -317,7 +319,7 @@ describe('stored selection', () => {
 		expect(readStoredSelection()).toEqual(DEFAULT_SELECTION);
 	});
 
-	it('keeps everything but the moment in time, and the ticket filter', () => {
+	it('keeps everything but the moment in time, the ticket filter and the goal', () => {
 		storeSelection({
 			scope: 'month',
 			offset: 4,
@@ -326,6 +328,7 @@ describe('stored selection', () => {
 			only: {tag: ['bug'], assignee: 'all'},
 			windowOnly: true,
 			ticketOnly: false,
+			goal: 'G1',
 		});
 
 		expect(readStoredSelection()).toEqual({
@@ -338,6 +341,7 @@ describe('stored selection', () => {
 			// back to days later.
 			windowOnly: false,
 			ticketOnly: false,
+			goal: null,
 		});
 	});
 

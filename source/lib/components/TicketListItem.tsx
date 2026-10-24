@@ -10,6 +10,7 @@ import {
 import {hasAuthoredEvents} from '../utils/contributor.utils.js';
 import {nodeRef, NODE_REF_LENGTH} from '../utils/node-ref.js';
 import {getTicketAssignees, getTicketTags} from '../utils/ticket.utils.js';
+import {goalMark} from '../utils/goal.utils.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
 import {useFlashColor} from './useFlashColor.js';
@@ -98,6 +99,11 @@ export const TicketListItemUI: React.FC<{
 		? String(comments.length).length + 2 + 1
 		: 0;
 
+	// First on the row, and never dropped for a badge: it says what bigger
+	// thing the ticket is part of.
+	const goal = goalMark(ticket, Math.max(1, Math.floor(contentWidth / 2)));
+	const goalWidth = goal ? goal.text.length + 1 : 0;
+
 	const {shown, hidden} = fitBadges(
 		[
 			...tags.map(tag => ({
@@ -114,7 +120,7 @@ export const TicketListItemUI: React.FC<{
 					(hasAuthoredEvents(assignee.id) ? 0 : 1),
 			})),
 		],
-		contentWidth - commentsWidth,
+		contentWidth - commentsWidth - goalWidth,
 	);
 
 	return (
@@ -151,6 +157,13 @@ export const TicketListItemUI: React.FC<{
 				justifyContent="space-between"
 			>
 				<Box flexDirection="row">
+					{goal && (
+						<Box paddingRight={1}>
+							<Text color={goal.color} bold={goal.isGoal}>
+								{goal.text}
+							</Text>
+						</Box>
+					)}
 					{shown.map(badge => (
 						<Box paddingRight={1} key={badge.id}>
 							{badge.isTag ? (

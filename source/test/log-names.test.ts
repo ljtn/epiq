@@ -135,6 +135,8 @@ const log = (): AppEvent[] => [
 	at('remove.issue.assignee', {id: ISSUE, assignee: ALICE}),
 	at('add.issue.tag', {id: ISSUE, tag: TAG}),
 	at('remove.issue.tag', {id: ISSUE, tag: TAG}),
+	// Neither names anybody; both are a field on a ticket.
+	at('set.issue.goal', {id: ISSUE}),
 
 	at('add.issue.comment', {
 		id: COMMENT,

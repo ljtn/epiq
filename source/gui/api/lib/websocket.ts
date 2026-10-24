@@ -7,6 +7,9 @@ import {
 	tombstoneTag,
 	addIssueComment,
 	addIssueTag,
+	setIssueGoal,
+	createIssueGoal,
+	dissolveGoal,
 	closeIssue,
 	createBoard,
 	editBoardTitle,
@@ -805,6 +808,36 @@ export const setupWebsocket = (
 						onStateChanged,
 						'issue:tag:add:result',
 						result,
+					);
+				}
+
+				if (type === 'issue:goal:set') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:goal:set:result',
+						await setIssueGoal({repoRoot, ...message.payload}),
+					);
+				}
+
+				if (type === 'issue:goal:create') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:goal:create:result',
+						await createIssueGoal({repoRoot, ...message.payload}),
+					);
+				}
+
+				if (type === 'goal:dissolve') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'goal:dissolve:result',
+						await dissolveGoal({repoRoot, ...message.payload}),
 					);
 				}
 

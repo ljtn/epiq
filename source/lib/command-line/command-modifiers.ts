@@ -23,6 +23,8 @@ import {
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
+import {existingGoals} from '../utils/goal.utils.js';
+import {nodeRef} from '../utils/node-ref.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE', 'COMMENT'];
@@ -135,6 +137,8 @@ const EDIT_COMMANDS = [
 const TICKET_COMMANDS = [
 	CmdKeywords.TAG,
 	CmdKeywords.UNTAG,
+	CmdKeywords.GOAL,
+	CmdKeywords.UNGOAL,
 	CmdKeywords.ASSIGN,
 	CmdKeywords.UNASSIGN,
 	CmdKeywords.CLOSE_ISSUE,
@@ -298,6 +302,10 @@ const getAvailableBaseCommands = ({
 			return Boolean(ticket && getTicketTags(ticket).length > 0);
 		}
 
+		if (command === CmdKeywords.UNGOAL) {
+			return Boolean(ticket?.props?.goal);
+		}
+
 		if (command === CmdKeywords.UNASSIGN) {
 			return Boolean(ticket && getTicketAssignees(ticket).length > 0);
 		}
@@ -389,6 +397,8 @@ export const getCmdModifiers = (
 		[CmdKeywords.UNTAG]: [
 			...(ticketTagsFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
+
+		[CmdKeywords.GOAL]: existingGoals().map(goal => nodeRef(goal.id)),
 
 		[CmdKeywords.UNASSIGN]: [
 			...(ticketAssigneesFromBreadCrumb()?.value?.map(({name}) => name) ?? []),

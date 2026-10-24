@@ -82,6 +82,20 @@ export const useIssueMutations = ({
 		send('issue:tag:add', {issueId, tagName});
 	};
 
+	// Sent and left to the broadcast: the mark reads the goal's title and
+	// colour, which the server resolves.
+	const setIssueGoal = (issueId: string, goal: string | null) => {
+		send('issue:goal:set', {issueId, goal});
+	};
+
+	const createIssueGoal = (issueId: string, title: string) => {
+		send('issue:goal:create', {issueId, title});
+	};
+
+	const dissolveGoal = (goalId: string) => {
+		send('goal:dissolve', {goalId});
+	};
+
 	const removeIssueTag = (issueId: string, tagId: string) => {
 		setState(prev => {
 			if (!prev) return prev;
@@ -339,6 +353,9 @@ export const useIssueMutations = ({
 		editIssueDescription,
 		addIssueTag,
 		removeIssueTag,
+		setIssueGoal,
+		createIssueGoal,
+		dissolveGoal,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,

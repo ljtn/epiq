@@ -9,6 +9,8 @@ export type TicketProps = {
 	description?: string;
 	assignees?: string[];
 	tags?: string[];
+	// The ticket standing for the goal this one belongs to.
+	goal?: string;
 };
 
 export type BoardProps = {

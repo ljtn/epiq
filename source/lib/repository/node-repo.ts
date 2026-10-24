@@ -751,6 +751,30 @@ export const nodeRepo = {
 		return succeeded('Tag removed', {tag: tagId});
 	},
 
+	// Whatever the goal has become since, the link stands: a ticket whose
+	// goal is gone draws none, and draws it again if it comes back.
+	setGoal(
+		targetId: string,
+		goalId: string | undefined,
+	): Result<{goal?: string}> {
+		const target = this.getNode(targetId);
+		if (!target) return failed('Unable to set goal, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+		if (goalId === targetId) return failed('A ticket is not its own goal');
+
+		const {goal: _previous, ...props} = target.props;
+		this.updateNode({
+			...target,
+			props: goalId ? {...props, goal: goalId} : props,
+		});
+
+		return succeeded('Goal set', goalId ? {goal: goalId} : {});
+	},
+
 	tombstoneTag(tagId: string): Result<Tag> {
 		const tag = this.getTagRecord(tagId);
 		if (!tag) return failed('Tag not found');

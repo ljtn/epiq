@@ -38,6 +38,8 @@ export type ApiIssue = {
 	/** Present only for a load-derived lock, which knows why it exists. */
 	tags: ApiTag[];
 	assignees: ApiAssignee[];
+	/** Absent when it belongs to none, or its goal is gone. */
+	goal?: ApiGoalRef;
 	parentNodeId: string;
 	isClosed: boolean;
 	/**
@@ -47,6 +49,15 @@ export type ApiIssue = {
 	 * board, and a move can take it to another board outright.
 	 */
 	boardIds: string[];
+};
+
+/** The goal a ticket belongs to, resolved: it reads as the ticket does now. */
+export type ApiGoalRef = {
+	id: string;
+	ref: string;
+	title: string;
+	// Its own colour, or the one its title derives.
+	color: string;
 };
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};

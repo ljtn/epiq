@@ -171,6 +171,15 @@ export type AppEventMap = {
 		};
 	};
 
+	/**
+	 * Puts a ticket in a goal: another ticket, standing for the bigger thing
+	 * several tickets belong to. One goal at most; no `goal` takes it out.
+	 */
+	'set.issue.goal': {
+		payload: PayloadBase & {goal?: string};
+		result: {goal?: string};
+	};
+
 	'move.node': {
 		payload: PayloadBase & Position;
 		result: NavNode<AnyContext>;
@@ -375,6 +384,7 @@ export const EVENT_ACTIONS = [
 	'remove.issue.assignee',
 	'add.issue.tag',
 	'remove.issue.tag',
+	'set.issue.goal',
 	'move.node',
 	'edit.description',
 	'add.issue.comment',

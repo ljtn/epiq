@@ -9,6 +9,7 @@ import {
 	laneDwell,
 	liveExpiry,
 } from '../lib/lane-dwell';
+import {GoalIndex} from '../lib/goal-index';
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
 import {IconLaneStats} from './IconLaneStats';
@@ -40,6 +41,8 @@ export const SwimlaneColumn = ({
 	onSelectIssue,
 	isolatedTagId,
 	onFilterByTag,
+	isolatedGoalId = null,
+	onFilterByGoal,
 	isolatedAssigneeId,
 	onFilterByAssignee,
 	pickedIssueIds,
@@ -59,6 +62,7 @@ export const SwimlaneColumn = ({
 	statsOpen,
 	onOpenStats,
 	diffStats,
+	goals,
 }: {
 	swimlane: GuiSwimlane;
 	selected: boolean;
@@ -71,6 +75,8 @@ export const SwimlaneColumn = ({
 	onSelectIssue: (issueId: string, options: {toggle: boolean}) => void;
 	isolatedTagId: string | null;
 	onFilterByTag: (tagId: string) => void;
+	isolatedGoalId?: string | null;
+	onFilterByGoal?: (goalId: string) => void;
 	isolatedAssigneeId: string | null;
 	onFilterByAssignee: (assigneeId: string) => void;
 	pickedIssueIds: readonly string[];
@@ -105,6 +111,8 @@ export const SwimlaneColumn = ({
 	// one answer about the whole history, and the refs in it mostly belong to
 	// tickets standing in some other lane.
 	diffStats: RefDiffStats;
+	// Which tickets are goals, for the mark on their own cards.
+	goals: GoalIndex;
 	// Neither the board's first lane nor its last: where work is under way, and
 	// so where a ticket can be stuck.
 	middle?: boolean;
@@ -384,8 +392,11 @@ export const SwimlaneColumn = ({
 									dwell={cardDwell(ticket)}
 									activity={activityOf(ticket)}
 									diff={diffStats[ticket.ref] ?? null}
+									asGoal={goals.get(ticket.id) ?? null}
 									isolatedTagId={isolatedTagId}
 									onFilterByTag={onFilterByTag}
+									isolatedGoalId={isolatedGoalId}
+									onFilterByGoal={onFilterByGoal}
 									isolatedAssigneeId={isolatedAssigneeId}
 									onFilterByAssignee={onFilterByAssignee}
 									commentCount={commentsByIssueId[ticket.id]?.length ?? 0}

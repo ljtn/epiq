@@ -8,6 +8,8 @@ export const CmdKeywords = {
 	NEW: 'new',
 	TAG: 'tag',
 	UNTAG: 'untag',
+	GOAL: 'goal',
+	UNGOAL: 'ungoal',
 	MOVE: 'move',
 
 	PEEK: 'peek',

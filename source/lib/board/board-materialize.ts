@@ -408,6 +408,23 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 		});
 	},
 
+	'set.issue.goal': event => {
+		const {id, goal} = event.payload;
+		const result = nodeRepo.setGoal(
+			id,
+			typeof goal === 'string' && goal ? goal : undefined,
+		);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to set goal', event);
+		}
+
+		return succeeded('Goal set', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
 	'add.issue.assignee': event => {
 		const {id, assignee} = event.payload;
 		const result = nodeRepo.assign(id, assignee);

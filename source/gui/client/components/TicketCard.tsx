@@ -22,6 +22,8 @@ import {
 	useCardDensityView,
 } from '../lib/card-density';
 import {Button} from './Button';
+import {GoalLabel} from './GoalLabel';
+import {GoalSummary} from '../lib/goal-index';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
 import {formatDuration} from '../lib/gui-format.helper';
@@ -343,8 +345,11 @@ const DenseBody = ({
 	isolatedAssigneeId,
 	onFilterByAssignee,
 	onOpenCode,
+	goal,
 }: {
 	ticket: GuiIssue;
+	// Its goal's label, leading the line under the title.
+	goal: React.ReactNode;
 	diff: RefDiffStat | null;
 	view: CardDensityView;
 	activity: CardActivity;
@@ -385,6 +390,8 @@ const DenseBody = ({
 					minWidth: 0,
 				}}
 			>
+				{goal}
+
 				{ticket.ref && (
 					<span
 						data-testid="ticket-ref"
@@ -497,8 +504,16 @@ export const TicketCard = ({
 	dwell,
 	diff,
 	activity = null,
+	asGoal = null,
+	isolatedGoalId = null,
+	onFilterByGoal,
 }: {
 	ticket: GuiIssue;
+	// The tickets that belong to this one, when it is a goal.
+	asGoal?: GoalSummary | null;
+	// The goal the board is narrowed to, and narrowing to one from its pill.
+	isolatedGoalId?: string | null;
+	onFilterByGoal?: (goalId: string) => void;
 	index: number;
 	isSelected: boolean;
 	// Part of a multi-ticket selection, which reads differently from the one
@@ -576,6 +591,38 @@ export const TicketCard = ({
 	const getVisualTargetIndex = (isAfterMiddle: boolean) =>
 		index + (isAfterMiddle ? 1 : 0);
 
+	// One mark per card: its goal's, or, on a goal, its own.
+	const goalId = asGoal?.id ?? ticket.goal?.id ?? null;
+	const goalIsolated = goalId !== null && goalId === isolatedGoalId;
+	const goalFilter =
+		goalId !== null && onFilterByGoal
+			? {
+					pressed: goalIsolated,
+					onPress: () => onFilterByGoal(goalId),
+					pressTitle: goalIsolated
+						? 'Show every ticket again'
+						: 'Show only this goal',
+			  }
+			: {};
+	const goalLabel = asGoal ? (
+		<GoalLabel
+			testId="ticket-goal-own"
+			strong
+			color={asGoal.color}
+			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
+			place={{kind: 'line', height: view.metrics.metaLineHeight}}
+			{...goalFilter}
+		/>
+	) : ticket.goal ? (
+		<GoalLabel
+			testId="ticket-goal"
+			color={ticket.goal.color}
+			label={ticket.goal.title}
+			place={{kind: 'line', height: view.metrics.metaLineHeight}}
+			{...goalFilter}
+		/>
+	) : null;
+
 	return (
 		<div
 			ref={cardRef}
@@ -652,6 +699,7 @@ export const TicketCard = ({
 				border: `1px solid ${
 					isSelected || isPicked ? GUI_THEME.accentEdge : 'transparent'
 				}`,
+				position: 'relative',
 				// The flash is applied to the node directly (see above), so it must
 				// not be set here too or React would put it back on every render and
 				// cut the running one short.
@@ -660,6 +708,7 @@ export const TicketCard = ({
 		>
 			{dense ? (
 				<DenseBody
+					goal={goalLabel}
 					ticket={ticket}
 					diff={diff}
 					view={view}
@@ -790,7 +839,7 @@ export const TicketCard = ({
 						{/* What identifies and measures it on one line, its tags at the
 						    far end as on a dense card; where they do not fit, they wrap
 						    under it rather than squeeze the ref and the name. */}
-						{(ticket.ref || ticket.tags.length > 0) && (
+						{(goalLabel || ticket.ref || ticket.tags.length > 0) && (
 							<div
 								style={{
 									display: 'flex',
@@ -798,10 +847,12 @@ export const TicketCard = ({
 									alignItems: 'center',
 									columnGap: CARD_DIFF_GAP,
 									rowGap: 6,
+									minHeight: view.metrics.metaLineHeight,
 									color: GUI_THEME.dim2,
 									fontSize: 10,
 								}}
 							>
+								{goalLabel}
 								{ticket.ref && <CopyRef refValue={ticket.ref} />}
 								<AssigneeName
 									assignees={ticket.assignees}

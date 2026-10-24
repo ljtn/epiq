@@ -122,6 +122,7 @@ import {
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useNeedleUrl} from './lib/needle-url';
+import {allIssues, buildGoalIndex, EMPTY_GOALS} from './lib/goal-index';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useBoardOverview} from './lib/use-board-overview';
@@ -498,6 +499,18 @@ export const App = () => {
 			sendRaw,
 		});
 
+	// Read off the board's state, never stored: a ticket is a goal by having
+	// tickets that belong to it.
+	const goalIndex = useMemo(
+		() => (state ? buildGoalIndex(state) : EMPTY_GOALS),
+		[state],
+	);
+
+	const goalCandidates = useMemo(
+		() => (state ? allIssues(state) : []),
+		[state],
+	);
+
 	// The bar beside a card's ref. Repository-wide and asked for once, not per
 	// card and not on the board's own state: a commit is not an event the log
 	// knows about.
@@ -765,6 +778,11 @@ export const App = () => {
 			),
 		});
 
+	// The board narrowed to one goal from its pill; pressing it again lets go.
+	const isolatedGoalId = selection.goal;
+	const filterByGoal = (goalId: string) =>
+		changeSelection({goal: isolatedGoalId === goalId ? null : goalId});
+
 	// The same for the assignee axis, from a dense card's name: the board
 	// narrowed to one person's tickets, and pressing the name again lets go.
 	const assigneeOnly = narrowedIds(selection.only.assignee);
@@ -873,7 +891,8 @@ export const App = () => {
 			boardFilter.length === 0 &&
 			!query &&
 			windowIds === null &&
-			!isolatedIssueId
+			!isolatedIssueId &&
+			!isolatedGoalId
 		)
 			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
 
@@ -897,7 +916,10 @@ export const App = () => {
 					) &&
 					issueMatchesText(issue, query) &&
 					(windowIds === null || windowIds.has(issue.id)) &&
-					(!isolatedIssueId || issue.id === isolatedIssueId),
+					(!isolatedIssueId || issue.id === isolatedIssueId) &&
+					(!isolatedGoalId ||
+						issue.id === isolatedGoalId ||
+						issue.goal?.id === isolatedGoalId),
 			);
 
 			hidden += swimlane.issues.length - issues.length;
@@ -914,6 +936,7 @@ export const App = () => {
 		eventActorIds,
 		windowIds,
 		isolatedIssueId,
+		isolatedGoalId,
 	]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 
@@ -1393,6 +1416,9 @@ export const App = () => {
 		editIssueDescription,
 		addIssueTag,
 		removeIssueTag,
+		setIssueGoal,
+		createIssueGoal,
+		dissolveGoal,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,
@@ -2241,6 +2267,7 @@ export const App = () => {
 												}
 												live={state?.timeTravel?.mode !== 'scrub'}
 												diffStats={refDiffStats}
+												goals={goalIndex}
 												statsOpen={statsSwimlaneId === swimlane.id}
 												onOpenStats={openSwimlaneStats}
 												selected={false}
@@ -2257,6 +2284,8 @@ export const App = () => {
 												onSelectIssueCode={selectIssueCode}
 												isolatedTagId={isolatedTagId}
 												onFilterByTag={filterByTag}
+												isolatedGoalId={isolatedGoalId}
+												onFilterByGoal={filterByGoal}
 												isolatedAssigneeId={isolatedAssigneeId}
 												onFilterByAssignee={filterByAssignee}
 												onCreateIssue={openCreateIssueModal}
@@ -2494,6 +2523,12 @@ export const App = () => {
 										onEditDescription={editIssueDescription}
 										onAddTag={addIssueTag}
 										onRemoveTag={removeIssueTag}
+										goals={goalIndex}
+										goalCandidates={goalCandidates}
+										onSetGoal={setIssueGoal}
+										onCreateGoal={createIssueGoal}
+										onRemoveGoal={dissolveGoal}
+										onOpenIssue={id => openIssueTab(id, 'overview')}
 										onAddAssignee={addIssueAssignee}
 										onAddExternalAssignee={addExternalIssueAssignee}
 										onRemoveContributor={removeContributor}
