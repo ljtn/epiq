@@ -1,10 +1,10 @@
-// Which tickets are features, and how far along each is. A ticket is a feature
+// Which tickets are goals, and how far along each is. A ticket is a goal
 // by having tickets that belong to it, so this is read off the board's state,
 // never stored: the members say so.
 
 import {GuiIssue, GuiState} from './gui-state.model';
 
-export type FeatureSummary = {
+export type GoalSummary = {
 	id: string;
 	color: string;
 	members: GuiIssue[];
@@ -12,15 +12,15 @@ export type FeatureSummary = {
 	done: number;
 };
 
-export type FeatureIndex = ReadonlyMap<string, FeatureSummary>;
+export type GoalIndex = ReadonlyMap<string, GoalSummary>;
 
-export const EMPTY_FEATURES: FeatureIndex = new Map();
+export const EMPTY_GOALS: GoalIndex = new Map();
 
 /** Every ticket on every board, closed ones included. */
 export const allIssues = (state: GuiState): GuiIssue[] =>
 	state.boards.flatMap(board => board.swimlanes.flatMap(lane => lane.issues));
 
-export const buildFeatureIndex = (state: GuiState): FeatureIndex => {
+export const buildGoalIndex = (state: GuiState): GoalIndex => {
 	// By name, not by place: lanes are in whatever order a team put them.
 	const doneLaneIds = new Set(
 		state.boards.flatMap(board =>
@@ -37,15 +37,15 @@ export const buildFeatureIndex = (state: GuiState): FeatureIndex => {
 		),
 	);
 
-	const index = new Map<string, FeatureSummary>();
+	const index = new Map<string, GoalSummary>();
 
 	for (const issue of allIssues(state)) {
-		const feature = issue.feature;
-		if (!feature) continue;
+		const goal = issue.goal;
+		if (!goal) continue;
 
-		const summary = index.get(feature.id) ?? {
-			id: feature.id,
-			color: feature.color,
+		const summary = index.get(goal.id) ?? {
+			id: goal.id,
+			color: goal.color,
 			members: [],
 			done: 0,
 		};
@@ -55,7 +55,7 @@ export const buildFeatureIndex = (state: GuiState): FeatureIndex => {
 			summary.done++;
 		}
 
-		index.set(feature.id, summary);
+		index.set(goal.id, summary);
 	}
 
 	return index;

@@ -86,7 +86,7 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'remove.issue.assignee': z.looseObject({id, assignee: id}),
 	'add.issue.tag': z.looseObject({id, tag: id}),
 	'remove.issue.tag': z.looseObject({id, tag: id}),
-	'set.issue.feature': z.looseObject({id}),
+	'set.issue.goal': z.looseObject({id}),
 	'set.issue.color': z.looseObject({id}),
 
 	// `author` is unconstrained on both, though the type declares it. The

@@ -32,7 +32,7 @@ export const formatLogAction = (action: string): string => {
 		'reopen.issue': 'Reopened',
 		'add.issue.tag': 'Tagged with',
 		'remove.issue.tag': 'Removed tag',
-		'set.issue.feature': 'Set feature',
+		'set.issue.goal': 'Set goal',
 		'set.issue.color': 'Set colour',
 		'lock.node': 'Locked node',
 		'move.node': 'Moved issue',
@@ -115,10 +115,10 @@ const formatAttachmentKb = (bytes: number): string =>
 const getDeletedAttachmentName = (attachmentId: string): string =>
 	nodeRepo.getAttachment(attachmentId)?.name ?? '';
 
-// The feature's title as it reads now, or nothing: a cleared feature, or one
+// The goal's title as it reads now, or nothing: a cleared goal, or one
 // this board no longer has.
-const featureTitle = (featureId: string | undefined): string =>
-	(featureId && nodeRepo.getNode(featureId)?.title) || '';
+const goalTitle = (goalId: string | undefined): string =>
+	(goalId && nodeRepo.getNode(goalId)?.title) || '';
 
 const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
@@ -141,8 +141,8 @@ const formatEventDetails = (event: AppEvent): string => {
 			return tag ? `"${tag.name}"` : '';
 		}
 
-		case 'set.issue.feature':
-			return featureTitle(event.payload.feature) || 'none';
+		case 'set.issue.goal':
+			return goalTitle(event.payload.goal) || 'none';
 
 		case 'set.issue.color':
 			return event.payload.color
@@ -246,8 +246,8 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 			return contributor ? contributor.name : '';
 		}
 
-		case 'set.issue.feature':
-			return featureTitle(event.payload.feature);
+		case 'set.issue.goal':
+			return goalTitle(event.payload.goal);
 
 		case 'set.issue.color':
 			return event.payload.color ?? '';

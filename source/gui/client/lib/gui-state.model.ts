@@ -45,15 +45,15 @@ export type GuiIssue = {
 	readonly: boolean;
 	tags: GuiTag[];
 	assignees: GuiUser[];
-	/** The feature it belongs to, as that ticket reads now. */
-	feature?: GuiFeatureRef;
+	/** The goal it belongs to, as that ticket reads now. */
+	goal?: GuiGoalRef;
 	/** Its own colour, when somebody picked one. */
 	color?: string;
 	/** Every board it has lived on, this one included. */
 	boardIds: string[];
 };
 
-export type GuiFeatureRef = {
+export type GuiGoalRef = {
 	id: string;
 	ref: string;
 	title: string;

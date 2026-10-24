@@ -8,7 +8,7 @@ import {
 	addIssueComment,
 	addIssueTag,
 	setIssueColor,
-	setIssueFeature,
+	setIssueGoal,
 	closeIssue,
 	createBoard,
 	editBoardTitle,
@@ -810,13 +810,13 @@ export const setupWebsocket = (
 					);
 				}
 
-				if (type === 'issue:feature:set') {
+				if (type === 'issue:goal:set') {
 					return sendMutationResult(
 						socket,
 						repoRoot,
 						onStateChanged,
-						'issue:feature:set:result',
-						await setIssueFeature({repoRoot, ...message.payload}),
+						'issue:goal:set:result',
+						await setIssueGoal({repoRoot, ...message.payload}),
 					);
 				}
 

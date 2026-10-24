@@ -44,11 +44,11 @@ export const getCommandIntent = (command: string): CommandIntent => {
 		case CmdKeywords.UNTAG:
 			return CmdIntent.UntagTicket;
 
-		case CmdKeywords.FEATURE:
-			return CmdIntent.FeatureTicket;
+		case CmdKeywords.GOAL:
+			return CmdIntent.GoalTicket;
 
-		case CmdKeywords.UNFEATURE:
-			return CmdIntent.UnfeatureTicket;
+		case CmdKeywords.UNGOAL:
+			return CmdIntent.UngoalTicket;
 
 		case CmdKeywords.ASSIGN:
 			return CmdIntent.AssignUserToTicket;
@@ -110,8 +110,8 @@ export const CmdIntent = {
 
 	TagTicket: 'ticket-tag',
 	UntagTicket: 'ticket-untag',
-	FeatureTicket: 'ticket-feature',
-	UnfeatureTicket: 'ticket-unfeature',
+	GoalTicket: 'ticket-goal',
+	UngoalTicket: 'ticket-ungoal',
 	AssignUserToTicket: 'ticket-assign-user',
 	UnassignUserFromTicket: 'ticket-unassign-user',
 	CloseIssue: 'close-issue',

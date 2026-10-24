@@ -38,8 +38,8 @@ export type ApiIssue = {
 	/** Present only for a load-derived lock, which knows why it exists. */
 	tags: ApiTag[];
 	assignees: ApiAssignee[];
-	/** Absent when it belongs to none, or its feature is gone. */
-	feature?: ApiFeatureRef;
+	/** Absent when it belongs to none, or its goal is gone. */
+	goal?: ApiGoalRef;
 	/** Its own colour, set only when somebody picked one. */
 	color?: string;
 	parentNodeId: string;
@@ -53,8 +53,8 @@ export type ApiIssue = {
 	boardIds: string[];
 };
 
-/** The feature a ticket belongs to, resolved: it reads as the ticket does now. */
-export type ApiFeatureRef = {
+/** The goal a ticket belongs to, resolved: it reads as the ticket does now. */
+export type ApiGoalRef = {
 	id: string;
 	ref: string;
 	title: string;

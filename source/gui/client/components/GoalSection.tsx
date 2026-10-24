@@ -1,15 +1,15 @@
-// The ticket panel's Feature row. A ticket in a feature names it and can leave
-// it; a feature lists its tickets and takes a colour; any other ticket can be
-// put in one, picked from the features there are or from any ticket by title.
+// The ticket panel's Goal row. A ticket in a goal names it and can leave
+// it; a goal lists its tickets and takes a colour; any other ticket can be
+// put in one, picked from the goals there are or from any ticket by title.
 
 import React, {useState} from 'react';
 import {useAddRow} from '../lib/use-add-row';
 import {GUI_THEME} from '../lib/gui-theme';
 import {GuiIssue} from '../lib/gui-state.model';
-import {FeatureIndex, FeatureSummary} from '../lib/feature-index';
+import {GoalIndex, GoalSummary} from '../lib/goal-index';
 import {Button} from './Button';
 import {AddRow, ChipRow, Empty, Input} from './FormPrimitives';
-import {FeaturePill} from './FeaturePill';
+import {GoalPill} from './GoalPill';
 import {IconCheck} from './IconCheck';
 import {Section} from './Section';
 
@@ -34,7 +34,7 @@ const SWATCHES = [
 
 const SWATCH_SIZE = 16;
 
-const FeatureColors = ({
+const GoalColors = ({
 	color,
 	autoColor,
 	disabled,
@@ -46,7 +46,7 @@ const FeatureColors = ({
 	onPick: (color: string | null) => void;
 }) => (
 	<div
-		data-testid="feature-colors"
+		data-testid="goal-colors"
 		style={{
 			display: 'flex',
 			flexWrap: 'wrap',
@@ -58,7 +58,7 @@ const FeatureColors = ({
 		<Button
 			variant="chip"
 			dense
-			testId="feature-color-auto"
+			testId="goal-color-auto"
 			tint={color ? undefined : autoColor}
 			held={!color}
 			disabled={disabled}
@@ -73,7 +73,7 @@ const FeatureColors = ({
 				<button
 					key={swatch}
 					type="button"
-					data-testid={`feature-color-${swatch.slice(1)}`}
+					data-testid={`goal-color-${swatch.slice(1)}`}
 					aria-label={swatch}
 					aria-pressed={held}
 					disabled={disabled}
@@ -102,21 +102,21 @@ const FeatureColors = ({
 
 const label = (issue: GuiIssue) => `${issue.ref} ${issue.title}`;
 
-export const FeatureSection = ({
+export const GoalSection = ({
 	issue,
-	asFeature,
-	features,
+	asGoal,
+	goals,
 	candidates,
-	onSetFeature,
+	onSetGoal,
 	onSetColor,
 	onOpenIssue,
 }: {
 	issue: GuiIssue;
-	asFeature: FeatureSummary | null;
-	features: FeatureIndex;
+	asGoal: GoalSummary | null;
+	goals: GoalIndex;
 	// Every ticket there is, for the picker.
 	candidates: GuiIssue[];
-	onSetFeature: (issueId: string, feature: string | null) => void;
+	onSetGoal: (issueId: string, goal: string | null) => void;
 	onSetColor: (issueId: string, color: string | null) => void;
 	onOpenIssue: (issueId: string) => void;
 }) => {
@@ -124,11 +124,11 @@ export const FeatureSection = ({
 	const [query, setQuery] = useState('');
 	const disabled = issue.readonly;
 
-	// A feature opens to its colours; a ticket outside one, to the picker. A
-	// ticket in a feature has its chip to leave it by.
-	const canOpen = !disabled && (asFeature !== null || !issue.feature);
+	// A goal opens to its colours; a ticket outside one, to the picker. A
+	// ticket in a goal has its chip to leave it by.
+	const canOpen = !disabled && (asGoal !== null || !issue.goal);
 	const start = canOpen && !row.open ? row.start : undefined;
-	const picking = row.open && !asFeature && !issue.feature;
+	const picking = row.open && !asGoal && !issue.goal;
 
 	const needle = query.trim().toLowerCase();
 	const matches = (candidate: GuiIssue) =>
@@ -136,15 +136,15 @@ export const FeatureSection = ({
 
 	const existing = candidates.filter(
 		candidate =>
-			features.has(candidate.id) &&
+			goals.has(candidate.id) &&
 			candidate.id !== issue.id &&
 			matches(candidate),
 	);
 	const others = needle
 		? candidates.filter(
 				candidate =>
-					!features.has(candidate.id) &&
-					!candidate.feature &&
+					!goals.has(candidate.id) &&
+					!candidate.goal &&
 					!candidate.isClosed &&
 					candidate.id !== issue.id &&
 					matches(candidate),
@@ -152,15 +152,15 @@ export const FeatureSection = ({
 		: [];
 	const options = [...existing, ...others].slice(0, PICK_LIMIT);
 
-	const pick = (featureId: string) => {
-		onSetFeature(issue.id, featureId);
+	const pick = (goalId: string) => {
+		onSetGoal(issue.id, goalId);
 		row.close();
 		setQuery('');
 	};
 
 	return (
 		<Section
-			title="Feature"
+			title="Goal"
 			focusProps={canOpen ? row.sectionProps : undefined}
 			action={
 				(start && (
@@ -175,33 +175,33 @@ export const FeatureSection = ({
 				))
 			}
 		>
-			{asFeature ? (
+			{asGoal ? (
 				<>
-					<ChipRow testId="feature-own-row" onActivate={start}>
-						<FeaturePill
-							testId="feature-own"
+					<ChipRow testId="goal-own-row" onActivate={start}>
+						<GoalPill
+							testId="goal-own"
 							strong
-							color={asFeature.color}
-							label={`Feature · ${asFeature.done}/${asFeature.members.length} done`}
+							color={asGoal.color}
+							label={`Goal · ${asGoal.done}/${asGoal.members.length} done`}
 						/>
 					</ChipRow>
 					{row.open && (
-						<FeatureColors
+						<GoalColors
 							color={issue.color}
-							autoColor={asFeature.color}
+							autoColor={asGoal.color}
 							disabled={disabled}
 							onPick={color => onSetColor(issue.id, color)}
 						/>
 					)}
 					<div
-						data-testid="feature-members"
+						data-testid="goal-members"
 						style={{display: 'flex', flexDirection: 'column', gap: 2}}
 					>
-						{asFeature.members.map(member => (
+						{asGoal.members.map(member => (
 							<button
 								key={member.id}
 								type="button"
-								data-testid="feature-member"
+								data-testid="goal-member"
 								onClick={() => onOpenIssue(member.id)}
 								style={{
 									display: 'flex',
@@ -237,28 +237,25 @@ export const FeatureSection = ({
 						))}
 					</div>
 				</>
-			) : issue.feature ? (
-				<ChipRow testId="feature-row">
+			) : issue.goal ? (
+				<ChipRow testId="goal-row">
 					<Button
 						variant="chip"
 						disabled={disabled}
-						tint={issue.feature.color}
-						style={{color: issue.feature.color}}
-						onClick={() => onSetFeature(issue.id, null)}
+						tint={issue.goal.color}
+						style={{color: issue.goal.color}}
+						onClick={() => onSetGoal(issue.id, null)}
 					>
-						{issue.feature.title} {!disabled && '×'}
+						{issue.goal.title} {!disabled && '×'}
 					</Button>
-					<Button
-						variant="ghost"
-						onClick={() => onOpenIssue(issue.feature!.id)}
-					>
+					<Button variant="ghost" onClick={() => onOpenIssue(issue.goal!.id)}>
 						Open
 					</Button>
 				</ChipRow>
 			) : (
-				<ChipRow testId="feature-row">
-					<Empty testId="feature-empty" onActivate={start}>
-						No feature
+				<ChipRow testId="goal-row">
+					<Empty testId="goal-empty" onActivate={start}>
+						No goal
 					</Empty>
 				</ChipRow>
 			)}
@@ -268,9 +265,9 @@ export const FeatureSection = ({
 					<AddRow>
 						<Input
 							ref={row.inputRef}
-							data-testid="feature-search"
+							data-testid="goal-search"
 							value={query}
-							placeholder="Feature, or any ticket by title"
+							placeholder="Goal, or any ticket by title"
 							onChange={event => setQuery(event.target.value)}
 							onKeyDown={event => {
 								if (event.key === 'Enter' && options[0]) pick(options[0].id);
@@ -278,14 +275,14 @@ export const FeatureSection = ({
 							}}
 						/>
 					</AddRow>
-					<ChipRow testId="feature-options">
+					<ChipRow testId="goal-options">
 						{options.length === 0 ? (
 							<Empty>
 								{needle ? 'No ticket matches' : 'Type to find a ticket'}
 							</Empty>
 						) : (
 							options.map(option => {
-								const color = features.get(option.id)?.color ?? GUI_THEME.dim;
+								const color = goals.get(option.id)?.color ?? GUI_THEME.dim;
 
 								return (
 									<Button

@@ -8,7 +8,7 @@ import {getCmdState} from '../../state/cmd.state.js';
 import {getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
 import {actorOf} from '../../event/event.model.js';
-import {featureRefusal, findTicket} from '../../utils/feature.utils.js';
+import {goalRefusal, findTicket} from '../../utils/goal.utils.js';
 
 const selectedTicket = (): Result<Ticket> => {
 	const {selectedNode} = getState();
@@ -23,7 +23,7 @@ const selectedTicket = (): Result<Ticket> => {
 	return succeeded('Found issue', ticket);
 };
 
-const write = async (ticket: Ticket, feature?: string) => {
+const write = async (ticket: Ticket, goal?: string) => {
 	const userRes = resolveActorId();
 	if (isFail(userRes)) return failed('Unable to resolve user ID');
 
@@ -34,8 +34,8 @@ const write = async (ticket: Ticket, feature?: string) => {
 		[
 			{
 				id: ulid(),
-				action: 'set.issue.feature',
-				payload: feature ? {id: ticket.id, feature} : {id: ticket.id},
+				action: 'set.issue.goal',
+				payload: goal ? {id: ticket.id, goal} : {id: ticket.id},
 				...actorOf(userRes.value),
 			},
 		],
@@ -43,35 +43,34 @@ const write = async (ticket: Ticket, feature?: string) => {
 	);
 };
 
-/** `:feature <ref>` puts the selected issue in the feature that ref names. */
-export const featureTicketCommand = async () => {
+/** `:goal <ref>` puts the selected issue in the goal that ref names. */
+export const goalTicketCommand = async () => {
 	const {modifier, inputString} = getCmdState().commandMeta;
 	const ref = (modifier || inputString).trim();
-	if (!ref) return failed('Name the feature by its ref');
+	if (!ref) return failed('Name the goal by its ref');
 
 	const ticketResult = selectedTicket();
 	if (isFail(ticketResult)) return ticketResult;
 	const ticket = ticketResult.value;
 
-	const feature = findTicket(ref);
-	if (!feature) return failed(`No issue ${ref}`);
+	const goal = findTicket(ref);
+	if (!goal) return failed(`No issue ${ref}`);
 
-	const refusal = featureRefusal(ticket, feature);
+	const refusal = goalRefusal(ticket, goal);
 	if (refusal) return failed(refusal);
 
-	if (ticket.props.feature === feature.id)
-		return failed('Already in that feature');
+	if (ticket.props.goal === goal.id) return failed('Already in that goal');
 
-	return write(ticket, feature.id);
+	return write(ticket, goal.id);
 };
 
-/** `:unfeature` takes the selected issue out of its feature. */
-export const unfeatureTicketCommand = async () => {
+/** `:ungoal` takes the selected issue out of its goal. */
+export const ungoalTicketCommand = async () => {
 	const ticketResult = selectedTicket();
 	if (isFail(ticketResult)) return ticketResult;
 	const ticket = ticketResult.value;
 
-	if (!ticket.props.feature) return failed('Not in a feature');
+	if (!ticket.props.goal) return failed('Not in a goal');
 
 	return write(ticket);
 };

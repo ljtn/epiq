@@ -43,8 +43,8 @@ import {
 } from '../lib/diff-selection';
 import {parseDiffCommentMeta} from '../../../lib/utils/diff-comment.js';
 import {DescriptionField} from './DescriptionField';
-import {FeatureSection} from './FeatureSection';
-import {EMPTY_FEATURES, FeatureIndex} from '../lib/feature-index';
+import {GoalSection} from './GoalSection';
+import {EMPTY_GOALS, GoalIndex} from '../lib/goal-index';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
@@ -300,9 +300,9 @@ export const IssueDetails = ({
 	attachmentUploadStatus,
 	onUploadAttachments,
 	onDeleteAttachment,
-	features = EMPTY_FEATURES,
-	featureCandidates = [],
-	onSetFeature,
+	goals = EMPTY_GOALS,
+	goalCandidates = [],
+	onSetGoal,
 	onSetColor,
 	onOpenIssue,
 	commits,
@@ -390,11 +390,11 @@ export const IssueDetails = ({
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
 	onOpenAssigneePicker: () => void;
-	// The Feature row's: which tickets are features, what may be picked, and
+	// The Goal row's: which tickets are goals, what may be picked, and
 	// where its tickets open. Without the handlers the row is not drawn.
-	features?: FeatureIndex;
-	featureCandidates?: GuiIssue[];
-	onSetFeature?: (issueId: string, feature: string | null) => void;
+	goals?: GoalIndex;
+	goalCandidates?: GuiIssue[];
+	onSetGoal?: (issueId: string, goal: string | null) => void;
 	onSetColor?: (issueId: string, color: string | null) => void;
 	onOpenIssue?: (issueId: string) => void;
 }) => {
@@ -750,13 +750,13 @@ export const IssueDetails = ({
 							)}
 						</Section>
 
-						{onSetFeature && onSetColor && onOpenIssue && (
-							<FeatureSection
+						{onSetGoal && onSetColor && onOpenIssue && (
+							<GoalSection
 								issue={issue}
-								asFeature={features.get(issue.id) ?? null}
-								features={features}
-								candidates={featureCandidates}
-								onSetFeature={onSetFeature}
+								asGoal={goals.get(issue.id) ?? null}
+								goals={goals}
+								candidates={goalCandidates}
+								onSetGoal={onSetGoal}
 								onSetColor={onSetColor}
 								onOpenIssue={onOpenIssue}
 							/>

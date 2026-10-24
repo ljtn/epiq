@@ -82,10 +82,10 @@ export const useIssueMutations = ({
 		send('issue:tag:add', {issueId, tagName});
 	};
 
-	// Sent and left to the broadcast: the mark reads the feature's title and
+	// Sent and left to the broadcast: the mark reads the goal's title and
 	// colour, which the server resolves.
-	const setIssueFeature = (issueId: string, feature: string | null) => {
-		send('issue:feature:set', {issueId, feature});
+	const setIssueGoal = (issueId: string, goal: string | null) => {
+		send('issue:goal:set', {issueId, goal});
 	};
 
 	const setIssueColor = (issueId: string, color: string | null) => {
@@ -349,7 +349,7 @@ export const useIssueMutations = ({
 		editIssueDescription,
 		addIssueTag,
 		removeIssueTag,
-		setIssueFeature,
+		setIssueGoal,
 		setIssueColor,
 		addIssueAssignee,
 		removeContributor,

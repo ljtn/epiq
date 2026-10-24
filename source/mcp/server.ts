@@ -25,7 +25,7 @@ import {
 	addIssueComment,
 	addIssueTag,
 	setIssueColor,
-	setIssueFeature,
+	setIssueGoal,
 	assumeActor,
 	closeIssue,
 	createBoard,
@@ -369,24 +369,24 @@ export const createMcpServer = () => {
 	);
 
 	server.registerTool(
-		'epiq_issue_feature_set',
+		'epiq_issue_goal_set',
 		{
 			description:
-				'Put an Epiq issue in a feature: another ticket standing for the bigger thing it belongs to (full id or ref), or null to take it out. One feature per ticket, one level deep.',
+				'Put an Epiq issue in a goal: another ticket standing for the bigger thing it belongs to (full id or ref), or null to take it out. One goal per ticket, one level deep.',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
-				feature: z.string().min(1).nullable(),
+				goal: z.string().min(1).nullable(),
 				repoRoot: z.string().optional(),
 			}),
 		},
-		exclusiveTool(setIssueFeature),
+		exclusiveTool(setIssueGoal),
 	);
 
 	server.registerTool(
 		'epiq_issue_color_set',
 		{
 			description:
-				"Set the colour a feature ticket's tickets are marked in, as #rrggbb, or null for the one derived from its title",
+				"Set the colour a goal ticket's tickets are marked in, as #rrggbb, or null for the one derived from its title",
 			inputSchema: z.object({
 				issueId: z.string().min(1),
 				color: z.string().nullable(),

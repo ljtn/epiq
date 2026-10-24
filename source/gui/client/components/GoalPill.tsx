@@ -1,5 +1,5 @@
-// The feature a card belongs to, named in its colour at the card's top left;
-// on the feature's own card, how far along its tickets are.
+// The goal a card belongs to, named in its colour at the card's top left;
+// on the goal's own card, how far along its tickets are.
 
 import React from 'react';
 
@@ -7,7 +7,7 @@ import React from 'react';
 // read on it.
 const wash = (color: string) => `${color}2e`;
 
-export const FeaturePill = ({
+export const GoalPill = ({
 	color,
 	label,
 	strong = false,
@@ -15,7 +15,7 @@ export const FeaturePill = ({
 }: {
 	color: string;
 	label: string;
-	// The feature's own card: filled, so it reads as the thing the others
+	// The goal's own card: filled, so it reads as the thing the others
 	// point at.
 	strong?: boolean;
 	testId: string;
@@ -43,9 +43,9 @@ export const FeaturePill = ({
 );
 
 /** A straight bar inside the card's left edge, clear of its rounded corners. */
-export const FeatureStripe = ({color}: {color: string}) => (
+export const GoalStripe = ({color}: {color: string}) => (
 	<span
-		data-testid="ticket-feature-stripe"
+		data-testid="ticket-goal-stripe"
 		aria-hidden
 		style={{
 			position: 'absolute',

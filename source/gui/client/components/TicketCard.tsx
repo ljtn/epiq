@@ -22,8 +22,8 @@ import {
 	useCardDensityView,
 } from '../lib/card-density';
 import {Button} from './Button';
-import {FeaturePill, FeatureStripe} from './FeaturePill';
-import {FeatureSummary} from '../lib/feature-index';
+import {GoalPill, GoalStripe} from './GoalPill';
+import {GoalSummary} from '../lib/goal-index';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
 import {formatDuration} from '../lib/gui-format.helper';
@@ -499,11 +499,11 @@ export const TicketCard = ({
 	dwell,
 	diff,
 	activity = null,
-	asFeature = null,
+	asGoal = null,
 }: {
 	ticket: GuiIssue;
-	// The tickets that belong to this one, when it is a feature.
-	asFeature?: FeatureSummary | null;
+	// The tickets that belong to this one, when it is a goal.
+	asGoal?: GoalSummary | null;
 	index: number;
 	isSelected: boolean;
 	// Part of a multi-ticket selection, which reads differently from the one
@@ -581,20 +581,20 @@ export const TicketCard = ({
 	const getVisualTargetIndex = (isAfterMiddle: boolean) =>
 		index + (isAfterMiddle ? 1 : 0);
 
-	// One mark per card: its feature's, or, on a feature, its own.
-	const featureColor = ticket.feature?.color ?? asFeature?.color ?? null;
-	const featurePill = asFeature ? (
-		<FeaturePill
-			testId="ticket-feature-own"
+	// One mark per card: its goal's, or, on a goal, its own.
+	const goalColor = ticket.goal?.color ?? asGoal?.color ?? null;
+	const goalPill = asGoal ? (
+		<GoalPill
+			testId="ticket-goal-own"
 			strong
-			color={asFeature.color}
-			label={`Feature · ${asFeature.done}/${asFeature.members.length}`}
+			color={asGoal.color}
+			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
 		/>
-	) : ticket.feature ? (
-		<FeaturePill
-			testId="ticket-feature"
-			color={ticket.feature.color}
-			label={ticket.feature.title}
+	) : ticket.goal ? (
+		<GoalPill
+			testId="ticket-goal"
+			color={ticket.goal.color}
+			label={ticket.goal.title}
 		/>
 	) : null;
 
@@ -681,8 +681,8 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
-			{featureColor && <FeatureStripe color={featureColor} />}
-			{dense && featurePill}
+			{goalColor && <GoalStripe color={goalColor} />}
+			{dense && goalPill}
 			{dense ? (
 				<DenseBody
 					ticket={ticket}
@@ -730,7 +730,7 @@ export const TicketCard = ({
 							gap: 12,
 						}}
 					>
-						{featurePill}
+						{goalPill}
 						{/* The title and, at its right, the controls centred on its first
 						    line; the line under it runs the card's whole width. */}
 						<div

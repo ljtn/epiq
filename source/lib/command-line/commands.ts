@@ -25,9 +25,9 @@ import {renameCommand} from './commands/rename.cmd.js';
 import {untagTicketCommand} from './commands/untag-ticket.cmd.js';
 import {tagTicketCommand} from './commands/tag-ticket.cmd.js';
 import {
-	featureTicketCommand,
-	unfeatureTicketCommand,
-} from './commands/feature-ticket.cmd.js';
+	goalTicketCommand,
+	ungoalTicketCommand,
+} from './commands/goal-ticket.cmd.js';
 import {assignUserCommand} from './commands/assign-user.cmd.js';
 import {unassignUserCommand} from './commands/unassign-user.cmd.js';
 import {commentCommand} from './commands/comment.cmd.js';
@@ -158,17 +158,17 @@ export const commands: CommandLineActionEntry[] = [
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
-		intent: CmdIntent.FeatureTicket,
-		description: 'Put the selected issue in a feature, named by its ref',
+		intent: CmdIntent.GoalTicket,
+		description: 'Put the selected issue in a goal, named by its ref',
 		mode: Mode.COMMAND_LINE,
-		action: featureTicketCommand,
+		action: goalTicketCommand,
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
-		intent: CmdIntent.UnfeatureTicket,
-		description: 'Take the selected issue out of its feature',
+		intent: CmdIntent.UngoalTicket,
+		description: 'Take the selected issue out of its goal',
 		mode: Mode.COMMAND_LINE,
-		action: unfeatureTicketCommand,
+		action: ungoalTicketCommand,
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{

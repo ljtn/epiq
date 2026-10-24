@@ -30,8 +30,8 @@ export type GuiMessage =
 	  }
 	| {type: 'issue:tag:add'; payload: {issueId: string; tagName: string}}
 	| {
-			type: 'issue:feature:set';
-			payload: {issueId: string; feature: string | null};
+			type: 'issue:goal:set';
+			payload: {issueId: string; goal: string | null};
 	  }
 	| {type: 'issue:color:set'; payload: {issueId: string; color: string | null}}
 	| {type: 'issue:tag:remove'; payload: {issueId: string; tagId: string}}

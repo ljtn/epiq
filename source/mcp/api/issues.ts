@@ -73,7 +73,7 @@ import {
 	writeDescription,
 } from './descriptions.js';
 import {findWritableIssue, findWritableSwimlane} from './node-targets.js';
-import {featureFields} from './features.js';
+import {goalFields} from './goals.js';
 
 type MoveIssueInput = ToolInput &
 	IssueTargets & {
@@ -171,7 +171,7 @@ export const getIssue = async (input: GetIssueInput) => {
 		readonly: Boolean(issue.readonly),
 		tags: getIssueTags(issue),
 		assignees: getIssueAssignees(issue),
-		...featureFields(issue),
+		...goalFields(issue),
 		comments: getIssueComments(issue.id),
 		...laneDescriptionOf(issue.parentNodeId),
 	} satisfies ApiIssueDetail & {laneDescription?: string});
@@ -262,7 +262,7 @@ export async function listIssues(
 					readonly: Boolean(n.readonly),
 					tags: getIssueTags(n),
 					assignees: getIssueAssignees(n),
-					...featureFields(n),
+					...goalFields(n),
 				} satisfies ApiIssue),
 		),
 	);

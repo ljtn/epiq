@@ -172,16 +172,16 @@ export type AppEventMap = {
 	};
 
 	/**
-	 * Puts a ticket in a feature: another ticket, standing for the bigger thing
-	 * several tickets belong to. One feature at most; no `feature` takes it out.
+	 * Puts a ticket in a goal: another ticket, standing for the bigger thing
+	 * several tickets belong to. One goal at most; no `goal` takes it out.
 	 */
-	'set.issue.feature': {
-		payload: PayloadBase & {feature?: string};
-		result: {feature?: string};
+	'set.issue.goal': {
+		payload: PayloadBase & {goal?: string};
+		result: {goal?: string};
 	};
 
 	/**
-	 * A ticket's own colour, which its feature's tickets are marked in. No
+	 * A ticket's own colour, which its goal's tickets are marked in. No
 	 * `color` returns it to the one derived from its title.
 	 */
 	'set.issue.color': {
@@ -393,7 +393,7 @@ export const EVENT_ACTIONS = [
 	'remove.issue.assignee',
 	'add.issue.tag',
 	'remove.issue.tag',
-	'set.issue.feature',
+	'set.issue.goal',
 	'set.issue.color',
 	'move.node',
 	'edit.description',

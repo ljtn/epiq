@@ -409,18 +409,18 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 		});
 	},
 
-	'set.issue.feature': event => {
-		const {id, feature} = event.payload;
-		const result = nodeRepo.setFeature(
+	'set.issue.goal': event => {
+		const {id, goal} = event.payload;
+		const result = nodeRepo.setGoal(
 			id,
-			typeof feature === 'string' && feature ? feature : undefined,
+			typeof goal === 'string' && goal ? goal : undefined,
 		);
 
 		if (isFail(result)) {
-			return materializeSkip(result.message ?? 'Unable to set feature', event);
+			return materializeSkip(result.message ?? 'Unable to set goal', event);
 		}
 
-		return succeeded('Feature set', {
+		return succeeded('Goal set', {
 			action: event.action,
 			result: result.value,
 		});

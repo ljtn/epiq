@@ -122,11 +122,7 @@ import {
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useNeedleUrl} from './lib/needle-url';
-import {
-	allIssues,
-	buildFeatureIndex,
-	EMPTY_FEATURES,
-} from './lib/feature-index';
+import {allIssues, buildGoalIndex, EMPTY_GOALS} from './lib/goal-index';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useBoardOverview} from './lib/use-board-overview';
@@ -503,14 +499,14 @@ export const App = () => {
 			sendRaw,
 		});
 
-	// Read off the board's state, never stored: a ticket is a feature by having
+	// Read off the board's state, never stored: a ticket is a goal by having
 	// tickets that belong to it.
-	const featureIndex = useMemo(
-		() => (state ? buildFeatureIndex(state) : EMPTY_FEATURES),
+	const goalIndex = useMemo(
+		() => (state ? buildGoalIndex(state) : EMPTY_GOALS),
 		[state],
 	);
 
-	const featureCandidates = useMemo(
+	const goalCandidates = useMemo(
 		() => (state ? allIssues(state) : []),
 		[state],
 	);
@@ -1410,7 +1406,7 @@ export const App = () => {
 		editIssueDescription,
 		addIssueTag,
 		removeIssueTag,
-		setIssueFeature,
+		setIssueGoal,
 		setIssueColor,
 		addIssueAssignee,
 		removeContributor,
@@ -2260,7 +2256,7 @@ export const App = () => {
 												}
 												live={state?.timeTravel?.mode !== 'scrub'}
 												diffStats={refDiffStats}
-												features={featureIndex}
+												goals={goalIndex}
 												statsOpen={statsSwimlaneId === swimlane.id}
 												onOpenStats={openSwimlaneStats}
 												selected={false}
@@ -2514,9 +2510,9 @@ export const App = () => {
 										onEditDescription={editIssueDescription}
 										onAddTag={addIssueTag}
 										onRemoveTag={removeIssueTag}
-										features={featureIndex}
-										featureCandidates={featureCandidates}
-										onSetFeature={setIssueFeature}
+										goals={goalIndex}
+										goalCandidates={goalCandidates}
+										onSetGoal={setIssueGoal}
 										onSetColor={setIssueColor}
 										onOpenIssue={id => openIssueTab(id, 'overview')}
 										onAddAssignee={addIssueAssignee}
