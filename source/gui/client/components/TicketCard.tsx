@@ -345,11 +345,8 @@ const DenseBody = ({
 	isolatedAssigneeId,
 	onFilterByAssignee,
 	onOpenCode,
-	goal,
 }: {
 	ticket: GuiIssue;
-	// Its goal's label, on the bottom line where it costs no height.
-	goal: React.ReactNode;
 	diff: RefDiffStat | null;
 	view: CardDensityView;
 	activity: CardActivity;
@@ -400,9 +397,9 @@ const DenseBody = ({
 					</span>
 				)}
 
-				{/* Its goal and who has it, quietly, in a slot of one width whether
-				    either is there or not, so the diff after it lines up down the
-				    lane. Each narrows the board to its tickets, as a tag does. */}
+				{/* Who has it, quietly, in a slot of one width whether anyone does
+				    or not, so the diff after it lines up down the lane. The name
+				    narrows the board to that person's tickets, as a tag does. */}
 				<span
 					style={{
 						width: DENSE_ASSIGNEE_WIDTH,
@@ -410,12 +407,9 @@ const DenseBody = ({
 						// with many tags keeps them and its live mark whole.
 						flexShrink: 1,
 						display: 'flex',
-						alignItems: 'center',
-						gap: 6,
 						minWidth: 0,
 					}}
 				>
-					{goal}
 					<AssigneeName
 						assignees={ticket.assignees}
 						isolatedAssigneeId={isolatedAssigneeId}
@@ -611,7 +605,7 @@ export const TicketCard = ({
 			strong
 			color={asGoal.color}
 			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
-			variant={dense ? 'inline' : 'corner'}
+			tab={view.metrics.goalTab}
 			{...goalFilter}
 		/>
 	) : ticket.goal ? (
@@ -619,7 +613,7 @@ export const TicketCard = ({
 			testId="ticket-goal"
 			color={ticket.goal.color}
 			label={ticket.goal.title}
-			variant={dense ? 'inline' : 'corner'}
+			tab={view.metrics.goalTab}
 			{...goalFilter}
 		/>
 	) : null;
@@ -707,10 +701,9 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
-			{!dense && goalPill}
+			{goalPill}
 			{dense ? (
 				<DenseBody
-					goal={goalPill}
 					ticket={ticket}
 					diff={diff}
 					view={view}

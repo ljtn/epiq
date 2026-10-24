@@ -4,14 +4,11 @@
 // reads as a tag.
 
 import React from 'react';
+import {GoalTabMetrics} from '../lib/card-density';
 
 // A colour's wash: the same hue, faint enough for text in the full colour to
 // read on it.
 const wash = (color: string) => `${color}2e`;
-
-/** The corner tab's height, which a card makes room for above its title. */
-export const GOAL_TAB_HEIGHT = 16;
-export const GOAL_TAB_INSET = 4;
 
 export const GoalPill = ({
 	color,
@@ -21,7 +18,7 @@ export const GoalPill = ({
 	isolated = false,
 	onFilter,
 	filterTitle,
-	variant = 'pill',
+	tab,
 }: {
 	color: string;
 	label: string;
@@ -33,9 +30,9 @@ export const GoalPill = ({
 	isolated?: boolean;
 	onFilter?: () => void;
 	filterTitle?: string;
-	// A card draws it as a square label: in its corner, or on a dense card's
-	// bottom line; the panel, as a pill.
-	variant?: 'pill' | 'corner' | 'inline';
+	// Where a card draws it as the square label in its corner; without one,
+	// the panel's pill.
+	tab?: GoalTabMetrics;
 }) => {
 	const filled = strong || isolated;
 	const square: React.CSSProperties = {
@@ -46,32 +43,22 @@ export const GoalPill = ({
 		borderStyle: 'solid',
 		borderColor: color,
 	};
-	const shape: React.CSSProperties =
-		variant === 'corner'
-			? {
-					...square,
-					position: 'absolute',
-					top: GOAL_TAB_INSET,
-					left: GOAL_TAB_INSET,
-					height: GOAL_TAB_HEIGHT,
-					padding: '0 7px',
-			  }
-			: variant === 'inline'
-			? {
-					...square,
-					// Shares the assignee's slot, giving way before the name does.
-					maxWidth: '100%',
-					flexShrink: 1000,
-					minWidth: 0,
-					padding: '0 6px',
-			  }
-			: {
-					alignSelf: 'flex-start',
-					maxWidth: '100%',
-					padding: '1px 7px',
-					borderRadius: 999,
-					borderWidth: 0,
-			  };
+	const shape: React.CSSProperties = tab
+		? {
+				...square,
+				position: 'absolute',
+				top: tab.inset,
+				left: tab.inset,
+				height: tab.height,
+				padding: '0 7px',
+		  }
+		: {
+				alignSelf: 'flex-start',
+				maxWidth: '100%',
+				padding: '1px 7px',
+				borderRadius: 999,
+				borderWidth: 0,
+		  };
 	const style: React.CSSProperties = {
 		...shape,
 		overflow: 'hidden',
@@ -79,12 +66,7 @@ export const GoalPill = ({
 		whiteSpace: 'nowrap',
 		fontFamily: 'inherit',
 		fontSize: 10,
-		lineHeight:
-			variant === 'corner'
-				? `${GOAL_TAB_HEIGHT}px`
-				: variant === 'inline'
-				? '14px'
-				: '15px',
+		lineHeight: tab ? `${tab.height}px` : '15px',
 		fontWeight: filled ? 600 : 500,
 		color: filled ? '#0b0d12' : color,
 		background: filled ? color : wash(color),
