@@ -22,6 +22,8 @@ import {
 	useCardDensityView,
 } from '../lib/card-density';
 import {Button} from './Button';
+import {FeaturePill, featureStripe} from './FeaturePill';
+import {FeatureSummary} from '../lib/feature-index';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
 import {formatDuration} from '../lib/gui-format.helper';
@@ -497,8 +499,11 @@ export const TicketCard = ({
 	dwell,
 	diff,
 	activity = null,
+	asFeature = null,
 }: {
 	ticket: GuiIssue;
+	// The tickets that belong to this one, when it is a feature.
+	asFeature?: FeatureSummary | null;
 	index: number;
 	isSelected: boolean;
 	// Part of a multi-ticket selection, which reads differently from the one
@@ -576,6 +581,23 @@ export const TicketCard = ({
 	const getVisualTargetIndex = (isAfterMiddle: boolean) =>
 		index + (isAfterMiddle ? 1 : 0);
 
+	// One mark per card: its feature's, or, on a feature, its own.
+	const featureColor = ticket.feature?.color ?? asFeature?.color ?? null;
+	const featurePill = asFeature ? (
+		<FeaturePill
+			testId="ticket-feature-own"
+			strong
+			color={asFeature.color}
+			label={`Feature · ${asFeature.done}/${asFeature.members.length}`}
+		/>
+	) : ticket.feature ? (
+		<FeaturePill
+			testId="ticket-feature"
+			color={ticket.feature.color}
+			label={ticket.feature.title}
+		/>
+	) : null;
+
 	return (
 		<div
 			ref={cardRef}
@@ -652,12 +674,14 @@ export const TicketCard = ({
 				border: `1px solid ${
 					isSelected || isPicked ? GUI_THEME.accentEdge : 'transparent'
 				}`,
+				boxShadow: featureColor ? featureStripe(featureColor) : undefined,
 				// The flash is applied to the node directly (see above), so it must
 				// not be set here too or React would put it back on every render and
 				// cut the running one short.
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
+			{dense && featurePill}
 			{dense ? (
 				<DenseBody
 					ticket={ticket}
@@ -705,6 +729,7 @@ export const TicketCard = ({
 							gap: 12,
 						}}
 					>
+						{featurePill}
 						{/* The title and, at its right, the controls centred on its first
 						    line; the line under it runs the card's whole width. */}
 						<div

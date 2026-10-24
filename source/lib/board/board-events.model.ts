@@ -171,6 +171,24 @@ export type AppEventMap = {
 		};
 	};
 
+	/**
+	 * Puts a ticket in a feature: another ticket, standing for the bigger thing
+	 * several tickets belong to. One feature at most; no `feature` takes it out.
+	 */
+	'set.issue.feature': {
+		payload: PayloadBase & {feature?: string};
+		result: {feature?: string};
+	};
+
+	/**
+	 * A ticket's own colour, which its feature's tickets are marked in. No
+	 * `color` returns it to the one derived from its title.
+	 */
+	'set.issue.color': {
+		payload: PayloadBase & {color?: string};
+		result: {color?: string};
+	};
+
 	'move.node': {
 		payload: PayloadBase & Position;
 		result: NavNode<AnyContext>;
@@ -375,6 +393,8 @@ export const EVENT_ACTIONS = [
 	'remove.issue.assignee',
 	'add.issue.tag',
 	'remove.issue.tag',
+	'set.issue.feature',
+	'set.issue.color',
 	'move.node',
 	'edit.description',
 	'add.issue.comment',

@@ -7,6 +7,8 @@ import {
 	tombstoneTag,
 	addIssueComment,
 	addIssueTag,
+	setIssueColor,
+	setIssueFeature,
 	closeIssue,
 	createBoard,
 	editBoardTitle,
@@ -805,6 +807,26 @@ export const setupWebsocket = (
 						onStateChanged,
 						'issue:tag:add:result',
 						result,
+					);
+				}
+
+				if (type === 'issue:feature:set') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:feature:set:result',
+						await setIssueFeature({repoRoot, ...message.payload}),
+					);
+				}
+
+				if (type === 'issue:color:set') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:color:set:result',
+						await setIssueColor({repoRoot, ...message.payload}),
 					);
 				}
 

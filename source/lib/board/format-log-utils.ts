@@ -32,6 +32,8 @@ export const formatLogAction = (action: string): string => {
 		'reopen.issue': 'Reopened',
 		'add.issue.tag': 'Tagged with',
 		'remove.issue.tag': 'Removed tag',
+		'set.issue.feature': 'Set feature',
+		'set.issue.color': 'Set colour',
 		'lock.node': 'Locked node',
 		'move.node': 'Moved issue',
 		'add.issue.comment': 'Commented',
@@ -113,6 +115,11 @@ const formatAttachmentKb = (bytes: number): string =>
 const getDeletedAttachmentName = (attachmentId: string): string =>
 	nodeRepo.getAttachment(attachmentId)?.name ?? '';
 
+// The feature's title as it reads now, or nothing: a cleared feature, or one
+// this board no longer has.
+const featureTitle = (featureId: string | undefined): string =>
+	(featureId && nodeRepo.getNode(featureId)?.title) || '';
+
 const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
 		case 'add.issue.tag': {
@@ -133,6 +140,14 @@ const formatEventDetails = (event: AppEvent): string => {
 			const tag = getState().tags[event.payload.id];
 			return tag ? `"${tag.name}"` : '';
 		}
+
+		case 'set.issue.feature':
+			return featureTitle(event.payload.feature) || 'none';
+
+		case 'set.issue.color':
+			return event.payload.color
+				? chalk.bgHex(event.payload.color)('   ')
+				: 'default';
 
 		case 'add.issue.assignee': {
 			const contributor = getState().contributors[event.payload.assignee];
@@ -230,6 +245,12 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 			const contributor = getState().contributors[event.payload.assignee];
 			return contributor ? contributor.name : '';
 		}
+
+		case 'set.issue.feature':
+			return featureTitle(event.payload.feature);
+
+		case 'set.issue.color':
+			return event.payload.color ?? '';
 
 		case 'tombstone.tag': {
 			const tag = getState().tags[event.payload.id];

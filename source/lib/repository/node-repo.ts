@@ -751,6 +751,52 @@ export const nodeRepo = {
 		return succeeded('Tag removed', {tag: tagId});
 	},
 
+	// Whatever the feature has become since, the link stands: a ticket whose
+	// feature is gone draws none, and draws it again if it comes back.
+	setFeature(
+		targetId: string,
+		featureId: string | undefined,
+	): Result<{feature?: string}> {
+		const target = this.getNode(targetId);
+		if (!target) return failed('Unable to set feature, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+		if (featureId === targetId)
+			return failed('A ticket is not its own feature');
+
+		const {feature: _previous, ...props} = target.props;
+		this.updateNode({
+			...target,
+			props: featureId ? {...props, feature: featureId} : props,
+		});
+
+		return succeeded('Feature set', featureId ? {feature: featureId} : {});
+	},
+
+	setColor(
+		targetId: string,
+		color: string | undefined,
+	): Result<{color?: string}> {
+		const target = this.getNode(targetId);
+		if (!target) return failed('Unable to set colour, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+
+		const {color: _previous, ...props} = target.props;
+		this.updateNode({
+			...target,
+			props: color ? {...props, color} : props,
+		});
+
+		return succeeded('Colour set', color ? {color} : {});
+	},
+
 	tombstoneTag(tagId: string): Result<Tag> {
 		const tag = this.getTagRecord(tagId);
 		if (!tag) return failed('Tag not found');

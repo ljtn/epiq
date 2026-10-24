@@ -9,6 +9,7 @@ import {
 	laneDwell,
 	liveExpiry,
 } from '../lib/lane-dwell';
+import {FeatureIndex} from '../lib/feature-index';
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
 import {IconLaneStats} from './IconLaneStats';
@@ -59,6 +60,7 @@ export const SwimlaneColumn = ({
 	statsOpen,
 	onOpenStats,
 	diffStats,
+	features,
 }: {
 	swimlane: GuiSwimlane;
 	selected: boolean;
@@ -105,6 +107,8 @@ export const SwimlaneColumn = ({
 	// one answer about the whole history, and the refs in it mostly belong to
 	// tickets standing in some other lane.
 	diffStats: RefDiffStats;
+	// Which tickets are features, for the mark on their own cards.
+	features: FeatureIndex;
 	// Neither the board's first lane nor its last: where work is under way, and
 	// so where a ticket can be stuck.
 	middle?: boolean;
@@ -384,6 +388,7 @@ export const SwimlaneColumn = ({
 									dwell={cardDwell(ticket)}
 									activity={activityOf(ticket)}
 									diff={diffStats[ticket.ref] ?? null}
+									asFeature={features.get(ticket.id) ?? null}
 									isolatedTagId={isolatedTagId}
 									onFilterByTag={onFilterByTag}
 									isolatedAssigneeId={isolatedAssigneeId}

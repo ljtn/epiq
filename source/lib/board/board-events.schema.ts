@@ -86,6 +86,8 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'remove.issue.assignee': z.looseObject({id, assignee: id}),
 	'add.issue.tag': z.looseObject({id, tag: id}),
 	'remove.issue.tag': z.looseObject({id, tag: id}),
+	'set.issue.feature': z.looseObject({id}),
+	'set.issue.color': z.looseObject({id}),
 
 	// `author` is unconstrained on both, though the type declares it. The
 	// attachment handler never reads it, the comment handler stores it as an id

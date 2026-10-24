@@ -46,6 +46,8 @@ import {
 } from './build-command-hint.js';
 import {getOfferedEmails} from '../state/email-offers.state.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
+import {nodeRef} from '../utils/node-ref.js';
+import {existingFeatures} from '../utils/feature.utils.js';
 import {CmdValidity, cmdValidity} from './cmd-validity.js';
 import {
 	ATTACHMENT_MAX_KB_HINTS,
@@ -924,6 +926,19 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		return requireExact(args);
 	},
+
+	[CmdKeywords.FEATURE]: args => {
+		const features = existingFeatures()
+			.slice(0, 10)
+			.map(feature => chip(nodeRef(feature.id)));
+
+		return requireModifierOrInputStr({
+			hint: features.length
+				? hintDefault('feature ref:') + features.join('') + hintDefault('')
+				: hintDefault('ref of the issue standing for the feature ...'),
+		})(args);
+	},
+	[CmdKeywords.UNFEATURE]: args => requireExact(args),
 
 	[CmdKeywords.CLOSE_ISSUE]: args => requireExact(args),
 	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),

@@ -1,3 +1,4 @@
+import {featureMark} from '../utils/feature.utils.js';
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
@@ -49,7 +50,9 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 		.filter((s): s is Contributor => Boolean(s));
 
 	const paddingRight = 1;
-	const tagsWidth = tags.length * (1 + paddingRight);
+	const feature = featureMark(ticket, 0);
+	const featureWidth = feature ? 1 + paddingRight : 0;
+	const tagsWidth = tags.length * (1 + paddingRight) + featureWidth;
 	const assigneesWidth = assignees.length * (2 + paddingRight);
 
 	const tagsRendered = tags.map(tag => (
@@ -111,6 +114,11 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 			</Box>
 
 			<Box>
+				{feature && (
+					<Box paddingRight={paddingRight}>
+						<Text color={feature.color}>◆</Text>
+					</Box>
+				)}
 				{tagsRendered}
 				{assigneesRendered}
 				{commentsRendered}

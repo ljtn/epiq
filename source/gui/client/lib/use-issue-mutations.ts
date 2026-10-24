@@ -82,6 +82,16 @@ export const useIssueMutations = ({
 		send('issue:tag:add', {issueId, tagName});
 	};
 
+	// Sent and left to the broadcast: the mark reads the feature's title and
+	// colour, which the server resolves.
+	const setIssueFeature = (issueId: string, feature: string | null) => {
+		send('issue:feature:set', {issueId, feature});
+	};
+
+	const setIssueColor = (issueId: string, color: string | null) => {
+		send('issue:color:set', {issueId, color});
+	};
+
 	const removeIssueTag = (issueId: string, tagId: string) => {
 		setState(prev => {
 			if (!prev) return prev;
@@ -339,6 +349,8 @@ export const useIssueMutations = ({
 		editIssueDescription,
 		addIssueTag,
 		removeIssueTag,
+		setIssueFeature,
+		setIssueColor,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,

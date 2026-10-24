@@ -29,6 +29,11 @@ export type GuiMessage =
 			payload: {issueId: string; description: string};
 	  }
 	| {type: 'issue:tag:add'; payload: {issueId: string; tagName: string}}
+	| {
+			type: 'issue:feature:set';
+			payload: {issueId: string; feature: string | null};
+	  }
+	| {type: 'issue:color:set'; payload: {issueId: string; color: string | null}}
 	| {type: 'issue:tag:remove'; payload: {issueId: string; tagId: string}}
 	| {
 			type: 'contributor:remove';

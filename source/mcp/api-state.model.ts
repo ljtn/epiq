@@ -38,6 +38,10 @@ export type ApiIssue = {
 	/** Present only for a load-derived lock, which knows why it exists. */
 	tags: ApiTag[];
 	assignees: ApiAssignee[];
+	/** Absent when it belongs to none, or its feature is gone. */
+	feature?: ApiFeatureRef;
+	/** Its own colour, set only when somebody picked one. */
+	color?: string;
 	parentNodeId: string;
 	isClosed: boolean;
 	/**
@@ -47,6 +51,15 @@ export type ApiIssue = {
 	 * board, and a move can take it to another board outright.
 	 */
 	boardIds: string[];
+};
+
+/** The feature a ticket belongs to, resolved: it reads as the ticket does now. */
+export type ApiFeatureRef = {
+	id: string;
+	ref: string;
+	title: string;
+	// Its own colour, or the one its title derives.
+	color: string;
 };
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};

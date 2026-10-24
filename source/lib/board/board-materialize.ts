@@ -9,6 +9,7 @@ import {failed, isFail, succeeded} from '../model/result-types.js';
 import {FieldNames} from '../repository/fielNames.js';
 import {isValidEmail} from '../model/email-link.js';
 import {nodeRepo} from '../repository/node-repo.js';
+import {HEX_COLOR} from '../utils/color.js';
 import {nodes} from '../state/node-builder.js';
 import {getState, initWorkspaceState, updateState} from '../state/state.js';
 import {EventHandlers} from '../event/event-catalog.js';
@@ -405,6 +406,42 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 		return succeeded('Issue untagged', {
 			action: event.action,
 			result: {tag},
+		});
+	},
+
+	'set.issue.feature': event => {
+		const {id, feature} = event.payload;
+		const result = nodeRepo.setFeature(
+			id,
+			typeof feature === 'string' && feature ? feature : undefined,
+		);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to set feature', event);
+		}
+
+		return succeeded('Feature set', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'set.issue.color': event => {
+		const {id, color} = event.payload;
+		// A colour this build cannot read is dropped, not the event: the ticket
+		// falls back to the colour of its title.
+		const result = nodeRepo.setColor(
+			id,
+			typeof color === 'string' && HEX_COLOR.test(color) ? color : undefined,
+		);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to set colour', event);
+		}
+
+		return succeeded('Colour set', {
+			action: event.action,
+			result: result.value,
 		});
 	},
 

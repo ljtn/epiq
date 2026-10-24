@@ -243,3 +243,6 @@ export const getGradientStyles = (word: string) => {
 export const getGradientWord = (word: string) => {
 	return getGradientWordStyle(word).normal(` ${word} `);
 };
+
+/** A colour a ticket may be given: `#rrggbb`, nothing looser. */
+export const HEX_COLOR = /^#[0-9a-f]{6}$/i;

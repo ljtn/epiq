@@ -22,6 +22,8 @@ export const MUTATING_MESSAGE_TYPES = new Set<string>([
 	'issue:edit:description',
 	'issue:tag:add',
 	'issue:tag:remove',
+	'issue:feature:set',
+	'issue:color:set',
 	'contributor:remove',
 	'tag:remove',
 	'issue:assignee:add',

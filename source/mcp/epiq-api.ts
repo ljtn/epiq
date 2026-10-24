@@ -30,6 +30,7 @@ export {
 	editBoardDescription,
 	editSwimlaneDescription,
 } from './api/descriptions.js';
+export {setIssueColor, setIssueFeature} from './api/features.js';
 export {
 	addIssueTag,
 	tombstoneTag,

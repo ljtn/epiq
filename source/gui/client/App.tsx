@@ -122,6 +122,11 @@ import {
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useNeedleUrl} from './lib/needle-url';
+import {
+	allIssues,
+	buildFeatureIndex,
+	EMPTY_FEATURES,
+} from './lib/feature-index';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useBoardOverview} from './lib/use-board-overview';
@@ -497,6 +502,18 @@ export const App = () => {
 					: null,
 			sendRaw,
 		});
+
+	// Read off the board's state, never stored: a ticket is a feature by having
+	// tickets that belong to it.
+	const featureIndex = useMemo(
+		() => (state ? buildFeatureIndex(state) : EMPTY_FEATURES),
+		[state],
+	);
+
+	const featureCandidates = useMemo(
+		() => (state ? allIssues(state) : []),
+		[state],
+	);
 
 	// The bar beside a card's ref. Repository-wide and asked for once, not per
 	// card and not on the board's own state: a commit is not an event the log
@@ -1393,6 +1410,8 @@ export const App = () => {
 		editIssueDescription,
 		addIssueTag,
 		removeIssueTag,
+		setIssueFeature,
+		setIssueColor,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,
@@ -2241,6 +2260,7 @@ export const App = () => {
 												}
 												live={state?.timeTravel?.mode !== 'scrub'}
 												diffStats={refDiffStats}
+												features={featureIndex}
 												statsOpen={statsSwimlaneId === swimlane.id}
 												onOpenStats={openSwimlaneStats}
 												selected={false}
@@ -2494,6 +2514,11 @@ export const App = () => {
 										onEditDescription={editIssueDescription}
 										onAddTag={addIssueTag}
 										onRemoveTag={removeIssueTag}
+										features={featureIndex}
+										featureCandidates={featureCandidates}
+										onSetFeature={setIssueFeature}
+										onSetColor={setIssueColor}
+										onOpenIssue={id => openIssueTab(id, 'overview')}
 										onAddAssignee={addIssueAssignee}
 										onAddExternalAssignee={addExternalIssueAssignee}
 										onRemoveContributor={removeContributor}

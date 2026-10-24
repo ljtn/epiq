@@ -9,6 +9,10 @@ export type TicketProps = {
 	description?: string;
 	assignees?: string[];
 	tags?: string[];
+	// The ticket standing for the feature this one belongs to.
+	feature?: string;
+	// A `#rrggbb` its feature's tickets are marked in, when it is one.
+	color?: string;
 };
 
 export type BoardProps = {

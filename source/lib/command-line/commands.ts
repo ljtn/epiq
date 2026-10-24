@@ -24,6 +24,10 @@ import {reopenIssueCommand} from './commands/reopen-issue.cmd.js';
 import {renameCommand} from './commands/rename.cmd.js';
 import {untagTicketCommand} from './commands/untag-ticket.cmd.js';
 import {tagTicketCommand} from './commands/tag-ticket.cmd.js';
+import {
+	featureTicketCommand,
+	unfeatureTicketCommand,
+} from './commands/feature-ticket.cmd.js';
 import {assignUserCommand} from './commands/assign-user.cmd.js';
 import {unassignUserCommand} from './commands/unassign-user.cmd.js';
 import {commentCommand} from './commands/comment.cmd.js';
@@ -151,6 +155,20 @@ export const commands: CommandLineActionEntry[] = [
 		description: 'Add or create a tag on the selected issue',
 		mode: Mode.COMMAND_LINE,
 		action: tagTicketCommand,
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.FeatureTicket,
+		description: 'Put the selected issue in a feature, named by its ref',
+		mode: Mode.COMMAND_LINE,
+		action: featureTicketCommand,
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.UnfeatureTicket,
+		description: 'Take the selected issue out of its feature',
+		mode: Mode.COMMAND_LINE,
+		action: unfeatureTicketCommand,
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{

@@ -43,6 +43,8 @@ import {
 } from '../lib/diff-selection';
 import {parseDiffCommentMeta} from '../../../lib/utils/diff-comment.js';
 import {DescriptionField} from './DescriptionField';
+import {FeatureSection} from './FeatureSection';
+import {EMPTY_FEATURES, FeatureIndex} from '../lib/feature-index';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
@@ -298,6 +300,11 @@ export const IssueDetails = ({
 	attachmentUploadStatus,
 	onUploadAttachments,
 	onDeleteAttachment,
+	features = EMPTY_FEATURES,
+	featureCandidates = [],
+	onSetFeature,
+	onSetColor,
+	onOpenIssue,
 	commits,
 	commitsLoading,
 	commitsError,
@@ -383,6 +390,13 @@ export const IssueDetails = ({
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
 	onOpenAssigneePicker: () => void;
+	// The Feature row's: which tickets are features, what may be picked, and
+	// where its tickets open. Without the handlers the row is not drawn.
+	features?: FeatureIndex;
+	featureCandidates?: GuiIssue[];
+	onSetFeature?: (issueId: string, feature: string | null) => void;
+	onSetColor?: (issueId: string, color: string | null) => void;
+	onOpenIssue?: (issueId: string) => void;
 }) => {
 	// Unsent, so in the ticket's drafts.
 	const titleEdit = useEditDraft(issue?.id ?? '', 'title', issue?.title ?? '');
@@ -735,6 +749,18 @@ export const IssueDetails = ({
 								</AddRow>
 							)}
 						</Section>
+
+						{onSetFeature && onSetColor && onOpenIssue && (
+							<FeatureSection
+								issue={issue}
+								asFeature={features.get(issue.id) ?? null}
+								features={features}
+								candidates={featureCandidates}
+								onSetFeature={onSetFeature}
+								onSetColor={onSetColor}
+								onOpenIssue={onOpenIssue}
+							/>
+						)}
 
 						<Section
 							title="Assignees"
