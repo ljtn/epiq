@@ -400,9 +400,9 @@ const DenseBody = ({
 					</span>
 				)}
 
-				{/* Who has it, quietly, in a slot of one width whether anyone does
-				    or not, so the diff after it lines up down the lane. The name
-				    narrows the board to that person's tickets, as a tag does. */}
+				{/* Its goal and who has it, quietly, in a slot of one width whether
+				    either is there or not, so the diff after it lines up down the
+				    lane. Each narrows the board to its tickets, as a tag does. */}
 				<span
 					style={{
 						width: DENSE_ASSIGNEE_WIDTH,
@@ -410,9 +410,12 @@ const DenseBody = ({
 						// with many tags keeps them and its live mark whole.
 						flexShrink: 1,
 						display: 'flex',
+						alignItems: 'center',
+						gap: 6,
 						minWidth: 0,
 					}}
 				>
+					{goal}
 					<AssigneeName
 						assignees={ticket.assignees}
 						isolatedAssigneeId={isolatedAssigneeId}
@@ -425,8 +428,6 @@ const DenseBody = ({
 				<DiffButton diff={diff} onOpen={onOpenCode} variant="row" />
 
 				<span style={{flex: 1}} />
-
-				{goal}
 
 				<span
 					style={{

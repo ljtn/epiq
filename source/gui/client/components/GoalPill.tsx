@@ -59,9 +59,8 @@ export const GoalPill = ({
 			: variant === 'inline'
 			? {
 					...square,
-					maxWidth: '40%',
-					// Gives before the assignee's slot does, so the diff stays where
-					// it is on every card in the lane.
+					// Shares the assignee's slot, giving way before the name does.
+					maxWidth: '100%',
 					flexShrink: 1000,
 					minWidth: 0,
 					padding: '0 6px',
