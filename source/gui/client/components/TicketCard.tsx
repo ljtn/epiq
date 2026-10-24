@@ -22,7 +22,7 @@ import {
 	useCardDensityView,
 } from '../lib/card-density';
 import {Button} from './Button';
-import {FeaturePill, featureStripe} from './FeaturePill';
+import {FeaturePill, FeatureStripe} from './FeaturePill';
 import {FeatureSummary} from '../lib/feature-index';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
@@ -674,13 +674,14 @@ export const TicketCard = ({
 				border: `1px solid ${
 					isSelected || isPicked ? GUI_THEME.accentEdge : 'transparent'
 				}`,
-				boxShadow: featureColor ? featureStripe(featureColor) : undefined,
+				position: 'relative',
 				// The flash is applied to the node directly (see above), so it must
 				// not be set here too or React would put it back on every render and
 				// cut the running one short.
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
+			{featureColor && <FeatureStripe color={featureColor} />}
 			{dense && featurePill}
 			{dense ? (
 				<DenseBody

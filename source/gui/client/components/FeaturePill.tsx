@@ -42,5 +42,20 @@ export const FeaturePill = ({
 	</span>
 );
 
-/** The card's stripe along its left edge, drawn without touching its border. */
-export const featureStripe = (color: string) => `inset 3px 0 0 ${color}`;
+/** A straight bar inside the card's left edge, clear of its rounded corners. */
+export const FeatureStripe = ({color}: {color: string}) => (
+	<span
+		data-testid="ticket-feature-stripe"
+		aria-hidden
+		style={{
+			position: 'absolute',
+			left: 4,
+			top: 8,
+			bottom: 8,
+			width: 2,
+			borderRadius: 1,
+			background: color,
+			pointerEvents: 'none',
+		}}
+	/>
+);
