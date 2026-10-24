@@ -630,7 +630,7 @@ export const TicketCard = ({
 				// Inherited by the title and nothing else: everything else on the card
 				// sets a tone of its own.
 				color:
-					isSelected || isPicked ? GUI_THEME.accent : GUI_THEME.primarySoft,
+					isSelected || isPicked ? GUI_THEME.primary : GUI_THEME.primarySoft,
 				fontSize: 11,
 				cursor: ticket.readonly ? 'default' : 'grab',
 				// A selected card is a step above a resting one, not a different
@@ -638,8 +638,8 @@ export const TicketCard = ({
 				// or picking one stops reading as picking it up.
 				background:
 					isSelected || isPicked
-						? 'rgba(118, 228, 255, 0.11)'
-						: 'rgba(185, 192, 255, 0.08)',
+						? 'rgba(185, 192, 255, 0.1)'
+						: 'rgba(185, 192, 255, 0.055)',
 				// Roomier than a list row: a card is read, not scanned, and the
 				// air around its title is what keeps a column of them from
 				// running together.
@@ -650,7 +650,7 @@ export const TicketCard = ({
 				borderRadius: view.metrics.radius,
 				marginBottom: view.metrics.gap,
 				border: `1px solid ${
-					isSelected || isPicked ? GUI_THEME.accent : 'transparent'
+					isSelected || isPicked ? 'rgba(118, 212, 255, 0.5)' : 'transparent'
 				}`,
 				// The flash is applied to the node directly (see above), so it must
 				// not be set here too or React would put it back on every render and
