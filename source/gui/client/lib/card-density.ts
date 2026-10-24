@@ -12,6 +12,8 @@ export type CardDensity = 'wide' | 'dense';
 export type CardMetrics = {
 	// The card's box.
 	padding: string;
+	// The same box on a card in a goal, its top making room for the goal's tab.
+	goalPadding: string;
 	minHeight: number;
 	radius: number;
 	// Between one card and the next in a lane.
@@ -26,6 +28,7 @@ export type CardMetrics = {
 export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	wide: {
 		padding: '12px 18px 12px 0',
+		goalPadding: '22px 18px 12px 0',
 		minHeight: 58,
 		radius: 8,
 		gap: 12,
@@ -35,6 +38,7 @@ export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	},
 	dense: {
 		padding: '7px 11px',
+		goalPadding: '20px 11px 7px',
 		minHeight: 0,
 		radius: 6,
 		gap: 4,

@@ -606,6 +606,7 @@ export const TicketCard = ({
 			strong
 			color={asGoal.color}
 			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
+			corner={view.metrics.radius}
 			{...goalFilter}
 		/>
 	) : ticket.goal ? (
@@ -613,6 +614,7 @@ export const TicketCard = ({
 			testId="ticket-goal"
 			color={ticket.goal.color}
 			label={ticket.goal.title}
+			corner={view.metrics.radius}
 			{...goalFilter}
 		/>
 	) : null;
@@ -685,7 +687,7 @@ export const TicketCard = ({
 				// air around its title is what keeps a column of them from
 				// running together.
 				// None on the left: the index's box is the margin there.
-				padding: view.metrics.padding,
+				padding: goalPill ? view.metrics.goalPadding : view.metrics.padding,
 				minHeight: view.metrics.minHeight,
 				boxSizing: 'border-box',
 				borderRadius: view.metrics.radius,
@@ -701,7 +703,7 @@ export const TicketCard = ({
 			}}
 		>
 			{goalColor && <GoalStripe color={goalColor} />}
-			{dense && goalPill}
+			{goalPill}
 			{dense ? (
 				<DenseBody
 					ticket={ticket}
@@ -749,7 +751,6 @@ export const TicketCard = ({
 							gap: 12,
 						}}
 					>
-						{goalPill}
 						{/* The title and, at its right, the controls centred on its first
 						    line; the line under it runs the card's whole width. */}
 						<div
