@@ -96,6 +96,8 @@ export const GUI_THEME = {
 	// a follow is pointing at: the log's followed line, the comment a log line
 	// leads to. Faint on purpose — it says "this one", not "look here".
 	accentWash: 'rgba(118, 212, 255, 0.1)',
+	// The accent as the edge of a selected card: the only accent it carries.
+	accentEdge: 'rgba(118, 212, 255, 0.5)',
 	green: '#8ce99a',
 	// One step short of `red`, at the same pastel weight, for anything that
 	// warns before it alarms.

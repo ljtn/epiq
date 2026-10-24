@@ -650,7 +650,7 @@ export const TicketCard = ({
 				borderRadius: view.metrics.radius,
 				marginBottom: view.metrics.gap,
 				border: `1px solid ${
-					isSelected || isPicked ? 'rgba(118, 212, 255, 0.5)' : 'transparent'
+					isSelected || isPicked ? GUI_THEME.accentEdge : 'transparent'
 				}`,
 				// The flash is applied to the node directly (see above), so it must
 				// not be set here too or React would put it back on every render and
