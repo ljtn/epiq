@@ -3,6 +3,7 @@
 // put in one, picked from the features there are or from any ticket by title.
 
 import React, {useState} from 'react';
+import {useAddRow} from '../lib/use-add-row';
 import {GUI_THEME} from '../lib/gui-theme';
 import {GuiIssue} from '../lib/gui-state.model';
 import {FeatureIndex, FeatureSummary} from '../lib/feature-index';
@@ -119,12 +120,15 @@ export const FeatureSection = ({
 	onSetColor: (issueId: string, color: string | null) => void;
 	onOpenIssue: (issueId: string) => void;
 }) => {
-	const [picking, setPicking] = useState(false);
+	const row = useAddRow();
 	const [query, setQuery] = useState('');
 	const disabled = issue.readonly;
 
-	// A feature is in none itself, so only a ticket outside both can pick one.
-	const canPick = !disabled && !asFeature && !issue.feature;
+	// A feature opens to its colours; a ticket outside one, to the picker. A
+	// ticket in a feature has its chip to leave it by.
+	const canOpen = !disabled && (asFeature !== null || !issue.feature);
+	const start = canOpen && !row.open ? row.start : undefined;
+	const picking = row.open && !asFeature && !issue.feature;
 
 	const needle = query.trim().toLowerCase();
 	const matches = (candidate: GuiIssue) =>
@@ -150,21 +154,22 @@ export const FeatureSection = ({
 
 	const pick = (featureId: string) => {
 		onSetFeature(issue.id, featureId);
-		setPicking(false);
+		row.close();
 		setQuery('');
 	};
 
 	return (
 		<Section
 			title="Feature"
+			focusProps={canOpen ? row.sectionProps : undefined}
 			action={
-				(canPick && !picking && (
-					<Button variant="ghost" onClick={() => setPicking(true)}>
+				(start && (
+					<Button variant="ghost" onClick={start}>
 						+
 					</Button>
 				)) ||
-				(picking && (
-					<Button variant="ghost" onClick={() => setPicking(false)}>
+				(row.open && (
+					<Button variant="ghost" onClick={row.close}>
 						-
 					</Button>
 				))
@@ -172,7 +177,7 @@ export const FeatureSection = ({
 		>
 			{asFeature ? (
 				<>
-					<ChipRow testId="feature-own-row">
+					<ChipRow testId="feature-own-row" onActivate={start}>
 						<FeaturePill
 							testId="feature-own"
 							strong
@@ -180,12 +185,14 @@ export const FeatureSection = ({
 							label={`Feature · ${asFeature.done}/${asFeature.members.length} done`}
 						/>
 					</ChipRow>
-					<FeatureColors
-						color={issue.color}
-						autoColor={asFeature.color}
-						disabled={disabled}
-						onPick={color => onSetColor(issue.id, color)}
-					/>
+					{row.open && (
+						<FeatureColors
+							color={issue.color}
+							autoColor={asFeature.color}
+							disabled={disabled}
+							onPick={color => onSetColor(issue.id, color)}
+						/>
+					)}
 					<div
 						data-testid="feature-members"
 						style={{display: 'flex', flexDirection: 'column', gap: 2}}
@@ -250,10 +257,7 @@ export const FeatureSection = ({
 				</ChipRow>
 			) : (
 				<ChipRow testId="feature-row">
-					<Empty
-						testId="feature-empty"
-						onActivate={canPick ? () => setPicking(true) : undefined}
-					>
+					<Empty testId="feature-empty" onActivate={start}>
 						No feature
 					</Empty>
 				</ChipRow>
@@ -263,14 +267,14 @@ export const FeatureSection = ({
 				<>
 					<AddRow>
 						<Input
-							autoFocus
+							ref={row.inputRef}
 							data-testid="feature-search"
 							value={query}
 							placeholder="Feature, or any ticket by title"
 							onChange={event => setQuery(event.target.value)}
 							onKeyDown={event => {
 								if (event.key === 'Enter' && options[0]) pick(options[0].id);
-								if (event.key === 'Escape') setPicking(false);
+								if (event.key === 'Escape') row.close();
 							}}
 						/>
 					</AddRow>
