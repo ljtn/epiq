@@ -124,11 +124,10 @@ export const GoalSection = ({
 	const [query, setQuery] = useState('');
 	const disabled = issue.readonly;
 
-	// A goal opens to its colours; a ticket outside one, to the picker. A
-	// ticket in a goal has its chip to leave it by.
-	const canOpen = !disabled && (asGoal !== null || !issue.goal);
+	// A goal opens to its colours; any other ticket, to the picker.
+	const canOpen = !disabled;
 	const start = canOpen && !row.open ? row.start : undefined;
-	const picking = row.open && !asGoal && !issue.goal;
+	const picking = row.open && !asGoal;
 
 	const needle = query.trim().toLowerCase();
 	const matches = (candidate: GuiIssue) =>
@@ -138,6 +137,7 @@ export const GoalSection = ({
 		candidate =>
 			goals.has(candidate.id) &&
 			candidate.id !== issue.id &&
+			candidate.id !== issue.goal?.id &&
 			matches(candidate),
 	);
 	const others = needle
@@ -238,7 +238,7 @@ export const GoalSection = ({
 					</div>
 				</>
 			) : issue.goal ? (
-				<ChipRow testId="goal-row">
+				<ChipRow testId="goal-row" onActivate={start}>
 					<Button
 						variant="chip"
 						disabled={disabled}
@@ -247,9 +247,6 @@ export const GoalSection = ({
 						onClick={() => onSetGoal(issue.id, null)}
 					>
 						{issue.goal.title} {!disabled && '×'}
-					</Button>
-					<Button variant="ghost" onClick={() => onOpenIssue(issue.goal!.id)}>
-						Open
 					</Button>
 				</ChipRow>
 			) : (
