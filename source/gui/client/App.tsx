@@ -128,6 +128,7 @@ import {useBoardOverview} from './lib/use-board-overview';
 import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
 import {useSyncSettings} from './lib/use-sync-settings';
+import {useUpdateInfo} from './lib/use-update-info';
 import {useRepos} from './lib/use-repos';
 import {RepoLabelsContext} from './lib/use-repo-label';
 import {useCommitRepoFilter} from './lib/commit-repo-filter';
@@ -533,6 +534,7 @@ export const App = () => {
 	// on opening it, and the totals again after a claim — which is what moves
 	// the commit figure without the board changing at all.
 	const syncSettings = useSyncSettings({open: settingsOpen, sendRaw});
+	const updateInfo = useUpdateInfo({socketEpoch, sendRaw});
 	// The other repos whose commits count as the board's.
 	const repos = useRepos({open: settingsOpen, sendRaw, socketEpoch});
 	const registeredRepoIds = useMemo(
@@ -1058,6 +1060,7 @@ export const App = () => {
 
 		contributorEmails.onMessage(message);
 		syncSettings.onMessage(message);
+		updateInfo.onMessage(message);
 		repos.onMessage(message);
 		personalStats.onMessage(message);
 
@@ -2010,6 +2013,7 @@ export const App = () => {
 											: 'reconnecting'
 									}
 									onReconnect={reconnectNow}
+									update={updateInfo.update}
 									scrubbing={state?.timeTravel?.mode === 'scrub'}
 									syncStatus={syncStatus}
 									onOpenCommands={() => commandPalette.setOpen(true)}

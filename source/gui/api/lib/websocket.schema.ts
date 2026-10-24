@@ -191,6 +191,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	message('board:overview:get', z.object({boardId: id})),
 	bare('me:stats:get'),
 	bare('settings:get'),
+	bare('version:get'),
 	message(
 		'settings:set',
 		z.object({

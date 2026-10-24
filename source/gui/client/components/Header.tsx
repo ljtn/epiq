@@ -8,6 +8,7 @@ import {CommandPaletteHint} from './CommandPaletteHint';
 import {Panel} from './Panel';
 import {User} from './User';
 import {EPIQ_VERSION} from '../../../version.js';
+import {VersionBadge} from './VersionBadge';
 
 type HeaderProps = {
 	state: GuiState | null;
@@ -32,6 +33,7 @@ type HeaderProps = {
 		onToggle: () => void;
 		ref: React.RefObject<HTMLSpanElement | null>;
 	};
+	update: React.ComponentProps<typeof VersionBadge>['update'];
 };
 
 export const Header = ({
@@ -44,6 +46,7 @@ export const Header = ({
 	board,
 	notice,
 	settings,
+	update,
 }: HeaderProps) => {
 	const syncColor =
 		syncStatus.status === 'synced'
@@ -197,13 +200,7 @@ export const Header = ({
 						)}
 
 						<span style={{color: GUI_THEME.dim}}>|</span>
-						<span
-							style={{
-								color: GUI_THEME.dim,
-							}}
-						>
-							{'v' + EPIQ_VERSION}
-						</span>
+						<VersionBadge current={EPIQ_VERSION} update={update} />
 					</div>
 
 					{/* The one way into settings: the viewer's own avatar, which says

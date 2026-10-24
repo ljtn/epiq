@@ -18,6 +18,9 @@ import {HANDOFF_PATH, type Handoff} from './handoff.js';
 process.env['EPIQ_CACHE_MS'] = '0';
 // The tests connect repos from local paths; a real server refuses them.
 process.env['EPIQ_ALLOW_LOCAL_REPOS'] = '1';
+// The suite never asks npm or GitHub what is new; a test that wants an update
+// stands in for the server's answer.
+process.env['EPIQ_NO_UPDATE_CHECK'] = '1';
 
 const servers: Array<{close: () => void}> = [];
 
