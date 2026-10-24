@@ -470,6 +470,36 @@ describe('timeline-index', () => {
 			]);
 		});
 
+		// Otherwise one bare word, which a run of closes repeats down the log.
+		it("opens a close or reopen line with its ticket's ref", () => {
+			const at = (n: number, action: string, payload: object) => ({
+				id: ulid(baseTime + n * 1000),
+				action,
+				payload,
+				userId: 'u-1',
+				userName: 'jo',
+			});
+
+			const entries = buildTimelineEntries([
+				at(0, 'add.swimlane', {id: 'lane-1', name: 'Todo', parent: 'b-1'}),
+				at(1, 'add.issue', {
+					id: '01KS22YK9AXCMATZXTR5JZCS5M',
+					name: 'Ship',
+					parent: 'lane-1',
+				}),
+				at(2, 'close.issue', {id: '01KS22YK9AXCMATZXTR5JZCS5M'}),
+				at(3, 'reopen.issue', {
+					id: '01KS22YK9AXCMATZXTR5JZCS5M',
+					parent: 'lane-1',
+				}),
+			] as never);
+
+			expect(entries.slice(2).map(entry => entry.label)).toEqual([
+				'5JZCS5M closed',
+				'5JZCS5M reopened',
+			]);
+		});
+
 		// A lane or board event has no ticket for its line to sit under, so the
 		// line names what it was about, by kind and by the name it had then.
 		it('names the lane or board a structural event was about', () => {
