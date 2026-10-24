@@ -9,9 +9,95 @@ import {FeatureIndex, FeatureSummary} from '../lib/feature-index';
 import {Button} from './Button';
 import {AddRow, ChipRow, Empty, Input} from './FormPrimitives';
 import {FeaturePill} from './FeaturePill';
+import {IconCheck} from './IconCheck';
 import {Section} from './Section';
 
 const PICK_LIMIT = 8;
+
+// The wheel at the saturation and lightness a name's own colour is drawn at,
+// so a picked colour sits among tags and auto colours as one of them.
+const SWATCHES = [
+	'#cc6666',
+	'#cc9966',
+	'#cccc66',
+	'#99cc66',
+	'#66cc66',
+	'#66cc99',
+	'#66cccc',
+	'#6699cc',
+	'#6666cc',
+	'#9966cc',
+	'#cc66cc',
+	'#cc6699',
+];
+
+const SWATCH_SIZE = 16;
+
+const FeatureColors = ({
+	color,
+	autoColor,
+	disabled,
+	onPick,
+}: {
+	color?: string;
+	autoColor: string;
+	disabled: boolean;
+	onPick: (color: string | null) => void;
+}) => (
+	<div
+		data-testid="feature-colors"
+		style={{
+			display: 'flex',
+			flexWrap: 'wrap',
+			alignItems: 'center',
+			gap: 6,
+			padding: '6px 0 8px',
+		}}
+	>
+		<Button
+			variant="chip"
+			dense
+			testId="feature-color-auto"
+			tint={color ? undefined : autoColor}
+			held={!color}
+			disabled={disabled}
+			onClick={() => color && onPick(null)}
+		>
+			Auto
+		</Button>
+		{SWATCHES.map(swatch => {
+			const held = color === swatch;
+
+			return (
+				<button
+					key={swatch}
+					type="button"
+					data-testid={`feature-color-${swatch.slice(1)}`}
+					aria-label={swatch}
+					aria-pressed={held}
+					disabled={disabled}
+					onClick={() => !held && onPick(swatch)}
+					style={{
+						width: SWATCH_SIZE,
+						height: SWATCH_SIZE,
+						padding: 0,
+						borderRadius: 999,
+						borderWidth: 0,
+						display: 'inline-flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						color: GUI_THEME.bg,
+						background: swatch,
+						opacity: held || !color ? 1 : 0.55,
+						cursor: disabled ? 'default' : 'pointer',
+					}}
+				>
+					{held && <IconCheck size={11} />}
+				</button>
+			);
+		})}
+	</div>
+);
 
 const label = (issue: GuiIssue) => `${issue.ref} ${issue.title}`;
 
@@ -93,31 +179,13 @@ export const FeatureSection = ({
 							color={asFeature.color}
 							label={`Feature · ${asFeature.done}/${asFeature.members.length} done`}
 						/>
-						<input
-							type="color"
-							data-testid="feature-color"
-							aria-label="Feature colour"
-							disabled={disabled}
-							value={asFeature.color}
-							onChange={event => onSetColor(issue.id, event.target.value)}
-							style={{
-								width: 22,
-								height: 18,
-								padding: 0,
-								borderWidth: 0,
-								background: 'transparent',
-								cursor: disabled ? 'default' : 'pointer',
-							}}
-						/>
-						{issue.color && !disabled && (
-							<Button
-								variant="ghost"
-								onClick={() => onSetColor(issue.id, null)}
-							>
-								Reset colour
-							</Button>
-						)}
 					</ChipRow>
+					<FeatureColors
+						color={issue.color}
+						autoColor={asFeature.color}
+						disabled={disabled}
+						onPick={color => onSetColor(issue.id, color)}
+					/>
 					<div
 						data-testid="feature-members"
 						style={{display: 'flex', flexDirection: 'column', gap: 2}}
