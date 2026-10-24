@@ -51,7 +51,6 @@ export const GoalSection = ({
 	const disabled = issue.readonly;
 
 	// A goal is in none itself; any other ticket opens to the picker.
-	const canOpen = !disabled && !asGoal;
 	const picking = row.open && !asGoal;
 
 	const needle = query.trim().toLowerCase();
@@ -183,7 +182,7 @@ export const GoalSection = ({
 	const litAt = Math.min(lit, choices.length - 1);
 
 	return (
-		<Section title="Goal" focusProps={canOpen ? row.sectionProps : undefined}>
+		<Section title="Goal">
 			{asGoal ? (
 				<>
 					<ChipRow testId="goal-own-row">
@@ -280,7 +279,8 @@ export const GoalSection = ({
 			)}
 
 			{picking && (
-				<div style={{position: 'relative'}}>
+				// A dropdown: a press anywhere outside it, even in the section, closes it.
+				<div {...row.sectionProps} style={{position: 'relative'}}>
 					<AddRow>
 						<Input
 							ref={row.inputRef}

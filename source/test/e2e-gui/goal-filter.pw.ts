@@ -94,6 +94,12 @@ test('clicking the goal a ticket is in opens the picker, which can take it out o
 	await expect(page.getByTestId('goal-leave')).toHaveCount(0);
 	await page.getByTestId('goal-search').fill('');
 
+	// A press just above the list, still in the section, closes it.
+	const search = await page.getByTestId('goal-search').boundingBox();
+	await page.mouse.click(search!.x + 20, search!.y - 6);
+	await expect(page.getByTestId('goal-search')).toHaveCount(0);
+	await page.getByTestId('goal-current').click();
+
 	await page.getByTestId('goal-leave').click();
 	await expect(page.getByTestId('goal-current')).toHaveText('No goal');
 	await expect(page.getByTestId('goal-search')).toHaveCount(0);
