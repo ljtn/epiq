@@ -180,15 +180,6 @@ export type AppEventMap = {
 		result: {goal?: string};
 	};
 
-	/**
-	 * A ticket's own colour, which its goal's tickets are marked in. No
-	 * `color` returns it to the one derived from its title.
-	 */
-	'set.issue.color': {
-		payload: PayloadBase & {color?: string};
-		result: {color?: string};
-	};
-
 	'move.node': {
 		payload: PayloadBase & Position;
 		result: NavNode<AnyContext>;
@@ -394,7 +385,6 @@ export const EVENT_ACTIONS = [
 	'add.issue.tag',
 	'remove.issue.tag',
 	'set.issue.goal',
-	'set.issue.color',
 	'move.node',
 	'edit.description',
 	'add.issue.comment',

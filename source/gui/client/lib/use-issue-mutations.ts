@@ -88,10 +88,6 @@ export const useIssueMutations = ({
 		send('issue:goal:set', {issueId, goal});
 	};
 
-	const setIssueColor = (issueId: string, color: string | null) => {
-		send('issue:color:set', {issueId, color});
-	};
-
 	const removeIssueTag = (issueId: string, tagId: string) => {
 		setState(prev => {
 			if (!prev) return prev;
@@ -350,7 +346,6 @@ export const useIssueMutations = ({
 		addIssueTag,
 		removeIssueTag,
 		setIssueGoal,
-		setIssueColor,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,

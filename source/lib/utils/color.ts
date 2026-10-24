@@ -154,6 +154,11 @@ export const getStringColor = (
 	return stringToHslHexColor(normalized);
 };
 
+// A name's hue, quietened: for a mark that sits on many cards at once, where
+// a tag's full colour would crowd the board.
+export const getMutedStringColor = (value: string): string =>
+	rgbToHex(hslToRgb(hashString(normalizeName(value)) % 360, 28, 58));
+
 export const getDimStringColor = (
 	id: string,
 	config = TAGS_DEFAULT,
@@ -243,6 +248,3 @@ export const getGradientStyles = (word: string) => {
 export const getGradientWord = (word: string) => {
 	return getGradientWordStyle(word).normal(` ${word} `);
 };
-
-/** A colour a ticket may be given: `#rrggbb`, nothing looser. */
-export const HEX_COLOR = /^#[0-9a-f]{6}$/i;

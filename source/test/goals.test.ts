@@ -12,7 +12,6 @@ import {
 	createIssue,
 	listBoards,
 	listSwimlanes,
-	setIssueColor,
 	setIssueGoal,
 } from '../mcp/epiq-api.js';
 import {deriveGuiState} from '../mcp/api/state.js';
@@ -71,10 +70,6 @@ describe('a ticket in a goal', () => {
 		expect(goal.color).toMatch(/^#[0-9a-f]{6}$/i);
 		expect(issueOf(epic).goal).toBeUndefined();
 
-		unwrap(await setIssueColor({repoRoot, issueId: epic, color: '#AA3300'}));
-		expect(issueOf(part).goal!.color).toBe('#aa3300');
-		expect(issueOf(epic).color).toBe('#aa3300');
-
 		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: null}));
 		expect(issueOf(part).goal).toBeUndefined();
 		expect(Object.keys(issueOf(part))).not.toContain('goal');
@@ -120,14 +115,6 @@ describe('a ticket in a goal', () => {
 			goal: other,
 		});
 		expect(isFail(goalIntoOne) && goalIntoOne.message).toMatch(/is a goal/);
-	});
-
-	it('refuses a colour it cannot read', async () => {
-		const {repoRoot, file} = await seed();
-		const epic = await file('Epic');
-
-		const bad = await setIssueColor({repoRoot, issueId: epic, color: 'red'});
-		expect(isFail(bad)).toBe(true);
 	});
 
 	it('draws no goal once the goal ticket is gone', async () => {
@@ -201,28 +188,20 @@ describe('a ticket whose goal is gone', () => {
 });
 
 describe('replaying goal events', () => {
-	it('skips a ticket named as its own goal, and drops a colour it cannot read', async () => {
+	it('skips a ticket named as its own goal', async () => {
 		const {file, actor} = await seed();
 		const part = await file('Part');
 
-		const [own, color] = materializeAll([
+		const [own] = materializeAll([
 			{
 				id: '01M5Z00000000000000000000A',
 				...actor,
 				action: 'set.issue.goal',
 				payload: {id: part, goal: part},
 			},
-			{
-				id: '01M5Z00000000000000000000B',
-				...actor,
-				action: 'set.issue.color',
-				payload: {id: part, color: 'not-a-colour'},
-			},
 		] as AppEvent[]);
 
 		expect(isFail(own as Result)).toBe(true);
-		expect(isFail(color as Result)).toBe(false);
 		expect(issueOf(part).goal).toBeUndefined();
-		expect(issueOf(part).color).toBeUndefined();
 	});
 });

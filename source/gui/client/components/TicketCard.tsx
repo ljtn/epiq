@@ -500,10 +500,15 @@ export const TicketCard = ({
 	diff,
 	activity = null,
 	asGoal = null,
+	isolatedGoalId = null,
+	onFilterByGoal,
 }: {
 	ticket: GuiIssue;
 	// The tickets that belong to this one, when it is a goal.
 	asGoal?: GoalSummary | null;
+	// The goal the board is narrowed to, and narrowing to one from its pill.
+	isolatedGoalId?: string | null;
+	onFilterByGoal?: (goalId: string) => void;
 	index: number;
 	isSelected: boolean;
 	// Part of a multi-ticket selection, which reads differently from the one
@@ -583,18 +588,32 @@ export const TicketCard = ({
 
 	// One mark per card: its goal's, or, on a goal, its own.
 	const goalColor = ticket.goal?.color ?? asGoal?.color ?? null;
+	const goalId = asGoal?.id ?? ticket.goal?.id ?? null;
+	const goalIsolated = goalId !== null && goalId === isolatedGoalId;
+	const goalFilter =
+		goalId !== null && onFilterByGoal
+			? {
+					isolated: goalIsolated,
+					onFilter: () => onFilterByGoal(goalId),
+					filterTitle: goalIsolated
+						? 'Show every ticket again'
+						: 'Show only this goal',
+			  }
+			: {};
 	const goalPill = asGoal ? (
 		<GoalPill
 			testId="ticket-goal-own"
 			strong
 			color={asGoal.color}
 			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
+			{...goalFilter}
 		/>
 	) : ticket.goal ? (
 		<GoalPill
 			testId="ticket-goal"
 			color={ticket.goal.color}
 			label={ticket.goal.title}
+			{...goalFilter}
 		/>
 	) : null;
 

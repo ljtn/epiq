@@ -40,8 +40,6 @@ export type ApiIssue = {
 	assignees: ApiAssignee[];
 	/** Absent when it belongs to none, or its goal is gone. */
 	goal?: ApiGoalRef;
-	/** Its own colour, set only when somebody picked one. */
-	color?: string;
 	parentNodeId: string;
 	isClosed: boolean;
 	/**

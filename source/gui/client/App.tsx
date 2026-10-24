@@ -778,6 +778,11 @@ export const App = () => {
 			),
 		});
 
+	// The board narrowed to one goal from its pill; pressing it again lets go.
+	const isolatedGoalId = selection.goal;
+	const filterByGoal = (goalId: string) =>
+		changeSelection({goal: isolatedGoalId === goalId ? null : goalId});
+
 	// The same for the assignee axis, from a dense card's name: the board
 	// narrowed to one person's tickets, and pressing the name again lets go.
 	const assigneeOnly = narrowedIds(selection.only.assignee);
@@ -886,7 +891,8 @@ export const App = () => {
 			boardFilter.length === 0 &&
 			!query &&
 			windowIds === null &&
-			!isolatedIssueId
+			!isolatedIssueId &&
+			!isolatedGoalId
 		)
 			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
 
@@ -910,7 +916,10 @@ export const App = () => {
 					) &&
 					issueMatchesText(issue, query) &&
 					(windowIds === null || windowIds.has(issue.id)) &&
-					(!isolatedIssueId || issue.id === isolatedIssueId),
+					(!isolatedIssueId || issue.id === isolatedIssueId) &&
+					(!isolatedGoalId ||
+						issue.id === isolatedGoalId ||
+						issue.goal?.id === isolatedGoalId),
 			);
 
 			hidden += swimlane.issues.length - issues.length;
@@ -927,6 +936,7 @@ export const App = () => {
 		eventActorIds,
 		windowIds,
 		isolatedIssueId,
+		isolatedGoalId,
 	]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 
@@ -1407,7 +1417,6 @@ export const App = () => {
 		addIssueTag,
 		removeIssueTag,
 		setIssueGoal,
-		setIssueColor,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,
@@ -2273,6 +2282,8 @@ export const App = () => {
 												onSelectIssueCode={selectIssueCode}
 												isolatedTagId={isolatedTagId}
 												onFilterByTag={filterByTag}
+												isolatedGoalId={isolatedGoalId}
+												onFilterByGoal={filterByGoal}
 												isolatedAssigneeId={isolatedAssigneeId}
 												onFilterByAssignee={filterByAssignee}
 												onCreateIssue={openCreateIssueModal}
@@ -2513,7 +2524,6 @@ export const App = () => {
 										goals={goalIndex}
 										goalCandidates={goalCandidates}
 										onSetGoal={setIssueGoal}
-										onSetColor={setIssueColor}
 										onOpenIssue={id => openIssueTab(id, 'overview')}
 										onAddAssignee={addIssueAssignee}
 										onAddExternalAssignee={addExternalIssueAssignee}

@@ -1,5 +1,5 @@
 // The ticket panel's Goal row. A ticket in a goal names it and can leave
-// it; a goal lists its tickets and takes a colour; any other ticket can be
+// it; a goal lists its tickets; any other ticket can be
 // put in one, picked from the goals there are or from any ticket by title.
 
 import React, {useState} from 'react';
@@ -10,154 +10,9 @@ import {GoalIndex, GoalSummary} from '../lib/goal-index';
 import {Button} from './Button';
 import {AddRow, ChipRow, Empty, Input} from './FormPrimitives';
 import {GoalPill} from './GoalPill';
-import {IconCheck} from './IconCheck';
 import {Section} from './Section';
 
 const PICK_LIMIT = 8;
-
-// The wheel at the saturation and lightness a name's own colour is drawn at,
-// so a picked colour sits among tags and auto colours as one of them; under
-// it, the same hues muted, then muted further.
-const SWATCH_ROWS = [
-	[
-		'#cc6666',
-		'#cc9966',
-		'#cccc66',
-		'#99cc66',
-		'#66cc66',
-		'#66cc99',
-		'#66cccc',
-		'#6699cc',
-		'#6666cc',
-		'#9966cc',
-		'#cc66cc',
-		'#cc6699',
-	],
-	[
-		'#a97070',
-		'#a98c70',
-		'#a9a970',
-		'#8ca970',
-		'#70a970',
-		'#70a98c',
-		'#70a9a9',
-		'#708ca9',
-		'#7070a9',
-		'#8c70a9',
-		'#a970a9',
-		'#a9708c',
-	],
-	[
-		'#8f7070',
-		'#8f8070',
-		'#8f8f70',
-		'#808f70',
-		'#708f70',
-		'#708f80',
-		'#708f8f',
-		'#70808f',
-		'#70708f',
-		'#80708f',
-		'#8f708f',
-		'#8f7080',
-	],
-];
-
-const SWATCH_SIZE = 16;
-const SWATCH_GAP = 6;
-
-const Swatch = ({
-	swatch,
-	color,
-	disabled,
-	onPick,
-}: {
-	swatch: string;
-	color?: string;
-	disabled: boolean;
-	onPick: (color: string) => void;
-}) => {
-	const held = color === swatch;
-
-	return (
-		<button
-			type="button"
-			data-testid={`goal-color-${swatch.slice(1)}`}
-			aria-label={swatch}
-			aria-pressed={held}
-			disabled={disabled}
-			onClick={() => !held && onPick(swatch)}
-			style={{
-				width: SWATCH_SIZE,
-				height: SWATCH_SIZE,
-				padding: 0,
-				borderRadius: 999,
-				borderWidth: 0,
-				display: 'inline-flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				color: GUI_THEME.bg,
-				background: swatch,
-				opacity: held || !color ? 1 : 0.55,
-				cursor: disabled ? 'default' : 'pointer',
-			}}
-		>
-			{held && <IconCheck size={11} />}
-		</button>
-	);
-};
-
-const GoalColors = ({
-	color,
-	autoColor,
-	disabled,
-	onPick,
-}: {
-	color?: string;
-	autoColor: string;
-	disabled: boolean;
-	onPick: (color: string | null) => void;
-}) => (
-	<div
-		data-testid="goal-colors"
-		style={{
-			display: 'flex',
-			alignItems: 'flex-start',
-			gap: SWATCH_GAP,
-			padding: '6px 0 8px',
-		}}
-	>
-		<Button
-			variant="chip"
-			dense
-			testId="goal-color-auto"
-			tint={color ? undefined : autoColor}
-			held={!color}
-			disabled={disabled}
-			onClick={() => color && onPick(null)}
-		>
-			Auto
-		</Button>
-		<div style={{display: 'flex', flexDirection: 'column', gap: SWATCH_GAP}}>
-			{SWATCH_ROWS.map(row => (
-				<div
-					key={row[0]}
-					style={{display: 'flex', flexWrap: 'wrap', gap: SWATCH_GAP}}
-				>
-					{row.map(swatch => (
-						<Swatch
-							key={swatch}
-							swatch={swatch}
-							color={color}
-							disabled={disabled}
-							onPick={onPick}
-						/>
-					))}
-				</div>
-			))}
-		</div>
-	</div>
-);
 
 const label = (issue: GuiIssue) => `${issue.ref} ${issue.title}`;
 
@@ -167,7 +22,6 @@ export const GoalSection = ({
 	goals,
 	candidates,
 	onSetGoal,
-	onSetColor,
 	onOpenIssue,
 }: {
 	issue: GuiIssue;
@@ -176,15 +30,14 @@ export const GoalSection = ({
 	// Every ticket there is, for the picker.
 	candidates: GuiIssue[];
 	onSetGoal: (issueId: string, goal: string | null) => void;
-	onSetColor: (issueId: string, color: string | null) => void;
 	onOpenIssue: (issueId: string) => void;
 }) => {
 	const row = useAddRow();
 	const [query, setQuery] = useState('');
 	const disabled = issue.readonly;
 
-	// A goal opens to its colours; any other ticket, to the picker.
-	const canOpen = !disabled;
+	// A goal is in none itself; any other ticket opens to the picker.
+	const canOpen = !disabled && !asGoal;
 	const start = canOpen && !row.open ? row.start : undefined;
 	const picking = row.open && !asGoal;
 
@@ -236,7 +89,7 @@ export const GoalSection = ({
 		>
 			{asGoal ? (
 				<>
-					<ChipRow testId="goal-own-row" onActivate={start}>
+					<ChipRow testId="goal-own-row">
 						<GoalPill
 							testId="goal-own"
 							strong
@@ -244,14 +97,6 @@ export const GoalSection = ({
 							label={`Goal · ${asGoal.done}/${asGoal.members.length} done`}
 						/>
 					</ChipRow>
-					{row.open && (
-						<GoalColors
-							color={issue.color}
-							autoColor={asGoal.color}
-							disabled={disabled}
-							onPick={color => onSetColor(issue.id, color)}
-						/>
-					)}
 					<div
 						data-testid="goal-members"
 						style={{display: 'flex', flexDirection: 'column', gap: 2}}

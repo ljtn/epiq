@@ -30,7 +30,7 @@ export {
 	editBoardDescription,
 	editSwimlaneDescription,
 } from './api/descriptions.js';
-export {setIssueColor, setIssueGoal} from './api/goals.js';
+export {setIssueGoal} from './api/goals.js';
 export {
 	addIssueTag,
 	tombstoneTag,

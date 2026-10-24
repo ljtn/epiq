@@ -12,6 +12,9 @@ export const GoalPill = ({
 	label,
 	strong = false,
 	testId,
+	isolated = false,
+	onFilter,
+	filterTitle,
 }: {
 	color: string;
 	label: string;
@@ -19,28 +22,54 @@ export const GoalPill = ({
 	// point at.
 	strong?: boolean;
 	testId: string;
-}) => (
-	<span
-		data-testid={testId}
-		title={label}
-		style={{
-			alignSelf: 'flex-start',
-			maxWidth: '100%',
-			overflow: 'hidden',
-			textOverflow: 'ellipsis',
-			whiteSpace: 'nowrap',
-			padding: '1px 7px',
-			borderRadius: 999,
-			fontSize: 10,
-			lineHeight: '15px',
-			fontWeight: strong ? 600 : 500,
-			color: strong ? '#0b0d12' : color,
-			background: strong ? color : wash(color),
-		}}
-	>
-		{label}
-	</span>
-);
+	// The board narrowed to this goal: filled, as a held tag chip is.
+	isolated?: boolean;
+	onFilter?: () => void;
+	filterTitle?: string;
+}) => {
+	const filled = strong || isolated;
+	const style: React.CSSProperties = {
+		alignSelf: 'flex-start',
+		maxWidth: '100%',
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+		whiteSpace: 'nowrap',
+		padding: '1px 7px',
+		borderRadius: 999,
+		borderWidth: 0,
+		fontFamily: 'inherit',
+		fontSize: 10,
+		lineHeight: '15px',
+		fontWeight: filled ? 600 : 500,
+		color: filled ? '#0b0d12' : color,
+		background: filled ? color : wash(color),
+	};
+
+	if (!onFilter) {
+		return (
+			<span data-testid={testId} title={label} style={style}>
+				{label}
+			</span>
+		);
+	}
+
+	return (
+		<button
+			type="button"
+			data-testid={testId}
+			aria-pressed={isolated}
+			title={filterTitle ?? label}
+			// Stopped here, or the click would also select the card.
+			onClick={event => {
+				event.stopPropagation();
+				onFilter();
+			}}
+			style={{...style, cursor: 'pointer'}}
+		>
+			{label}
+		</button>
+	);
+};
 
 /** A straight bar inside the card's left edge, clear of its rounded corners. */
 export const GoalStripe = ({color}: {color: string}) => (

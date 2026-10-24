@@ -47,8 +47,6 @@ export type GuiIssue = {
 	assignees: GuiUser[];
 	/** The goal it belongs to, as that ticket reads now. */
 	goal?: GuiGoalRef;
-	/** Its own colour, when somebody picked one. */
-	color?: string;
 	/** Every board it has lived on, this one included. */
 	boardIds: string[];
 };

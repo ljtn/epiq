@@ -33,7 +33,6 @@ export const formatLogAction = (action: string): string => {
 		'add.issue.tag': 'Tagged with',
 		'remove.issue.tag': 'Removed tag',
 		'set.issue.goal': 'Set goal',
-		'set.issue.color': 'Set colour',
 		'lock.node': 'Locked node',
 		'move.node': 'Moved issue',
 		'add.issue.comment': 'Commented',
@@ -144,11 +143,6 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'set.issue.goal':
 			return goalTitle(event.payload.goal) || 'none';
 
-		case 'set.issue.color':
-			return event.payload.color
-				? chalk.bgHex(event.payload.color)('   ')
-				: 'default';
-
 		case 'add.issue.assignee': {
 			const contributor = getState().contributors[event.payload.assignee];
 			return contributor
@@ -248,9 +242,6 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 
 		case 'set.issue.goal':
 			return goalTitle(event.payload.goal);
-
-		case 'set.issue.color':
-			return event.payload.color ?? '';
 
 		case 'tombstone.tag': {
 			const tag = getState().tags[event.payload.id];

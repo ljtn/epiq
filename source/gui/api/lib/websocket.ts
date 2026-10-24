@@ -7,7 +7,6 @@ import {
 	tombstoneTag,
 	addIssueComment,
 	addIssueTag,
-	setIssueColor,
 	setIssueGoal,
 	closeIssue,
 	createBoard,
@@ -817,16 +816,6 @@ export const setupWebsocket = (
 						onStateChanged,
 						'issue:goal:set:result',
 						await setIssueGoal({repoRoot, ...message.payload}),
-					);
-				}
-
-				if (type === 'issue:color:set') {
-					return sendMutationResult(
-						socket,
-						repoRoot,
-						onStateChanged,
-						'issue:color:set:result',
-						await setIssueColor({repoRoot, ...message.payload}),
 					);
 				}
 

@@ -11,8 +11,6 @@ export type TicketProps = {
 	tags?: string[];
 	// The ticket standing for the goal this one belongs to.
 	goal?: string;
-	// A `#rrggbb` its goal's tickets are marked in, when it is one.
-	color?: string;
 };
 
 export type BoardProps = {

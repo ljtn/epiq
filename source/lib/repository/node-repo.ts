@@ -775,27 +775,6 @@ export const nodeRepo = {
 		return succeeded('Goal set', goalId ? {goal: goalId} : {});
 	},
 
-	setColor(
-		targetId: string,
-		color: string | undefined,
-	): Result<{color?: string}> {
-		const target = this.getNode(targetId);
-		if (!target) return failed('Unable to set colour, missing target');
-
-		const readonlyFail = failIfReadonly(target, 'edit');
-		if (readonlyFail) return readonlyFail;
-
-		if (!isTicketNode(target)) return failed('Target is not an issue');
-
-		const {color: _previous, ...props} = target.props;
-		this.updateNode({
-			...target,
-			props: color ? {...props, color} : props,
-		});
-
-		return succeeded('Colour set', color ? {color} : {});
-	},
-
 	tombstoneTag(tagId: string): Result<Tag> {
 		const tag = this.getTagRecord(tagId);
 		if (!tag) return failed('Tag not found');

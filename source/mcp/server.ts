@@ -24,7 +24,6 @@ import {
 	restoreTag,
 	addIssueComment,
 	addIssueTag,
-	setIssueColor,
 	setIssueGoal,
 	assumeActor,
 	closeIssue,
@@ -380,20 +379,6 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(setIssueGoal),
-	);
-
-	server.registerTool(
-		'epiq_issue_color_set',
-		{
-			description:
-				"Set the colour a goal ticket's tickets are marked in, as #rrggbb, or null for the one derived from its title",
-			inputSchema: z.object({
-				issueId: z.string().min(1),
-				color: z.string().nullable(),
-				repoRoot: z.string().optional(),
-			}),
-		},
-		exclusiveTool(setIssueColor),
 	);
 
 	server.registerTool(

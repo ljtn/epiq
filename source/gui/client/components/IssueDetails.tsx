@@ -303,7 +303,6 @@ export const IssueDetails = ({
 	goals = EMPTY_GOALS,
 	goalCandidates = [],
 	onSetGoal,
-	onSetColor,
 	onOpenIssue,
 	commits,
 	commitsLoading,
@@ -395,7 +394,6 @@ export const IssueDetails = ({
 	goals?: GoalIndex;
 	goalCandidates?: GuiIssue[];
 	onSetGoal?: (issueId: string, goal: string | null) => void;
-	onSetColor?: (issueId: string, color: string | null) => void;
 	onOpenIssue?: (issueId: string) => void;
 }) => {
 	// Unsent, so in the ticket's drafts.
@@ -750,14 +748,13 @@ export const IssueDetails = ({
 							)}
 						</Section>
 
-						{onSetGoal && onSetColor && onOpenIssue && (
+						{onSetGoal && onOpenIssue && (
 							<GoalSection
 								issue={issue}
 								asGoal={goals.get(issue.id) ?? null}
 								goals={goals}
 								candidates={goalCandidates}
 								onSetGoal={onSetGoal}
-								onSetColor={onSetColor}
 								onOpenIssue={onOpenIssue}
 							/>
 						)}

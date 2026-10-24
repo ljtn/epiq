@@ -139,7 +139,6 @@ const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 	'add.issue.tag': 'tagging',
 	'remove.issue.tag': 'tagging',
 	'set.issue.goal': 'tagging',
-	'set.issue.color': 'tagging',
 	'create.tag': 'tagging',
 	'tombstone.tag': 'tagging',
 	'restore.tag': 'tagging',

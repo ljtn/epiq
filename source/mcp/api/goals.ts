@@ -8,7 +8,6 @@ import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {Ticket} from '../../lib/model/context.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
-import {HEX_COLOR} from '../../lib/utils/color.js';
 import {
 	goalColor,
 	goalRefusal,
@@ -38,17 +37,16 @@ export const getIssueGoal = (ticket: Ticket): ApiGoalRef | undefined => {
 export const goalFields = (ticket: Ticket) => {
 	const goal = getIssueGoal(ticket);
 
-	return {
-		...(goal ? {goal} : {}),
-		...(ticket.props.color ? {color: ticket.props.color} : {}),
-	};
+	return goal ? {goal} : {};
 };
 
 type Ready = {actor: Actor; boot: {stateBranchRoot: string}};
 
-type GoalEvent = AppEvent<'set.issue.goal'> | AppEvent<'set.issue.color'>;
-
-const persist = (ready: Ready, issueId: string, event: GoalEvent) => {
+const persist = (
+	ready: Ready,
+	issueId: string,
+	event: AppEvent<'set.issue.goal'>,
+) => {
 	const results = materializeAndPersistAll([event], ready.boot.stateBranchRoot);
 	if (isFail(results)) return failed(results.message);
 
@@ -96,32 +94,5 @@ export const setIssueGoal = async (
 		...actorOf(ready.value.actor),
 		action: 'set.issue.goal',
 		payload: {id: issue.id, goal: goal.id},
-	});
-};
-
-export const setIssueColor = async (
-	input: ToolInput & {issueId: string; color: string | null},
-) => {
-	const ready = await bootedWithActorAndState(input.repoRoot);
-	if (isFail(ready)) return ready;
-
-	const issueResult = findWritableIssue(input.issueId);
-	if (isFail(issueResult)) return issueResult;
-	const issue = issueResult.value;
-
-	const color = input.color?.trim().toLowerCase() ?? null;
-	if (color !== null && !HEX_COLOR.test(color)) {
-		return failed('A colour is written #rrggbb');
-	}
-
-	if ((issue.props.color ?? null) === color) {
-		return succeeded('No changes made', {id: issue.id, ref: nodeRef(issue.id)});
-	}
-
-	return persist(ready.value, issue.id, {
-		id: ulid(),
-		...actorOf(ready.value.actor),
-		action: 'set.issue.color',
-		payload: color === null ? {id: issue.id} : {id: issue.id, color},
 	});
 };

@@ -5,7 +5,7 @@
 
 import {isTicketNode, Ticket} from '../model/context.model.js';
 import {getState} from '../state/state.js';
-import {getStringColor} from './color.js';
+import {getMutedStringColor} from './color.js';
 import {NODE_REF_LENGTH, nodeRef} from './node-ref.js';
 import {sanitizeInlineText} from './string.utils.js';
 
@@ -35,9 +35,9 @@ export const findTicket = (idOrRef: string): Ticket | undefined => {
 export const getTicketGoal = (ticket: Ticket): Ticket | undefined =>
 	ticket.props?.goal ? findTicket(ticket.props.goal) : undefined;
 
-/** Its own colour, or the one its title derives, as a tag's does. */
+/** The colour its title derives, muted: it marks every ticket in the goal. */
 export const goalColor = (goal: Ticket): string =>
-	goal.props.color ?? getStringColor(sanitizeInlineText(goal.title));
+	getMutedStringColor(sanitizeInlineText(goal.title));
 
 // Who belongs to which goal, worked out once per state: a terminal row asks
 // for every ticket on screen, on every key press. Keyed by the state object,
