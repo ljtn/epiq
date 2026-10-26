@@ -84,3 +84,5 @@
 {"v":1,"id":["01M5QS285R0RHYBYK3VXFD4ME2","01M5QRZN6JP1AF5P9SQR2Z7YPM"],"move.node":{"id":"01M5QRZN6FA2B38P4GY28H54C3","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"ffffbfffffffffffffffffff"}}
 {"v":1,"id":["01M5QSGDTBFKYBT70QE0CXXQ8B","01M5QS285R0RHYBYK3VXFD4ME2"],"move.node":{"id":"01M5QRZN6FA2B38P4GY28H54C3","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"bfffffffffffffffffffffff"}}
 {"v":1,"id":["01M5QTBDG0E8C93D276EA7JYZW","01M5QSGDTBFKYBT70QE0CXXQ8B"],"move.node":{"id":"01M5QRZN6FA2B38P4GY28H54C3","parent":"01KS22YK95S3336MFSE44MY70T","rank":"fffffff7ffffffffffffffff"}}
+{"v":1,"id":["01M5WRHSJ739DS3A2EZB92CNFX","01M5WR4ZBV1JN1QXDKRGDX95JD"],"move.node":{"id":"01M5WR4ZBRV6KB4MCNR04MGJ18","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"ffffdfffffffffffffffffff"}}
+{"v":1,"id":["01M5WS8XKSS86A13HNHJ3CV7XQ","01M5WS0NY7TS05SRSWKF5NPYBF"],"add.issue.comment":{"id":"01M5WS8XKRQA0R23ED37Z1AK54","issue":"01M5WR4ZBRV6KB4MCNR04MGJ18","md":"Draft PR #523. The tab reuses the ticket Code tab's IssueCommits/CommitRow, and Code and Stats now read one list, getCommitsForRefs. Not included: the compacted (squashed) view.","author":"AG4F85NT5WDQ4Q7G8W487JAGHH"}}
