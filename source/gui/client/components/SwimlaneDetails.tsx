@@ -141,17 +141,16 @@ export const SwimlaneDetails = ({
 							<Checkbox
 								testId="swimlane-rule-done"
 								label="Tickets here count as done"
-								checked={marksDone}
-								disabled={!writable}
+								checked={marksDone || swimlane.doneByName}
+								disabled={!writable || swimlane.doneByName}
 								onChange={on => onSetRule('done', on)}
 							/>
-							{!marksDone && swimlane.countsDone && (
+							{swimlane.doneByName && (
 								<div
 									data-testid="swimlane-done-by-name"
 									style={{marginTop: 8, fontSize: 11, color: GUI_THEME.dim}}
 								>
-									Counted as done by its name until a lane on this board is
-									marked
+									A lane called Done always counts
 								</div>
 							)}
 						</div>

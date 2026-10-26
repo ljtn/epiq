@@ -32,14 +32,14 @@ beforeAll(async () => {
 
 describe('TUI lane rules e2e', () => {
 	it(
-		'marks the selected lane done, and takes the rule off again',
+		'marks the selected lane done beside the lane called Done, and takes the rule off again',
 		async () => {
 			const tui = setupTui();
 
 			try {
 				await commonSteps.init(tui);
 
-				// Done counts by its name while no lane is marked.
+				// Done counts by its name.
 				tui.input(ENTER);
 				await tui.waitFor(
 					output =>
@@ -47,11 +47,11 @@ describe('TUI lane rules e2e', () => {
 					4_000,
 				);
 
-				// Marked, Todo counts instead.
+				// Marked, Todo counts beside it.
 				await run(tui, ':rule done', 'rule done');
 				await tui.waitFor(
 					output =>
-						output.includes('Todo (0) ✓') && !output.includes('Done (0) ✓'),
+						output.includes('Todo (0) ✓') && output.includes('Done (0) ✓'),
 					4_000,
 				);
 

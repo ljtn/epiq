@@ -40,40 +40,22 @@ export const laneRuleChange = (
 	});
 };
 
-// The lanes whose open tickets count as done, worked out once per state: a
-// board's lanes with the done rule, or, on a board with none, a lane called
-// Done. Keyed by the state object, which every write replaces.
-const doneLanesCache = new WeakMap<object, Set<string>>();
+/** Whether a lane is called Done, which counts as done whatever its rules. */
+// By name, not by place: lanes are in whatever order a team put them.
+export const isNamedDone = (lane: Swimlane): boolean =>
+	lane.title.trim().toLowerCase() === 'done';
 
-const doneLanes = (): Set<string> => {
+/**
+ * Whether an open ticket standing in this lane counts as done: the lane has
+ * the done rule, or is called Done.
+ */
+export const isDoneLane = (laneId: string): boolean => {
 	const state = getSafeState();
-	if (isFail(state)) return new Set();
-	const cached = doneLanesCache.get(state.value);
-	if (cached) return cached;
-
-	const byRule = new Map<string, string[]>();
-	const byName = new Map<string, string[]>();
-	for (const node of Object.values(state.value.nodes)) {
-		if (!isSwimlaneNode(node) || node.isDeleted || !node.parentNodeId) continue;
-		const board = node.parentNodeId;
-		if (laneRules(node).includes('done')) {
-			byRule.set(board, [...(byRule.get(board) ?? []), node.id]);
-		}
-		// By name, not by place: lanes are in whatever order a team put them.
-		if (node.title.trim().toLowerCase() === 'done') {
-			byName.set(board, [...(byName.get(board) ?? []), node.id]);
-		}
-	}
-
-	const done = new Set<string>();
-	for (const [board, lanes] of byName) {
-		if (!byRule.has(board)) lanes.forEach(lane => done.add(lane));
-	}
-	for (const lanes of byRule.values()) lanes.forEach(lane => done.add(lane));
-
-	doneLanesCache.set(state.value, done);
-	return done;
+	if (isFail(state)) return false;
+	const lane = state.value.nodes[laneId];
+	return Boolean(
+		lane &&
+			isSwimlaneNode(lane) &&
+			(laneRules(lane).includes('done') || isNamedDone(lane)),
+	);
 };
-
-/** Whether an open ticket standing in this lane counts as done. */
-export const isDoneLane = (laneId: string): boolean => doneLanes().has(laneId);

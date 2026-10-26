@@ -80,40 +80,34 @@ const seed = async () => {
 };
 
 describe('a lane rule', () => {
-	it('counts a lane called Done while no lane on the board has the done rule, and says so', async () => {
-		const {lane, first, file, mark, counting, progress} = await seed();
+	it('counts a lane called Done, and says so', async () => {
+		const {lane, first, file, counting, progress} = await seed();
 		await file('Waiting', first.id);
 		await file('Finished', lane('done').id);
 
 		expect(progress()).toMatchObject({done: 1, total: 2});
 		expect(await counting()).toEqual(['Done']);
-
-		await mark(first.id);
-		expect(await counting()).toEqual([first.title]);
 	});
 
-	it('counts only lanes with the done rule once one has it, however named', async () => {
-		const {lane, first, file, mark, progress} = await seed();
-		await file('Waiting', first.id);
-		await file('In Done', lane('done').id);
+	it('counts a lane with the done rule beside the lane called Done, however named', async () => {
+		const {lane, first, file, mark, counting, progress} = await seed();
 		await file('Released', first.id);
+		await file('Finished', lane('done').id);
+		await file('Waiting', lane('in progress').id);
 
 		await mark(first.id);
-		// Every ticket in the first lane now counts; Done's no longer does.
 		expect(progress()).toMatchObject({done: 2, total: 3});
-
-		await mark(lane('done').id);
-		expect(progress()).toMatchObject({done: 3, total: 3});
+		expect((await counting()).sort()).toEqual([first.title, 'Done'].sort());
 
 		await mark(first.id, false);
 		expect(progress()).toMatchObject({done: 1, total: 3});
+		expect(await counting()).toEqual(['Done']);
 	});
 
 	it('counts a closed ticket done whatever the lanes say', async () => {
-		const {repoRoot, lane, first, file, mark, progress} = await seed();
+		const {repoRoot, first, file, progress} = await seed();
 		const closed = await file('Closed', first.id);
 		unwrap(await closeIssue({repoRoot, issueId: closed}));
-		await mark(lane('done').id);
 
 		expect(progress()).toMatchObject({done: 1, total: 1});
 	});

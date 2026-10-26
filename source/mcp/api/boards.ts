@@ -34,7 +34,7 @@ import {
 } from './boot.js';
 import {descriptionOf} from './descriptions.js';
 import {rulesOf} from './lane-rules.js';
-import {isDoneLane} from '../../lib/utils/lane-rules.js';
+import {isDoneLane, isNamedDone} from '../../lib/utils/lane-rules.js';
 import {apiBoardGoals} from './goals.js';
 import {findWritableBoard, findWritableSwimlane} from './node-targets.js';
 
@@ -224,6 +224,7 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 			...descriptionOf(n.id),
 			...(isSwimlaneNode(n) ? rulesOf(n) : {}),
 			countsDone: isDoneLane(n.id),
+			doneByName: isSwimlaneNode(n) && isNamedDone(n),
 		}));
 
 	return succeeded('Listed swimlanes', swimlanes);

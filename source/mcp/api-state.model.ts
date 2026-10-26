@@ -98,9 +98,10 @@ export type ApiSwimlane = {
 	description?: string;
 	// The lane's rules this build knows; absent when it has none.
 	rules?: LaneRule[];
-	// Whether its open tickets count as done: by its rule, or by its name on a
-	// board where no lane has the rule.
+	// Whether its open tickets count as done: by its rule, or by its name.
 	countsDone: boolean;
+	// Called Done, which counts whatever its rules say.
+	doneByName: boolean;
 };
 
 // One line of a ticket's own event log. `label` is the same phrasing the TUI

@@ -60,6 +60,7 @@ const board = (id: string, issues: GuiIssue[]): GuiBoard => ({
 			readonly: false,
 			issues,
 			countsDone: false,
+			doneByName: false,
 		},
 	],
 	goals: [],

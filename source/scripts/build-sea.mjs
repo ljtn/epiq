@@ -144,9 +144,7 @@ const baseNode = process.env.EPIQ_SEA_NODE
 	? resolve(process.env.EPIQ_SEA_NODE)
 	: process.execPath;
 const isCrossBuild = baseNode !== process.execPath;
-console.log(
-	`Base Node: ${baseNode}${isCrossBuild ? ' (cross-build)' : ''}`,
-);
+console.log(`Base Node: ${baseNode}${isCrossBuild ? ' (cross-build)' : ''}`);
 copyFileSync(baseNode, outBin);
 chmodSync(outBin, 0o755);
 

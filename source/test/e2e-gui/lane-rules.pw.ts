@@ -11,7 +11,7 @@ const lane = (page: Page, name: string) =>
 const doneHeader = (page: Page) =>
 	page.getByTestId('swimlane-handle').filter({hasText: /^\W*Done\b/});
 
-test('a lane marked done in its panel counts its tickets done, and the lane named Done stops', async ({
+test('a lane marked done in its panel counts its tickets done, beside the lane named Done', async ({
 	page,
 	appUrl,
 	pageErrors,
@@ -36,7 +36,7 @@ test('a lane marked done in its panel counts its tickets done, and the lane name
 	await page.getByTestId('goal-create').click();
 	await expect(pill(page, name)).toContainText('0/1');
 
-	// Unmarked, the board counts its lane called Done by name, and says so.
+	// The board's lane called Done counts by its name, and says so throughout.
 	const doneMark = doneHeader(page).getByTestId('swimlane-marks-done');
 	await expect(doneMark).toHaveCount(1);
 
@@ -48,7 +48,7 @@ test('a lane marked done in its panel counts its tickets done, and the lane name
 		await expect(
 			lane(page, name).getByTestId('swimlane-marks-done'),
 		).toBeVisible();
-		await expect(doneMark).toHaveCount(0);
+		await expect(doneMark).toHaveCount(1);
 
 		await rule.uncheck();
 		await expect(pill(page, name)).toContainText('0/1');
@@ -66,7 +66,7 @@ test('a lane marked done in its panel counts its tickets done, and the lane name
 	expect(pageErrors).toEqual([]);
 });
 
-test('the lane named Done says it counts by its name until a lane is marked', async ({
+test('the lane named Done is marked done, and cannot be unmarked', async ({
 	page,
 	appUrl,
 }) => {
@@ -74,8 +74,8 @@ test('the lane named Done says it counts by its name until a lane is marked', as
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	await doneHeader(page).getByTestId('swimlane-details-open').click();
-	await expect(
-		page.getByTestId('swimlane-rule-done').locator('input'),
-	).not.toBeChecked();
+	const rule = page.getByTestId('swimlane-rule-done').locator('input');
+	await expect(rule).toBeChecked();
+	await expect(rule).toBeDisabled();
 	await expect(page.getByTestId('swimlane-done-by-name')).toBeVisible();
 });

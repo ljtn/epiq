@@ -52,6 +52,7 @@ export const useSwimlaneEditing = ({
 												readonly: true,
 												issues: [],
 												countsDone: false,
+												doneByName: false,
 											},
 										],
 								  }
@@ -102,8 +103,7 @@ export const useSwimlaneEditing = ({
 		setDeleteSwimlaneId(null);
 	};
 
-	// The lane takes its rule at once; whether a lane called Done still counts
-	// beside it arrives with the server's state.
+	// The lane takes its rule at once, before the server answers.
 	const setSwimlaneRule = (swimlaneId: string, rule: LaneRule, on: boolean) => {
 		setState(prev =>
 			prev
@@ -111,7 +111,8 @@ export const useSwimlaneEditing = ({
 						const rules = (swimlane.rules ?? []).filter(kept => kept !== rule);
 						const next = on ? [...rules, rule] : rules;
 						const {rules: _rules, ...rest} = swimlane;
-						const countsDone = rule === 'done' ? on : swimlane.countsDone;
+						const countsDone =
+							rule === 'done' ? on || swimlane.doneByName : swimlane.countsDone;
 						return next.length > 0
 							? {...rest, rules: next, countsDone}
 							: {...rest, countsDone};

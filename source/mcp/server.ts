@@ -260,7 +260,7 @@ export const createMcpServer = () => {
 		'epiq_swimlane_rule_set',
 		{
 			description:
-				'Turn a swimlane rule on or off. The one rule is `done`: an open ticket in a lane with it counts as done for its goal. A board with no done lane counts a lane named Done.',
+				'Turn a swimlane rule on or off. The one rule is `done`: an open ticket in a lane with it counts as done for its goal. A lane named Done always counts.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				swimlaneId: z.string().min(1),
