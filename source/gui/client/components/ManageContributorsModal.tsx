@@ -1,10 +1,11 @@
 import {useState} from 'react';
 import {GuiContributor} from '../lib/gui-state.model';
-import {GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {manageRowStyle} from '../lib/manage-row.style';
 import {Button} from './Button';
 import {IconLock} from './IconLock';
 import {IconTrash} from './IconTrash';
+import {Modal, ModalList, ModalText} from './Modal';
 
 type Props = {
 	contributors: GuiContributor[];
@@ -27,148 +28,103 @@ export const ManageContributorsModal = ({
 	const sorted = [...contributors].sort((a, b) => a.name.localeCompare(b.name));
 
 	return (
-		<div
-			style={{
-				position: 'fixed',
-				inset: 0,
-				background: GUI_THEME.scrim,
-				backdropFilter: 'blur(.5px)',
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				zIndex: 1000,
-			}}
-			onMouseDown={onClose}
+		<Modal
+			eyebrow="Manage external contributors"
+			onClose={onClose}
+			actions={
+				<Button variant="ghost" onClick={onClose}>
+					Close
+				</Button>
+			}
 		>
-			<div
-				onMouseDown={event => event.stopPropagation()}
-				style={{
-					marginTop: '-100px',
-					width: 460,
-					background: GUI_THEME.panel,
-					border: `1px solid ${GUI_THEME.line}`,
-					borderRadius: 12,
-					padding: 20,
-					display: 'flex',
-					flexDirection: 'column',
-					gap: 14,
-				}}
-			>
-				<div
-					style={{
-						color: GUI_THEME.secondary,
-						fontSize: 10,
-						letterSpacing: 1,
-						textTransform: 'uppercase',
-					}}
-				>
-					Manage external contributors
-				</div>
+			<ModalText>
+				Remove contributors from the suggestion lists. Locked ones have
+				contributed, so their name is in the immutable log either way.
+			</ModalText>
 
-				<div style={{fontSize: 12, color: GUI_THEME.secondary}}>
-					Remove contributors from the suggestion lists. Locked ones have
-					contributed, so their name is in the immutable log either way.
-				</div>
+			<ModalList>
+				{sorted.map(contributor => {
+					const locked = contributor.hasAuthoredAnywhere;
+					const armed = armedId === contributor.id;
 
-				<div
-					style={{
-						display: 'flex',
-						flexDirection: 'column',
-						gap: 2,
-						maxHeight: 260,
-						overflowY: 'auto',
-					}}
-				>
-					{sorted.map(contributor => {
-						const locked = contributor.hasAuthoredAnywhere;
-						const armed = armedId === contributor.id;
-
-						return (
-							<div
-								key={contributor.id}
-								data-testid="manage-contributor-row"
-								data-armed={armed ? 'true' : 'false'}
-								onMouseEnter={() => setHoveredId(contributor.id)}
-								onMouseLeave={() =>
-									setHoveredId(current =>
-										current === contributor.id ? null : current,
-									)
-								}
-								style={manageRowStyle({
-									armed,
-									hovered: hoveredId === contributor.id,
-								})}
+					return (
+						<div
+							key={contributor.id}
+							data-testid="manage-contributor-row"
+							data-armed={armed ? 'true' : 'false'}
+							onMouseEnter={() => setHoveredId(contributor.id)}
+							onMouseLeave={() =>
+								setHoveredId(current =>
+									current === contributor.id ? null : current,
+								)
+							}
+							style={manageRowStyle({
+								armed,
+								hovered: hoveredId === contributor.id,
+							})}
+						>
+							<span
+								style={{
+									color: contributor.color,
+									opacity: locked ? 0.5 : 1,
+								}}
 							>
+								@{contributor.name}
+							</span>
+
+							{locked ? (
 								<span
+									title="Has contributed — their name is in the immutable log either way"
 									style={{
-										fontSize: 12,
-										color: contributor.color,
-										opacity: locked ? 0.5 : 1,
+										display: 'flex',
+										color: GUI_THEME.dim,
+										opacity: 0.7,
+										// Matches the ghost button's padding so locked and
+										// removable rows keep the same height.
+										padding: '3px 6px',
 									}}
 								>
-									@{contributor.name}
+									<IconLock />
 								</span>
+							) : contributor.isRemoved ? (
+								<span style={{color: GUI_THEME.dim, fontSize: TEXT.label}}>
+									Removed
+								</span>
+							) : (
+								<Button
+									variant="ghost"
+									title={
+										armed
+											? `Click again to remove @${contributor.name}`
+											: `Remove @${contributor.name}`
+									}
+									onClick={() => {
+										if (!armed) return setArmedId(contributor.id);
 
-								{locked ? (
-									<span
-										title="Has contributed — their name is in the immutable log either way"
-										style={{
-											display: 'flex',
-											color: GUI_THEME.dim,
-											opacity: 0.7,
-											// Matches the ghost button's padding so locked and
-											// removable rows keep the same height.
-											padding: '3px 6px',
-										}}
-									>
-										<IconLock />
-									</span>
-								) : contributor.isRemoved ? (
-									<span style={{color: GUI_THEME.dim, fontSize: 10}}>
-										Removed
-									</span>
-								) : (
-									<Button
-										variant="ghost"
-										title={
-											armed
-												? `Click again to remove @${contributor.name}`
-												: `Remove @${contributor.name}`
-										}
-										onClick={() => {
-											if (!armed) return setArmedId(contributor.id);
-
-											onRemove(contributor.id);
-											setArmedId(null);
-										}}
-										style={{
-											display: 'flex',
-											alignItems: 'center',
-											gap: 6,
-											color: armed ? GUI_THEME.red : GUI_THEME.dim,
-											// The whole shorthand, and only when armed: Button sets
-											// `border` itself, and React warns that an element given
-											// both it and `borderColor` can drop whichever loses the
-											// race. Spreading `border: undefined` is not the other
-											// branch — that reads as "remove this style".
-											...(armed ? {border: `1px solid ${GUI_THEME.red}`} : {}),
-										}}
-									>
-										{armed && <span style={{fontSize: 10}}>Confirm</span>}
-										<IconTrash />
-									</Button>
-								)}
-							</div>
-						);
-					})}
-				</div>
-
-				<div style={{display: 'flex', justifyContent: 'flex-end'}}>
-					<Button variant="ghost" onClick={onClose}>
-						Close
-					</Button>
-				</div>
-			</div>
-		</div>
+										onRemove(contributor.id);
+										setArmedId(null);
+									}}
+									style={{
+										display: 'flex',
+										alignItems: 'center',
+										gap: 6,
+										color: armed ? GUI_THEME.red : GUI_THEME.dim,
+										// The whole shorthand, and only when armed: Button sets
+										// `border` itself, and React warns that an element given
+										// both it and `borderColor` can drop whichever loses the
+										// race. Spreading `border: undefined` is not the other
+										// branch — that reads as "remove this style".
+										...(armed ? {border: `1px solid ${GUI_THEME.red}`} : {}),
+									}}
+								>
+									{armed && 'Confirm'}
+									<IconTrash />
+								</Button>
+							)}
+						</div>
+					);
+				})}
+			</ModalList>
+		</Modal>
 	);
 };

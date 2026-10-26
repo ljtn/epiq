@@ -1,6 +1,7 @@
 import {MAX_TITLE_LENGTH} from '../../../lib/utils/text.limits.js';
 import {Button} from './Button';
-import {GUI_THEME} from '../lib/gui-theme';
+import {Input} from './FormPrimitives';
+import {Modal, ModalHeading} from './Modal';
 
 // Shared by the issue, swimlane and board modals, creating and renaming;
 // only the wording differs.
@@ -26,94 +27,13 @@ export const CreateNodeModal = ({
 	onCreate,
 	onClose,
 }: Props) => (
-	<div
-		style={{
-			position: 'fixed',
-			inset: 0,
-			background: GUI_THEME.scrim,
-			backdropFilter: 'blur(.5px)',
-			display: 'flex',
-			alignItems: 'center',
-			justifyContent: 'center',
-			zIndex: 1000,
-		}}
-		onMouseDown={onClose}
-	>
-		<form
-			onSubmit={event => {
-				event.preventDefault();
-				onCreate();
-			}}
-			onMouseDown={event => event.stopPropagation()}
-			style={{
-				marginTop: '-200px',
-				width: 360,
-				background: GUI_THEME.panel,
-				border: `1px solid ${GUI_THEME.line}`,
-				borderRadius: 12,
-				padding: 20,
-			}}
-		>
-			<div
-				style={{
-					color: GUI_THEME.accent,
-					fontSize: 10,
-					marginBottom: fieldLabel ? 8 : 16,
-					letterSpacing: 1,
-					textTransform: 'uppercase',
-				}}
-			>
-				{eyebrow}
-			</div>
-
-			{fieldLabel && (
-				<h2
-					style={{
-						margin: '0 0 20px',
-						fontSize: 10,
-						color: GUI_THEME.primary,
-					}}
-				>
-					{fieldLabel}
-				</h2>
-			)}
-
-			<input
-				autoFocus
-				value={title}
-				// The server's own cap, so an overlong title is stopped here rather
-				// than shown on the board and then taken back by the refusal.
-				maxLength={MAX_TITLE_LENGTH}
-				placeholder={placeholder}
-				onChange={event => onChangeTitle(event.target.value)}
-				onKeyDown={event => {
-					if (event.key === 'Escape') {
-						onClose();
-					}
-				}}
-				style={{
-					width: '100%',
-					boxSizing: 'border-box',
-					background: GUI_THEME.bg,
-					color: GUI_THEME.primary,
-					border: `1px solid ${GUI_THEME.line}`,
-					borderRadius: 8,
-					padding: '10px',
-					font: 'inherit',
-					fontSize: 12,
-					outline: 'none',
-					boxShadow: `inset 0 0 0 1px ${GUI_THEME.accent}22`,
-				}}
-			/>
-
-			<div
-				style={{
-					display: 'flex',
-					justifyContent: 'flex-end',
-					gap: 10,
-					marginTop: 20,
-				}}
-			>
+	<Modal
+		eyebrow={eyebrow}
+		width={360}
+		onClose={onClose}
+		onSubmit={onCreate}
+		actions={
+			<>
 				{/* Not a submit button: as Enter would activate it instead of the
 				    form's onSubmit. */}
 				<Button type="button" variant="ghost" onClick={onClose}>
@@ -123,7 +43,19 @@ export const CreateNodeModal = ({
 				<Button type="submit" variant="primary">
 					{confirmLabel}
 				</Button>
-			</div>
-		</form>
-	</div>
+			</>
+		}
+	>
+		{fieldLabel && <ModalHeading>{fieldLabel}</ModalHeading>}
+
+		<Input
+			autoFocus
+			value={title}
+			// The server's own cap, so an overlong title is stopped here rather
+			// than shown on the board and then taken back by the refusal.
+			maxLength={MAX_TITLE_LENGTH}
+			placeholder={placeholder}
+			onChange={event => onChangeTitle(event.target.value)}
+		/>
+	</Modal>
 );
