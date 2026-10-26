@@ -31,6 +31,11 @@ import {IconButton, ICON_SIZE} from './IconButton';
 import {IconClock} from './IconClock';
 import {IconComment} from './IconComment';
 
+// The index's box at the card's left edge: three figures at 10px, and the
+// gap after it. Fixed, so a longer number never moves the title.
+const CARD_INDEX_WIDTH = 22;
+const CARD_INDEX_GAP = 8;
+
 /** How long this ticket has sat in its lane, and how that reads beside its peers. */
 export type CardDwell = {ms: number; level: DwellLevel};
 
@@ -664,10 +669,11 @@ export const TicketCard = ({
 				background:
 					isSelected || isPicked
 						? 'rgba(185, 192, 255, 0.1)'
-						: 'rgba(185, 192, 255, 0.065)',
+						: 'rgba(185, 192, 255, 0.055)',
 				// Roomier than a list row: a card is read, not scanned, and the
 				// air around its title is what keeps a column of them from
 				// running together.
+				// None on the left: the index's box is the margin there.
 				padding: view.metrics.padding,
 				minHeight: view.metrics.minHeight,
 				boxSizing: 'border-box',
@@ -699,6 +705,30 @@ export const TicketCard = ({
 				/>
 			) : (
 				<>
+					{/* The card's number, on the title's first line. */}
+					<span
+						data-testid="ticket-index"
+						aria-hidden
+						style={{
+							width: CARD_INDEX_WIDTH,
+							marginRight: CARD_INDEX_GAP,
+							flexShrink: 0,
+							lineHeight: `${TITLE_LINE_HEIGHT}px`,
+							textAlign: 'right',
+							fontSize: 10,
+							whiteSpace: 'nowrap',
+							overflow: 'hidden',
+							// A mark in the margin, not a figure to read: well under the
+							// ref's tone, and no brighter on the selected card, so it can
+							// never draw the eye off the title.
+							color: GUI_THEME.dim,
+							opacity: 0.4,
+							fontVariantNumeric: 'tabular-nums',
+						}}
+					>
+						{index + 1}
+					</span>
+
 					<div
 						style={{
 							flex: 1,

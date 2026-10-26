@@ -28,7 +28,7 @@ export type CardMetrics = {
 
 export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	wide: {
-		padding: '12px 18px 12px 14px',
+		padding: '12px 18px 12px 0',
 		minHeight: 58,
 		radius: 8,
 		gap: 12,
