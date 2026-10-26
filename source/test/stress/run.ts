@@ -6,7 +6,7 @@
 //   npm run stress                      # in a container, the default
 //   npx tsx source/test/stress/run.ts  # on this machine, if you insist
 //
-// Env: STRESS_EVENTS, STRESS_ACTORS, STRESS_YEARS, STRESS_GOALS, STRESS_SERVE, STRESS_DIR,
+// Env: STRESS_EVENTS, STRESS_ACTORS, STRESS_YEARS, STRESS_GOALS, STRESS_COMMITS, STRESS_SERVE, STRESS_DIR,
 // STRESS_CHECK (fail over the budgets below; what CI runs).
 
 import fs from 'node:fs';
@@ -40,6 +40,10 @@ const BUDGET_READ_MS = 2000;
 const BUDGET_TIMELINE_WARM_MS = 300;
 // The board panel walks every ticket's log once, on opening.
 const BUDGET_BOARD_OVERVIEW_MS = 1000;
+// A goal's Stats and Code tabs read every commit of every ticket in it: the
+// biggest goal, against STRESS_COMMITS commits on its tickets.
+const COMMITS = number('STRESS_COMMITS', 5000);
+const BUDGET_GOAL_TAB_MS = 2000;
 
 const ROOT =
 	process.env['STRESS_DIR'] ??
@@ -354,6 +358,67 @@ console.log(
 		.padStart(6)} ms   ${overview.closed} closed lately`,
 );
 
+// The biggest goal's Stats and Code tabs, over a history of commits on its
+// tickets. Written in one fast-import: a commit per spawn would take minutes.
+const {goalMembers} = await import('../../lib/utils/goal.utils.js');
+const {nodeRef} = await import('../../lib/utils/node-ref.js');
+const goals = ok(await api.listGoals({repoRoot: REPO})) as {
+	id: string;
+	total: number;
+}[];
+const biggest = goals.reduce<(typeof goals)[number] | undefined>(
+	(most, goal) => (!most || goal.total > most.total ? goal : most),
+	undefined,
+);
+
+let goalTabMs = 0;
+if (biggest) {
+	const refs = goalMembers(biggest.id).map(ticket => nodeRef(ticket.id));
+	const start = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
+	const stream = Array.from({length: COMMITS}, (_, n) => {
+		const message = `${refs[n % refs.length]} change ${n}\n`;
+		const body = `${'line\n'.repeat(1 + (n % 20))}${n}\n`;
+		return [
+			'commit refs/heads/main',
+			`committer Stress <stress@example.com> ${
+				start + n * Math.floor((365 * 24 * 60 * 60) / COMMITS)
+			} +0000`,
+			`data ${Buffer.byteLength(message)}`,
+			message,
+			...(n === 0 ? ['from refs/heads/main^0'] : []),
+			`M 644 inline src/file-${n % 50}.txt`,
+			`data ${Buffer.byteLength(body)}`,
+			body,
+		].join('\n');
+	}).join('\n');
+	execSync('git fast-import --quiet', {cwd: REPO, input: stream});
+	git('reset --hard -q main');
+
+	for (const [label, read] of [
+		[
+			'goal Stats tab, cold',
+			() => api.getGoalStats({repoRoot: REPO, goal: biggest.id}),
+		],
+		[
+			'goal Code tab',
+			() => api.getGoalCommits({repoRoot: REPO, goal: biggest.id}),
+		],
+		[
+			'goal Stats tab, again',
+			() => api.getGoalStats({repoRoot: REPO, goal: biggest.id}),
+		],
+	] as Array<[string, () => Promise<{status: string; message: string}>]>) {
+		const at = performance.now();
+		ok(await read());
+		const took = performance.now() - at;
+		goalTabMs = Math.max(goalTabMs, took);
+		console.log(
+			`  ${label.padEnd(38)} ${took.toFixed(1).padStart(6)} ms   ` +
+				`${refs.length} tickets, ${COMMITS.toLocaleString()} commits`,
+		);
+	}
+}
+
 // What an edit costs, which is not what a read costs: a write grows the log,
 // and anything holding a derived view of it has to notice.
 const writeAt = performance.now();
@@ -421,6 +486,10 @@ if (CHECK) {
 			`the board overview took ${overviewMs.toFixed(
 				1,
 			)} ms, budget ${BUDGET_BOARD_OVERVIEW_MS} ms`,
+		goalTabMs > BUDGET_GOAL_TAB_MS &&
+			`a goal tab took ${goalTabMs.toFixed(
+				1,
+			)} ms, budget ${BUDGET_GOAL_TAB_MS} ms`,
 	].filter(Boolean);
 
 	for (const line of over) console.log(`  over budget: ${line}`);
