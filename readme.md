@@ -51,7 +51,7 @@ Since anyone on the board can connect a repo, URLs are read with care: only `htt
 
 ## Goals
 
-A goal groups the tickets that serve one outcome, on any board. A ticket can be in one goal. Goals are not tickets: a board shows the goals its tickets are in as a strip above the lanes, each pill underlined as far as the goal's tickets are done (closed, or in a lane named Done), on every board.
+A goal groups the tickets that serve one outcome, on any board. A ticket can be in one goal. Goals are not tickets: a board shows the goals its tickets are in as a strip above the lanes, each pill underlined as far as the goal's tickets are done (closed, or in a done lane), on every board. A lane counts as done once its menu marks it so; on a board with none marked, the lane named Done does.
 
 - **GUI:** pick a goal in a ticket's Goal dropdown, or type a new name there to create one; from the keyboard, **Put in a goal** and **Take out of its goal** in the palette (⌘K, then `goal`). Click a pill to show only that goal's tickets and open its panel: progress, every ticket in it on any board, and a Stats tab measuring the code of all of them together. **Manage goals** (the strip, the dropdown or the palette) adds, renames and removes them.
 - **TUI:** `:goal <name>` puts the selected ticket in that goal, creating it if needed; `:ungoal` takes it out; `:filter goal <name>` shows only its tickets. A ticket in a goal carries `◆` in the goal's colour. Renaming and removing a goal is done in the GUI or the MCP, as with tags.
