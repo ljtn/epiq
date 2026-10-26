@@ -1,16 +1,10 @@
-// Import-free so the browser client can reach it. Shared by GUI, TUI and MCP
-// so no client rejects what another accepts; storage imposes no limit.
-//
-// Storage imposing none is exactly why these exist: every accepted string is
-// appended to a log that is never rewritten and is replicated to every clone,
-// so anything oversized is permanent for everybody.
+// Import-free so the browser can use it. Shared by every client; the log is
+// permanent and replicated, so oversized text stays forever.
 export const MAX_COMMENT_LENGTH = 4000;
 
 export const MAX_TITLE_LENGTH = 300;
 
-// Room for a long ticket without room for a document. The longest description
-// on this board is ~4.5k, so this is several times the real ceiling while
-// being small enough that one accepted string cannot bloat every clone's log.
+// Room for a long ticket, not a document.
 export const MAX_DESCRIPTION_LENGTH = 20_000;
 
 // A board's or lane's description is handed to agents on every get and move

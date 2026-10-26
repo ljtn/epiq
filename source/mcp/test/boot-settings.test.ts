@@ -2,16 +2,8 @@ import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
 
 /**
- * A boot that finds the board unchanged skips deriving it again. The configured
- * identity is not part of what it skips.
- *
- * The signature the skip turns on describes the log, and a process advances it
- * with its own writes — so a store filled only on the deriving path is filled
- * once per process and never again. `ensureContributorCurrent` reads that store
- * for the one name it is allowed to vouch for, so a name changed with
- * `:config user` — which writes no event, and so moves no signature — would
- * never reach the board from a running server: the rename check would go on
- * comparing the old name against itself and find it current.
+ * A boot that skips deriving an unchanged board still refreshes the configured
+ * identity, since a `:config user` rename writes no event.
  */
 
 vi.mock('../../git/git-storage.js', () => ({
@@ -134,9 +126,7 @@ describe('the settings store a boot fills', () => {
 		expect(settings.getSettingsState().userName).toBe('Alice');
 	});
 
-	// The case. Renaming in config writes no event, so nothing about the board
-	// has moved and the next boot takes the skip — which must still read the
-	// new name.
+	// Renaming in config writes no event, so the next boot takes the skip.
 	it('is refreshed on a boot that skips deriving the board', async () => {
 		sayConfigHolds('Alice');
 		expect(isFail(await boot.boot('/repo', {pull: false}))).toBe(false);

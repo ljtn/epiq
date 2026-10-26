@@ -6,11 +6,8 @@ let indexedLog: EventLog | undefined;
 let logAuthors: Set<string> | undefined;
 
 /**
- * Memoised on the log's array identity. Only safe because materializing
- * replaces the array rather than mutating it, so a stale index is unreachable.
- *
- * Ids only. A display name comes from the contributor registry; the log
- * carries a sanitized file name segment, which is a storage key.
+ * Memoised on the log array's identity, which materializing replaces. Ids
+ * only; names come from the registry.
  */
 const getLogAuthors = (): Set<string> => {
 	// May run before boot has populated the log.

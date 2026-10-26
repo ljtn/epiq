@@ -53,16 +53,11 @@ export const CommitRow = ({
 	lead?: React.ReactNode;
 }) => {
 	const [hovered, setHovered] = useState(false);
-	// Also tracks focus (not just mouse hover): the copy button is a real
-	// nested <button>, so a keyboard user can Tab straight to it — without
-	// this it would sit there focused but invisible (opacity 0) until Enter.
+	// Focus too, so a keyboard user can see the copy button they tabbed to.
 	const [focused, setFocused] = useState(false);
 	const revealed = hovered || focused;
 
-	// Large files are not part of "expand all", so the button reads its state
-	// off the ones that are. The fallback covers a commit where every file is
-	// large, so the button can still collapse what was opened by hand rather
-	// than sitting there doing nothing.
+	// Large files aren't in "expand all"; when every file is large, all count.
 	const expandablePaths = (diff?.files ?? [])
 		.filter(file => hasDiffToShow(file) && !isLargeDiff(file))
 		.map(file => file.path);
@@ -77,15 +72,11 @@ export const CommitRow = ({
 			style={{
 				border: `1px solid ${GUI_THEME.line}`,
 				borderRadius: 8,
-				// Clip rather than hide, so the card rounds its corners without
-				// becoming a scroll container — one would trap each file's sticky
-				// header in a box that never scrolls.
+				// Clip, not hidden: a scroll container would trap the sticky file headers.
 				overflow: 'clip',
 			}}
 		>
-			{/* A div, not a button: it holds CopyShaButton, a real nested button,
-		    which native <button> nesting forbids. role/tabIndex/onKeyDown stand
-		    in for what the element would otherwise give for free. */}
+			{/* A div, not a button: it holds a nested button. */}
 			<div
 				role="button"
 				tabIndex={0}
@@ -107,10 +98,7 @@ export const CommitRow = ({
 					background: revealed ? GUI_THEME.hover : 'transparent',
 				}}
 			>
-				{/* The caret leads, as it does on the file rows, so a row reads as
-			    foldable and its state is plain. flexShrink: 0 because a tight
-			    panel width would otherwise squeeze it toward invisible rather
-			    than truncate the (already-shrinkable) subject further. */}
+				{/* flexShrink 0 so a tight panel truncates the subject, not the caret. */}
 				<span style={{flexShrink: 0, display: 'flex'}}>
 					{expanded ? (
 						<IconChevronDown size={12} />
@@ -166,13 +154,8 @@ export const CommitRow = ({
 				<span style={{flex: 1}} />
 				{commit.repo && <RepoChip repo={commit.repo} />}
 				<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
-				{/* The sha is lookup chrome, not part of reading the list, so it
-			    sits at the far right and only appears on hover or once expanded —
-			    reachable without a full expand, but not permanent clutter.
-			    Always mounted, opacity-toggled rather than conditionally rendered:
-			    swapping it in/out of the tree changed the row's flex height on
-			    hover, which the rail lines (sized off that height) visibly jumped
-			    with. Keeping it in flow always reserves the same space. */}
+				{/* The sha shows on hover or when expanded. Always mounted, so the row's
+				    height (and the rail lines) don't jump. */}
 				<span
 					style={{
 						flexShrink: 0,

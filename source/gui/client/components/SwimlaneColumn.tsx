@@ -80,9 +80,8 @@ export const SwimlaneColumn = ({
 	onFilterByAssignee: (assigneeId: string) => void;
 	pickedIssueIds: readonly string[];
 	onCreateIssue: (swimlaneId: string) => void;
-	// Null unless the history player is up. `flashIssueId` is the ticket the
-	// event that just landed happened to, and `flashKey` that event's id, which
-	// is what restarts the flash when two of them in a row touch one ticket.
+	// Null unless the history player is up. `flashKey` is the event id, so two
+	// events on one ticket each flash.
 	theatre: {flashIssueId: string | null; flashKey: string | null} | null;
 	// Which edge of this column the dragged swimlane would land on, if any.
 	dropSide: 'left' | 'right' | null;
@@ -103,10 +102,7 @@ export const SwimlaneColumn = ({
 	// The tab of this lane's panel on screen, if its panel is.
 	openTab: SwimlaneDetailsTab | null;
 	onOpenDetails: (swimlaneId: string, tab: SwimlaneDetailsTab) => void;
-	// Every ref the repository has commits for, keyed by ref, counting commits
-	// up to the moment on screen. Handed down whole rather than per card: it is
-	// one answer about the whole history, and the refs in it mostly belong to
-	// tickets standing in some other lane.
+	// Commit stats for every ref up to the moment on screen, handed down whole.
 	diffStats: RefDiffStats;
 	// Neither the board's first lane nor its last: where work is under way, and
 	// so where a ticket can be stuck.
@@ -155,9 +151,7 @@ export const SwimlaneColumn = ({
 			as="section"
 			active={dragOver}
 			borderColor={selected || dragOver ? GUI_THEME.accent : GUI_THEME.line}
-			// Tuned by eye: 0.15 was imperceptible, 0.6 distracting. The wide radius
-			// keeps it a soft wash rather than a hotspot tracking the cursor, and the
-			// reach lights a column up as a dragged ticket approaches from outside.
+			// Tuned by eye; the wide reach lights a column as a dragged ticket nears.
 			glowColor={COLUMN_GLOW_COLOR}
 			glowOpacity={0.41}
 			glowRadius={370}
@@ -247,9 +241,8 @@ export const SwimlaneColumn = ({
 					event.stopPropagation();
 					event.dataTransfer.effectAllowed = 'move';
 					event.dataTransfer.setData(SWIMLANE_DRAG_TYPE, swimlane.id);
-					// Firefox ignores a drag that sets no text/plain, but the ticket
-					// handlers read that key — so it carries the id under its own type
-					// and a marker here.
+					// Firefox ignores a drag without text/plain; left empty, since ticket drops
+					// read it as a ticket id.
 					event.dataTransfer.setData('text/plain', '');
 				}}
 				onDragEnd={onSwimlaneDragEnd}
@@ -330,11 +323,7 @@ export const SwimlaneColumn = ({
 				</div>
 				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 					<IconButton
-						// Named as well as titled, like the fullscreen toggle:
-						// TooltipLayer takes the `title` away while its tooltip is
-						// open, and a click leaves the pointer here — so a locator
-						// reading the title afterwards finds the *next* lane's button
-						// rather than nothing.
+						// TooltipLayer strips `title` while open, so tests find this by test id.
 						testId="add-issue"
 						title="Add ticket"
 						disabled={swimlane.readonly}

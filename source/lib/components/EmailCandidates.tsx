@@ -14,12 +14,8 @@ import {getSafeState} from '../state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
 
 /**
- * The addresses the setup step is asking about, drawn where it asks.
- *
- * The command returns this list too, but a successful command's message is
- * discarded — the TUI shows failures and nothing else — so the list has to be
- * on screen for the numbers in `:config emails 1,2` to refer to anything.
- * State lives where it is drawn.
+ * The setup step's addresses, drawn where it asks, so `:config emails 1,2`
+ * has numbers to refer to.
  */
 export const EmailCandidates: React.FC = () => {
 	const [candidates, setCandidates] = useState<EmailCandidate[] | null>(null);

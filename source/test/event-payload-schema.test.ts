@@ -1,11 +1,6 @@
 /**
- * The payload check sits between "this build knows the action" and "a handler
- * dereferences the payload", so it has two ways to be wrong, and the expensive
- * one is not the obvious one.
- *
- * Rejecting junk is what it is for. Rejecting something a *newer* epiq wrote —
- * an added field, a value this build has no opinion about — would quarantine
- * events this build can apply perfectly well, on every clone, permanently.
+ * The payload check must reject junk but accept what a newer epiq wrote, or it
+ * quarantines applicable events on every clone, permanently.
  */
 import {describe, expect, it} from 'vitest';
 import {createDefaultEvents} from '../lib/board/board-boot.js';
@@ -73,10 +68,8 @@ describe('parseEventPayload', () => {
 	});
 
 	/**
-	 * Found by running this check over the live board rather than by reading
-	 * the types: an `add.issue.attachment` there carries no `author`, the
-	 * declared field notwithstanding. The handler never reads it. Requiring it
-	 * would have made that attachment disappear from every clone.
+	 * Real logs hold attachments with no `author`; requiring it would drop them
+	 * from every clone.
 	 */
 	it('accepts a comment and an attachment written without an author', () => {
 		expect(accepts('add.issue.comment', {id: ID, issue: ID, md: 'hi'})).toBe(

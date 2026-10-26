@@ -23,14 +23,8 @@ import {
 import {buildDiffCommentBody} from '../../utils/diff-comment.js';
 
 /**
- * The body to write, given what was typed.
- *
- * Inside the diff pager a leading `line:4` / `lines:4-9` names where the
- * comment attaches, and the rest is the note. The result is the same body the
- * GUI's composer writes, built by the same function so the two cannot drift.
- *
- * Only read as an anchor while the pager is open, so a comment that merely
- * begins "lines:3-4 are wrong" stays prose everywhere else.
+ * The body to write. In the diff pager a leading `line:4` / `lines:4-9` anchors
+ * the comment, built as the GUI composer does; elsewhere it is prose.
  */
 const resolveBody = (
 	input: string,
@@ -84,10 +78,7 @@ export const commentCommand = async (cmdState: CommandLineInput) => {
 	// the point, and a bare one reads as "look at this".
 	if (!md) return failed('Provide a comment');
 
-	// The limit is on what is stored, and an anchored comment stores the quoted
-	// lines as well as the note — so the count the command line was showing
-	// while it was typed is not the one that applies. Say which it is, or the
-	// refusal reads as a lie about a note that is plainly far shorter.
+	// The cap covers the quoted lines too, so say so.
 	if (md.length > MAX_COMMENT_LENGTH) {
 		return failed(
 			anchored

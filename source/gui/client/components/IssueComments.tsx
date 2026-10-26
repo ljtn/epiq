@@ -26,13 +26,8 @@ import {AddImageButton} from './AddImageButton';
 import {useTicketDraft} from '../lib/ticket-drafts';
 import {AUTO_GROW_MAX_HEIGHT, useAutoGrow} from '../lib/use-auto-grow';
 
-// A diff-selection comment's quoted code is rendered through the same
-// highlighter the diff view uses, rather than as a markdown fence — the whole
-// point of quoting it is that it reads as code. The note and the file/line
-// caption are rebuilt from the marker's own metadata rather than sliced back
-// out of the body, so the caption can be a real control rather than text.
-// Also what a ticket filed from a selection shows as its description, so the
-// two read the same and both link back to the diff.
+// A diff-selection comment: the quote highlighted as code, the caption a link
+// built from the marker's metadata. Also a selection-filed ticket's description.
 export const CommentBody = ({
 	body,
 	onOpenDiffLocation,
@@ -60,10 +55,7 @@ export const CommentBody = ({
 		<div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
 			{lead && <MarkdownContent content={lead} />}
 
-			{/* Only clickable when the marker recorded which commit the selection
-			    came from — a file can appear in several of a ticket's commits, so
-			    without it there is no unambiguous place to open. Comments written
-			    before the sha was recorded stay readable, just inert. */}
+			{/* Clickable only when the marker names its commit; older comments stay inert. */}
 			<CodeSnippet
 				filePath={meta.filePath}
 				snippet={snippet}
@@ -93,9 +85,7 @@ type Props = {
 	onOpenDiffLocation?: (location: DiffLocation) => void;
 	// Resolves to one markdown reference per stored file, left at the cursor.
 	onUploadImages?: (issueId: string, files: File[]) => Promise<string[]>;
-	// The one comment a link is pointing at, which is scrolled to and marked.
-	// Null arriving at the tab by any other route, where no one comment is the
-	// one meant.
+	// The comment a link points at, scrolled to and marked.
 	focusedCommentId?: string | null;
 };
 
@@ -126,9 +116,7 @@ export const IssueComments = ({
 	const composerRef = useRef<HTMLTextAreaElement | null>(null);
 	const focusedRef = useRef<HTMLDivElement | null>(null);
 
-	// Brought into view once the card is there to bring — a link followed from
-	// another board can land here before the comments have arrived, and the
-	// ticket the reader is on can change under the same open tab.
+	// Runs once the card exists, which may be after the comments arrive.
 	useEffect(() => {
 		focusedRef.current?.scrollIntoView({block: 'center'});
 	}, [focusedCommentId, issueId, comments]);
@@ -333,9 +321,7 @@ export const IssueComments = ({
 			)}
 
 			{!readonly && (
-				// The composer is a card of its own: the field, and under it the
-				// row that sends what is in it, one object rather than a box with
-				// buttons floating beneath.
+				// The composer: field and send row as one card.
 				<div style={{...CARD, marginTop: 16, overflow: 'hidden'}}>
 					<Textarea
 						// Uncapped: maxLength drops a long paste's tail silently. The

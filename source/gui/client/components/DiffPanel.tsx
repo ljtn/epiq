@@ -26,9 +26,7 @@ import {AsideDock} from '../lib/aside-dock';
 import {EPIQ_DIFF_THEME} from '../lib/diff-theme';
 import {useDiffWorkersUsable} from '../lib/diffs-worker-pool';
 
-// A single dark theme: the app has no light mode to match (GUI_THEME is a
-// fixed dark palette), so there is no pair to switch between. github-dark with
-// its comments brought forward — see lib/diff-theme.
+// The app is dark only, so one theme (see lib/diff-theme).
 const PIERRE_THEME = EPIQ_DIFF_THEME;
 
 // The box a file's diff sits in. Shared with whatever stands in for the diff
@@ -38,9 +36,7 @@ export const DIFF_BOX_STYLE: React.CSSProperties = {
 	marginBottom: 16,
 	border: `1px solid ${GUI_THEME.line}`,
 	borderRadius: 8,
-	// Clip, not hidden: both round the corners off the diff, but `hidden`
-	// makes this a scroll container, and the header inside then sticks to
-	// a box that never scrolls — which is to say, not at all.
+	// Clip, not hidden: a scroll container would stop the header sticking.
 	overflow: 'clip',
 };
 
@@ -55,9 +51,7 @@ const FileDiffViewInner = <LAnnotation = undefined,>({
 }: {
 	file: GuiCommitDiffFile;
 	diffStyle: 'split' | 'unified';
-	// Undefined (the DiffPanel scrubber-dot flow's default) leaves selection
-	// off entirely — enabling it costs nothing there, but there's no ticket
-	// for a selection to attach to in that flow, so it stays opt-in.
+	// Undefined leaves line selection off.
 	selectedLines?: SelectedLineRange | null;
 	onSelectionEnd?: (range: SelectedLineRange | null) => void;
 	lineAnnotations?: DiffLineAnnotation<LAnnotation>[];
@@ -68,15 +62,8 @@ const FileDiffViewInner = <LAnnotation = undefined,>({
 	// with the caller's, in the same sticky slot.
 	renderCustomHeader?: (fileDiff: FileDiffMetadata) => React.ReactNode;
 	/**
-	 * Everything the two render props above close over, as a string.
-	 *
-	 * This component is memoized, and a render prop is a closure: skipping a
-	 * re-render would otherwise leave the header and the annotations drawn from
-	 * whatever state they captured last. The caller says here what they depend
-	 * on — a file's expanded and reviewed flags, the note being typed — and a
-	 * change to it is what lets the re-render through. Omitted, the diff never
-	 * re-renders for anything but its own data, which is right for a caller
-	 * whose render props close over nothing.
+	 * What the render props close over, as a string; a change re-renders the
+	 * memoized diff. Omit it when they close over nothing.
 	 */
 	renderKey?: string;
 }) => {
@@ -86,9 +73,7 @@ const FileDiffViewInner = <LAnnotation = undefined,>({
 		<div style={DIFF_BOX_STYLE}>
 			<MultiFileDiff
 				{...toDiffFileInput(file)}
-				// Back to the main thread where the pool turned out not to be one.
-				// Slower, and the only alternative is a diff that never draws — see
-				// lib/diffs-worker-pool.
+				// Falls back to the main thread where workers are unusable (see lib/diffs-worker-pool).
 				disableWorkerPool={!useDiffWorkersUsable()}
 				options={{
 					diffStyle,
@@ -96,15 +81,10 @@ const FileDiffViewInner = <LAnnotation = undefined,>({
 					enableLineSelection: onSelectionEnd !== undefined,
 					controlledSelection: onSelectionEnd !== undefined,
 					onLineSelectionEnd: onSelectionEnd,
-					// Signals a line is selectable before the user has tried dragging —
-					// otherwise the whole selection/comment feature is invisible until
-					// discovered by accident.
+					// Shows lines are selectable before anyone tries dragging.
 					lineHoverHighlight:
 						onSelectionEnd !== undefined ? 'both' : 'disabled',
-					// Keeps the file's name against the top of the panel for as long as
-					// any of its diff is on screen. A commit opens every file it touched
-					// into one column, so without this a scrolled-to hunk belongs to
-					// whichever name has already gone past.
+					// Keeps a file's name pinned while any of its diff is on screen.
 					stickyHeader: true,
 					overflow: wrap ? 'wrap' : 'scroll',
 				}}
@@ -117,9 +97,7 @@ const FileDiffViewInner = <LAnnotation = undefined,>({
 	);
 };
 
-// What a selection is, for comparison: two line numbers and the sides they
-// belong to. Compared by value because it is rebuilt from URL params on every
-// render, so its identity means nothing.
+// Compared by value: it is rebuilt from URL params on every render.
 const sameSelection = (
 	a: SelectedLineRange | null | undefined,
 	b: SelectedLineRange | null | undefined,
@@ -132,9 +110,7 @@ const sameSelection = (
 		a.side === b.side &&
 		a.endSide === b.endSide);
 
-// An annotation is a place plus a thing to draw there. The metadata is
-// deliberately not compared: what it holds is the caller's, and `renderKey` is
-// where the caller declares that it changed.
+// Metadata isn't compared; `renderKey` says when it changed.
 const sameAnnotations = <L,>(
 	a: DiffLineAnnotation<L>[] | undefined,
 	b: DiffLineAnnotation<L>[] | undefined,
@@ -150,19 +126,8 @@ const sameAnnotations = <L,>(
 };
 
 /**
- * Memoized, because this is the expensive boundary in the whole client: below
- * it sits the syntax highlighter and one DOM node per line of the file.
- *
- * The board broadcasts its whole state on every sync, and a sync that changed
- * nothing about this ticket still rebuilt the arrays this tree is drawn from —
- * measured at four full re-renders of every open file per broadcast, for a
- * board that had not changed. None of the props that matter had changed; only
- * their identities had.
- *
- * So the comparison is by value, and `renderKey` carries what the render props
- * close over. Without that key a memo here would be quietly wrong rather than
- * merely useless: the header and the composer are closures, and skipping their
- * re-render would freeze them.
+ * Memoized by value: every sync rebuilds the props, and below sit the
+ * highlighter and a node per line. `renderKey` keeps the render props fresh.
  */
 export const FileDiffView = memo(FileDiffViewInner, (previous, next) => {
 	return (
@@ -177,16 +142,8 @@ export const FileDiffView = memo(FileDiffViewInner, (previous, next) => {
 }) as typeof FileDiffViewInner;
 
 /**
- * What stands in for a file there is no diff to draw.
- *
- * Shaped like the notice a large file gets, minus the way out of it: a large
- * file is one the reader may still ask for, and a binary one is not — both
- * sides arrive empty, because git will not diff it and the server does not
- * read it. Saying so is the whole of what a view can do.
- *
- * `framed` off where the caller has already drawn the box and the file's name,
- * as the ticket's Code tab has: the label alone then sits under the header
- * rather than in a second bordered panel below it.
+ * Stands in for a binary file, which has no diff. `framed` off where the
+ * caller already draws the box and name.
  */
 export const BinaryFileNotice = ({
 	path,
@@ -230,14 +187,8 @@ export const BinaryFileNotice = ({
 	</div>
 );
 
-// This panel has no per-file disclosure to hide behind — it opens every file
-// of a commit at once — so a lockfile here stalls the view with no action from
-// the reader at all. Collapsed until asked for, the way the commit list leaves
-// its own large files shut.
-//
-// `open` is the whole commit's answer, not this file's: a hundred ordinary
-// files are as much work as one enormous one, and only the caller can see them
-// all. See `openableByDefault`.
+// Shut until asked for, like the commit list's large files. `open` is the
+// whole commit's answer (see `openableByDefault`).
 const PanelFile = ({
 	file,
 	diffStyle,
@@ -286,9 +237,7 @@ const PanelFile = ({
 			<span
 				style={{flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8}}
 			>
-				{/* Its own size where that is the reason it is shut; otherwise the
-				    reason is the commit's, and a line count beside a 20-line file
-				    reads as a bug rather than an explanation. */}
+				{/* Its own size only when that's why it's shut. */}
 				{isLargeDiff(file)
 					? `${diffLineCount(file).toLocaleString()} lines`
 					: 'Large commit'}

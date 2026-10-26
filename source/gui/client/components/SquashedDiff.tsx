@@ -23,15 +23,8 @@ import {FileRow} from './FileRow';
 const keyOf = (file: GuiSquashedDiffFile): string =>
 	repoPathKey(file.path, file.repo);
 
-// The ticket's whole change as one diff, the way a pull request reads it: a
-// file appears once, showing where it started and where it ended up, rather
-// than once per commit that touched it on the way.
-//
-// The same FileRow the per-commit view uses, minus the commit rail above it —
-// the grouping is the only difference, and that includes the things anchored
-// to a commit. Each row carries the last of the ticket's commits to touch that
-// file, which is what a comment, a filed ticket and a review tick hang off, so
-// all three work here exactly as they do per commit (TCYD699).
+// The ticket's whole change as one diff, a file once. Each row anchors to the
+// ticket's last commit touching that file, so comments and ticks still work.
 
 const Notice = ({
 	tone,
@@ -46,9 +39,7 @@ const Notice = ({
 			marginBottom: 10,
 			padding: '6px 10px',
 			borderRadius: 6,
-			// The amber is a hex colour and takes a hex alpha; `line` is already
-			// an rgba and would become nonsense with one appended — which is what
-			// it was, so the quieter notice drew with no border at all.
+			// Amber takes a hex alpha; `line` is already rgba.
 			border: `1px solid ${
 				tone === 'amber' ? `${GUI_THEME.amber}33` : GUI_THEME.line
 			}`,
@@ -82,14 +73,8 @@ export const SquashedDiff = ({
 	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 	const {isReviewed, setReviewed} = useReviewedFiles();
 
-	// Grouped once rather than per file: every row would otherwise re-parse
-	// every comment's marker looking for its own.
-	//
-	// Additions-side only, for the reason selections here are: a deletions-side
-	// line number is a position in the anchor commit's own old file, while this
-	// view's deletions side is numbered against the oldest commit's parent. The
-	// same comment drawn here would land on an unrelated line, or on none. It
-	// is still read where it was written, on the Commits view.
+	// Grouped once, additions side only: deletions here number against a
+	// different commit's file.
 	const byAnchor = useMemo(
 		() => commentsByAnchor(comments.filter(isAdditionsSideComment)),
 		[comments],
@@ -97,10 +82,7 @@ export const SquashedDiff = ({
 	// Opened once per answer, so a file shut by hand afterwards stays shut.
 	const openedFor = useRef<string | null>(null);
 
-	// The same bargain the per-commit view strikes: the diff is what the reader
-	// came for, so files open as they arrive — except the large ones, which are
-	// what stalls this view, and the ones already ticked off, since what is
-	// left open should be what is left to read.
+	// Files open as they arrive, except large and reviewed ones.
 	useEffect(() => {
 		if (!diff || openedFor.current === diff.to) return;
 
@@ -187,11 +169,7 @@ export const SquashedDiff = ({
 				)}
 			</div>
 
-			{/* Said plainly rather than left to be discovered: the reader is
-			    looking at a diff that is not only this ticket's. Which files
-			    those are is said on each file's own row, where it is acted on:
-			    listed here, the paths would stand between the reader and the
-			    first file. */}
+			{/* Says the diff isn't only this ticket's; each file's row says which. */}
 			{!diff.contiguous && diff.overlappingPaths.length > 0 && (
 				<Notice tone="amber">
 					Another ticket&rsquo;s commits landed between these;{' '}
@@ -212,9 +190,7 @@ export const SquashedDiff = ({
 			)}
 
 			{diff.files.map(file => {
-				// A file another ticket's commit also touched shows content none of
-				// this ticket's commits left behind, so there is no revision a line
-				// here belongs to and nothing written on it could be anchored.
+				// Another ticket's commit touched it, so no revision anchors these lines.
 				const anchorable = !diff.overlappingPaths.includes(keyOf(file));
 
 				return (
@@ -233,10 +209,7 @@ export const SquashedDiff = ({
 						additionsOnly
 						onAddComment={anchorable ? onAddComment : undefined}
 						onFileTicket={anchorable ? onFileTicket : undefined}
-						// Only the ones written against this file's own commit, and
-						// only where the content drawn is what that commit left: a
-						// foreign commit having shifted it puts every line number out,
-						// so a row that cannot be selected cannot be annotated either.
+						// Only where the shown content is the anchor commit's own.
 						comments={anchorable ? byAnchor.get(file.sha) ?? [] : []}
 					/>
 				);

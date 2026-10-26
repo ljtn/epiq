@@ -14,11 +14,8 @@ import {
 } from '../../lib/model/result-types.js';
 import {getStateResult} from './boot.js';
 
-// A write names its target or its parent by id, and the id has to be a live,
-// writable node of the kind the write expects: a comment on a board, or a
-// ticket filed under a board, would go into the log and never show anywhere.
-// Guarded here, at the door, so the event is never written; replay stays
-// tolerant of logs that predate these checks.
+// A write's target or parent must be a live, writable node of the expected kind,
+// checked here so the event is never written; replay stays tolerant.
 
 export const findWritableIssue = (id: string): Result<Ticket> => {
 	const stateResult = getStateResult();

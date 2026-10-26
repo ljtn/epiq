@@ -1,12 +1,6 @@
 /**
- * Git exports these into the environment of its hooks. They override repository
- * discovery, so anything a hook starts — a test, a spawned TUI — runs git
- * against *that* repository however careful it is with `cwd`. A `git push` once
- * rewrote real branches and wrote `user.name=Test` into the shared config this
- * way, while every path involved looked innocent.
- *
- * Anything a test runs, directly or as a child process, has to clear them
- * first.
+ * Git exports these to its hooks, overriding repository discovery whatever the
+ * `cwd`; anything a test runs must clear them.
  */
 export const GIT_HOOK_VARS = [
 	'GIT_DIR',

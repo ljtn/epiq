@@ -1,7 +1,5 @@
-// A comment made on a selection in a commit diff carries where it was made as
-// an HTML-comment-shaped marker in its body, followed by a caption line and
-// the quoted lines in a fence. The body stays readable anywhere that only
-// knows markdown; anything that knows the marker can do better.
+// A diff-selection comment's body: a hidden marker with its location, a
+// caption and the quoted lines in a fence, readable as plain markdown.
 
 export type SelectionSide = 'additions' | 'deletions';
 
@@ -19,14 +17,10 @@ export type DiffCommentMeta = {
 	end: number;
 	endSide: SelectionSide;
 	note: string;
-	// Which commit's diff the selection was made in — a file can appear in
-	// several of a ticket's commits, so linking back needs it. Optional
-	// because comments written before it was recorded should still render
-	// their inline annotation; they just aren't clickable.
+	// Which commit's diff the selection was made in; optional for older comments,
+	// which render but don't link.
 	sha?: string;
-	// The ticket whose Commits tab holds the diff, when it isn't the one the
-	// marker sits on — a ticket filed from a selection points back at its
-	// origin this way.
+	// The ticket whose Commits tab holds the diff, when not the one it sits on.
 	issueRef?: string;
 };
 
@@ -35,10 +29,8 @@ const DIFF_COMMENT_MARKER = /<!--\s*epiq-diff-comment:(.+?)-->\n?/;
 export const stripDiffCommentMarker = (body: string): string =>
 	body.replace(DIFF_COMMENT_MARKER, '');
 
-// `>` is escaped so a note containing `-->` cannot terminate the marker early
-// — that truncated the JSON (losing the annotation) and left the remainder
-// visible as garbage in the rendered comment. JSON.parse decodes > back
-// to `>`, so the round trip is exact.
+// `>` is escaped so a note containing `-->` can't end the marker; JSON.parse
+// restores it.
 export const encodeDiffCommentMarker = (meta: DiffCommentMeta): string =>
 	`<!-- epiq-diff-comment:${JSON.stringify(meta).replaceAll(
 		'>',
@@ -77,9 +69,7 @@ export const parseDiffCommentMeta = (body: string): DiffCommentMeta | null => {
 	return meta as DiffCommentMeta;
 };
 
-// The body of a diff-selection comment with its note replaced and everything
-// else — marker location, caption, quoted snippet — kept as it was. Null for a
-// body that carries no marker.
+// The body with its note replaced and the rest kept; null without a marker.
 export const withDiffCommentNote = (
 	body: string,
 	note: string,
@@ -98,10 +88,7 @@ export const withDiffCommentNote = (
 	].join('\n');
 };
 
-// The fenced block a diff-selection comment's body ends with. Pulled back out
-// so the snippet can be rendered as real code instead of markdown text — the
-// body keeps carrying it verbatim so the comment still reads correctly
-// anywhere that only knows how to render markdown.
+// The trailing fenced snippet, for rendering as code.
 const SNIPPET_FENCE = /```\n([\s\S]*?)\n?```\s*$/;
 
 export const extractCommentSnippet = (body: string): string | null =>
@@ -111,10 +98,8 @@ export const extractCommentSnippet = (body: string): string | null =>
 // backticks, then the line range.
 const CAPTION_LINE = /`[^`\n]+`[^\n]*\n?$/;
 
-// What a diff-linked body says in its own words: everything before the
-// marker's caption and quoted snippet. Read off the body rather than the
-// marker's `note` copy, so text typed into the body by hand (a description
-// edited in the Overview, a comment edited from the TUI) still shows.
+// The body's own text before the caption and snippet, read from the body
+// rather than the marker's `note`, so hand edits show.
 export const extractCommentLead = (body: string): string =>
 	stripDiffCommentMarker(body)
 		.replace(SNIPPET_FENCE, '')
@@ -137,14 +122,8 @@ export const formatDiffCaption = (meta: DiffCommentMeta): string =>
 		meta.filePath
 	} ${formatSelectionLabel(meta)}`;
 
-// A selection's start/end are the real (gutter-displayed) line numbers within
-// whichever side they belong to — 'deletions' means the old file, 'additions'
-// the new one. A range can span both sides (dragged from a removed line into
-// an added one in split view): quote both halves rather than picking one.
-//
-// Structural in its file rather than typed on the GUI's own shape: the TUI's
-// tests compare what it quotes against what the pager quotes for the same
-// range, and a Node-side test cannot import from source/gui/client.
+// Start/end are real line numbers on their side ('deletions' old, 'additions'
+// new); a range spanning both quotes both halves.
 export const extractSnippet = (
 	file: {before: string; after: string},
 	range: SelectionRange,
@@ -166,10 +145,7 @@ export const extractSnippet = (
 	return [...startHalf, ...endHalf].join('\n');
 };
 
-// Quoted lines keep their real source indentation (often several tabs deep
-// inside nested JSX) — fine in a wide diff, unreadable in a narrow comment
-// box. Strips the whitespace every non-blank line shares, same as most
-// editors' own "copy" behavior.
+// Strips the indentation every non-blank quoted line shares.
 export const dedent = (snippet: string): string => {
 	const lines = snippet.split('\n');
 
@@ -186,14 +162,8 @@ export const dedent = (snippet: string): string => {
 };
 
 /**
- * The whole body of a comment made on a diff selection.
- *
- * Written once and used by every surface that can make one — the GUI's
- * composer and the TUI's pager — because the two have to agree byte for byte:
- * a body assembled differently still parses, but renders as a different
- * comment, and the difference would only ever show up on somebody else's
- * screen. The note is trimmed here rather than by each caller for the same
- * reason.
+ * The whole body of a diff-selection comment, shared by GUI and TUI so both
+ * build it byte for byte the same.
  */
 export const buildDiffCommentBody = ({
 	snippet,

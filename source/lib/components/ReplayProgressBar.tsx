@@ -8,15 +8,10 @@ type Props = {
 	width: number;
 };
 
-// The replay engine only nudges `replay.progress` a handful of times per second
-// (once per playback frame), which makes a naive bar jump in visible steps. We
-// tween the rendered fill on a faster, local timer to fill in the intermediate
-// frames.
+// A local tween smooths the engine's few progress updates per second.
 const TWEEN_FRAME_MS = 40;
 
-// We glide at a constant velocity matched to the rate the target is actually advancing.
-// Measured from the engine's own updates (step size over the time between them),
-// smoothed so quantization jitter doesn't wobble the speed.
+// Glides at the measured rate the target advances, smoothed against jitter.
 const PACE_EMA = 0.3;
 
 const LINE_CHAR = '─';
@@ -46,9 +41,7 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 	const targetRef = useRef(target);
 	targetRef.current = target;
 
-	// Pace tracking: the value/time of the last engine update (our anchor), plus
-	// the measured rate (progress per ms) and step size we glide with between
-	// updates.
+	// The last engine update, and the measured rate and step.
 	const anchorRef = useRef(0);
 	const anchorAtRef = useRef(0);
 	const lastTargetRef = useRef(0);
@@ -101,11 +94,7 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 				lastTargetRef.current = t;
 			}
 
-			// Glide on from the anchor at the measured pace, but lead no more than
-			// one step ahead so we arrive at the next value just as it lands — a
-			// continuous fill with no dart-then-stall — and never past full. Because
-			// we travel at the true pace (not a fraction of it), the bar fills the
-			// final stretch at the same tempo and reaches 100% on its own.
+			// At the measured pace, at most one step ahead and never past full.
 			const elapsed = now - anchorAtRef.current;
 			const lead = Math.min(stepRef.current, rateRef.current * elapsed);
 			const next = Math.min(1, anchorRef.current + lead);
@@ -121,9 +110,7 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 
 	if (!replay) return null;
 
-	// Sample the shared lavender -> blue -> cyan gradient at a cell's position
-	// across the full track, quantized into a handful of bands so neighbors can
-	// be merged into runs (a long bar stays a few <Text> spans, not one per cell).
+	// Samples the shared gradient in bands, so neighbouring cells merge into runs.
 	const cellColor = (index: number): string => {
 		const position = barWidth > 1 ? index / (barWidth - 1) : 0;
 		const band =

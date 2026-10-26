@@ -1,17 +1,12 @@
 import {useEffect, useState} from 'react';
 import {getGradientHexColor} from '../utils/color.js';
 
-// Nodes touched by the current replay frame pulse through the same
-// lavender -> blue -> cyan gradient as the progress bar, instead of sitting on a
-// flat yellow. The position ping-pongs across the gradient on a fixed wall-clock
-// period so the highlight reads as a soft flash and every flashing node pulses in
-// unison regardless of when it started flashing.
+// Replay-touched nodes pulse through the progress bar's gradient on a shared
+// wall-clock period, so all pulse in unison.
 const FLASH_FRAME_MS = 80;
 const FLASH_PERIOD_MS = 1400;
 
-// One shared ticker drives every flashing node so they stay in sync and we don't
-// spin up a timer per ticket on the board — flashing components just subscribe to
-// the re-render pulse and read the wall-clock color.
+// One shared ticker for every flashing node.
 const listeners = new Set<() => void>();
 let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -39,9 +34,7 @@ const flashPosition = (): number => {
 	return phase < 0.5 ? phase * 2 : (1 - phase) * 2;
 };
 
-// Returns the current gradient flash color. Pass `active` so only nodes that are
-// actually flashing subscribe to the ticker; inactive callers get a color too
-// (cheap), they just won't re-render on the pulse.
+// The current flash colour; only `active` callers re-render on the pulse.
 export const useFlashColor = (active: boolean): string => {
 	const [, force] = useState(0);
 

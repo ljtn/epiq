@@ -1,23 +1,12 @@
-// Whether a file's diff is too big to be worth rendering unasked.
-//
-// The GUI receives both sides as whole blobs and diffs and syntax-highlights
-// them in the browser, so the cost scales with how much text there is rather
-// than with how much of it changed. A lockfile is the usual offender: a
-// one-line real change buried in tens of thousands of lines that all have to
-// be walked to prove it.
+// Whether a file's diff is too big to render unasked; the GUI diffs and
+// highlights whole blobs, so cost scales with total text.
 
-// Structural rather than the GUI's own GuiCommitDiffFile: this lives outside
-// source/gui so the Node-side build and its tests can reach it too.
-//
-// `isBinary` is git's own answer, and both sides of such a file arrive empty —
-// so without it the limits below would call an image the smallest file in the
-// commit and open it first.
+// Structural so Node-side code can use it. `isBinary` matters: both sides
+// arrive empty, which would otherwise look smallest.
 export type DiffSides = {before: string; after: string; isBinary?: boolean};
 
-// Two limits because either alone has a blind spot: a minified bundle is one
-// 2MB line, and a long file of short lines stays under any byte cap worth
-// setting. Sized off this repo — its longest hand-written file is ~2k lines
-// and ~70KB, its package-lock ~10.5k lines and ~330KB.
+// Lines and bytes both: a minified bundle is one huge line, and a long file of
+// short lines passes any byte cap.
 export const LARGE_DIFF_LINES = 4_000;
 export const LARGE_DIFF_CHARS = 200_000;
 
@@ -39,9 +28,7 @@ export const lineCount = (text: string): number => {
 	return lines;
 };
 
-// Measured per side rather than over the pair: a file is big or it is not, and
-// summing would call a modification of a 110KB file large while an addition of
-// the same file is not.
+// Per side, not summed, so a modify and an add of one file agree.
 export const diffLineCount = (file: DiffSides): number =>
 	Math.max(lineCount(file.before), lineCount(file.after));
 
@@ -51,50 +38,20 @@ export const isLargeDiff = (file: DiffSides): boolean =>
 	Math.max(file.before.length, file.after.length) > LARGE_DIFF_CHARS ||
 	diffLineCount(file) > LARGE_DIFF_LINES;
 
-// How much source a view may open unasked, across every file it shows.
-//
-// The per-file limits above have a blind spot of their own: a commit of a
-// hundred ordinary files passes all of them and is still a hundred files handed
-// to the highlighter at once. One such commit in this repo's history — 118
-// files, 1.7 million characters, no single file large — took 5.6 s to paint
-// against 1.5 s for its first forty.
-//
-// Most of that gap is gone: the highlighter runs in a worker pool now (see
-// `gui/client/lib/diffs-worker-pool`) and the same commit paints in under a
-// second either way. What is left is the part no pool can move — a component
-// tree and its DOM per file, on the one thread that draws — so this stays as
-// the only bound on how many of those mount unasked.
-//
-// Comfortably above a single file's allowance, so a commit that would fit
-// inside one large file is never touched — which is nearly all of them.
+// How much source a view may open unasked across all its files, since each
+// file mounts its own DOM. Well above one file's allowance.
 export const DIFF_BUDGET_CHARS = 500_000;
 
-// Both sides, unlike `isLargeDiff` above, which takes the larger of the two.
-// They answer different questions: that one asks whether *this file* is
-// outsized, where summing would call a modification of a 110KB file large
-// while an addition of the same file is not. This one is a cost, and a diff
-// costs what it has to read — both revisions, whichever way it is laid out.
+// Both sides summed, unlike `isLargeDiff`: this is a cost, and a diff reads both.
 const diffCharCount = (file: DiffSides): number =>
 	file.before.length + file.after.length;
 
-/**
- * Whether there is a diff behind this file at all.
- *
- * Separate from the budget below, and asked by the views that offer "Expand
- * all": what that button opens is every file a reader could see something in,
- * whatever the budget decided to open unasked. The two used to agree by
- * accident, because the only reason to refuse a file was its size; a binary
- * file has none, so the question had to be said out loud.
- */
+/** Whether this file has a diff at all; what "Expand all" opens. */
 export const hasDiffToShow = (file: DiffSides): boolean => !file.isBinary;
 
 /**
- * Which files a view opens without being asked: those under the per-file
- * limits, in order, until the shared budget runs out.
- *
- * Returned as a parallel array rather than a predicate, because the answer for
- * one file depends on the files before it — a caller asking per file would get
- * a different answer depending on when it asked.
+ * Which files open unasked: those under the per-file limits, in order, until
+ * the shared budget runs out. Each answer depends on the ones before.
  */
 export const openableByDefault = (
 	files: readonly DiffSides[],
@@ -102,18 +59,12 @@ export const openableByDefault = (
 	let spent = 0;
 
 	return files.map(file => {
-		// Nothing to open: a binary file has no diff to draw, and it has no size
-		// either, so left to the limits below it would be the cheapest file in
-		// the commit and go first.
+		// Binary: nothing to draw.
 		if (!hasDiffToShow(file)) return false;
 
 		if (isLargeDiff(file)) return false;
 
-		// Charged only for what is opened, so a file the budget refuses does not
-		// also spend it — otherwise one big file near the front would shut
-		// everything behind it. The file that crosses the line is opened rather
-		// than shut, so the budget is a floor on what a reader gets, not a cap
-		// on what they are shown.
+		// Only opened files spend the budget; the one crossing the line still opens.
 		if (spent >= DIFF_BUDGET_CHARS) return false;
 
 		spent += diffCharCount(file);
@@ -123,11 +74,8 @@ export const openableByDefault = (
 };
 
 /**
- * The same answer as paths, for the views that track what is open by path
- * rather than by position.
- *
- * Hand it the files that are candidates at all — one that is shut for another
- * reason, a file already reviewed, must not spend the budget on the way.
+ * The same answer as paths. Pass only candidate files, so a reviewed one
+ * doesn't spend the budget.
  */
 export const pathsOpenByDefault = <T extends DiffSides & {path: string}>(
 	files: readonly T[],

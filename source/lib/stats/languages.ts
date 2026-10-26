@@ -1,8 +1,4 @@
-// Which languages a ticket's change is written in, and which of them the
-// repository had never seen before it.
-//
-// Counted in lines rather than files: a one-line YAML tweak beside a thousand
-// lines of Go is not half a change in each.
+// A change's languages by line count, and which are new to the repo.
 
 import {isGeneratedPath, isTestPath, languageOf} from './file-kinds.js';
 import {LanguageBreakdown, LanguageLines} from './issue-stats.model.js';

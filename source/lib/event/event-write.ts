@@ -18,24 +18,15 @@ type MaterializedValue<M extends EventMap, A extends ActionOf<M>> = {
 	result: M[A]['result'];
 };
 
-/**
- * The write path: apply to state and append to the log, under one identity.
- */
+/** The write path: apply to state and append to the log, under one identity. */
 export const createWriter = <M extends EventMap>(
 	catalog: EventCatalog<M>,
 	materializer: Materializer<M>,
 	persister: Persister<M>,
 ) => {
 	/**
-	 * The id a caller builds an event with is a placeholder: the real one is
-	 * minted here, against the edge the event will follow, before the state
-	 * sees it. So what a node's log holds is what its line in the file holds,
-	 * and the state this leaves behind is the state replaying that line
-	 * produces.
-	 *
-	 * Minted before materializing rather than after persisting, because a live
-	 * write whose precondition fails must leave the log untouched — an event
-	 * appended and then rejected would be skipped by every replay, for good.
+	 * Mints the real id before materializing, so state and log share it; a failed
+	 * precondition never reaches the log.
 	 */
 	function materializeAndPersist<A extends ActionOf<M>>(
 		event: Event<M, A>,
@@ -82,9 +73,7 @@ export const createWriter = <M extends EventMap>(
 		const readOnlyReason = catalog.write.readOnlyReason();
 		if (readOnlyReason) return failed(readOnlyReason);
 
-		// One batch for the whole write. Each event, and whatever the product
-		// derives from it, otherwise rebuilds on its own — seven derivations to
-		// write one event, each over everything the state holds.
+		// One batch for the whole write, so derivations rebuild once.
 		const batched = catalog.replay.batch(
 			(): Result<NonEmptyArray<MaterializedValue<M, T[number]['action']>>> => {
 				// One cursor for the whole batch: the loop below is synchronous, so

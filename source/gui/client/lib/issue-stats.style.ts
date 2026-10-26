@@ -1,11 +1,5 @@
-// The Stats tab's vocabulary: a number, what it is, and — under it, quietly —
-// what it was worked out from.
-//
-// The hierarchy is the whole design. A stat is read at a glance or not at all,
-// so the figure carries the weight and everything supporting it is deliberately
-// small: the label a hair above legible, the working smaller still. Nothing on
-// the tab is allowed to be a bare figure, but nor is a figure allowed to be
-// crowded by its own footnotes.
+// The Stats tab's vocabulary: a figure carries the weight, its label and
+// working sit small beneath it.
 
 import {GUI_THEME} from './gui-theme';
 import {menuBlueGrey} from './select-style';
@@ -138,9 +132,7 @@ export const inDays = (ms: number): string => {
 	return days < 1 ? '<1' : String(days);
 };
 
-// Only ever the last two segments: the full path is a paragraph in a column
-// this narrow, and the tail is what identifies a file to somebody who knows
-// the repo. The whole path rides along as a title attribute.
+// The last two segments; the full path rides along as a title.
 export const shortPath = (path: string): string => {
 	const parts = path.split('/');
 
@@ -148,14 +140,8 @@ export const shortPath = (path: string): string => {
 };
 
 /**
- * The categorical series, in fixed order — slot 1 for the biggest share, and
- * never cycled: a sixth language folds into "Other" rather than reusing a hue.
- *
- * Validated against this panel's own surface (#11141b) rather than assumed:
- * lightness band, chroma floor, adjacent-pair separation under protanopia and
- * tritanopia, the normal-vision floor, and contrast all pass. The theme's own
- * accents do not — they sit at one lightness, and #ffd479 against #8ce99a is
- * ΔE 3.8 under protanopia, which is the same colour to a good many readers.
+ * The categorical series in fixed order, never cycled: a sixth folds into
+ * "Other". Validated for colour-blind separation on this panel's surface.
  */
 export const SERIES = [
 	'#3987e5',
@@ -172,13 +158,5 @@ export const SERIES_REST = GUI_THEME.dim2;
 export const seriesColor = (index: number): string =>
 	SERIES[index] ?? SERIES_REST;
 
-/**
- * What a comment is, wherever one is drawn: the yellow the diff paints comment
- * lines and the yellow the comment bar fills with.
- *
- * Defined here rather than beside the diff theme so both sides read one value
- * — a bar that disagreed with the file it describes would be worse than no bar.
- * Bright on purpose: 14.5:1 against the code background, and still 12.2:1 on
- * the green of an added row.
- */
+/** The comment yellow, shared by the diff theme and the comment bar. */
 export const COMMENT_YELLOW = '#ffe066';

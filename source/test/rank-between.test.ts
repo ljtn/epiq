@@ -30,13 +30,8 @@ describe('rankBetween', () => {
 	});
 
 	/**
-	 * Two clients appending to one lane while unsynced both read the same last
-	 * sibling and compute the same midpoint, so equal sibling ranks are ordinary
-	 * traffic rather than corruption.
-	 *
-	 * This used to return the middle of the whole space — a success — so
-	 * "move this after that one" silently put the node somewhere nobody asked
-	 * for, and `resolveMoveRank` never learned it needed a rebalance.
+	 * Equal sibling ranks are ordinary when two unsynced clients append to one
+	 * lane; failing tells `resolveMoveRank` to rebalance.
 	 */
 	it('refuses to place a node between two equal ranks', () => {
 		expect(isFail(rankBetween(hex(500n), hex(500n)))).toBe(true);

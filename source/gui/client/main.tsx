@@ -10,13 +10,8 @@ import {
 	DIFF_WORKER_POOL_OPTIONS,
 } from './lib/diffs-worker-pool';
 
-// The board, with somewhere for the diff highlighter to run — see
-// lib/diffs-worker-pool. One element for both board routes, so moving between
-// them does not tear the pool down and start it again.
-//
-// Around the board rather than around the router: the popped-out log window
-// draws no diffs, and the provider starts its workers as it mounts, so giving
-// it one would spend a window's worth of them on nothing.
+// The board inside the diff worker pool (lib/diffs-worker-pool). Not around the
+// router: the popped-out log draws no diffs and would start workers for nothing.
 const board = (
 	<WorkerPoolContextProvider
 		poolOptions={DIFF_WORKER_POOL_OPTIONS}
@@ -33,9 +28,7 @@ const board = (
 const router = createBrowserRouter([
 	// The event log popped out of a board — see lib/log-window.
 	{path: LOG_WINDOW_PATH, element: <LogWindow />},
-	// One element for every board path, including the ticket ones. A route per
-	// shape would swap elements on selecting a ticket, remounting the board and
-	// replaying the timeline's entrance.
+	// One element for every board path, so selecting a ticket never remounts the board.
 	{path: '/', element: board},
 	{path: '/board/:boardId/*', element: board},
 	{path: '*', element: <Navigate to="/" replace />},

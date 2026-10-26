@@ -37,9 +37,8 @@ export type Goal = {id: string; name: string; tombstoned?: boolean};
 // A placeholder, not an empty name, so a tombstoned assignee still reads as one.
 export const REMOVED_CONTRIBUTOR_NAME = 'removed';
 
-// `tombstoned` is a flag rather than a comparison against the placeholder name,
-// so that read paths can let removal beat the event-log name override without
-// catching anyone genuinely called "removed".
+// `tombstoned` is a flag, not a placeholder-name check, so nobody genuinely
+// called "removed" reads as removed.
 export type Contributor = {
 	id: string;
 	name: string;
@@ -67,10 +66,8 @@ export type SyncStatus = {
 	msg: string;
 };
 
-// Progress of a `:replay <when>` replay: the board is checked out at
-// `startTime` and events are re-applied forward up to the live edge (`endTime`)
-// like a movie. `currentTime` is the timestamp of the most recently applied
-// event, which drives the topbar's progress/date visualization.
+// Progress of a `:replay <when>`: events re-applied from `startTime` up to the
+// live edge (`endTime`); `currentTime` is the last applied event's time.
 export type ReplayState = {
 	// Elapsed playback position in [0..1], advancing with wall-clock time so the
 	// scrubber keeps moving even while fast-forwarding through idle stretches.
@@ -99,9 +96,8 @@ export type AppState = {
 	contextNode: NavNode<AnyContext>;
 	filters: Filter[];
 	contributors: Record<string, Contributor>;
-	// Git author addresses bound to contributors, keyed by `emailLinkKey`. Flat
-	// rather than nested under a contributor so that a contested address — one
-	// two people claim — is a readable state rather than a collision.
+	// Git author addresses bound to contributors, keyed by `emailLinkKey`; flat,
+	// so an address two people claim is a readable state.
 	emailLinks: Record<string, EmailLink>;
 	// Connected repos by id, disconnected ones kept. Readers take the live
 	// list from the log itself, which time travel does not rewind.
@@ -143,11 +139,7 @@ export const findInBreadCrumb = <T extends BreadCrumbItem['context']>(
 		return failed('Unable to find node in breadcrumb');
 	}
 };
-// The author is an id. Their name was denormalized onto this record at
-// materialize time and so froze at whatever they were called when they
-// commented — a rename never reached it, and an author the registry did not
-// know was stored as "Unknown", a name two strangers share. Resolved by id at
-// the point of display instead, like every other name since SVYYX5A.
+// The author is an id, resolved to a name at display time.
 export type CommentState = {
 	id: string;
 	issue: string;
@@ -160,11 +152,7 @@ export const ATTACHMENT_EXTENSIONS = ['png', 'jpg', 'gif', 'webp'] as const;
 
 export type AttachmentExt = (typeof ATTACHMENT_EXTENSIONS)[number];
 
-/**
- * Attachment metadata. The image bytes live as a content-addressed blob at
- * `.epiq/media/<hash>.<ext>` in the state branch worktree — events and
- * state only ever carry this reference.
- */
+/** Attachment metadata; the bytes live as a blob at `.epiq/media/<hash>.<ext>`. */
 export type AttachmentState = {
 	id: string;
 	issue: string;

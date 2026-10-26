@@ -19,10 +19,8 @@ export const EVENT_CATEGORIES = [
 
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
-// What the Board series is showing. 'all' draws every kind and colours by kind;
-// picking one kind draws only it and colours by the identity behind each event;
-// 'contributors' draws every kind, like 'all', and colours by who caused each.
-// Exactly one at a time, which is what keeps a colour from meaning two things.
+// What the Board series shows: 'all' colours by kind, one kind colours by
+// identity, 'contributors' colours every kind by who caused it.
 export type BoardView = 'all' | EventCategory | 'contributors';
 
 export const BOARD_VIEWS: BoardView[] = [
@@ -49,10 +47,8 @@ const BOARD_VIEW_COLORS: Record<BoardView, string> = {
 export const boardViewColor = (view: BoardView): string =>
 	BOARD_VIEW_COLORS[view];
 
-// The four sides of an event the board can be narrowed by. `commenter` and
-// `actor` both read the event's author: the first only over comments, so it
-// answers "who talked about this ticket", the second over every kind, so it
-// answers "who touched it".
+// What the board can be narrowed by. `commenter` is the author over comments,
+// `actor` over every kind.
 export const FILTER_AXES = ['commenter', 'tag', 'assignee', 'actor'] as const;
 
 export type FilterAxis = (typeof FILTER_AXES)[number];
@@ -77,16 +73,10 @@ const AXIS_CATEGORY: Record<FilterAxis, EventCategory | null> = {
 	actor: null,
 };
 
-// What one axis is asking of a ticket. 'all' is the axis switched on with every
-// identity under it, which asks only that the ticket carry one — assigned to
-// somebody, tagged with something, touched by somebody. A list narrows that to
-// the named few.
+// 'all' asks only that the ticket carry some identity on the axis; a list names which.
 export type AxisNarrowing = 'all' | readonly string[];
 
-// A narrowing per axis: an axis absent takes no part in the filter, an axis
-// present asks its question of every ticket. Several hold at once and a ticket
-// has to pass them all, which is what "every tag, for these two contributors"
-// means.
+// A narrowing per axis; an absent axis takes no part, and a ticket must pass every present one.
 export type SelectionNarrowing = Partial<Record<FilterAxis, AxisNarrowing>>;
 
 // The ids an axis is narrowed to, or null where it is on with all of them.
@@ -107,10 +97,7 @@ const VIEW_FOR_AXIS: Record<FilterAxis, BoardView> = {
 	actor: 'contributors',
 };
 
-// What the chart draws, read off the filter rather than picked beside it. One
-// axis on and the chart is that axis — its kind, in its identities' colours,
-// which is what choosing that view used to do. None or several on and there is
-// no single thing to colour by, so it draws every kind and colours by kind.
+// The view the filter implies: one axis on draws that axis, otherwise 'all'.
 export const plottedView = (only: SelectionNarrowing): BoardView => {
 	const active = activeAxes(only);
 	return active.length === 1 ? VIEW_FOR_AXIS[active[0]!] : 'all';
@@ -129,9 +116,7 @@ export const identityAxisFor = (view: BoardView): FilterAxis | null =>
 		? 'actor'
 		: null;
 
-// Listed rather than matched on substrings: "attachment" and "assignee" both
-// read as near-misses for the tag and comment rules, and a wrong bucket here is
-// invisible until someone counts.
+// Listed rather than matched on substrings, which misfile near-misses like "attachment".
 const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 	'add.issue.comment': 'comments',
 	'edit.issue.comment': 'comments',
@@ -166,9 +151,7 @@ const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 export const categoryOf = (action: string): EventCategory =>
 	CATEGORY_BY_ACTION[action] ?? 'tickets';
 
-// The identity a view colours by, or null where the event has none — an
-// assigning view over a `create.contributor`, say. Selects one already built;
-// `identityOf` in `lib/model/identity.ts` is what builds them.
+// The identity a view colours by, or null where the event has none.
 const identityForView = (
 	entry: GuiEventTimelineEntry,
 	view: BoardView,
@@ -177,9 +160,7 @@ const identityForView = (
 	return axis === null ? null : entry[AXIS_FIELD[axis]];
 };
 
-// The identity an event offers an axis, or null where it offers none — an
-// assigning event on the tag axis, or a `create.contributor` on the assignee
-// axis, which names nobody assigned.
+// The identity an event offers an axis, or null where it offers none.
 const identityOnAxis = (
 	entry: GuiEventTimelineEntry,
 	axis: FilterAxis,
@@ -190,9 +171,7 @@ const identityOnAxis = (
 	return entry[AXIS_FIELD[axis]];
 };
 
-// Every identity present in the window on this axis, in first-seen order.
-// Doubles as the filter's legend, so it lists what is actually there rather
-// than every tag or contributor the repo has ever had.
+// Every identity in the window on this axis, in first-seen order: the filter's legend.
 export const listIdentities = (
 	timeline: GuiEventTimeline | null,
 	axis: FilterAxis | null,
@@ -209,10 +188,7 @@ export const listIdentities = (
 	return [...byId.values()];
 };
 
-// Every axis's legend at once, in one pass. The popover offers all four, and
-// the lists are rebuilt on every board broadcast — a needle drag makes one
-// every 120ms — so walking a whole window's events once per axis is four times
-// the work for the same answer.
+// Every axis's legend in one pass, since it is rebuilt on every board broadcast.
 export const listIdentitiesByAxis = (
 	timeline: GuiEventTimeline | null,
 ): Record<FilterAxis, GuiEventIdentity[]> => {
@@ -234,10 +210,7 @@ export const listIdentitiesByAxis = (
 	return lists;
 };
 
-// The one identity left when everything else in the view is hidden — reached by
-// unchecking down to one, or in a click via "only". Narrowed that far the series
-// no longer stands for a kind, it stands for that tag or person, so the bars and
-// the label take its colour and its name rather than the kind's.
+// The one identity left visible, whose colour and name the series then takes.
 export const soleVisibleIdentity = (
 	identities: GuiEventIdentity[],
 	hiddenIds: ReadonlySet<string>,
@@ -248,20 +221,16 @@ export const soleVisibleIdentity = (
 
 export type EventDot = {
 	key: string;
-	// The event this dot stands for. null on the bucketed fallback, whose dot
-	// stands for a slot rather than one event.
+	// null on the bucketed fallback, whose dot stands for a slot.
 	id: string | null;
 	t: number;
-	// null on a per-event dot, where the dot *is* the event. Set only on the
-	// bucketed fallback, whose dot stands for a slot that may hold several.
+	// Set only on the bucketed fallback.
 	count: number | null;
 	// The event's own description on a per-event dot, null on the fallback.
 	label: string | null;
-	// null on the fallback, whose bucket mixes categories with no way to tell
-	// them apart. Drawn in the plain Board accent there.
+	// null on the fallback, whose bucket mixes categories.
 	category: EventCategory | null;
-	// Resolved here rather than by the renderer, which would otherwise need to
-	// know which of the three colour rules applies.
+	// Resolved here, so the renderer needn't know the colour rules.
 	color: string;
 	// What the dot is coloured by under the current view, for its hint.
 	identity: GuiEventIdentity | null;
@@ -269,9 +238,7 @@ export type EventDot = {
 	opacity: number;
 };
 
-// What a dot says when hovered. The identity is appended only where the label
-// does not already carry it: "Tagged with bug" names its tag, "Commented" does
-// not name its author.
+// A dot's hover text, with the identity appended unless the label already names it.
 export const dotDetail = (dot: EventDot): string => {
 	const base =
 		dot.label ?? `${dot.count ?? 0} board event${dot.count === 1 ? '' : 's'}`;
@@ -281,15 +248,12 @@ export const dotDetail = (dot: EventDot): string => {
 		: base;
 };
 
-// Fixed, because a per-event dot has no count to encode. Matches the commit
-// scatter, which has always been one dot per commit.
+// Fixed, since a per-event dot has no count to encode.
 const EVENT_DOT_SIZE = 4;
 const EVENT_DOT_OPACITY = 0.55;
 
-// The tickets whose events the chart keeps, and null for every ticket's. The
-// ticket narrowing and the text query are the board's two ways down to
-// particular tickets, and both in force keep what passes both, as the board
-// does — so the picture above never shows a ticket the columns below do not.
+// The tickets whose events the chart keeps (null for all): those passing both
+// the ticket narrowing and the text query, as the board does.
 export const keptIssueIds = (
 	issueOnly: string | null,
 	queryIssueIds: ReadonlySet<string> | null,
@@ -302,22 +266,14 @@ export const keptIssueIds = (
 	return new Set();
 };
 
-// The scatter plots each dot at its own timestamp, so it wants events, not
-// buckets. Buckets are the fallback for a window the server capped, and only
-// there do size and opacity carry a count.
-// An event is drawn when its kind matches the view and the identity it would be
-// coloured by has not been unticked. An event with no identity under this view
-// always shows: there is nothing in the list for the user to have hidden it by.
-// The rule the chart draws by, exported so the log can draw by the same one
-// rather than growing a second copy to drift from it.
+// Whether an event is drawn under this view and filter; the log shares this rule.
 export const isShown = (
 	entry: GuiEventTimelineEntry,
 	view: BoardView,
 	hiddenIds: ReadonlySet<string>,
 	keptIssues: ReadonlySet<string> | null = null,
 ): boolean => {
-	// Board- and swimlane-level events carry no issue, so narrowing to some
-	// tickets drops them too: they are not what happened to those.
+	// Narrowing to tickets drops board-level events, which carry no issue.
 	if (
 		keptIssues !== null &&
 		(entry.issue === null || !keptIssues.has(entry.issue))
@@ -392,9 +348,7 @@ export const buildEventDots = (
 	});
 };
 
-// What the scrubber's selection means for the board below it: one entry per
-// axis switched on, and empty when none is. `visibleIds` null is the axis on
-// with every identity, which asks only that the ticket carry one.
+// One entry per axis switched on; `visibleIds` null means any identity on it.
 export type AxisFilter = {
 	axis: FilterAxis;
 	visibleIds: ReadonlySet<string> | null;
@@ -402,26 +356,20 @@ export type AxisFilter = {
 
 export type BoardFilter = readonly AxisFilter[];
 
-// An axis nobody switched on asks nothing, and which kind the chart happens to
-// be plotting says nothing either way — so a narrowing outlives the picture it
-// was made under.
+// Independent of the plotted view, so a narrowing outlives the view it was made under.
 export const buildBoardFilter = (only: SelectionNarrowing): BoardFilter =>
 	activeAxes(only).map(axis => {
 		const ids = narrowedIds(only[axis]);
 		return {axis, visibleIds: ids === null ? null : new Set(ids)};
 	});
 
-// Whether the window says which tickets its events belong to. Past the
-// server's cap it answers with bucket counts alone, which name none — as
-// against a quiet window, which names none because nothing happened.
+// False past the server's cap, where the window holds bucket counts alone.
 export const windowNamesIssues = (timeline: GuiEventTimeline | null): boolean =>
 	timeline === null ||
 	timeline.events.length > 0 ||
 	timeline.buckets.length === 0;
 
-// Ticket ids the window holds an event for, which is what the window filter
-// narrows the board to. Null where the board cannot be narrowed at all: before
-// a timeline has arrived, and where the window names no tickets it counted.
+// Ticket ids the window holds an event for, or null where it can't say.
 export const windowIssueIds = (
 	timeline: GuiEventTimeline | null,
 ): Set<string> | null => {
@@ -436,10 +384,7 @@ export const windowIssueIds = (
 	return ids;
 };
 
-// Who caused an event on each ticket, over the window in hand. Null where the
-// window names no tickets at all — past the server's cap it answers with
-// bucket counts, and reading those as "nobody touched anything" would empty
-// the board rather than leave the axis unanswerable.
+// Who caused an event on each ticket in the window, or null where it can't say.
 export const actorIdsByIssue = (
 	timeline: GuiEventTimeline | null,
 ): Map<string, Set<string>> | null => {
@@ -462,17 +407,12 @@ export const actorIdsByIssue = (
 export type IssueFilterFacts = {
 	// Who has commented on it, read off the board state at the needle.
 	commenterIds: readonly string[];
-	// Who has caused any event on it inside the window. Null where the window
-	// cannot say, which leaves that axis unenforced rather than failing every
-	// ticket against it.
+	// Who caused any event on it in the window; null leaves the axis unenforced.
 	actorIds: readonly string[] | null;
 };
 
-// Tags and assignees are read off the board's own state, which is already the
-// state at the needle — so a filtered board answers "who/what, as of here",
-// matching the moment the scrubber is parked on rather than the events inside
-// the window. The actor axis is the exception: nothing but the window knows who
-// caused what, so that one narrows by the window.
+// Tags and assignees are read as of the needle; actors, which only the window
+// knows, by the window.
 export const issuePassesBoardFilter = (
 	issue: {
 		id: string;
@@ -492,8 +432,7 @@ export const issuePassesBoardFilter = (
 				? facts.commenterIds
 				: facts.actorIds;
 
-		// The window cannot say who touched what, so the axis goes unenforced
-		// rather than failing every ticket against an answer nobody has.
+		// Unanswerable, so unenforced.
 		if (ids === null) return true;
 
 		// On with every identity: carrying one is the whole question.

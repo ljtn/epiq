@@ -1,7 +1,5 @@
-// The Code series' select, down to linked commits: only commits whose subject
-// leads with a ticket's ref, and only the tickets on screen while the board is
-// narrowed.
-// The log draws by the chart's rule, so it is what the test reads.
+// The Code series narrowed to linked commits, on screen tickets only. Read via
+// the log, which draws by the chart's rule.
 
 import {expect, test} from './fixtures.js';
 import {addTicketForRef} from './ticket.js';
@@ -80,9 +78,7 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 	expect(pageErrors).toEqual([]);
 });
 
-// An empty window keeps its baseline, the way the board track does: the
-// series narrowed to commits the window has none of must not take the green
-// row away, or the scrubber's height would come and go with the narrowing.
+// An empty window keeps the track's baseline, so the scrubber's height holds.
 test('the Code track stays up, baseline and all, when the window has no commits to plot', async ({
 	page,
 	appUrl,
@@ -130,9 +126,7 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 	expect(pageErrors).toEqual([]);
 });
 
-// The track folds away with its series off, but the hit strip above the
-// charts is still the track's for the pointer: what it must not do is put up
-// a count of board events for a series that is not drawn.
+// A folded-away track's hit strip must not show a board hint.
 test('no board hint comes up over a board track folded away', async ({
 	page,
 	appUrl,
@@ -159,10 +153,7 @@ test('no board hint comes up over a board track folded away', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Which commits are drawn and what their bars measure are two questions. The
-// list asks them in two groups, and answering one leaves the other alone —
-// flattened into one row of options, "the deletions among linked commits"
-// could not be asked for at all.
+// Which commits are drawn and what bars measure are chosen separately.
 test('the measure and the narrowing are chosen apart, and both are remembered', async ({
 	page,
 	appUrl,
@@ -192,10 +183,7 @@ test('the measure and the narrowing are chosen apart, and both are remembered', 
 		linkedFileName(ref!),
 		'alpha\ndelta\n',
 	);
-	// And a great deal more added than removed, so the removal's share of the
-	// bucket is a fraction of a pixel. That is the case the floor under each
-	// half exists for: without it this bucket draws as one solid colour and the
-	// removal is off the chart entirely.
+	// Mostly additions, so the removal's share is sub-pixel without the floor.
 	commitLinkedFile(
 		repoRoot,
 		ref!,
@@ -226,20 +214,14 @@ test('the measure and the narrowing are chosen apart, and both are remembered', 
 		.poll(async () => await page.getByTestId('line-bar').count())
 		.toBeGreaterThan(0);
 
-	// Both outlive the page, like the series boxes beside them. The trigger is
-	// drawn from the stored choice before the window it plots has arrived, so
-	// the bars are waited for rather than read off the next line.
+	// Both persist; wait for the bars, which arrive after the trigger.
 	await page.reload();
 	await expect(page.getByTestId('commit-select')).toHaveText('Lines (linked)');
 	await expect
 		.poll(async () => await page.getByTestId('line-bar').count())
 		.toBeGreaterThan(0);
 
-	// A bucket that both added and removed draws both halves rather than one
-	// colour: neither share is rounded away on a bar a few pixels tall.
-	//
-	// Polled rather than read once: the bars grow into place from nothing, and a
-	// box measured during that sweep is the animation's, not the drawing's.
+	// A mixed bucket draws both halves. Polled: the bars animate in.
 	const mixedBars = `[...document.querySelectorAll('[data-testid="line-bar"]')].map(bar => ({share: Number(bar.getAttribute('data-share')), added: bar.children[0].getBoundingClientRect().height, removed: bar.children[1].getBoundingClientRect().height})).filter(bar => bar.share > 0 && bar.share < 1)`;
 
 	await expect

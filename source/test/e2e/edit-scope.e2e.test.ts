@@ -17,16 +17,11 @@ const ESCAPE = '\x1B';
 
 type Tui = ReturnType<typeof setupTui>;
 
-// The global epiq config lives under os.homedir(), which every e2e session
-// otherwise shares. Parallel files all writing that one config.json race, and a
-// session can read it mid-write and drop back to first-run setup. We give this
-// file its own HOME so it neither suffers nor contributes to that race, and
-// supply a git identity (the isolated HOME has no ~/.gitconfig).
+// Its own HOME, so parallel files don't race on one global config.json; the
+// isolated HOME needs its own git identity.
 const E2E_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-e2e-home-'));
 
-// A non-interactive editor stand-in: `epiq` expands `$EDITOR` through the shell
-// at edit time, so registering `$EDITOR` and pointing it here makes
-// `edit description` deterministic instead of blocking on a real editor.
+// A non-interactive `$EDITOR` stand-in, so `edit description` doesn't block.
 const fakeEditor = path.resolve(
 	process.cwd(),
 	'source/test/e2e/fake-editor.sh',
@@ -50,11 +45,8 @@ const run = async (tui: Tui, cmd: string, echo: string) => {
 	await tui.waitFor(commandLineIsIdle, 5_000);
 };
 
-// Type a partial command and assert the inline autocompletion completes it.
-// The completion renders as ghost text right after the cursor, so the rendered
-// line reads as the fully completed command even though only the prefix was
-// typed. We assert against the colon-prefixed command line so unrelated on-
-// screen text (e.g. the "press e to edit" label) cannot match. ESC resets.
+// Types a prefix and asserts the ghost-text completion on the colon-prefixed
+// command line, so unrelated screen text can't match. ESC resets.
 const expectAutocompletes = async (
 	tui: Tui,
 	partial: string,
@@ -74,11 +66,7 @@ beforeAll(async () => {
 	const tui = setupTui([], {env: ENV});
 
 	try {
-		// The shared walk-through rather than a copy of it. This one carried its
-		// own timeouts — one of them the 3s default, where the shared walk allows
-		// the 20s a cold start under a full container can take, which is what
-		// failed. Off: this file only exercises command autocompletion, and
-		// disabling autosync avoids any background git work.
+		// Autosync off: this file tests autocompletion only.
 		await commonSteps.configureInitialSettings(tui, 'off');
 	} finally {
 		await tui.destroy();
@@ -123,15 +111,12 @@ describe('TUI edit-command scope e2e', () => {
 				tui.input(ENTER);
 				await tui.waitFor('History ››', 4_000);
 
-				// 2. Descendant selected: `edit` and `edit description` must still
-				//    autocomplete, even though the selected node's own context is not
-				//    a ticket.
+				// 2. Descendant selected: `edit` and `edit description` still autocomplete.
 				await expectAutocompletes(tui, ':edi', ':edit');
 				await expectAutocompletes(tui, ':edit des', ':edit description');
 
-				// 3. Actually run it: from a descendant selection, `edit description`
-				//    must edit the in-scope ticket's description. The stand-in editor
-				//    writes a fixed value, which should then render in the field.
+				// 3. From a descendant, `edit description` edits the in-scope ticket;
+				//    the stand-in editor writes a fixed value.
 				await run(tui, ':edit description', 'edit description');
 				await tui.waitFor(EDITED_DESCRIPTION, 8_000);
 			} finally {

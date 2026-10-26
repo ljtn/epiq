@@ -10,9 +10,7 @@ import {RAIL_WIDTH, RAIL_DOT_OFFSET, ROW_GAP} from '../lib/commit-row.style';
 import {CommitRow} from './CommitRow';
 import {CommitDiffState} from '../lib/use-issue-detail';
 
-// Case-insensitive like the server's own match (getCommitsForRef) — a subject
-// that doesn't actually carry the prefix (shouldn't happen, but the match
-// isn't a hard guarantee client-side) is returned unchanged rather than mangled.
+// Case-insensitive like the server's match; a subject without the prefix is unchanged.
 const stripRefPrefix = (subject: string, refs: string[]): string => {
 	const prefix = refs
 		.map(ref => `${ref} `)
@@ -21,18 +19,7 @@ const stripRefPrefix = (subject: string, refs: string[]): string => {
 	return prefix ? subject.slice(prefix.length) : subject;
 };
 
-// The tree this renders:
-//
-// Issue
-//  ├── Commit A
-//  │     ├── server.ts
-//  │     └── auth.ts
-//  └── Commit B
-//        └── ui.tsx
-//
-// Deliberately per-commit rather than a flattened file list across the whole
-// ticket — a file touched in two commits shows twice, once per commit, same
-// as GitHub's "Commits" tab vs. its squashed "Files changed" tab.
+// Per commit, not a flattened file list: a file touched twice shows twice.
 export const IssueCommits = ({
 	issueRef,
 	empty,
@@ -72,14 +59,8 @@ export const IssueCommits = ({
 	const autoOpenedShas = useRef(new Set<string>());
 	const autoOpenedFiles = useRef(new Set<string>());
 
-	// The only commit opens itself, since with one there is nothing to choose
-	// between and the click that would open it is just in the way. Once, so
-	// collapsing it by hand sticks.
-	//
-	// Nothing else does. This view is the list of what happened; the compacted
-	// view the same switch offers is where the change is read in one piece — so
-	// opening every commit here drew a dozen diffs nobody asked for, one
-	// segment away from a view that shows the same content as one (3RQ4QG4).
+	// A lone commit opens itself, once, so collapsing it sticks. No others do: the
+	// compacted view is where they are read whole.
 	const openCommitsOnArrival = commits.length === 1;
 
 	useEffect(() => {
@@ -102,10 +83,7 @@ export const IssueCommits = ({
 		}
 	}, [openCommitsOnArrival, commits]);
 
-	// A commit's files open as they arrive, in either layout: the diff is what
-	// the reader came for. Once per commit, the moment its files first land,
-	// so a file shut by hand afterwards stays shut — and a later "Expand all"
-	// on one commit does not reach back into another.
+	// Each commit's files open as they first land, once, so later closes stick.
 	useEffect(() => {
 		for (const commit of commits) {
 			const files = diffsBySha[commit.sha]?.files;
@@ -116,13 +94,8 @@ export const IssueCommits = ({
 				...prev,
 				[commit.sha]: new Set([
 					...(prev[commit.sha] ?? []),
-					// A file already reviewed stays shut: what is left open is what is
-					// left to read. Filtered out before the budget rather than by it,
-					// so a reviewed file does not spend what it is not using.
-					//
-					// What survives that is `pathsOpenByDefault`'s to decide — a
-					// lockfile opened unasked is what stalls this view, and so is a
-					// commit of a hundred ordinary files.
+					// Reviewed files stay shut and don't spend the budget; the rest is up to
+					// `pathsOpenByDefault`.
 					...pathsOpenByDefault(
 						files.filter(file => !isReviewed(commit.sha, file.path)),
 					),
@@ -131,11 +104,7 @@ export const IssueCommits = ({
 		}
 	}, [commits, diffsBySha]);
 
-	// Opens the commit and file a permalink names. Deliberately additive — it
-	// never collapses anything the reader already had open, so following a
-	// link into a tab you were already using doesn't throw your place away.
-	// Keyed on the location's own values rather than object identity, which
-	// the caller rebuilds from URL params on every render.
+	// Opens the commit and file a permalink names, additively. Keyed by value.
 	const focusKey = focus ? `${focus.sha}:${focus.filePath ?? ''}` : null;
 
 	useEffect(() => {
@@ -180,9 +149,7 @@ export const IssueCommits = ({
 			return next;
 		});
 
-		// Also retries on a prior failure — a truthy-but-errored entry would
-		// otherwise stay stuck showing that error forever, since collapsing and
-		// re-expanding is the only other trigger and it hits this same guard.
+		// Retries a failed fetch too.
 		if (!alreadyExpanded && (!diffsBySha[sha] || diffsBySha[sha].error)) {
 			onLoadDiff(sha);
 		}
@@ -241,10 +208,7 @@ export const IssueCommits = ({
 		);
 	}
 
-	// Oldest first, reading top-to-bottom as the story unfolded — the log
-	// itself comes back newest-first. The ref prefix is stripped from the
-	// displayed subject too: a ticket's commits all carry its ref, and a
-	// goal's name theirs at the row's head, so repeating it is pure noise.
+	// Oldest first; the ref prefix is stripped from subjects.
 	const ordered = [...commits]
 		.sort((a, b) => a.time - b.time)
 		.map(commit => ({
@@ -259,15 +223,8 @@ export const IssueCommits = ({
 		<div>
 			{ordered.map((commit, index) => (
 				<div key={commit.sha} style={{display: 'flex', marginBottom: ROW_GAP}}>
-					{/* The rail: a dot per commit in the scrubber's own commit-series
-					    color. Connected to the next only when they're truly adjacent in
-					    the real history (precedingSha) — a broken chain (some other
-					    ticket's commit landed between them) gets no line, just dots, so
-					    the rail doesn't imply a continuity that isn't there.
-					    position: relative + stretch (the flex row's default
-					    align-items) makes this column exactly as tall as CommitRow
-					    ends up rendering, expanded or not, with no measuring needed —
-					    the line just extends into the gap below via a negative bottom. */}
+					{/* The rail: a dot per commit, joined solid to the next only when adjacent
+					    in history (precedingSha). Stretches with the row, so no measuring. */}
 					<div style={{width: RAIL_WIDTH, flexShrink: 0, position: 'relative'}}>
 						<div
 							style={{
@@ -288,9 +245,7 @@ export const IssueCommits = ({
 										position: 'absolute',
 										left: '50%',
 										top: RAIL_DOT_OFFSET,
-										// Reaches the *next* dot, not just this row's own bottom
-										// edge: that dot sits RAIL_DOT_OFFSET below the start of
-										// its own row, past the ROW_GAP margin between the two.
+										// Reaches the next row's dot.
 										bottom: -(ROW_GAP + RAIL_DOT_OFFSET),
 										width: 2,
 										background: GUI_THEME.green,
@@ -299,10 +254,7 @@ export const IssueCommits = ({
 									}}
 								/>
 							) : (
-								// A broken chain: some other ticket's commit sits between
-								// these two in real history. Dotted and fainter rather than
-								// no line at all — the two are still adjacent in this list,
-								// just not in the underlying history.
+								// Dotted and faint: another ticket's commit sits between these two in history.
 								<div
 									style={{
 										position: 'absolute',

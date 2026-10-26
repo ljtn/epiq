@@ -1,13 +1,8 @@
 import {MUTATING_MESSAGE_TYPES} from './gui-mutations';
 
 /**
- * Holds broadcast state while one of this client's mutations is unanswered.
- *
- * A `state` payload is computed when it is sent, not when it arrives, so one
- * that left the server before a mutation was applied can still land after the
- * optimistic update — reverting it on screen. The server answers every mutation
- * with a `<type>:result` and then a fresh state, so waiting for the reply is
- * enough to tell the two apart.
+ * Holds broadcasts while a mutation of ours is unanswered: one sent before it
+ * applied can land after the optimistic update. Its reply precedes the fresh state.
  */
 export const createMutationGate = () => {
 	let pending = 0;

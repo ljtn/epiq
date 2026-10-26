@@ -7,14 +7,8 @@ import {resetEmailScanCacheForTests} from '../lib/repository/email-candidates.js
 import {patchSettingsState} from '../lib/state/settings.state.js';
 
 /**
- * Setup is the one flow that takes a repository's git history and a person's
- * typing and turns them into events every clone will hold forever. Both inputs
- * are hostile by default: a history is written by whoever cloned the
- * repository, and an answer is whatever was pasted into a terminal.
- *
- * Every case here asserts one of two things. Either nothing is written, or what
- * is written is an address the history actually holds. Nothing may crash: a
- * setup step that throws is a machine that cannot be set up at all.
+ * Setup turns a repository's history and pasted answers, both hostile, into
+ * permanent events: either nothing is written or a real address is, and nothing crashes.
  */
 
 vi.mock('../git/git-utils.js', () => ({execGitAllowFail: vi.fn()}));
@@ -130,9 +124,8 @@ beforeEach(() => {
 });
 
 describe('a history written by somebody else', () => {
-	// Git accepts a control character inside an author name, so a commit can be
-	// authored under a name that contains the scan's own field separator.
-	// Splitting on the first one read the name's tail as the address.
+	// Git allows control characters in author names, including the scan's own
+	// field separator.
 	it('cannot forge an address by putting the separator in the name', async () => {
 		rawHistory([`evil${FIELD}fake@attacker.com${FIELD}real@victim.com`]);
 
@@ -276,9 +269,7 @@ describe('giving back an address', () => {
 });
 
 describe('the line setup types for you', () => {
-	// The seeded claiming step is the one place a value reaches the command line
-	// without a person putting it there, and it comes from git config, which is
-	// whatever the machine says it is.
+	// The seeded claiming step comes from git config, unchecked by any person.
 	const seeded = (gitEmail: string | null) => {
 		patchSettingsState({gitEmail});
 		return nextSetupCommand();

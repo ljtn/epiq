@@ -30,18 +30,8 @@ export type VirtualNodeKind =
 	| 'comments'
 	| 'attachments';
 
-// The ids this has already derived.
-//
-// It is a pure function of (parentId, kind) and an expensive one — a SHA-256
-// and a 26-step BigInt walk — and the TUI asks for all seven of a ticket's
-// every time that ticket's virtual fields are refreshed: on boot, after a
-// write that touches it, and on every step of a scrub, which re-materializes
-// from scratch. A full refresh of a three-thousand-ticket board went from
-// 71-77 ms to 34-40 ms.
-//
-// Unbounded on purpose: the key set is the tickets a process has seen, seven
-// entries each, and the ids are permanent — a board large enough for this to
-// matter is one where re-deriving them matters more.
+// Memoized: derivation is a SHA-256 plus a BigInt walk, asked for on every
+// refresh. Unbounded, since ids are permanent.
 const derived = new Map<string, string>();
 
 export const virtualNodeId = (

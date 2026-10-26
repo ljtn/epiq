@@ -8,15 +8,8 @@ import {privateTempDir} from '../storage/private-temp-dir.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
 
 /**
- * The command line's history, kept across restarts.
- *
- * It lives under the system temp dir rather than in the global config dir: it
- * is a convenience, not state anyone would miss, and the OS clearing it now and
- * then is fine. `privateTempDir` is what keeps a shared `/tmp` from handing a
- * project's ticket refs to every other account on the machine.
- *
- * Keyed by project, because the commands carry a board's refs and lane names —
- * one shared list would offer another project's history on ↑.
+ * The command line's history, per project, under a private temp dir so a
+ * shared `/tmp` doesn't leak ticket refs to other accounts.
  */
 
 export const COMMAND_HISTORY_FILE_NAME = 'command-history.json';
@@ -59,10 +52,8 @@ const currentProjectRoot = (): string | null => {
 };
 
 /**
- * Unparsable and unreadable are different answers. A file that makes no sense
- * is replaced; one that cannot be read at all stops a write, because the file
- * holds every project's history and rewriting it from nothing would drop the
- * rest of them over a transient error.
+ * Unparsable is replaced; unreadable stops a write, since rewriting would drop
+ * every other project's history.
  */
 type StoredProjects =
 	| {state: 'read'; projects: ProjectHistory[]}
@@ -118,11 +109,7 @@ const readFile = (filePath: string): Result<StoredProjects> => {
 	});
 };
 
-/**
- * The stored history of the project at `root`, most recent command first. A
- * project with nothing recorded reads as an empty history rather than a
- * failure — it is the normal first boot.
- */
+/** The stored history of the project at `root`, newest first; none recorded reads as empty. */
 export const readCommandHistory = ({
 	root,
 }: {
@@ -151,13 +138,8 @@ export const readCommandHistory = ({
 };
 
 /**
- * Stores `commands` as the history of the project at `root`, defaulting to the
- * one the process is standing in — the same way every other caller resolves it.
- *
- * The whole list is written each time, so the file holds what the command line
- * holds. Two epiqs on one project are last-write-wins, the bargain
- * `recent-projects.json` already makes, and a file that makes no sense is
- * replaced rather than allowed to block the command recording into it.
+ * Stores `commands` as the history of the project at `root` (default: the
+ * current one). Whole list, last write wins; a nonsense file is replaced.
  */
 export const writeCommandHistory = ({
 	commands,

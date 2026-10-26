@@ -51,11 +51,8 @@ import {succeeded} from '../lib/model/result-types.js';
 import {closeIssue, createIssue} from '../mcp/epiq-api.js';
 import {createMcpServer} from '../mcp/server.js';
 
-// The MCP SDK does not serialize requests, and every epiq-api call is a
-// boot-read-persist over the shared state singleton across several awaits.
-// Unwrapped handlers let one call's boot() rebuild the state another call had
-// already checked its preconditions against — the GUI transports take
-// `runExclusive` for exactly this, and the MCP tools did not.
+// The MCP SDK doesn't serialize requests, so interleaved boot-read-persist calls
+// could act on a state another call rebuilt.
 describe('MCP tool serialization', () => {
 	it('runs concurrent tool calls one at a time, never interleaved', async () => {
 		const trace: string[] = [];

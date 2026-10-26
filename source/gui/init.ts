@@ -27,25 +27,16 @@ export const startGui = async (input: {
 		if (input.open !== false && canOpenBrowser()) openBrowser(url);
 	};
 
-	// The GUI server process has its own settings singleton; without this it never
-	// picks up the user's config and silently falls back to $VISUAL/$EDITOR.
-	// Same as the TUI: an unresolvable environment actor is fatal, because
-	// carrying on means serving the board as the configured user instead.
+	// An unresolvable environment actor is fatal, or the board is served as the configured user.
 	const envActor = resolveEnvActor({});
 	if (isFail(envActor)) return failed(envActor.message);
 
+	// This process has its own settings singleton; unloaded, it ignores the user's config.
 	const settings = loadSettingsFromConfig();
 	if (isSuccess(settings)) patchSettingsState(settings.value);
 
-	// An epiq already serving this project on the usual port is the one to open,
-	// not something to start a rival to. A second server would land on an
-	// ephemeral port, and since browser storage is scoped to the whole origin —
-	// port included — that new origin arrives with none of the panel widths,
-	// board selection or lane state the first one has been keeping.
-	//
-	// Only this exact case is reused. A different project, or anything that
-	// isn't epiq, falls through to the existing fallback: taking a port from
-	// either of them is a decision for TYR7186, not a side effect of booting.
+	// Reuse an epiq already serving this project on the usual port: a rival on
+	// another port is another origin, without the first one's browser storage.
 	const running = await probeGuiInstance(PREFERRED_GUI_PORT);
 
 	if (running && running.repoRoot === canonicalRepoRoot(input.repoRoot)) {

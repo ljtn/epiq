@@ -1,10 +1,5 @@
-// What a log line shows: its clock, who did it, the dot for its kind, and the
-// line itself. Each can be left out from the panel's header, and the choice is
-// kept per browser. Everything is on until somebody turns it off.
-//
-// The layout of a row is CSS, so a choice is carried to the rows as a class on
-// the pane rather than as props to hundreds of them: turning a column off is
-// one class toggling, not the whole column re-rendering.
+// Which fields a log line shows, kept per browser. Carried as a class on the
+// pane, so toggling one never re-renders the rows.
 
 import {usePersistedFlag} from './use-persisted-flag';
 
@@ -20,9 +15,7 @@ export const ALL_LOG_FIELDS: LogFields = {
 	label: true,
 };
 
-// In the order the row reads, which is the order the header lists them: the
-// clock, then the dot in the gap after it, then the name, then a commit's
-// stat and the line itself. See EVENT_LOG_STYLES for where each one lands.
+// In the order the row reads; see EVENT_LOG_STYLES.
 export const LOG_FIELD_ORDER: readonly LogField[] = [
 	'time',
 	'kind',

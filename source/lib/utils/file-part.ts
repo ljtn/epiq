@@ -1,11 +1,6 @@
 /**
- * Encodes the actor id an event log file name is made of (`<userId>.jsonl`).
- * Lossy on purpose: this is a storage encoding, never a display value. A ULID
- * round-trips it; display names never reach it, because since ZFZFW9D no part
- * of the name carries one — they come from the contributor registry.
- *
- * Still tolerant of a name-shaped input, because a log written before ZFZFW9D
- * carries `<userId>.<userName>.jsonl` and is read unchanged.
+ * Encodes the actor id of a log file name (`<userId>.jsonl`); lossy storage,
+ * never display. Old `<userId>.<userName>.jsonl` names still parse.
  */
 export const sanitizeFilePart = (value: string) =>
 	value

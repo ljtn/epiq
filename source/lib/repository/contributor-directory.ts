@@ -4,43 +4,21 @@ import {normalizeEmail} from '../model/email-link.js';
 import {Identity, identityOf} from '../model/identity.js';
 
 /**
- * A commit's author as something to show, and whether it is a board identity at
- * all. The flag is stated rather than inferred: a contributor whose board name
- * happens to equal their git name is genuinely resolved, and comparing the two
- * strings would call them unresolved and undo the very normalization the
- * clients apply.
+ * A commit's author for display, and whether it is a board identity. The flag
+ * is stated, not inferred from names matching.
  */
 export type CommitAuthor = Identity & {resolved: boolean};
 
 export type DirectoryEntry = {
 	id: string;
 	name: string;
-	/**
-	 * Has not authored any of the events given. Board-scoped where the caller
-	 * scoped the events, so it means "has not worked on this board", not "is not
-	 * in the history" — and it is derived, never stored, so it self-corrects.
-	 */
+	/** Authored none of the given events; derived, never stored. */
 	isExternal: boolean;
 };
 
 /**
- * Everyone a board knows of: the authors of the events given, plus the whole
- * contributor registry.
- *
- * One function because every surface that offers or matches a contributor has
- * to reach the same answer. Where two of them disagree, a name typed at one of
- * them finds no candidate, and the caller's next move is `createUnlinked` —
- * which mints a second id for somebody who already has one, as a real event, on
- * every clone. That failure is what `ZFZFW9D` widened the blast radius of and
- * what this exists to prevent.
- *
- * `logFileNames` names an author the registry has never heard of; see
- * `loadActorNames` for who takes that fallback and why.
- *
- * Membership is the workspace, not the board — the registry already holds
- * people who have never touched this one — and only `isExternal` is scoped to
- * the events given. Matching too widely picks an id that exists; matching too
- * narrowly mints one that should not.
+ * Everyone a board knows of: the given events' authors plus the whole
+ * registry. Every surface must agree, or a miss mints a duplicate id.
  */
 export const contributorDirectory = ({
 	events,
@@ -75,19 +53,8 @@ export const contributorDirectory = ({
 };
 
 /**
- * What to show for a commit's author: the contributor whose address it is, or
- * the raw git name.
- *
- * Here rather than beside the git reader, because "who is this" is this
- * module's question and answering it twice is the drift it exists to prevent. A
- * matched author comes back through `identityOf`, so it carries the same name
- * and the same colour as the same person does everywhere else on the board.
- *
- * Unmatched covers three cases that all render identically, and deliberately:
- * nobody has claimed the address, the commit carries no address at all, and two
- * contributors claim it so it resolves to neither. Falling back to the raw name
- * is what the board does today, so nothing regresses for anyone who never links
- * anything.
+ * A commit's author: the contributor owning the address, else the raw git
+ * name (unclaimed, missing or contested address).
  */
 export const commitAuthorIdentity = ({
 	authorName,
@@ -97,11 +64,7 @@ export const commitAuthorIdentity = ({
 }: {
 	authorName: string;
 	authorEmail: string;
-	/**
-	 * Address to sole owner, from `emailOwnerIndex`. Taken already built rather
-	 * than derived from the links here: this runs once per commit, and building
-	 * it inside would walk every link on the board for every commit drawn.
-	 */
+	/** Address to sole owner, from `emailOwnerIndex`; prebuilt, as this runs per commit. */
 	owners: ReadonlyMap<string, string>;
 	registry: Record<string, Contributor>;
 }): CommitAuthor => {
@@ -113,8 +76,6 @@ export const commitAuthorIdentity = ({
 	// that id: `identityOf` prefers an ugly, true id over a shared placeholder.
 	if (owner) return {...identityOf(owner, contributor?.name), resolved: true};
 
-	// Not `identityOf(undefined, name)`, which would use the name as the id and
-	// merge two committers who happen to share one. An unmatched author is not a
-	// board identity at all, so the address stands in as its id.
+	// The address, not the name, stands in as the id, so namesakes don't merge.
 	return {...identityOf(email || authorName, authorName), resolved: false};
 };

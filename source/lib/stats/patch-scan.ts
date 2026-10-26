@@ -1,21 +1,11 @@
-// One `git show` over every commit a ticket owns, parsed into the lines it
-// added and removed.
-//
-// Everything else under source/lib/stats reads this scan rather than shelling
-// out again: the text of the added lines answers the language, comment and
-// flag questions, and their counts answer the shape of the change. `git show`
-// takes every sha in one invocation, so a ticket costs one spawn however many
-// commits it has — patches are also far smaller than the whole-blob reads the
-// GUI's diff panel needs, since a patch carries only what changed.
+// One `git show` over a ticket's commits, parsed into added and removed lines.
+// Every stat here reads this scan rather than calling git again.
 
 import {execGit} from '../../git/git-utils.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 
 export type PatchLine = {
-	// The commit that added the line, and the line's number in *that commit's*
-	// version of the file. Any later commit moves it, so the pair anchors into
-	// history rather than pointing at the file as it stands now — which is why
-	// coverage anchors with blame instead of reusing these numbers.
+	// Its number in the commit that added it, not today's line; coverage anchors with blame.
 	sha: string;
 	line: number;
 	text: string;
@@ -31,14 +21,11 @@ export type FileChange = {
 	// No line counts to give. Excluded from every line-based stat rather than
 	// counted as zero.
 	binary: boolean;
-	// Line *content*, and so capped: past MAX_RETAINED_ADDED_LINES the scan
-	// keeps counting and stops keeping. Every stat that reads text — comments,
-	// flags, skipped tests — reads these and is partial when the cap bites.
+	// Line content, capped at MAX_RETAINED_ADDED_LINES; text stats are partial
+	// past it.
 	added: PatchLine[];
 	removedLines: PatchLine[];
-	// The counts, which are never capped. Every stat that is a number rather
-	// than a reading of text uses these, so the totals always add up to the
-	// ticket's real +/- however much text was kept.
+	// Uncapped counts, so totals always match the real +/-.
 	addedCount: number;
 	removed: number;
 	// The ticket's commits that touched this file, oldest first.
@@ -49,10 +36,8 @@ export type TicketPatch = {
 	files: FileChange[];
 	insertions: number;
 	deletions: number;
-	// Lines the ticket added and then removed again in a later commit of its
-	// own — thrash it did to itself, as against churn against what was already
-	// there. Matched on line text within a file, so a line moved between two
-	// files does not count and a genuine re-edit of the same line does.
+	// Lines added then removed by a later commit of the ticket, matched on text
+	// within a file.
 	selfChurn: number;
 	scannedCommits: number;
 	// Set when a cap cut the scan short, so a reader knows the numbers are a
@@ -60,30 +45,22 @@ export type TicketPatch = {
 	truncated: boolean;
 };
 
-// Sized to be unreachable by a ticket somebody meant to file and cheap to hit
-// by one that swept a vendored tree in. A capped scan still answers with the
-// newest commits, which is the part anyone is looking at.
+// Out of reach for a real ticket; a capped scan keeps the newest commits.
 export const MAX_SCANNED_COMMITS = 200;
 
 // Text retention is the memory cost here — the counts are just numbers. Past
 // this the scan keeps counting and stops keeping.
 export const MAX_RETAINED_ADDED_LINES = 200_000;
 
-// Self-churn's bookkeeping is one entry per distinct added line text per file.
-// Bounded for the same reason as the arrays above; a file with more distinct
-// added lines than this is a generated one, where self-churn means nothing.
+// Bounds self-churn's per-file text set.
 const MAX_SELF_CHURN_KEYS_PER_FILE = 50_000;
 
-// `git show` writes every commit's patch into one string, so the shas are
-// read a batch at a time rather than all at once: 200 commits that each
-// regenerate a lockfile is hundreds of megabytes in a single accumulating
-// buffer, and past V8's string limit that throws inside a stream handler —
-// outside any caller's try/catch, taking the process with it.
+// Shas are shown a batch at a time: one huge output string can pass V8's
+// limit and throw outside any try/catch.
 const SHAS_PER_SHOW = 25;
 
-// And a budget across the batches, so a ticket that is pathological rather
-// than merely large stops the scan instead of the process. Generous: this
-// repo's entire history of patches is a fraction of it.
+// A budget across batches, so a pathological ticket stops the scan, not the
+// process.
 const MAX_PATCH_BYTES = 64 * 1024 * 1024;
 
 // Non-printable, so it cannot occur inside a sha or a patch line.
@@ -93,9 +70,7 @@ const RECORD_SEP = '\x1e';
 // the first added line of a hunk is exactly the number this carries.
 const HUNK = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
-// The backreference is what makes this safe for a path containing spaces:
-// --no-renames means both sides are always the same path, so the split point
-// is the one where they match.
+// The backreference handles spaces: with --no-renames both paths match.
 const DIFF_GIT = /^diff --git a\/(.+) b\/\1$/;
 
 const stripPrefix = (raw: string, prefix: string): string | null =>
@@ -114,15 +89,7 @@ const statusFor = (
 ): FileChangeStatus =>
 	oldPath === null ? 'added' : newPath === null ? 'deleted' : 'modified';
 
-/**
- * Walks the combined `git show` output of several commits, oldest first, and
- * folds it into one entry per path.
- *
- * Exported for its own tests: the parsing is where the sharp edges are (binary
- * files carry no ---/+++ pair, a deletion has no after-side, a hunk header is
- * the only place a line number appears at all), and they are all reachable
- * from a fixture without a repository.
- */
+// A scan in progress, carried across `git show` batches so self-churn spans them.
 export type ScanState = {
 	byPath: Map<string, OpenFile>;
 	insertions: number;
@@ -139,9 +106,7 @@ export const createScanState = (): ScanState => ({
 	retainedLines: 0,
 });
 
-// Folds one `git show` batch into a scan already in progress. Carried across
-// batches rather than merged afterwards, so self-churn still sees a line added
-// in one batch and removed in the next.
+// Folds one batch into the running scan, so self-churn spans batches.
 export const parsePatchInto = (state: ScanState, stdout: string): void => {
 	const byPath = state.byPath;
 
@@ -149,16 +114,12 @@ export const parsePatchInto = (state: ScanState, stdout: string): void => {
 	let open: OpenFile | null = null;
 	let pendingPath: string | null = null;
 	let oldPath: string | null = null;
-	// True between a `diff --git` line and that file's first hunk — the only
-	// window in which a `---`/`+++`/`Binary files` line is a header rather than
-	// content that happens to start the same way.
+	// Between `diff --git` and the first hunk, where `---`/`+++` are headers.
 	let inHeader = false;
 	let nextLine = 0;
 
-	// A file the ticket created and then edited is still a file the ticket
-	// created: `added` survives a later `modified`. Deletion is the exception,
-	// because it is where the file actually ended up — and a path added, then
-	// deleted, then added again is `added` once more.
+	// `added` survives a later modify; a delete wins, and a re-add is `added`
+	// again.
 	const foldStatus = (
 		before: FileChangeStatus,
 		next: FileChangeStatus,
@@ -209,10 +170,7 @@ export const parsePatchInto = (state: ScanState, stdout: string): void => {
 			continue;
 		}
 
-		// Only ever seen for a binary file: a text diff opens with ---/+++ and
-		// takes the branch below before this one can matter. The /dev/null on
-		// either side is git's own way of saying which of add, delete and
-		// modify this was — the same convention the text branch reads.
+		// Only binary files reach here; /dev/null marks add or delete.
 		if (inHeader && line.startsWith('Binary files ') && pendingPath) {
 			const [, sides = ''] = /^Binary files (.*) differ$/.exec(line) ?? [];
 			const [beforeSide = '', afterSide = ''] = sides.split(' and ');
@@ -228,10 +186,7 @@ export const parsePatchInto = (state: ScanState, stdout: string): void => {
 			continue;
 		}
 
-		// Guarded by `inHeader`, which holds only between a `diff --git` line
-		// and that file's first hunk. Without it, a *content* line reading
-		// `-- old sql comment` or `++ marker` is read as a file header, and
-		// every line after it lands in a file that does not exist.
+		// Only in the header, or a content line like `-- x` reads as a file header.
 		if (inHeader && line.startsWith('--- ')) {
 			oldPath = stripPrefix(line.slice(4), 'a/');
 			continue;
@@ -279,18 +234,13 @@ export const parsePatchInto = (state: ScanState, stdout: string): void => {
 			open.entry.removed++;
 
 			if (state.retainedLines < MAX_RETAINED_ADDED_LINES) {
-				// A removed line has no line number worth carrying — it is gone
-				// from the after-side, and the before-side numbering it belonged to
-				// is not what any later read is anchored on. The sha and the text
-				// are what the stats above it ask for.
+				// A removed line keeps no line number; only its sha and text matter.
 				open.entry.removedLines.push({sha, line: 0, text});
 				state.retainedLines++;
 			}
 
 			const pending = open.pendingByText.get(text) ?? 0;
-			// Blank and near-blank lines match each other everywhere and would
-			// turn any reformatting into "thrash"; a closing brace is the same
-			// line in every function.
+			// Blank lines and lone braces match everywhere, so they aren't churn.
 			if (pending > 0 && text.trim().length > 2) {
 				state.selfChurn++;
 				open.pendingByText.set(text, pending - 1);
@@ -320,9 +270,8 @@ export const parsePatchOutput = (stdout: string) => {
 };
 
 /**
- * `shas` in any order; they are scanned oldest first regardless, since
- * self-churn only means anything read forwards. The caller's order is not
- * assumed to be chronological — `getCommitsForRef` answers newest first.
+ * `shas` newest first, as getCommitsForRef returns them: the cap keeps the newest,
+ * and the scan runs oldest first for self-churn.
  */
 export const scanTicketPatch = async ({
 	repoRoot,
@@ -345,9 +294,7 @@ export const scanTicketPatch = async ({
 		});
 	}
 
-	// The newest are kept when the cap bites: a truncated answer should be
-	// about the part of the ticket somebody is currently reading. Reversed, so
-	// the scan runs oldest first — self-churn is "added earlier, removed later".
+	// Keeps the newest under the cap, then reverses to scan oldest first.
 	const scanned = shas.slice(0, MAX_SCANNED_COMMITS).reverse();
 
 	const state = createScanState();

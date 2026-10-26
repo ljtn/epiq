@@ -77,14 +77,11 @@ export type EventTimeline = {
 	// Whether `events` was withheld for being too long. Without it an empty
 	// list reads as a window nothing happened in.
 	capped: boolean;
-	// One entry per event, for the scatter layout: it plots each dot at its own
-	// timestamp, so bucketing there only merges events that happened to land in
-	// the same slot. Empty past TIMELINE_EVENT_CAP, where the scatter falls back
-	// to `buckets` rather than the payload growing without bound.
+	// One entry per event, for the scatter layout. Empty past
+	// TIMELINE_EVENT_CAP, where the scatter falls back to `buckets`.
 	events: EventTimelineEntry[];
-	// The lane of every ticket open as the window begins, by id — the ones with
-	// no event inside it included, so the flow chart can run their lines across
-	// a stretch nothing happened in.
+	// The lane of every ticket open as the window begins, by id, including
+	// those with no event inside it.
 	lanesAtStart: Record<string, string>;
 	// Every swimlane the log ever created, by id, under its last known name —
 	// for naming one the board has since deleted.
@@ -246,9 +243,8 @@ const restoreLiveState = (stateBranchRoot: string): Result<true> => {
 	return succeeded('Restored live state', true);
 };
 
-// For failure paths where `resetState()` has already emptied the singleton while
-// its flags claim live — mutation guards would be wide open over a board that is
-// not there. Degrade to a real live state instead of leaving a phantom checkout.
+// For failures after `resetState()` emptied the singleton while its flags still
+// claim live: degrade to a real live state rather than a phantom checkout.
 const recoverToLiveAfterFailure = (
 	stateBranchRoot: string,
 	originalMessage: string,
@@ -315,12 +311,8 @@ export const checkoutStateAt = (
 		});
 	});
 
-// Rewinds to just after one event in the log, so the state the checkout shows
-// is the state that event produced. The cut is exclusive, hence the +1.
-//
-// Resolved against effective times, not the raw ULID a Log row displays: a
-// poisoned far-future id is judged by the clamped time `splitEventsAtTime` will
-// cut on, so the checkout lands where the scrubber's dot for it sits.
+// Rewinds to just after one event (exclusive cut, hence +1), judged by its
+// effective time so a far-future id lands where its scrubber dot sits.
 export const checkoutStateAtEvent = async (
 	input: ToolInput & {eventId: string},
 ): Promise<Result<{asOfTime: number}>> => {

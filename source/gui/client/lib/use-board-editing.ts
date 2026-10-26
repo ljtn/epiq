@@ -1,11 +1,5 @@
-// The board editors: create and rename, each a modal whose state is held here.
-//
-// No optimistic board on create, unlike a new swimlane: the point of creating
-// one is to go there, and a placeholder in the switcher is an entry whose route
-// does not exist yet. The board arrives with the state that follows the result,
-// and `board:create:result` is what navigates to it. A rename does apply to the
-// board on screen before the server answers: the switcher and the title are
-// already showing it, and nothing routes on it.
+// The board editors: create and rename modals. Create waits for the server,
+// since it navigates to the new board; rename applies at once.
 
 import {Dispatch, SetStateAction, useState} from 'react';
 import {GuiState} from './gui-state.model';

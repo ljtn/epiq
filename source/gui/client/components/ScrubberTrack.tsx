@@ -1,7 +1,5 @@
-// The chart itself, in parts: the baseline, what is highlighted on it, the
-// bars and the needle, and the hint that follows the pointer. Presentational
-// only, no state but the needle's own hover; the maths they draw against
-// lives in lib/scrubber.
+// The chart's parts: baseline, highlight, bars, needle and hint.
+// Presentational; the maths is in lib/scrubber.
 
 import {memo, useEffect, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -36,20 +34,14 @@ import {
 	VolumeBar,
 } from '../lib/scrubber';
 
-// The track's grain: a hairline at every segment boundary, spanning both
-// charts and the gap like the highlight does, with the shortest label of the
-// segment that starts there tucked against it, so the hour, day or week the
-// window is cut into can be read without the pointer. The highlight sits over
-// them and spells out the one under the pointer.
+// A hairline and short label at every segment boundary, across both charts.
 export const SegmentBoundaries = ({
 	boundaries,
 	hovered,
 	fractionForTime,
 }: {
 	boundaries: readonly SegmentBoundary[];
-	// The grain segment under the pointer: the highlight's full name stands
-	// in for its short label, which would otherwise sit beside or under the
-	// name and collide with it.
+	// The segment under the pointer, whose short label gives way to the highlight's name.
 	hovered: Segment | null;
 	fractionForTime: (time: number) => number;
 }) => (
@@ -114,9 +106,7 @@ export const SegmentHighlight = ({
 				overflow: 'visible',
 			}}
 		>
-			{/* Exactly where the boundary's short label sits, in its size: the
-			    full name takes the short one's place rather than floating over
-			    the block. */}
+			{/* The full name takes the short label's place and size. */}
 			<span
 				style={{
 					position: 'absolute',
@@ -134,9 +124,7 @@ export const SegmentHighlight = ({
 	);
 };
 
-// The stretch a range drag has covered so far. Spans both charts and the gap,
-// like the segment highlight, because the window it will zoom to is one window
-// over both series.
+// The range drag so far, across both charts and the gap.
 export const RangeSelection = ({from, to}: {from: number; to: number}) => {
 	const left = Math.min(from, to);
 
@@ -187,10 +175,7 @@ export const TrackBaseline = ({
 	/>
 );
 
-// Absolute positioning ignores the track's padding, so top and bottom add it
-// back to line up with the points.
-// A label beside the chart's edge, on a darkened pane over whatever is drawn
-// under it, so it stays readable when a full band or a lit line runs there.
+// A chart-edge label on a dark pane, readable over bands and lines.
 const chartLabelStyle: React.CSSProperties = {
 	position: 'absolute',
 	left: 2,
@@ -219,9 +204,7 @@ export const HourAxisLabels = () => (
 	</>
 );
 
-// The strands' names, one beside each, the way the hour labels sit beside the
-// scatter. Kept short: the chart is the width of the board and the lines run
-// under these from the left edge.
+// Each strand's name, beside it.
 export const FlowStrandLabels = ({
 	strands,
 	geometry,
@@ -249,11 +232,8 @@ export const FlowStrandLabels = ({
 	</>
 );
 
-// The wrapper the entrance fade belongs on, never the individual bars or dots:
-// those are keyed by bucket time, so a scope change remounts each one and the
-// fade restarts per element as a full-chart flash. Callers key it per series —
-// the issue and commit layers are siblings, so a shared key collides and leaves
-// stale marks on screen.
+// Carries the entrance fade: bars are keyed by bucket and would flash on remount.
+// Callers key it per series, since the layers are siblings.
 export const SeriesLayer = ({
 	animate,
 	children,
@@ -267,9 +247,7 @@ export const SeriesLayer = ({
 			inset: 0,
 			pointerEvents: 'none',
 			animation: animate ? FADE_IN_ANIMATION : undefined,
-			// Walls this subtree off from the needle and highlight moving above
-			// it: without containment every frame of a drag re-lays-out the
-			// thousands of dots inside, and the drag stutters.
+			// Contains layout so a drag above doesn't re-lay-out the dots.
 			contain: 'layout paint',
 		}}
 	>
@@ -277,13 +255,8 @@ export const SeriesLayer = ({
 	</div>
 );
 
-// Shared by the issue histogram and the commit one mirrored below it, so the
-// two halves cannot drift apart. Empty buckets draw nothing and stay hoverable
-// anyway, since hover is resolved arithmetically rather than by hit target.
-// Spans the full track height rather than the bar's, so empty buckets highlight
-// too. A sibling of the bars rather than one of them: it moves on every mouse
-// move, and the bars — up to MAX_TIME_BUCKETS nodes — must not re-render with
-// it.
+// Shared by both histograms. Full track height so empty buckets highlight too;
+// a sibling of the bars so they don't re-render on mouse move.
 export const BucketHighlight = ({
 	index,
 	bucketCount,
@@ -331,9 +304,7 @@ const VolumeBarsImpl = ({
 	const barWidth = barWidthCss(bucketCount);
 	const growsUp = direction === 'up';
 
-	// Only the bars present when this layer mounted are part of the entrance.
-	// A bar that appears later belongs to data arriving on its own, and must
-	// take its place without announcing itself.
+	// Only bars present at mount animate in.
 	const [fresh, setFresh] = useState(true);
 
 	useEffect(() => {
@@ -373,13 +344,8 @@ const VolumeBarsImpl = ({
 // themselves change only when the window or the filter does.
 export const VolumeBars = memo(VolumeBarsImpl);
 
-// The lines measure: what was removed and what was added stacked rather than
-// set against each other. Hanging from the same edge the commit bars hang from
-// keeps the track's own shape and gives each bar the whole of it — drawn around
-// a centre line the two had half each, and the removals read as an afterthought.
-// The length now says how much the window churned; the colours say how it
-// divided, with the removals against the baseline so they can be compared from
-// bucket to bucket.
+// Removed and added lines stacked from the commit bars' edge: length is churn,
+// colour the split, removals against the baseline.
 const StackedVolumeBarsImpl = ({
 	segments,
 	bucketCount,
@@ -449,18 +415,8 @@ export const StackedVolumeBars = memo(StackedVolumeBarsImpl);
 // Lives on the chart wrapper rather than inside either chart, so it runs
 // unbroken through both and the gap between them.
 /**
- * What the board has not applied: from the needle to the end of the window.
- *
- * Its own element rather than part of the needle, because the two do not always
- * appear together. Zoom into a stretch that begins after the checkout and the
- * needle is off the left of the window — there is nothing to draw it against,
- * and yet *everything* on screen is unapplied. Drawn from the needle's fraction
- * where it is in view, and from the left edge where it is behind us.
- *
- * Over the bars rather than instead of them: the shape of the history stays
- * readable through it, and the stretch says "not yet" rather than missing.
- * Under the needle's own layer, and inert — the track beneath is still where a
- * scrub is aimed.
+ * The unapplied stretch, from the needle (or the left edge, when a zoom puts
+ * the needle off-chart) to the window's end. Inert, over the bars.
  */
 export const UnappliedStretch = ({from}: {from: number}) => (
 	<div
@@ -473,9 +429,7 @@ export const UnappliedStretch = ({from}: {from: number}) => (
 			bottom: 0,
 			backgroundColor: UNAPPLIED_VEIL_COLOR,
 			backgroundImage: UNAPPLIED_VEIL_IMAGE,
-			// Only where the needle is in view: at the window's own edge the line
-			// would read as a boundary the history has, rather than as where the
-			// board is standing.
+			// Edge only where the needle is in view.
 			borderLeft: from > 0 ? `1px solid ${UNAPPLIED_EDGE_COLOR}` : undefined,
 			zIndex: 2,
 			pointerEvents: 'none',
@@ -530,14 +484,7 @@ export const ScrubberNeedle = ({
 					left: `${fraction * 100}%`,
 					top: 0,
 					bottom: 0,
-					// A hairline while live: the needle marks an exact instant, and a
-					// soft edge blooms over bars that can be ~2px wide.
-					//
-					// Two pixels parked, and not only to be seen. One pixel has to be
-					// centred on a half-pixel, where the head above it can only be
-					// placed on whole ones — so the two disagreed by half a pixel and
-					// the head sat visibly off its own line. An even width puts both
-					// on the same grid.
+					// A hairline live. Two pixels parked, so it shares the head's whole-pixel grid.
 					width: parked ? 2 : 1,
 					background: color,
 					boxShadow: parked ? NEEDLE_PARKED_GLOW : undefined,
@@ -551,10 +498,7 @@ export const ScrubberNeedle = ({
 				style={{
 					position: 'absolute',
 					left: `${fraction * 100}%`,
-					// A pixel lower than its own height, so the tip overlaps the line
-					// rather than meeting it. A CSS-border triangle ends in a single
-					// point whose last row is almost transparent, which reads as a gap
-					// between the head and the stem it is supposed to sit on.
+					// One pixel low, so the triangle's faint tip overlaps the line.
 					top: hovered ? -8 : -6,
 					width: 0,
 					height: 0,

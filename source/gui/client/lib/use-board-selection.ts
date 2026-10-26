@@ -15,9 +15,8 @@ import {
 	writeSelectionParams,
 } from './board-selection';
 
-// The URL wins when it says anything; a bare board link falls back to what
-// was last used here, and gets that written into the address bar so copying
-// it always hands over what is on screen. Either way storage follows the URL.
+// The URL wins when it says anything; a bare link falls back to storage and
+// writes it into the address bar. Storage follows the URL.
 export const useBoardSelection = (): [
 	BoardSelection,
 	(patch: Partial<BoardSelection>) => void,
@@ -26,13 +25,8 @@ export const useBoardSelection = (): [
 
 	const fromUrl = hasSelectionParams(searchParams);
 
-	// What storage does not keep, carried across the routes of this session
-	// instead. A reload still starts wide, unzoomed and at the present — where
-	// somebody is looking is a moment, not a preference to restore.
-	//
-	// The ticket narrowing travels with them, so it follows to whichever ticket
-	// is opened next and re-derives there rather than being cancelled by the
-	// click that moved between them.
+	// What storage does not keep, carried across this session's routes, including
+	// the ticket narrowing.
 	const carried = useRef<SelectionCarry>(DEFAULT_CARRY);
 
 	const query = searchParams.toString();
@@ -63,21 +57,14 @@ export const useBoardSelection = (): [
 		);
 	}, [searchParams]);
 
-	// Stored here as well as by the effect: putting everything back to the
-	// defaults leaves the URL bare, and a bare URL reads the store — which
-	// would otherwise still hold what was just undone.
-	//
-	// Replaced, not pushed: narrowing the board or paging the scrubber is not a
-	// place to come back to, and the board's own routes stay the history.
+	// Stored here too, since resetting leaves a bare URL that reads the store.
+	// Replaced, not pushed: narrowing is not a place to come back to.
 	const change = useCallback(
 		(patch: Partial<BoardSelection>) => {
 			const next = applySelectionPatch(selection, patch);
 			storeSelection(next);
 
-			// Carried forward here rather than waiting for the render the new URL
-			// causes: turning the last of these off empties the query, and a bare
-			// query reads the carried values back — which, a beat before that
-			// render, would still be the ones just switched off.
+			// Carried now, not on the next render, which would read the old values back.
 			carried.current = carryChange(carried.current, next);
 
 			setSearchParams(

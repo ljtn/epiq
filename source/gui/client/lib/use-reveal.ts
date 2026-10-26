@@ -1,13 +1,5 @@
-// Mounting and unmounting are instant; moving is not. A panel that is only
-// rendered while it is open has no frame to move out in, and one rendered
-// straight at its open size has nothing to move out from.
-//
-// `mounted` says whether to render at all, and is held for the length of the
-// closing move. `shown` is the size to draw at, and is false for the first
-// frame after a mount, so the browser has a closed state to interpolate from.
-// `settled` says the move is over: what clips a panel on its way in and out has
-// to let go of it once it is open, or it spends the rest of its life cutting
-// off whatever the panel draws past its own edges.
+// `mounted` holds through the closing move; `shown` is false for the first
+// frame, so there is a closed state to animate from; `settled` lifts clipping.
 
 import {useEffect, useState} from 'react';
 
@@ -23,10 +15,7 @@ export const useReveal = (
 	const [settled, setSettled] = useState(open);
 
 	useEffect(() => {
-		// Nothing is moving, so there is nothing to stage: a panel asked to open
-		// without a move is open now. Waiting the two frames below would draw it
-		// shut for both of them and then snap it — a flicker, handed to the one
-		// reader who asked for less motion, not more.
+		// No motion: open now, without the two-frame stage.
 		if (ms === 0) {
 			setMounted(open);
 			setShown(open);
@@ -38,10 +27,7 @@ export const useReveal = (
 		if (open) {
 			setMounted(true);
 
-			// Two frames rather than one. A single callback still runs before the
-			// browser has painted the mount, so both sizes land in one frame and
-			// there is nothing between them to animate; the second frame is the
-			// one that can only come after the closed state was drawn.
+			// Two frames: one still runs before the mount is painted.
 			let second = 0;
 			const first = requestAnimationFrame(() => {
 				second = requestAnimationFrame(() => setShown(true));

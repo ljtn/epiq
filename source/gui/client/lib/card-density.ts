@@ -1,9 +1,5 @@
-// How much room a ticket takes on the board. Wide is the card as it has
-// always been, read top to bottom; dense is a line or two, scanned down a lane,
-// for a board whose work is mostly done by agents and mostly glanced at.
-//
-// Every size either density draws at lives here, so a density is one set of
-// numbers rather than a branch at each call site.
+// How much room a ticket takes on the board: wide, or a dense line or two.
+// Every size either density draws at lives here.
 
 import {createContext, useContext, useState} from 'react';
 
@@ -99,9 +95,7 @@ const DEFAULTS: Stored = {
 	titleLines: 1,
 };
 
-// Per viewer and per browser, like every other view choice. Storage can be
-// missing or refuse a write — a private window, blocked site data — and the
-// board must still draw, so both ways are guarded and fall back to defaults.
+// Storage can be missing or refuse a write; both ways fall back to defaults.
 const read = (): Stored => {
 	try {
 		const parsed = JSON.parse(
@@ -150,9 +144,8 @@ export const useCardDensity = () => {
 	};
 };
 
-// A name shortened from its front to fit `room` characters: back to its last
-// slash where that fits, so claude/reviewer reads …/reviewer rather than
-// …aude/reviewer, and otherwise just its tail.
+// Shortened from the front, back to the last slash where that fits:
+// …/reviewer rather than …aude/reviewer.
 export const cutFromFront = (name: string, room: number): string => {
 	const tail = name.slice(name.lastIndexOf('/'));
 	if (name.includes('/') && tail.length + 1 <= room) return `…${tail}`;
@@ -160,10 +153,8 @@ export const cutFromFront = (name: string, room: number): string => {
 	return `…${name.slice(name.length - room + 1)}`;
 };
 
-// Who has a ticket, in the few characters a dense card has for it. Cut from
-// the front when long, since what tells agents apart is the end of the name:
-// claude/builder and claude/reviewer share their start. More than one is the
-// first and a count; the tooltip names them all where anything is left out.
+// Cut from the front, since agents differ at the end of their names. More
+// than one is the first and a count.
 export const assigneeText = (
 	assignees: readonly {name: string}[],
 ): {text: string; full: string; cut: boolean} => {

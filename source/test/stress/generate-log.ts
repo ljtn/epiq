@@ -1,18 +1,5 @@
-// Writes an event log the size a team actually reaches, so the rest of the
-// stress run has something real to chew on.
-//
-// The lines are minted the way persist() mints them — `{[action]: payload, v,
-// id: [ulid, refId]}`, ULIDs that climb, a refId chain per actor — and every
-// payload is checked against the schema the product parses with. A log of
-// plausible-looking lines that fails to apply would be worse than no test at
-// all: it would look like it passed.
-//
-// What it writes is a board being worked, not a board being filled. Tickets are
-// opened into the first lane, walked along the lanes as they are worked, and
-// closed — so the open board stays the size a real one is, and the decade of
-// history piles up where a decade of history actually goes: the closed board.
-//
-// Not a test file. Nothing runs this but `npm run stress`.
+// Writes a realistic-size event log for `npm run stress`, minted as persist()
+// does and schema-checked. Tickets are worked through lanes and closed.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,9 +20,7 @@ export type GenerateInput = {
 	shape?: readonly string[];
 	// Created by the log itself, so replay has them before anything uses them.
 	tagNames: string[];
-	// How many tickets stay open. A board's open count is a steady state rather
-	// than a fraction of its age: a team closes work to keep the board readable,
-	// so ten years of history leaves about as many open tickets as one year.
+	// Open tickets held steady, as a team keeps its board readable.
 	openTickets?: number;
 	// How many goals the decade's tickets are grouped under, one after another
 	// as the years go by; every other ticket joins the goal of its time.
@@ -61,15 +46,8 @@ type Action = (typeof SHAPE)[number];
 
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
-// Distinct and climbing, the way rankBetween mints them.
-//
-// A handful of values cycled instead put hundreds of thousands of tickets on
-// six ranks, and a lane of duplicates is not what a board holds — it is what
-// sends every later write into a rebalance, so the fixture reported a write
-// cost the product does not actually have.
-//
-// Fixed width so the string order is the numeric one, and in steps rather than
-// singles so there is room to insert between two without rebalancing.
+// Distinct, climbing, fixed-width ranks with gaps, as rankBetween mints them;
+// duplicates would force rebalances.
 const rankAt = (n: number): string => String(n * 100).padStart(12, '0');
 
 // A ticket on the board, and how far along the lanes it has been worked.
@@ -98,23 +76,15 @@ export const generateLog = async (
 	const start = Date.now() - input.years * YEAR_MS;
 	const step = Math.max(1, Math.floor((input.years * YEAR_MS) / input.events));
 
-	// The tail of the causal order, which is what an actor refs when it has
-	// synced. Advanced globally rather than per actor, the way a team that syncs
-	// often really looks.
+	// The tail of the causal order, advanced globally, as a team that syncs often.
 	let edge: string | null = null;
 
 	// A minority of events ref an older edge instead: concurrent work, which is
 	// what makes getSortedEvents do more than walk a list.
 	let staleEdge: string | null = null;
 
-	// Checked against the schema the product parses with, not against what this
-	// file believes. A payload missing a field materializes anyway — nothing
-	// validates one on load — and surfaces far later as a crash somewhere else
-	// entirely: a comment with no author took the GUI down inside colour
-	// generation, long after the mistake was written.
-	//
-	// Once per distinct action: the schema is the same for every event of a
-	// kind, and a million parses would cost more than the generation.
+	// Checked against the product's schema, since load doesn't validate. Once per
+	// action.
 	const validated = new Set<string>();
 
 	const validate = (action: string, payload: Record<string, unknown>) => {
@@ -154,13 +124,6 @@ export const generateLog = async (
 		written++;
 	};
 
-	// The log makes what it later refers to. Borrowing the seed project's ids
-	// left every tagging and every assignment skipped on replay — a third of the
-	// events silently not becoming board state, which measures a smaller board
-	// and calls it a pass.
-	//
-	// Strictly before the first event that uses them, so no reordering of
-	// concurrent branches can put a tagging ahead of its tag.
 	// No room for a ticket's join at a millisecond a step.
 	const goalCount = step > 1 ? input.goals ?? 0 : 0;
 
@@ -171,6 +134,7 @@ export const generateLog = async (
 		ulid(start - input.tagNames.length + index),
 	);
 
+	// The log mints the tags and contributors it uses, before their first use.
 	for (const actor of input.actors) {
 		write(
 			'create.contributor',
@@ -195,23 +159,15 @@ export const generateLog = async (
 	for (let i = 0; i < input.events; i++) {
 		const shaped = shape[i % shape.length]!;
 
-		// Closing is what holds the open board at its size. Below the target a
-		// team has nothing it would be closing, so the event becomes work on a
-		// ticket instead — which also stops the pool emptying and later events
-		// naming tickets that are not there.
-		// A comment rather than another tagging: the same ticket tagged with the
-		// same tag twice is a skip on replay, and standing in with one would
-		// manufacture thousands of them.
+		// Below the open target, a close becomes a comment instead (a repeat tagging
+		// would be skipped on replay).
 		const action: Action =
 			shaped === 'close.issue' && open.length <= openTarget
 				? 'add.issue.comment'
 				: shaped;
 
-		// Some events ref an older edge: concurrent work, which is what makes
-		// getSortedEvents do more than walk a list. Never the first, though —
-		// branching off the preamble makes this event a sibling of the last
-		// create.tag, and siblings sort by ULID, so its whole subtree would be
-		// walked before the tags it uses exist.
+		// Some events ref an older edge (concurrency), never the first: a sibling of
+		// the preamble would sort before its tags.
 		const refId = i > 0 && i % 17 === 0 && staleEdge ? staleEdge : edge;
 
 		const id = ulid(start + i * step);
@@ -274,9 +230,7 @@ export const generateLog = async (
 		}
 
 		if (action === 'move.node') {
-			// Along the lanes, not between random ones: a ticket is worked from
-			// one column to the next, and now and then sent back one, which is
-			// what a review that failed looks like.
+			// Along the lanes, sometimes back one, like a failed review.
 			const back = i % 9 === 0 && ticket.lane > 0;
 
 			ticket.lane = back
@@ -305,9 +259,7 @@ export const generateLog = async (
 		);
 	}
 
-	// Awaited, not merely ended: `end()` returns before the bytes reach the disk,
-	// and reading the log a moment later then finds a file that is empty or half
-	// written — which measures an empty board and calls it a pass.
+	// Awaited: `end()` returns before the bytes reach disk.
 	await Promise.all(
 		streams.map(
 			stream =>
@@ -342,9 +294,7 @@ const workPayload = (
 			return {
 				id: ulid(),
 				issue: issueId,
-				// Required. Without it the event still materializes — nothing
-				// validates a payload on load — and takes the GUI down on the first
-				// read, inside colour generation, a long way from the mistake.
+				// Required: load doesn't validate, and a missing one crashes the GUI later.
 				author: actorId,
 				md: `Had a look at this — the part to watch is the ${
 					n % 7 === 0 ? 'window derivation' : 'ordering'

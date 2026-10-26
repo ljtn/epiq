@@ -65,9 +65,8 @@ const STALL_FLOOR_MS = DAY;
 export type CardActivity = 'live' | 'stalled' | null;
 
 /**
- * Live: anything happened to it in the last five minutes. Stalled: in a lane
- * between the board's first and last, of at least three tickets, and quiet for
- * longer than that lane's median stay — never under a day.
+ * Live: touched in the last five minutes. Stalled: in a middle lane of three or
+ * more tickets, quiet longer than its median stay, and never under a day.
  */
 export const cardActivity = (
 	issue: Pick<GuiIssue, 'lastEventAt'>,

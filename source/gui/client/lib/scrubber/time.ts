@@ -30,14 +30,10 @@ const APPROX_UNIT_MS: Record<SegmentUnit, number> = {
 // unit between runs with slightly different spans.
 const MAX_SEGMENTS = 35;
 
-// A unit this coarse for the span leaves the track as one block, which tells
-// the reader nothing. Only the hour scope reaches it; every other span yields
-// seven segments or more.
+// Fewer would leave the track as one uninformative block.
 const MIN_SEGMENTS = 2;
 
-// The grain drawn all the time has a tighter budget than the hover: every
-// boundary is on screen at once, so a short window that the hover cuts into
-// minutes is lined by the hour instead, and a day by hours, a month by weeks.
+// The always-drawn grain is coarser than the hover's, since every line is on screen at once.
 const MAX_GRAIN_LINES = 24;
 
 export const chooseGrainUnit = (spanMs: number): SegmentUnit =>
@@ -68,11 +64,8 @@ const advanceByUnit = (date: Date, unit: SegmentUnit): void => {
 
 export type Segment = {start: number; end: number; label: string};
 
-// The shortest thing that tells one segment from the next at a glance, for
-// the label beside each boundary line: the clock time, the day of the month,
-// the week's first day, the month, the year. A bare hour would read as a date
-// as easily as a time, so hours keep their minutes. The hover highlight spells
-// the full one out.
+// The shortest label that tells segments apart; hours keep their minutes so
+// they don't read as dates.
 export const shortSegmentLabel = (start: number, unit: SegmentUnit): string => {
 	const date = new Date(start);
 	const clock = `${String(date.getHours()).padStart(2, '0')}:${String(
@@ -88,9 +81,7 @@ export const shortSegmentLabel = (start: number, unit: SegmentUnit): string => {
 		: String(date.getFullYear());
 };
 
-// Every line is drawn, but at the finer grains only some are worth a label:
-// twenty-four clock times in a row are a wall, and every third hour says as
-// much. Days and coarser are few enough to label each.
+// At fine grains only some lines get a label; days and coarser get each.
 const labelled = (start: number, unit: SegmentUnit): boolean => {
 	const date = new Date(start);
 
@@ -104,10 +95,8 @@ const labelled = (start: number, unit: SegmentUnit): boolean => {
 // The label is null on a line that goes unlabelled.
 export type SegmentBoundary = {time: number; label: string | null};
 
-// Every segment boundary strictly inside a window, in order, each with the
-// short label of the segment that starts there where it earns one: where the
-// track's grain is drawn. Walked segment by segment off `segmentAt`, so the
-// lines fall exactly where the hover highlight's edges do, DST included.
+// Segment boundaries inside a window, with labels where earned. Walked off
+// `segmentAt`, so they match the hover highlight's edges, DST included.
 export const segmentBoundaries = (
 	earliest: number,
 	latest: number,
@@ -116,8 +105,7 @@ export const segmentBoundaries = (
 	const boundaries: SegmentBoundary[] = [];
 	let boundary = segmentAt(earliest, unit).end;
 
-	// The unit is chosen to keep the count under MAX_SEGMENTS; the cap is only
-	// a guard against a window the choice was not made for.
+	// A guard only; the unit already keeps the count under MAX_SEGMENTS.
 	while (boundary < latest && boundaries.length <= MAX_SEGMENTS * 2) {
 		boundaries.push({
 			time: boundary,

@@ -60,11 +60,8 @@ const readFileAtRevision = async (
 	return isFail(result) ? '' : result.value.stdout;
 };
 
-// Shared by the editor path below and by getCommitDiff's data path. A plain
-// two-tree diff against the first parent (matching readFileAtRevision's own
-// `sha~1` convention) rather than `diff-tree -r <sha>`: diff-tree's single-
-// commit mode reports no files at all for a merge commit unless told
-// otherwise, which read as "no changes" instead of the merge's real diff.
+// Diffs against the first parent, not `diff-tree -r <sha>`, which reports
+// nothing for a merge.
 const getChangedFilePaths = async (
 	repoRoot: string,
 	sha: string,

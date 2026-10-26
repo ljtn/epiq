@@ -14,11 +14,8 @@ process.env['EPIQ_ALLOW_LOCAL_REPOS'] = '1';
 
 type Board = {repoRoot: string; globalDir: string};
 
-// The GUI fetches connected repos on sync, and the seeded repo has no remote to
-// sync with — so a test fetches them as a sync would, in this process, over
-// the same clones directory the server reads. The server learns of the fetch
-// from the clone itself: the panel on reopening, the ticket's commits on the
-// next read.
+// The seeded repo has no remote to sync, so the test fetches connected repos
+// itself, into the clones directory the server reads.
 export const fetchConnectedRepos = async ({
 	repoRoot,
 	globalDir,
@@ -59,10 +56,7 @@ export const connectByEvent = (
 	);
 };
 
-/**
- * Runs `body` with every repo disconnected afterwards, whatever happens: the
- * worker's board is shared by every test in it.
- */
+/** Runs `body`, then disconnects every repo: the worker's board is shared. */
 export const withNoRepos = async (
 	board: Board,
 	body: () => Promise<void>,

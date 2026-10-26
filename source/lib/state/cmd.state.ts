@@ -212,12 +212,8 @@ export const replaceCmdInput = (value: string) => {
 };
 
 /**
- * Clears the line and puts what was run on the history.
- *
- * `line` is what the user typed, which the caller captures before the action
- * runs: `:sync`, `:open` and `:init` clear the line themselves on their way
- * through, so by the time they return `value` is empty and the history would
- * grow a blank entry instead of the command.
+ * Clears the line and puts what was run on the history. `line` is captured
+ * before the action, since some commands clear the line themselves.
  */
 export const commandConfirmed = ({
 	addToHistory = true,
@@ -246,11 +242,7 @@ export const commandConfirmed = ({
 	});
 };
 
-/**
- * Replaces the history with the one stored for the project being loaded, and
- * puts ↑ back at the top of it. The line itself is left alone; the command that
- * is loading the project is put on the history when it returns, as any other.
- */
+/** Loads the project's stored history and puts ↑ back at its top. */
 export const hydrateCommandHistory = (commands: string[]) => {
 	setState(s => ({
 		...s,
@@ -259,14 +251,7 @@ export const hydrateCommandHistory = (commands: string[]) => {
 	}));
 };
 
-/**
- * Puts ↑ back at the most recent command.
- *
- * A walk through the history is a position in it, and closing the line ends
- * the walk: reopening and pressing ↑ means "the last thing I ran", not "one
- * further back than where I stopped". Only confirming a command reset this
- * before, so a line closed halfway through a walk reopened mid-history.
- */
+/** Puts ↑ back at the most recent command; closing the line ends a walk. */
 export const resetCommandHistoryWalk = () => {
 	setState(s =>
 		s.commandHistoryIndex === -1 ? s : {...s, commandHistoryIndex: -1},

@@ -1,17 +1,6 @@
 /**
- * A remote that is reachable, but slower than the 10-second cap every git
- * call in `git-utils.ts` runs under.
- *
- * The cap SIGTERMs the child and reports "Git command timed out after
- * 10000ms", and `isRemoteUnreachable` matches that string — so a slow link and
- * an absent one produce the same answer: `offline`, "Committed locally". A
- * state branch carrying a few hundred attachment blobs, a phone hotspot, or a
- * repository host having a bad minute all land here, and the board reports
- * that it saved the work locally rather than that it cannot publish.
- *
- * Simulated with git's `ext::` transport rather than a real slow network: it
- * is a genuine remote, reached by a genuine fetch, that simply takes longer
- * than the cap allows.
+ * A reachable remote slower than the short git timeout, which must not read as
+ * offline. Simulated with git's `ext::` transport.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -42,11 +31,7 @@ const git = async (cwd: string, args: string[]): Promise<void> => {
 	}
 };
 
-/**
- * Points every clone of this repository at a transport that pauses before
- * serving. `%s` is the service name git asks for (`upload-pack`,
- * `receive-pack`), so both directions go through the pause.
- */
+/** Points every clone at a transport that pauses before serving, both directions. */
 const slowDownRemote = async (
 	actor: Actor,
 	remoteRoot: string,

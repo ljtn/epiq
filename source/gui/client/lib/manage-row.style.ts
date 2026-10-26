@@ -6,13 +6,8 @@ import {GUI_THEME} from './gui-theme';
 const ARMED_BACKGROUND = 'rgba(255, 135, 135, 0.14)';
 
 /**
- * One row of a manage-and-delete modal. The tag and contributor modals are the
- * same row twice, so the styling lives here rather than in both — a highlight
- * added to one and not the other is exactly how they would drift apart.
- *
- * Hover takes `GUI_THEME.line`, the fill Dropdown and KebabMenu already use for
- * the row under the pointer; armed has to outrank it, since the confirm button
- * sits at the far end of the row from the name it would delete.
+ * One row of a manage-and-delete modal, shared by tags and contributors.
+ * Armed outranks hover.
  */
 export const manageRowStyle = ({
 	armed,

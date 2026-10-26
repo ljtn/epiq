@@ -19,9 +19,7 @@ type HeaderProps = {
 	scrubbing: boolean;
 	syncStatus: SyncStatus;
 	onOpenCommands: () => void;
-	// The board switcher, placed here rather than over the columns: it names
-	// what everything below is showing, the timeline included, and this is the
-	// one row that outlives every panel and collapse below it.
+	// The board switcher, in the one row every panel and collapse leaves standing.
 	board: React.ReactNode;
 	// What the whole app is doing, in the bar's middle: the follow notice.
 	// While there is one, the bar's top edge carries the accent too.
@@ -57,9 +55,7 @@ export const Header = ({
 			? GUI_THEME.dim
 			: GUI_THEME.accent;
 
-	// The dot's whole account of itself, since nothing beside it says this any
-	// more. A failure keeps carrying its git output, which is the one thing
-	// here that was never going to fit in the topbar.
+	// The dot's tooltip, carrying a failure's git output.
 	const syncTitle =
 		connection !== 'connected'
 			? 'Not connected'
@@ -88,9 +84,7 @@ export const Header = ({
 				style={{
 					height: '100%',
 					width: '100%',
-					// Two equal sides around the middle, so a notice sits at the
-					// centre while both fit; a side that needs more takes it,
-					// pushing the notice over rather than running into it.
+					// Two equal sides keep a notice centred while both fit.
 					display: 'grid',
 					// The middle may shrink, its sentence cut, before the sides do.
 					gridTemplateColumns: '1fr minmax(0, auto) 1fr',
@@ -142,11 +136,7 @@ export const Header = ({
 							</>
 						)}
 
-						{/* The colour is the whole message, so the word beside it only
-						    repeated in text what the dot already said — and a failure's
-						    git output never fitted there anyway. The hit area is a
-						    button's rather than the dot's own, since the state is now
-						    only readable by hovering it. */}
+						{/* The dot's colour is the whole message; the button gives it a hit area. */}
 						<span
 							data-testid="sync-dot"
 							title={syncTitle}
@@ -157,11 +147,7 @@ export const Header = ({
 								padding: '5px 7px',
 							}}
 						>
-							{/* Four, as the ticket that dropped the label asked for: a
-							    marker, not a light. At six it was the loudest thing in a
-							    bar of 11px grey type, which is the opposite of what
-							    dropping the word was for. What makes a dot this small
-							    usable is the hit area around it, and that is unchanged. */}
+							{/* A marker, not a light; the button around it is the hit area. */}
 							<span
 								style={{
 									width: 4,
@@ -203,9 +189,7 @@ export const Header = ({
 						<VersionBadge current={EPIQ_VERSION} update={update} />
 					</div>
 
-					{/* The one way into settings: the viewer's own avatar, which says
-					    who the board takes them for as well, and a gear only where no
-					    identity is set yet to draw one. Filled while the panel is open. */}
+					{/* Settings opens from the viewer's avatar, or a gear with no identity set. */}
 					<span ref={settings.ref} style={{display: 'inline-flex'}}>
 						{state?.user ? (
 							<button

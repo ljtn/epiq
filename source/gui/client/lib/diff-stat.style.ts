@@ -1,21 +1,15 @@
 import {TEXT} from './gui-theme';
 
 /**
- * How a diff stat is set: the two figures, then a bar, with a gap between each.
- *
- * Two sizes of the same thing. `stat` is the one beside a commit, where it is
- * read on its own line. `card` is the one on the board, sharing a line with the
- * ref — so it is set in the ref's own size, and its bar is a hairline: forty
- * cards deep, a 3px pill reads as a row of buttons.
+ * How a diff stat is set: two figures, then a bar. `stat` beside a commit,
+ * `card` on the board in the ref's size with a hairline bar.
  */
 export type DiffStatMetrics = {
 	barWidth: number;
 	barHeight: number;
 	gap: number;
 	fontSize: number;
-	// Held back on the board: green and red at full strength pull the eye off
-	// the titles, which are what a column of cards is read for. Hovering it is
-	// the exception — see `lit` on the component.
+	// Held back on the board so the titles lead; full on hover.
 	opacity: number;
 	// The bar filled by the size of the change on a fixed logarithmic scale,
 	// the same for every ticket, so one huge change never shrinks the rest.

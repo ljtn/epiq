@@ -44,10 +44,7 @@ const DWELL_COLOR: Record<DwellLevel, string> = {
 	alert: GUI_THEME.red,
 };
 
-// The commits behind a ticket, as a figure that opens them. Nothing at all
-// where they changed no lines — an empty commit, a pure rename: the stat would
-// draw nothing there, and the button around it would be an invisible thing to
-// hover and click.
+// The ticket's commit stat, opening them. Nothing where no lines changed.
 const DiffButton = ({
 	diff,
 	onOpen,
@@ -73,14 +70,8 @@ const DiffButton = ({
 			}}
 			onMouseEnter={() => setHovered(true)}
 			onMouseLeave={() => setHovered(false)}
-			// The hover ground is the button's only chrome, and it is pulled back
-			// out again by an equal negative margin: the ground reaches past the
-			// figures without the line growing under it.
-			//
-			// Deliberately not an `IconButton`, which every other control of this
-			// kind is: that one is a 24px square that lights to the accent, and
-			// both would be wrong here — what lights is the stat, in its own two
-			// colours.
+			// The hover ground reaches past the figures via an equal negative margin. Not
+			// an `IconButton`: the stat lights in its own colours.
 			style={{
 				display: 'flex',
 				alignItems: 'center',
@@ -103,9 +94,7 @@ const DiffButton = ({
 	);
 };
 
-// Something happened to the ticket in the last few minutes: a small breathing
-// dot. Run off the element as the card's own flash is, so the board
-// re-rendering does not restart it.
+// Breathes for recent activity; driven on the element so re-renders don't restart it.
 const LiveDot = () => {
 	const ref = useRef<HTMLSpanElement | null>(null);
 	const color = GUI_THEME.accent;
@@ -141,9 +130,7 @@ const LiveDot = () => {
 	);
 };
 
-// A title cut at one line. Where it is cut, the whole of it is its tooltip;
-// one that fits needs none. Measured as the lane resizes, not on hover, so the
-// tooltip layer finds the title already there when the pointer arrives.
+// One line, its full text as tooltip only when cut. Measured on resize, not hover.
 const OneLineTitle = ({
 	title,
 	view,
@@ -184,11 +171,8 @@ const OneLineTitle = ({
 	);
 };
 
-// Something on a dense card that narrows the board to itself: the button
-// around it, whose target reaches past it by `reach` on each side and shows
-// its edge under the pointer, as a button's does. Pulled back by the same
-// reach, so it takes no more room than what it holds. Shared by the tag marks
-// and the assignee's name.
+// A dense card's narrowing button, its target reaching `reach` past what it
+// holds and pulled back by the same. Shared by tags and assignee.
 const FilterTarget = ({
 	testId,
 	pressed,
@@ -241,10 +225,7 @@ const FilterTarget = ({
 	);
 };
 
-// One tag as a small outlined square, and the way to narrow the board to it,
-// as a full card's chip is. Outlined, so a row of them never reads as status
-// lights beside the diff's green and red; filled for the tag the board is
-// narrowed to.
+// A tag as a small outlined square that narrows the board; filled when held.
 const TagMark = ({
 	tag,
 	isolated,
@@ -277,9 +258,7 @@ const TagMark = ({
 	</FilterTarget>
 );
 
-// Who has a ticket, quietly, as their name: the way to narrow the board to
-// their tickets, as a tag is to its own. Shared by both densities, a dense
-// card holding it in a slot of fixed width.
+// The assignee's name, narrowing the board to their tickets.
 const AssigneeName = ({
 	assignees,
 	isolatedAssigneeId,
@@ -325,10 +304,7 @@ const AssigneeName = ({
 	);
 };
 
-// A ticket in two parts: its title across the whole width, and under it one
-// line of what identifies and measures it — the ref and what its commits came
-// to on the left, its tags and whether it is live or stalled on the right.
-// Dwell, comments and assignees are left to the details panel.
+// Title across the width; below, ref and diff left, tags and status right.
 const DenseBody = ({
 	ticket,
 	diff,
@@ -398,9 +374,7 @@ const DenseBody = ({
 					</span>
 				)}
 
-				{/* Who has it, quietly, in a slot of one width whether anyone does
-				    or not, so the diff after it lines up down the lane. The name
-				    narrows the board to that person's tickets, as a tag does. */}
+				{/* A fixed-width slot, so the diff lines up down the lane. */}
 				<span
 					style={{
 						width: DENSE_ASSIGNEE_WIDTH,
@@ -530,17 +504,12 @@ export const TicketCard = ({
 	// The history player is up, so a card arriving on the board is one the movie
 	// just produced and is worth an entrance.
 	theatre: boolean;
-	// The id of the event that just landed on this ticket, or null. Its identity
-	// is what matters, not its content: two events in a row on one ticket have
-	// to flash twice.
+	// The id of the event that just landed here, or null; each new id flashes.
 	flashKey: string | null;
 	// Null while the board is not showing the present, where an elapsed time
 	// measured against now means nothing.
 	dwell: CardDwell | null;
-	// What the commits naming this ticket add up to, or null for a ticket no
-	// commit names — which draws nothing at all. Most of a board is tickets
-	// nobody has written code for yet, and a flat grey line on every one of
-	// them would be a column of noise saying nothing.
+	// The commits' total, or null for a ticket no commit names (drawn as nothing).
 	diff: RefDiffStat | null;
 	// Dense cards only: live or stalled, as the lane reads it.
 	activity?: CardActivity;
@@ -562,17 +531,8 @@ export const TicketCard = ({
 		});
 	}, [isSelected]);
 
-	// Run off the element rather than through a CSS animation on the style prop:
-	// the card's entrance already owns that property, and the board re-renders
-	// on every frame of the movie, which would put the entrance back and cut a
-	// running flash short. A web animation overrides the inline styles for its
-	// own duration and reverts, and starts fresh on every call — which is what
-	// makes two events in a row on one ticket flash twice.
-	//
-	// Deliberately not cancelled on the way out: events land closer together
-	// than the flash is long, so cancelling as the spotlight moves to the next
-	// ticket would cut every one of them short. A later flash on this same card
-	// simply wins, and a finished one drops off on its own.
+	// A web animation, not the style prop: the entrance owns `animation`, and a
+	// re-render would cut the flash. Never cancelled; a later flash just wins.
 	useEffect(() => {
 		const card = cardRef.current;
 		if (!card || flashKey === null) return;
@@ -613,9 +573,7 @@ export const TicketCard = ({
 				event.stopPropagation();
 				onSelect({toggle: event.metaKey || event.ctrlKey || event.shiftKey});
 			}}
-			// Carries the id and nothing else. Selecting here would navigate to
-			// the issue route mid-drag, remounting the board under the pointer so
-			// the drop never lands.
+			// Only the id: selecting would navigate and remount the board mid-drag.
 			onDragStart={event => {
 				event.dataTransfer.effectAllowed = 'move';
 				event.dataTransfer.setData('text/plain', ticket.id);
@@ -660,16 +618,12 @@ export const TicketCard = ({
 					isSelected || isPicked ? GUI_THEME.primary : GUI_THEME.primarySoft,
 				fontSize: 11,
 				cursor: ticket.readonly ? 'default' : 'grab',
-				// A selected card is a step above a resting one, not a different
-				// colour at the same weight: the two washes have to move together,
-				// or picking one stops reading as picking it up.
+				// Selected is a step up the same wash, not another colour.
 				background:
 					isSelected || isPicked
 						? 'rgba(185, 192, 255, 0.1)'
 						: 'rgba(185, 192, 255, 0.065)',
-				// Roomier than a list row: a card is read, not scanned, and the
-				// air around its title is what keeps a column of them from
-				// running together.
+				// Roomier than a list row.
 				padding: view.metrics.padding,
 				minHeight: view.metrics.minHeight,
 				boxSizing: 'border-box',
@@ -679,9 +633,7 @@ export const TicketCard = ({
 					isSelected || isPicked ? GUI_THEME.accentEdge : 'transparent'
 				}`,
 				position: 'relative',
-				// The flash is applied to the node directly (see above), so it must
-				// not be set here too or React would put it back on every render and
-				// cut the running one short.
+				// The flash is applied to the node directly, so not here.
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
@@ -792,9 +744,7 @@ export const TicketCard = ({
 							</div>
 						</div>
 
-						{/* What identifies and measures it on one line, its tags at the
-						    far end as on a dense card; where they do not fit, they wrap
-						    under it rather than squeeze the ref and the name. */}
+						{/* Ref, goal and tags on one line; tags wrap rather than squeeze. */}
 						{(goalLabel || ticket.ref || ticket.tags.length > 0) && (
 							<div
 								style={{

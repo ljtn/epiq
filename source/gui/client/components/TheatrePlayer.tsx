@@ -1,6 +1,5 @@
-// The movie player that comes up over a dimmed board while its history plays:
-// a transport, the bar that is the only control on the board's position while
-// it is up, and the moment and caption of the event that just landed.
+// The history player over a dimmed board: transport, position bar, and the
+// caption of the event that just landed.
 
 import {useEffect, useRef} from 'react';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
@@ -15,9 +14,7 @@ const SEEK_STEP = 0.02;
 const BAR_HEIGHT = 2;
 const KNOB_SIZE = 9;
 
-// Square and outlined at one size, the transport included: a filled accent
-// disc is a media widget, and this sits in a terminal. The transport is set
-// apart by colour alone, which is all it needs to be the one to reach for.
+// One outlined size for every control, the transport set apart by colour.
 const TRANSPORT_SIZE = 24;
 
 const transportButtonStyle = (primary: boolean): React.CSSProperties => ({
@@ -63,18 +60,13 @@ export const TheatrePlayer = ({
 		endSeek,
 	} = playback;
 
-	// Held in refs so the listener below is bound once for the life of the
-	// player. Both are re-created on every render of the board above, and the
-	// board renders on every frame of the movie — listing them would add and
-	// drop a document listener sixty times a second.
+	// Refs, so the listener binds once; the board re-renders every movie frame.
 	const onExitRef = useRef(onExit);
 	onExitRef.current = onExit;
 	const toggleRef = useRef(toggle);
 	toggleRef.current = toggle;
 
-	// Space is the transport and Escape is the way out, for as long as the
-	// player is up. Bound on the document rather than the panel: nothing inside
-	// it holds focus after a click on the board behind.
+	// Space plays, Escape exits. On the document, since nothing inside keeps focus.
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			const target = event.target as HTMLElement | null;
@@ -90,18 +82,14 @@ export const TheatrePlayer = ({
 				return;
 			}
 
-			// Ahead of the button check below, and deliberately: Escape is the way
-			// out from wherever focus happens to be, and after a click on any of
-			// the player's own controls that is one of its buttons.
+			// Before the button check: Escape exits even from a focused control.
 			if (event.key === 'Escape') {
 				event.preventDefault();
 				onExitRef.current();
 				return;
 			}
 
-			// Space is how a focused button is pressed, so it belongs to the
-			// button — taking it here would leave the player's own controls
-			// unreachable from the keyboard.
+			// Space presses a focused button.
 			if (tag === 'BUTTON') return;
 
 			if (event.key === ' ' || event.key === 'Spacebar') {
@@ -124,9 +112,7 @@ export const TheatrePlayer = ({
 		<>
 			<style>{THEATRE_KEYFRAMES}</style>
 
-			{/* Darkens the edges so the board reads as the lit thing on the screen.
-			    Over everything but the player itself, and never in the way of a
-			    pointer — what it covers is already standing down. */}
+			{/* Vignette over everything but the player; inert. */}
 			<div
 				data-testid="theatre-vignette"
 				style={{
@@ -144,11 +130,7 @@ export const TheatrePlayer = ({
 				data-testid="theatre-player"
 				role="group"
 				aria-label="History player"
-				// A drawer risen from the foot of the window rather than a card
-				// floating over it: attached edge to edge, square, and held apart
-				// from the board by one hairline the way a dev tool's panel is. The
-				// board's own 30px gutter carries through, so the transport lines up
-				// with the first column.
+				// A square drawer edge to edge at the foot, on the board's 30px gutter.
 				style={{
 					position: 'fixed',
 					left: 0,
@@ -183,9 +165,7 @@ export const TheatrePlayer = ({
 						)}
 					</IconButton>
 
-					{/* The board's position while the player is up. The scrubber stands
-					    down for exactly this reason: two controls for one position
-					    would fight over it. */}
+					{/* The board's position while up; the scrubber stands down. */}
 					<div
 						data-testid="theatre-progress"
 						role="slider"
@@ -328,9 +308,7 @@ export const TheatrePlayer = ({
 						{cursor + 1}/{totalCount} edits
 					</span>
 
-					{/* Keyed on the event so each caption is its own element, and the
-					    entrance runs again for the next one rather than the text
-					    swapping underneath a finished animation. */}
+					{/* Keyed on the event, so each caption animates in afresh. */}
 					<span
 						key={current?.id ?? 'start'}
 						data-testid="theatre-caption"

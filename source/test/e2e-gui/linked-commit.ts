@@ -2,21 +2,10 @@ import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-// The seeded repo has no code history: link one commit to a ticket by
-// prefixing its subject with the ref shown in the panel. A reload sees the
-// commit at once — the test server holds no scan of git's history (serve.ts),
-// so there is no cache here to outlive.
+// Links a commit to a ticket by leading its subject with the ref. The test
+// server caches no git scans (serve.ts).
 
-/**
- * Every worker's tests share one seeded repo, so a fixed path collides: two
- * files committing the same contents leave nothing to stage and `git commit`
- * exits non-zero, and two committing different contents make the second a
- * modification rather than the addition its diff stat is asserted to be. The
- * ref is a fresh ticket's, so it is unique per call — including across a
- * retry, which re-runs against the same repo.
- */
-// One identity for every commit these helpers make, and one place the cwd is
-// bound: three of them had written this out apiece.
+// One identity and cwd for every commit these helpers make.
 const gitIn =
 	(repoRoot: string, date?: Date) =>
 	(...args: string[]) =>
@@ -36,6 +25,7 @@ const gitIn =
 			},
 		);
 
+// Keyed by a fresh ref: the worker's tests share one repo.
 export const linkedFileName = (ref: string): string => `notes-${ref}.txt`;
 
 /** One commit carrying several files, keyed by name. */
@@ -65,10 +55,7 @@ export const commitLinkedFile = (
 	contents = 'alpha\nbeta\ngamma\n',
 ): string => commitLinkedFiles(repoRoot, ref, subject, {[fileName]: contents});
 
-/**
- * A commit that names a ticket and changes no lines. `--allow-empty` is the
- * short way to it; a pure rename reaches `--shortstat` the same way.
- */
+/** A commit that names a ticket and changes no lines. */
 export const commitLinkedNothing = (
 	repoRoot: string,
 	ref: string,
@@ -81,10 +68,7 @@ export const commitLinkedNothing = (
 	return git('rev-parse', 'HEAD').toString().trim();
 };
 
-/**
- * A commit with no ref in its subject, for the linked-only narrowing to drop —
- * unless its body names one: each of `body` is a paragraph of the message.
- */
+/** A commit with no ref in its subject, unless a `body` paragraph names one. */
 export const commitPlainFile = (
 	repoRoot: string,
 	fileName: string,

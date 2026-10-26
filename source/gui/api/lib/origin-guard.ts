@@ -1,14 +1,6 @@
 /**
- * Binding to loopback is not a security boundary in a browser. Any page the
- * user happens to have open can POST to `http://127.0.0.1:<port>`, and a
- * WebSocket handshake is exempt from the same-origin policy altogether — so
- * without this, a drive-by page could drive the whole board and `git push` the
- * damage.
- *
- * A browser always sends `Origin` on a WebSocket handshake and on any
- * state-changing method, so "present and not ours" is the whole attack. A
- * request with no `Origin` is not coming from a page and has nothing to spoof;
- * it is left alone so curl and the test harness keep working.
+ * Loopback is no boundary in a browser: any open page can POST here or open a
+ * WebSocket. A request with no `Origin` is not from a page and is let through.
  */
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set([
 	'127.0.0.1',
@@ -41,13 +33,8 @@ export const isForeignOrigin = (
 };
 
 /**
- * Two independent gates, because either alone leaves a hole: `Origin` catches
- * a cross-origin request that carries one, and requiring JSON forces
- * everything else into a preflight this server never answers. Without the
- * second, a `text/plain` POST is a CORS *simple request* — no preflight, so
- * any page the user has open could write to the board.
- *
- * Returns the refusal to send, or null to let the request through.
+ * Refuses a foreign `Origin`, and anything not JSON: a `text/plain` POST skips
+ * the CORS preflight. Returns the refusal, or null.
  */
 export const refuseCrossSiteRequest = (
 	request: {

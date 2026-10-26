@@ -5,11 +5,7 @@ import {createPersister} from './event-persist.js';
 import {createWriter} from './event-write.js';
 import {EventMap} from './event.model.js';
 
-/**
- * One log for one catalog: reading it, applying it, and writing to it, with
- * the state that ties those together (the edge, the replay batch, the id
- * clock) held per instance rather than per module.
- */
+/** One log for one catalog, with its edge, replay batch and id clock held per instance. */
 export const createEventLog = <M extends EventMap>(
 	catalog: EventCatalog<M>,
 ) => {

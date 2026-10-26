@@ -1,10 +1,6 @@
 /**
- * What a sync is allowed to put in a commit.
- *
- * `assertLogOnlyGrew` guards the event log at this boundary. These cover the
- * two paths beside it that had no guard: the media directory, staged by glob
- * so a missing blob committed its own deletion, and the storage-only repair,
- * which committed with no pathspec and so took whatever was in the index.
+ * What a sync may put in a commit: media staged without committing a missing
+ * blob's deletion, and the storage-only repair staging only its own paths.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -64,10 +60,8 @@ describe('stageStateBranchMediaFiles', () => {
 	});
 
 	/**
-	 * Nothing removes a blob on purpose — `delete.issue.attachment` writes a
-	 * tombstone and keeps the bytes so a historical checkout can still render
-	 * them — so a gap here is damage. Committing it published that damage to
-	 * every clone, and the bytes have no other copy.
+	 * Blobs are never removed on purpose, so a missing one is damage and must not
+	 * be committed to every clone.
 	 */
 	it('does not commit a blob that has gone missing from the worktree', async () => {
 		const root = await makeStateWorktree();
@@ -93,10 +87,8 @@ describe('ensureStateBranchIsStorageOnly', () => {
 	});
 
 	/**
-	 * This runs during bootstrap — before the pull, and before
-	 * `stageStateBranchOwnEventFile` gets anywhere near it — so anything it
-	 * sweeps up is published with no integrity check at all. A sync that died
-	 * between `git add` and `git commit` leaves exactly that in the index.
+	 * Runs at bootstrap with no integrity check, so it must not commit whatever a
+	 * dead sync left staged.
 	 */
 	it('commits only what it removed, not whatever else is staged', async () => {
 		const root = await makeStateWorktree();

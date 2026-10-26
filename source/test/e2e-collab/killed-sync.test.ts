@@ -1,18 +1,6 @@
 /**
- * A sync that dies partway through, and the writes that come after it.
- *
- * Every git call is capped at 10 seconds and SIGTERMed at the cap, an agent's
- * MCP server is killed when its session ends, and a laptop sleeps mid-fetch.
- * All three leave the state worktree in a state git calls "rebase in
- * progress": HEAD detached, an autostash holding whatever was uncommitted.
- *
- * The next epiq process recovers by running `git rebase --abort`, and an abort
- * resets the working tree. Anything a *write* put in that directory in the
- * meantime is in the working tree and not in any commit — so the question this
- * asks is whether recovery takes those writes with it.
- *
- * The board is allowed to be behind. It is not allowed to lose an issue it
- * said it had created.
+ * A sync killed mid-rebase, then writes: recovery's `rebase --abort` may leave
+ * the board behind, but never lose an issue it said it created.
  */
 import {afterEach, describe, expect, it} from 'vitest';
 import {
@@ -79,19 +67,8 @@ describe('a sync killed partway through', () => {
 					).toEqual([]);
 				}
 
-				// Killed at a different point each round, so the window lands
-				// somewhere different in the sync every time. Measured from the
-				// sync's own start, and asserted to have landed inside it: a kill
-				// that arrives after the sync finished leaves nothing half-done to
-				// recover from, and everything below would pass without testing
-				// anything.
-				//
-				// The delay is zero, and that is the whole ramp. A sync takes
-				// 186–451ms on this machine and a small fraction of that in the
-				// container, so any fixed distance into it is past the end of it
-				// somewhere: 900ms missed on the host, 35ms missed in the
-				// container. Killed the moment the sync says it has begun, the
-				// premise holds in both.
+				// Killed the moment the sync begins, and asserted to land inside it; any
+				// fixed delay overshoots a fast sync somewhere.
 				const killed = await runActorAndKill(ana, {
 					actions: [],
 					sync: true,

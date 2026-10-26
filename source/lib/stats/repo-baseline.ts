@@ -1,13 +1,5 @@
-// What was normal in this repository before the ticket started.
-//
-// A stat about a diff is only ever half a sentence: 6% comment lines, 0.4
-// tests per line of code — compared with what? This reads the other half from
-// the repository's own history, so the comparison is against the codebase
-// somebody is actually working in rather than an invented target.
-//
-// One `ls-tree` and one `cat-file --batch` answer both halves, at the commit
-// *before* the ticket's first: comparing a change against a tree it is
-// already part of would flatten exactly the difference being looked for.
+// What was normal in this repository before the ticket: one `ls-tree` and one
+// `cat-file --batch` at the commit before its first, not a tree it's part of.
 
 import {execGitAllowFail, readGitBlobsBatch} from '../../git/git-utils.js';
 import {isFail} from '../model/result-types.js';
@@ -21,26 +13,20 @@ import {
 
 export type RepoBaseline = {
 	languages: Set<string>;
-	// Comment share of non-blank lines, per language, from a sample of the
-	// files that were there. Absent for a language the sample could not
-	// measure — never defaulted to zero, which would read as "this repo does
-	// not comment".
+	// Comment share of non-blank lines per language, from a sample; absent, never
+	// zero, when unmeasured.
 	commentShareByLanguage: Map<string, number>;
 };
 
-// A sample, not a census: the point is a number to compare against, and the
-// difference between reading forty files and four thousand is milliseconds
-// against seconds for a digit that does not move.
+// A sample, not a census: enough for a stable comparison.
 const SAMPLE_PER_LANGUAGE = 40;
 
 // `<mode> blob <sha>\t<path>`
 const LS_TREE_LINE = /^\d{6} blob ([0-9a-f]{40})\t(.+)$/;
 
 /**
- * Null — not an empty baseline — when there is no earlier tree to read: a
- * ticket whose first commit is the repository's root has no "before", and
- * calling that "no languages, no comments" would report every language in the
- * change as newly introduced and every comment share as an improvement.
+ * Null when there is no earlier tree (the ticket starts at the root), rather
+ * than an empty baseline that would make everything look new.
  */
 export const readRepoBaseline = async ({
 	repoRoot,
@@ -69,10 +55,7 @@ export const readRepoBaseline = async ({
 		const name = languageOf(path);
 		languages.add(name);
 
-		// Tests are excluded from the comment baseline for the same reason the
-		// ticket's own test lines are: test files comment differently, and a
-		// repo's test-to-code mix would otherwise decide the number a feature
-		// change is compared against.
+		// Tests are excluded, as they are from the ticket's own share.
 		if (isTestPath(path) || !commentSyntaxOf(path)) continue;
 
 		const sample = sampleByLanguage.get(name) ?? [];

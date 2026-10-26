@@ -1,13 +1,5 @@
-// How long a read-through scan of the repository may be reused. The scans are
-// over git's own history — the commit timeline, the addresses its commits were
-// signed with — and nothing invalidates them when a commit lands, so each one
-// holds its answer for a few seconds and no longer.
-//
-// `EPIQ_CACHE_MS` overrides that, and zero turns it off: a server whose
-// repository is being committed to between one request and the next hands back
-// what is there now rather than what was there a moment ago. The browser suite
-// is exactly that server — it commits mid-test — and waiting these caches out
-// was two and a half minutes of it sleeping.
+// How long a read-through scan of git history may be reused; nothing
+// invalidates it on commit. `EPIQ_CACHE_MS` overrides, and 0 disables.
 
 const OVERRIDE_ENV = 'EPIQ_CACHE_MS';
 

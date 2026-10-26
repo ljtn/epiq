@@ -10,10 +10,8 @@ type InstallSkillInput = {
 };
 
 /**
- * Writes the epiq workflow skill into the repository, where an agent's harness
- * picks it up. The text ships inside the server, so a project set up from an
- * agent gets the same rules as this repository's own copy. Never boots: a
- * repository gets its skill before or after it gets its board.
+ * Writes the epiq workflow skill, shipped inside the server, into the
+ * repository. Never boots: a repository may get its skill before its board.
  */
 export const installSkill = async (
 	input: InstallSkillInput = {},

@@ -3,15 +3,8 @@ import {IconButton, ICON_SIZE} from './IconButton';
 import {IconImage} from './IconImage';
 import {IMAGE_FILE_ACCEPT} from '../lib/image-insert';
 
-/**
- * The picker, as an icon and the hidden input it opens. Three surfaces take
- * images — a description, a comment, and the attachments list — and all three
- * want the same control, so it lives here rather than three times over.
- *
- * The label is a title and an aria-label rather than text: the button sits in
- * rows next to `save` and `cancel`, where a third word competes with the two
- * that decide something.
- */
+// The image picker shared by descriptions, comments and attachments. Labelled
+// by title rather than text, so it doesn't compete with `save` and `cancel`.
 export const AddImageButton = ({
 	testId,
 	busy = false,

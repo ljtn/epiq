@@ -37,12 +37,8 @@ const getAssigneeNames = (ticket: NavNode<'TICKET'>): string[] => {
 };
 
 /**
- * Who has worked each node, from the log rather than from the node: authorship
- * is not materialized onto nodes, and does not need to be — every event already
- * carries the actor it was written by.
- *
- * Rebuilt only when the log is replaced, because a filter is re-evaluated per
- * ticket on every keystroke and the log is the longest thing in state.
+ * Who has worked each node, from the log; rebuilt only when the log is
+ * replaced, since filters run per ticket per keystroke.
  */
 let indexedLog: AppEvent[] | null = null;
 let actorsByNode = new Map<string, Set<string>>();
@@ -59,9 +55,8 @@ const getActorsByNode = (): Map<string, Set<string>> => {
 
 		const payload = event.payload as {id?: unknown; issue?: unknown};
 
-		// `id` is the node an event targets; `issue` is how a comment names the
-		// ticket it belongs to. Ids are unique across kinds, so a tag or
-		// contributor event naming its own id can never match a ticket.
+		// `id` is an event's target; `issue` is a comment's ticket. Ids are unique
+		// across kinds.
 		for (const target of [payload.id, payload.issue]) {
 			if (typeof target !== 'string') continue;
 
@@ -77,11 +72,7 @@ const getActorsByNode = (): Map<string, Set<string>> => {
 	return byNode;
 };
 
-/**
- * Names of everyone who has written an event against this ticket. Resolved
- * through the registry by id, never off the log's file name, which is a
- * sanitized storage key.
- */
+/** Names of everyone who wrote an event on this ticket, resolved by id. */
 const getActorNames = (ticket: NavNode<'TICKET'>): string[] => {
 	const {contributors} = getState();
 	const actors = getActorsByNode().get(ticket.id);
@@ -134,20 +125,6 @@ export const ticketMatchesFilter = (
 		case 'ref': {
 			return nodeRefMatches(ticket.id, filter.value);
 		}
-
-		// case 'all': {
-		// 	const title = normalizeText(ticket.title ?? '');
-		// 	const description = normalizeText(ticket.props.description ?? '');
-		// 	const tagNames = getTagNames(ticket).map(normalizeText);
-		// 	const assigneeNames = getAssigneeNames(ticket).map(normalizeText);
-
-		// 	return (
-		// 		title.includes(query) ||
-		// 		description.includes(query) ||
-		// 		tagNames.some(tag => tag.includes(query)) ||
-		// 		assigneeNames.some(name => name.includes(query))
-		// 	);
-		// }
 
 		default:
 			return true;

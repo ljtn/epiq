@@ -8,43 +8,15 @@ import {getGitDir} from './git-utils.js';
 import {logger} from '../logger.js';
 
 /**
- * A cross-process lock over the state branch worktree.
- *
- * `runExclusive` serializes work inside one process; it is a promise chain and
- * dies with the process, so it says nothing about the several other processes
- * writing this same worktree — a TUI, a GUI autosync, an MCP server per agent.
- *
- * The case that forced this: `ensureStateBranchCheckedOut` runs
- * `git rebase --abort` whenever HEAD is not on the state branch, and mid-rebase
- * HEAD is detached. A live sync's rebase and a rebase abandoned by a crashed
- * process are indistinguishable from git alone, so aborting recovered from the
- * second by destroying the first. Whether a process still holds the worktree is
- * not something git knows, but it is something the operating system knows.
- *
- * Advisory, deliberately: it binds epiq processes, not a person running git in
- * the worktree by hand. Git's own `index.lock` and `rebase-merge/` remain the
- * hard boundary. Every writer here is an epiq process, so in practice this
- * covers the cases that actually occur.
- *
- * Assumes the worktree is on a local filesystem, which `~/.epiq-global` is.
- * `pid` means nothing across hosts and `wx` is not reliably atomic on NFS, so
- * `hostname` is recorded and a lock from elsewhere is never broken on liveness.
+ * An advisory cross-process lock over the state branch worktree, so one process
+ * never aborts another's live rebase. Binds epiq processes only, and assumes a
+ * local filesystem; a lock from another host is never broken on liveness.
  */
 
-/**
- * Exported because it is a name two processes agree on, not an implementation
- * detail: anything sweeping this directory has to leave it alone, and renaming
- * it would mean an old build and a new one no longer seeing each other's
- * claims.
- */
+/** Shared by every build: never rename it, and sweeps must leave it alone. */
 export const SYNC_LOCK_FILE = 'epiq-sync.lock';
 
-/**
- * Backstop for the one case liveness cannot settle: a dead holder whose pid has
- * been recycled by an unrelated process. Generous — every git call this lock
- * spans already caps itself at 10s, and being wrong here means breaking a live
- * lock, which is the failure this whole mechanism exists to avoid.
- */
+/** Backstop for a recycled pid; generous, since breaking a live lock is worse. */
 const STALE_AFTER_MS = 10 * 60 * 1000;
 
 type LockHolder = {
@@ -52,16 +24,9 @@ type LockHolder = {
 	hostname: string;
 	startedAt: number;
 	operation: string;
-	/**
-	 * This hold, as against another by the same process: two can share a pid
-	 * and a millisecond. Absent from a lock an older build wrote.
-	 */
+	/** Tells two holds by one process apart. Absent from older builds' locks. */
 	token?: string;
-	/**
-	 * When the holding process started: a pid alone is reused, and a crashed
-	 * holder's pid taken by any other process would read as the holder.
-	 * Absent from a lock an older build wrote.
-	 */
+	/** Guards against pid reuse. Absent from older builds' locks. */
 	processStartedAt?: number;
 };
 
@@ -152,11 +117,8 @@ const isSameProcess = (holder: LockHolder): boolean => {
 const heldHere = new Map<string, string>();
 
 /**
- * How the lock came to be ours, which is not the same question as whether it
- * is. `clean` is an empty file; `dead` is a holder the operating system says is
- * gone. `stale` is the awkward one — a holder still running, whose claim was
- * broken on age alone — and a caller about to do something irreversible to the
- * worktree wants to know it is standing on that rather than on the other two.
+ * How the lock became ours. `stale` was broken on age alone, its holder maybe
+ * still running, so the caller must not touch that holder's work.
  */
 export type LockClaim = 'clean' | 'dead' | 'stale';
 
@@ -183,11 +145,7 @@ const parseHolder = (raw: string): LockHolder | null => {
 	}
 };
 
-/**
- * `kill(pid, 0)` sends nothing; it only asks whether the pid can be signalled.
- * `EPERM` means the process exists but belongs to another user — alive, and
- * emphatically not ours to break.
- */
+/** `kill(pid, 0)` only probes; `EPERM` means alive, under another user. */
 const isProcessAlive = (pid: number): boolean => {
 	try {
 		process.kill(pid, 0);
@@ -204,13 +162,7 @@ const claimOver = (
 	/** Also take a live pid as dead when it no longer runs the holder. */
 	checkProcess = false,
 ): LockClaim | null => {
-	// A lock that says nothing is still broken — leaving it would wedge the
-	// worktree — but it is not evidence that anybody is gone, and it must not be
-	// read as licence to unwind what they are running. A holder mid-acquisition
-	// looks exactly like this for the instant between creating the file and
-	// filling it, which `write` above now closes; a truncated one looks like it
-	// for good. `stale` is the honest answer to both: take the worktree, touch
-	// nothing in it.
+	// An unreadable lock is broken but proves nobody gone: `stale`, so nothing is unwound.
 	if (!holder) return 'stale';
 
 	// Another machine's pid is not ours to interpret, so only age can settle it.
@@ -224,11 +176,7 @@ const claimOver = (
 	return Date.now() - holder.startedAt > staleAfterMs ? 'stale' : null;
 };
 
-/**
- * Whether a live process holds the worktree right now, for a reader that must
- * not see the logs while git has them. A lock `acquireSyncLock` would break
- * counts as free.
- */
+/** Whether a live process holds the worktree; a breakable lock counts as free. */
 export const isSyncLockHeld = (gitDir: string): boolean => {
 	const lockPath = path.join(gitDir, SYNC_LOCK_FILE);
 	if (!fs.existsSync(lockPath)) return false;
@@ -236,9 +184,7 @@ export const isSyncLockHeld = (gitDir: string): boolean => {
 	return claimOver(readHolder(lockPath)) === null;
 };
 
-// `rev-parse` is a subprocess, too slow to spawn on every watch tick, and a
-// worktree's gitdir does not move. Only an answer is kept: the worktree may
-// not exist yet.
+// Cached, since a worktree's gitdir doesn't move; only answers, as it may not exist yet.
 const gitDirs = new Map<string, Promise<string | null>>();
 
 const cachedGitDir = (worktreeRoot: string): Promise<string | null> => {
@@ -285,18 +231,8 @@ const readHolder = (lockPath: string): LockHolder | null => {
 };
 
 /**
- * Writes the holder, then claims the lock with it — in that order, and as one
- * step for anybody watching.
- *
- * `wx` alone creates the file and fills it in a second call, so between the two
- * the lock exists and is empty. A process arriving in that gap reads nothing,
- * has no holder to respect, and treats a live claim as an abandoned one. Since
- * `TATEM5B` that is not merely a broken lock: an abandoned claim is grounds for
- * unwinding the rebase the holder is running.
- *
- * `link` is the fix, because it is one syscall that both fails when the target
- * exists and publishes a file that is already complete. The temporary name is
- * this process's own, so two of them cannot collide over it.
+ * Writes the holder to a temp file, then `link`s it into place: one atomic step
+ * that fails if the lock exists, so nobody ever sees it empty.
  */
 const write = (lockPath: string, operation: string): LockHolder | null => {
 	const holder: LockHolder = {
@@ -308,16 +244,7 @@ const write = (lockPath: string, operation: string): LockHolder | null => {
 		processStartedAt: PROCESS_STARTED_AT,
 	};
 
-	// Ends in `.lock` on purpose: a process killed between the write and the
-	// link leaves this behind, and a name the sweep recognises is one that gets
-	// tidied by whoever holds the worktree next rather than one nothing ever
-	// collects.
-	//
-	// A sweep can still take this file mid-acquisition — the sweeper holds the
-	// lock, which means the link below was going to fail anyway. It fails with
-	// ENOENT instead of EEXIST, the caller reads a lock that is not there, and
-	// acquires on a `stale` claim rather than a `clean` one: a recovery skipped
-	// that could have been done, which is the safe direction to be wrong in.
+	// Ends in `.lock`, so the stale-lock sweep collects one a killed process leaves.
 	const pending = `${lockPath}.${process.pid}.pending.lock`;
 
 	try {
@@ -335,11 +262,7 @@ const write = (lockPath: string, operation: string): LockHolder | null => {
 	}
 };
 
-/**
- * Takes the lock, or reports who holds it. Never waits: a caller that cannot
- * have the worktree wants to say so and move on, not to queue behind a sync
- * that may be stuck on an unreachable remote.
- */
+/** Takes the lock, or reports who holds it. Never waits. */
 export const acquireSyncLock = async ({
 	worktreeRoot,
 	operation,
@@ -373,9 +296,8 @@ export const acquireLockFile = ({
 	/** For work allowed to run longer than a sync: never broken before this. */
 	staleAfterMs?: number;
 	/**
-	 * Takes a lock whose live pid now runs another process, or that was written
-	 * before the last boot, as dead. For the connected repos' locks; the board's
-	 * sync lock keeps judging by the pid alone.
+	 * Also counts as dead a lock whose pid now runs another process, or that
+	 * predates the last boot. For linked repos' locks only.
 	 */
 	checkProcess?: boolean;
 }): LockOutcome => {
@@ -410,9 +332,7 @@ export const acquireLockFile = ({
 
 		let holder = readHolder(lockPath);
 
-		// Missing or unreadable at the read: its holder may have let go and
-		// another taken it in between. Read again before calling it broken —
-		// only a lock that stays unreadable is.
+		// May be mid-handover: only a lock that stays unreadable is broken.
 		if (holder === null) {
 			if (!fs.existsSync(lockPath)) continue;
 			holder = readHolder(lockPath);
@@ -439,9 +359,7 @@ export const acquireLockFile = ({
 			}`,
 		);
 
-		// Broken by moving it aside under a name of our own and checking it is
-		// the lock that was judged: a rename takes whatever is there now, and
-		// that may be a fresh lock another process wrote since the read.
+		// Moved aside, then checked it is the lock that was judged, not a fresh one.
 		const aside = `${lockPath}.${process.pid}.${randomUUID()}.broken.lock`;
 		try {
 			fs.renameSync(lockPath, aside);
@@ -450,10 +368,7 @@ export const acquireLockFile = ({
 		}
 
 		if (!sameHolder(readHolder(aside), holder)) {
-			// A live lock, taken by mistake: back where it was, unless the slot
-			// has been filled again meanwhile. Should its holder have let go in
-			// between, it is now an orphan of that process's, which that
-			// process reclaims above.
+			// A live lock taken by mistake goes back, unless the slot was refilled.
 			try {
 				fs.linkSync(aside, lockPath);
 			} catch {

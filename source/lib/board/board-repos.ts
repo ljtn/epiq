@@ -2,14 +2,8 @@ import {createHash} from 'node:crypto';
 import {failed, Result, succeeded} from '../model/result-types.js';
 import {isAllowedRepoUrl} from '../commits/repo-url.js';
 
-// The other repositories whose commits count as this board's, kept as board
-// events so they sync with the board and never conflict. One reducer applies
-// those events, both to the board state and to the live list readers fold
-// from the whole log; nothing else decides what an event did.
-//
-// Only rules that will never change belong here: a rule a later build may
-// relax or tighten is applied by readers instead (`resolveRepos`), or two
-// builds would derive different lists from one log.
+// Linked repos, kept as board events and applied by one reducer. Only rules that
+// never change belong here; others go in readers (`resolveRepos`), or builds diverge.
 
 export type RepoBranches = 'default' | 'all';
 
@@ -39,19 +33,14 @@ export type RepoEntry = {
 };
 
 /**
- * Every repo a log has named, by id, and the last `seq` given out. Updated in
- * place by `applyRepoEvent`, so a log of any length folds in linear time: its
- * owner is the fold, or the board state, and nothing else holds it.
+ * Every repo a log has named, by id. Mutated in place by `applyRepoEvent`, so a fold
+ * is linear and only its fold or the board state may hold it.
  */
 export type RepoRegistry = {entries: Record<string, RepoEntry>; seq: number};
 
 export const emptyRepoRegistry = (): RepoRegistry => ({entries: {}, seq: 0});
 
-/**
- * What a connect that leaves a field out gets, on a new or revived repo. Part
- * of the log's format, apart from any default a writer offers: changing these
- * would rewrite what every connect already in a log means.
- */
+/** Defaults for a field a connect leaves out. Part of the log format: never change them. */
 export const FOLD_DEFAULT_BRANCHES: RepoBranches = 'default';
 export const FOLD_DEFAULT_SINCE: RepoSince = 'board';
 
@@ -170,14 +159,8 @@ type RepoEvent =
 	| {action: 'disconnect.repo'; payload: unknown};
 
 /**
- * One repo event applied to the registry, or why it changes nothing, in which
- * case the registry is left as it was. Total: any payload at all is an answer,
- * never a throw.
- *
- * A connect of a live repo merges its fields, last writer in causal order
- * winning, so two people connecting one repo at once both keep what they set.
- * An edit or disconnect of a repo that is not live changes nothing, so one
- * that raced a disconnect never brings the repo back.
+ * Applies one repo event, or says why it changes nothing; never throws.
+ * An edit or disconnect of a repo that is not live changes nothing.
  */
 export const applyRepoEvent = (
 	registry: RepoRegistry,
@@ -271,10 +254,8 @@ export type ResolvedRepos = {
 };
 
 /**
- * The registry as readers see it. The cap and a contested name are settled
- * here rather than in the reducer, so a later build may change either without
- * disagreeing with this one about the log: the earliest to become live keeps a
- * name, and a later one is called by its URL's basename, or else its id.
+ * The registry as readers see it. The cap and contested labels are settled here,
+ * not in the reducer, so later builds may change them.
  */
 export const resolveRepos = (registry: RepoRegistry): ResolvedRepos => {
 	const entries = Object.values(registry.entries);
@@ -308,11 +289,7 @@ export const resolveRepos = (registry: RepoRegistry): ResolvedRepos => {
 	};
 };
 
-/**
- * A repo event in a few words, for a log line: the repo, and for an edit what
- * it set. Read off the payload alone, so a replica without the repo still has
- * something to show.
- */
+/** A repo event in a few words, from the payload alone. */
 export const describeRepoEvent = (event: {
 	action: string;
 	payload: unknown;

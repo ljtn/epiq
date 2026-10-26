@@ -1,8 +1,5 @@
-// The four figures the identity panel shows, counted off the log.
-//
-// The derivation is pure, so this is the whole of it: no repository, no board,
-// no git. What it cannot answer — the commit total — is handed in by
-// `mcp/api/personal-stats.ts` and belongs to the author scan's own tests.
+// The four figures the identity panel shows, counted off the log. Pure; the
+// commit total comes from `mcp/api/personal-stats.ts`.
 
 import {describe, expect, it} from 'vitest';
 import {ulid} from 'ulid';
@@ -21,9 +18,7 @@ const ticket = (userId: string, id = ulid()): AppEvent<'add.issue'> => ({
 	payload: {id: ulid(), name: 'A ticket', parent: 'lane', rank: 'a'},
 });
 
-// `author` on the payload is always the actor (`addIssueComment` sets it from
-// the same place), so the two agree; the count goes by `userId` like the
-// ticket count, which is the log's own attribution.
+// Comments count by `userId`, like tickets; `author` always equals it.
 const comment = (
 	userId: string,
 	id = ulid(),

@@ -14,11 +14,8 @@ import {getSafeState} from '../state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
 import {theme} from '../theme/themes.js';
 
-// Who the board thinks you are, and which git addresses carry your commits.
-//
-// Setup asks the question once; this is where it is answered again afterwards.
-// Without it the TUI could claim an address exactly once, during setup, and a
-// person who changed jobs or declined at the time had no way back.
+// Who the board thinks you are, and which git addresses carry your commits;
+// re-answers the setup question.
 
 type Claimed = {email: string; others: string[]};
 
@@ -166,10 +163,7 @@ export const IdentityUI: React.FC<{width: number; height: number}> = ({
 			</Box>
 
 			<Box flexDirection="column">
-				{/* "claims, ready to edit" read as though the claim happened and
-				    could be changed afterwards. It does not: enter writes the
-				    command into the line, and nothing is claimed until it is
-				    confirmed. */}
+				{/* Enter only fills the command line; nothing is claimed until confirmed. */}
 				<Text color={theme.secondary2}>
 					<Text color={theme.accent}>[enter]</Text> writes a claim for the first
 					into the command line, to confirm or change.

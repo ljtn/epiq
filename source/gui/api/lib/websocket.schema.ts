@@ -3,16 +3,8 @@ import {GuiMessage} from './websocket.model.js';
 import {MAX_URL_LENGTH} from '../../../lib/commits/repo-url.js';
 
 /**
- * `GuiMessage` is a compile-time type, so `JSON.parse(raw) as GuiMessage` was
- * a promise the wire never had to keep. Two things follow from parsing for
- * real instead:
- *
- * - Handlers spread the payload into an API call (`{repoRoot, ...payload}`),
- *   and the spread wins — so an unknown `repoRoot` key in a frame pointed the
- *   server at another project on the machine. `z.object` drops unknown keys,
- *   which closes that for every handler at once.
- * - A missing or wrong-typed field became a TypeError echoed back to the
- *   client rather than a refusal.
+ * Parsed, not cast: `z.object` drops unknown keys, so a frame cannot smuggle
+ * `repoRoot` into a handler's `{repoRoot, ...payload}` spread.
  */
 const id = z.string().min(1);
 
@@ -224,9 +216,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 		'settings:set',
 		z.object({
 			autoSync: z.boolean().optional(),
-			// The floor is not restated here — `writeAutoSyncSettings` owns it and
-			// answers with a message a person can read. This only keeps a string
-			// or a NaN from reaching it.
+			// The floor lives in `writeAutoSyncSettings`; this only rejects non-numbers.
 			autoSyncIntervalMs: z.number().finite().optional(),
 		}),
 	),

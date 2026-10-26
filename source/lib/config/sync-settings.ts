@@ -1,12 +1,5 @@
-// The auto sync preference: reading it, changing it, and saying when it is on
-// but cannot run.
-//
-// Three surfaces ask — `:config autosync` and `:config autosync-duration` in
-// the TUI, the identity panel in the GUI, and the two sync loops that obey it.
-// Changing it is two steps, not one: the config file is what survives a
-// restart, and the settings store is what this process is acting on until
-// then. A caller that did only the first would go on syncing at the old
-// cadence until something else re-read the file.
+// The auto sync preference: reading it, changing it, and saying why it can't
+// run. A change writes the config file and the settings store, or loops keep the old cadence.
 
 import {
 	effectiveAutoSyncIntervalMs,
@@ -26,24 +19,13 @@ import {
 export type AutoSyncSettings = {
 	enabled: boolean;
 	intervalMs: number;
-	/**
-	 * Why an enabled auto sync would still not run, or null where it would.
-	 *
-	 * Both loops require a name and an editor before they do anything, and
-	 * silently: without this a toggle switched on reports success and then
-	 * nothing ever syncs, with nowhere to find out why.
-	 */
+	/** Why an enabled auto sync would still not run, or null where it would. */
 	blockedReason: string | null;
 };
 
 /**
- * What stops auto sync running, whatever the preference says.
- *
- * Pure over the pair, because the two callers hold it in different places: the
- * GUI's loop has resolved settings in hand before anything has booted, and the
- * TUI's store is filled by then. Reading the store here would have told the
- * loop that nobody is configured on a machine whose actor comes from the
- * environment.
+ * What stops auto sync running, whatever the preference says. Pure over the
+ * pair: the GUI's loop calls it before the store is filled.
  */
 export const autoSyncBlockedReason = (identity: {
 	userName: string | null | undefined;
@@ -56,17 +38,8 @@ export const autoSyncBlockedReason = (identity: {
 };
 
 /**
- * Why auto sync would not run on this machine, as the loops decide it.
- *
- * The resolution failing is itself a blocker, and has to be reported as one:
- * the GUI's loop gives up outright when `loadSettingsFromConfig` fails, so a
- * panel that fell back to the raw config would find a name and an editor
- * there, report all-clear, and leave somebody watching a toggle that is on
- * while nothing ever syncs — which is the exact silence this field exists to
- * break. `EPIQ_USER_ID` exported without `EPIQ_USER_NAME` reaches it.
- *
- * The raw config is still consulted, but only to name the missing field, since
- * the resolver's own message is about an actor rather than about a setting.
+ * Why auto sync would not run here, as the loops decide it. A failed resolution
+ * is itself a blocker; the raw config only names the missing field.
  */
 const blockedReasonFor = (config: EpiqConfig): string | null => {
 	const resolved = loadSettingsFromConfig();
@@ -95,11 +68,8 @@ export const readAutoSyncSettings = (): Result<AutoSyncSettings> => {
 };
 
 /**
- * Changes whichever of the two the caller named, and reports what they now are.
- *
- * Partial on purpose: the panel's toggle and its interval field are two
- * controls over one config file, and a write that carried both would have each
- * of them overwriting whatever the other had just done.
+ * Changes only the fields named, so the panel's toggle and interval don't
+ * overwrite each other, and reports the result.
  */
 export const writeAutoSyncSettings = (patch: {
 	enabled?: boolean;
@@ -116,9 +86,7 @@ export const writeAutoSyncSettings = (patch: {
 		);
 	}
 
-	// Read before writing, so the answer can be assembled from the patch even
-	// if reading afterwards fails. A partial patch does not say what the other
-	// setting is, and this is the only other way to know.
+	// Read before writing, so the answer can be assembled even if the read-back fails.
 	const before = readAutoSyncSettings();
 	if (isFail(before)) return before;
 
@@ -138,11 +106,8 @@ export const writeAutoSyncSettings = (patch: {
 			: {autoSyncIntervalMs: intervalMs}),
 	});
 
-	// The write has landed by here, so a read-back that fails is not a failed
-	// write and must not be reported as one. Saying so would print a refusal
-	// for a setting already changed — and, on the GUI's side, skip the
-	// rescheduling, leaving the loop on the old cadence while the file holds
-	// the new one. That drift is the whole thing `reschedule()` exists to stop.
+	// The write has landed, so a failed read-back must not report failure, or
+	// the GUI skips rescheduling and its loop keeps the old cadence.
 	const after = readAutoSyncSettings();
 	if (!isFail(after)) return after;
 

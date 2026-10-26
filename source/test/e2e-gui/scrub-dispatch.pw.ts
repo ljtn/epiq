@@ -67,9 +67,7 @@ test('a click on the track asks the server to scrub once', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// A drag is a gesture on the chart, never a native text selection: without
-// user-select off, sweeping across could pick up the axis labels and drag them
-// as a ghost.
+// A drag never starts a native text selection.
 test('a drag never starts a text selection', async ({
 	page,
 	appUrl,
@@ -100,12 +98,8 @@ test('a drag never starts a text selection', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Watches every scrub the page asks the server for, in order.
-// The scrubs the page sent, in order — and, beside them, every window the
-// server handed back, since a scrub's moment is a fraction of whichever window
-// the chart was drawing when it was asked for. A window landing mid-drag moves
-// the axis under the pointer, and the record of both is what says so when a
-// run fails: the assertion below prints it.
+// The scrubs sent and the windows received, in order, printed on failure: a
+// window landing mid-drag moves the axis.
 type ScrubRecord = {
 	targets: number[];
 	windows: {earliest: number; latest: number; afterScrubs: number}[];
@@ -181,10 +175,7 @@ test('dragging the needle commits the position it ends on', async ({
 		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeEnabled();
 
-	// That first scrub hands the board a new window, so the moments the track
-	// stands for afterwards are not the ones it stood for before. Only the
-	// drag's own requests are on one coordinate system and so comparable — the
-	// click that set the needle up is not.
+	// The first scrub changes the window, so only the drag's requests are comparable.
 	targets.length = 0;
 	record.windows.length = 0;
 
@@ -195,13 +186,8 @@ test('dragging the needle commits the position it ends on', async ({
 		return gripBox.x + gripBox.width / 2;
 	};
 
-	// The drag below runs rightwards from where the click parked the needle,
-	// so that is where the needle has to be before it is pressed — not merely
-	// somewhere still. Resume lighting up is not enough: the needle has been
-	// seen parked at the live end with Now lit, and two reads of that stale
-	// position agreed with each other, so the press landed there and the drag
-	// ran leftwards. Pressing on yesterday's position also lands beside the
-	// grip, and a press off the needle drags out a range instead of moving it.
+	// Wait for the needle at the click, not just still: a stale live-end position
+	// makes the drag run leftwards or drag out a range.
 	const parkedAt = box.x + box.width * 0.2;
 	await expect
 		.poll(async () => Math.abs((await gripCentre()) - parkedAt) < 12)
@@ -216,15 +202,10 @@ test('dragging the needle commits the position it ends on', async ({
 	await page.mouse.up();
 	await page.waitForTimeout(2000);
 
-	// The drag ends on the far right, so the last request must be the largest
-	// moment asked for: that is what says the board holds where the pointer let
-	// go rather than wherever the throttle last got a word in. Not a count —
-	// how many of the moves the throttle passes is not fixed, and a release
-	// landing on a moment already asked for rightly has nothing to add.
+	// The last request is the largest moment: the board holds where the pointer let
+	// go. Not a count, since throttling varies.
 	expect(targets.length).toBeGreaterThan(0);
-	// With the record alongside: a window that arrived partway through the
-	// drag (afterScrubs between 0 and the count) is an axis that moved under
-	// the pointer, which no fraction can be compared across.
+	// With the record: a window arriving mid-drag makes fractions incomparable.
 	expect(
 		targets[targets.length - 1],
 		`scrubs ${JSON.stringify(targets)}, windows ${JSON.stringify(
@@ -240,9 +221,7 @@ test('dragging the needle commits the position it ends on', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The gesture the needle drag had to give up. Dragging anywhere else across
-// the track picks a stretch of time and makes it the whole window, which is
-// only unambiguous because it never scrubs on the way.
+// A drag off the needle zooms to that stretch, never scrubbing.
 test('a drag across the track zooms the window to it, without scrubbing', async ({
 	page,
 	appUrl,
@@ -310,9 +289,7 @@ test('a drag across the track zooms the window to it, without scrubbing', async 
 	expect(pageErrors).toEqual([]);
 });
 
-// fractionForTime clamps, so a moment off either end of the window would pin
-// the needle to that edge and read as "the board is parked here" while pointing
-// at a time the window does not contain.
+// fractionForTime clamps, so an out-of-window moment would pin the needle to an edge.
 test('the needle is not drawn for a moment the window does not contain', async ({
 	page,
 	appUrl,
@@ -336,9 +313,7 @@ test('the needle is not drawn for a moment the window does not contain', async (
 		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeEnabled();
 	await expect(needle).toBeVisible();
-	// And at the click, not at the live end: the zoom below is placed to the
-	// right of it, and a needle parked at the end would leave the window on
-	// the other side and pass the check for the wrong reason.
+	// At the click, not the live end, or the check below passes for the wrong reason.
 	await expect
 		.poll(async () => {
 			const grip = await needle.boundingBox();
@@ -348,9 +323,7 @@ test('the needle is not drawn for a moment the window does not contain', async (
 		})
 		.toBe(true);
 
-	// A stretch well to the right of where the board is parked. Zooming rather
-	// than naming a period keeps this independent of when the seed data was
-	// written: the moment is outside the new window by construction.
+	// Zoomed well right of the parked moment, independent of the seed's dates.
 	await page.mouse.move(box.x + box.width * 0.6, y);
 	await page.mouse.down();
 	await page.mouse.move(box.x + box.width * 0.9, y, {steps: 10});

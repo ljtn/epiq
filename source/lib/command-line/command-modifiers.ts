@@ -82,9 +82,7 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.REPO_CLONE_MAX_MB,
 ];
 
-// Which edit modifiers are valid depends on what is selected: tickets,
-// swimlanes and boards have a title and a description, and comments only have
-// their body.
+// Which edit modifiers are valid depends on what is selected.
 export const getEditModifiers = (
 	selectedContext: AnyContext | undefined = getState().selectedNode?.context,
 ): EditModifier[] => {
@@ -184,9 +182,7 @@ const getNewModifiers = (context: AnyContext): string[] => {
 	return ['issue', 'swimlane', 'board'];
 };
 
-// The "un"-commands and close/reopen only make sense against a concrete ticket,
-// so resolve the ticket currently in scope (selected, or anywhere up the
-// breadcrumb) the same way the tag/assign helpers do.
+// The ticket in scope: selected, or anywhere up the breadcrumb.
 export const ticketInScope = ({
 	breadCrumb,
 	selectedNode,
@@ -219,11 +215,7 @@ export const goalNamesInScope = (): string[] => {
 const isTicketClosed = (ticket: Ticket): boolean =>
 	ticket.parentNodeId === CLOSED_SWIMLANE_ID;
 
-// `edit description` targets whichever ticket is currently in scope, which the
-// edit command resolves from the breadcrumb. So whenever a ticket is in scope —
-// the ticket itself or any of its descendants is selected (a virtual field, the
-// text within it, a comment, ...) — the description modifier must be offered,
-// even though the selected node's own context is not TICKET.
+// `description` is offered whenever a ticket is in scope, even from a descendant node.
 const getEditModifiersInScope = ({
 	selectedNode,
 	breadCrumb,
@@ -237,9 +229,7 @@ const getEditModifiersInScope = ({
 		: [...modifiers, EditModifiers.DESCRIPTION];
 };
 
-// `yank` copies from the ticket in scope when there is one; otherwise from the
-// selected node (a board or swimlane also has a ref and a title). Description,
-// tags, and assignees are only offered when the scoped ticket has them.
+// `yank` copies from the ticket in scope, else the selected node; fields only when present.
 const getYankModifiers = ({
 	selectedNode,
 	breadCrumb,

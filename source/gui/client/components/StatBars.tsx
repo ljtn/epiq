@@ -3,14 +3,8 @@ import {Checkbox} from './Checkbox';
 import {StatRow} from './StatRow';
 import {GUI_THEME} from '../lib/gui-theme';
 
-// The two bars the Stats tab draws, and the only colour on it.
-//
-// Both are the same 4px mark: thin enough to read as a measure beside the
-// figures rather than as a block competing with them. Rounded at the ends of
-// the whole bar, square where segments meet, with a 2px gap in the panel
-// colour doing the separating rather than a stroke. Neither carries a legend
-// of its own — the rows underneath name every segment and repeat its colour,
-// so identity is never colour alone.
+// The Stats tab's two bars, its only colour: 4px, segments split by a 2px gap.
+// Rows below name every segment, so identity is never colour alone.
 
 const BAR_HEIGHT = 4;
 const SEGMENT_GAP = 2;
@@ -56,12 +50,8 @@ export const StackedBar = ({segments}: {segments: BarSegment[]}) => {
 };
 
 /**
- * A part against the whole it is part of: the filled share in one colour, what
- * is left in another, and an optional mark where a comparison sits — the
- * repository's own figure, in the case this exists for.
- *
- * The mark is a slot cut through the bar in the panel's own colour rather than
- * a line drawn over it, so it reads the same whichever segment it lands in.
+ * A share against its whole, with an optional comparison mark cut through the
+ * bar in the panel colour.
  */
 export const ProportionBar = ({
 	value,
@@ -124,10 +114,8 @@ export type BreakdownItem = {
 };
 
 /**
- * A stacked bar over a legend of coloured checkboxes, one per part, each row
- * reading "name (amount)" and its share: unticking a part takes it out of the
- * bar and out of the others' shares. Remounted by the caller (a `key`) when it
- * is about something else.
+ * A stacked bar over a checkbox legend; unticking a part removes it from the
+ * bar and the shares. Callers remount it by `key` for a new subject.
  */
 export const Breakdown = ({
 	items,

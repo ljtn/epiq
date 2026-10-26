@@ -22,15 +22,8 @@ import {DescriptionField} from './DescriptionField';
 import {useEditDraft} from '../lib/ticket-drafts';
 import {descriptionLimitOf} from '../../../lib/utils/text.limits.js';
 
-// What a column says about itself. Its Overview: its name, the conventions for
-// work in it, its rules and what can be done to it. Its Stats: how long things
-// sit in it, what feeds it, where they go afterwards, and what the code
-// standing in it comes to.
-//
-// The two flow lists are the point. A lane in isolation is a number; a lane
-// that takes most of its work from Ongoing and sends nearly all of it to Done
-// is a description of how the board actually runs — and the exceptions in
-// those lists are where it does not.
+// A lane's panel. Overview: name, conventions, rules, actions. Stats: stay,
+// where work comes from and goes, and its code.
 
 const FlowList = ({
 	laneId,
@@ -46,9 +39,7 @@ const FlowList = ({
 	if (flows.length === 0) return <Empty>{empty}</Empty>;
 
 	return (
-		// The same bar-then-rows the Stats tab draws its languages with: the
-		// split is a shape before it is a list of percentages, and the
-		// checkboxes repeat the colours so identity is never colour alone.
+		// The same bar-then-rows as the Stats tab's languages.
 		<Breakdown
 			key={laneId}
 			testId={testId}
@@ -209,10 +200,7 @@ export const SwimlaneDetails = ({
 							<Empty>No commits on the tickets in this lane</Empty>
 						) : (
 							stats && (
-								// The diff wears the same pill it wears on a commit row and a
-								// ticket's Code tab — a figure the reader already knows how to
-								// read, rather than two large numbers that have to say "added"
-								// and "removed" to mean anything.
+								// The same diff pill as a commit row.
 								<div
 									style={{
 										...ROW,

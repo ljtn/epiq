@@ -5,11 +5,8 @@ import path from 'node:path';
 import {afterAll, describe, expect, it} from 'vitest';
 import {isFail, Result} from '../lib/model/result-types.js';
 
-// `safe.bareRepository=explicit` is common hardening: git then refuses a bare
-// repository it found only by its working directory. epiq's clones of other
-// repos are bare, so every read of one has to name it. Set as command-line
-// config through the environment, before git-utils captures it at import —
-// which is why nothing above may import anything that reaches git-utils.
+// Under `safe.bareRepository=explicit`, every read of a bare clone must name it.
+// git-utils captures this config at import, so nothing above may reach it.
 process.env['GIT_CONFIG_COUNT'] = '1';
 process.env['GIT_CONFIG_KEY_0'] = 'safe.bareRepository';
 process.env['GIT_CONFIG_VALUE_0'] = 'explicit';

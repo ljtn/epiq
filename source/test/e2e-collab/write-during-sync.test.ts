@@ -1,11 +1,6 @@
 /**
- * A second tool writing while this one syncs — an agent's MCP server beside the
- * user's GUI, two log files in one worktree.
- *
- * Its own file rather than a second test beside the same-log case: a file is
- * what vitest hands a worker, so the two longest tests in the suite sharing one
- * file made the job as long as both of them together. See
- * `write-during-sync.helper.ts` for what they are both about.
+ * A second tool writing while this one syncs: two log files in one worktree.
+ * A file of its own so vitest runs it in parallel with the same-log case.
  */
 import {afterEach, describe, expect, it} from 'vitest';
 import {

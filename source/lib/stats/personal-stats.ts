@@ -1,9 +1,5 @@
-// One person's totals, counted off the event log.
-//
-// Pure over the events and an id, so it can be tested without a repository,
-// a board or a single call to git. What it cannot answer is the commit
-// figure — a commit is not an event this log knows about — which is why the
-// caller in `mcp/api` hands that in rather than this reaching for it.
+// One person's totals from the event log. Pure; the commit figure is handed in
+// by the caller.
 
 import {AppEvent} from '../board/board-events.model.js';
 import {safeDateFromUlid} from '../event/date-utils.js';
@@ -16,16 +12,8 @@ export type AuthoredTotals = {
 };
 
 /**
- * What the log says one contributor has done.
- *
- * Creations only. An `edit.title` is not a ticket and a `delete.issue.comment`
- * is not a comment un-written — the figures are a count of things this person
- * brought into being, which is the reading that does not change under somebody
- * else's later edit.
- *
- * A deleted ticket still counts. Tombstoning is how this log deletes, the
- * event stays, and the work was done; a total that fell when somebody else
- * tidied up would be a fact about them rather than about the person reading it.
+ * What one contributor has created, per the log. Later edits and deletes by
+ * others don't lower it.
  */
 export const authoredTotals = (
 	events: readonly AppEvent[],
@@ -41,9 +29,7 @@ export const authoredTotals = (
 		if (event.action === 'add.issue') tickets++;
 		if (event.action === 'add.issue.comment') comments++;
 
-		// Their earliest event, whatever it was — including the one that created
-		// them. Decoded defensively: an id this cannot read is one event's date
-		// lost, not a panel that fails to draw.
+		// Their earliest event; an unreadable id loses one date, not the panel.
 		const at = safeDateFromUlid(event.id);
 		if (isFail(at)) continue;
 

@@ -162,14 +162,8 @@ export const createOrUpdateVirtualFieldList = ({
 	return succeeded('Virtual field list updated', undefined);
 };
 
-// Where a ticket's seven rows sit relative to each other. The same seven
-// strings for every ticket on every board, so they are derived once rather
-// than per ticket — seven BigInt divisions and hex conversions per refresh
-// came to 11.9 ms per three thousand tickets for an answer that never changes.
-//
-// Lazily, because `bigIntToHex` returns a Result and a module body has nowhere
-// to report a failure to; the fractions are constant, so the first call
-// settles it for the process.
+// The seven field rows' ranks, the same for every ticket, so derived once,
+// lazily: `bigIntToHex` returns a Result a module body can't report.
 type VirtualFieldRanks = {
 	description: string;
 	assignees: string;
@@ -285,10 +279,8 @@ export const materializeTicketVirtualNodes = (
 	});
 	if (isFail(logResult)) return logResult;
 
-	// Empty, unlike History, which carries its whole rendered log as the node's
-	// value. A ticket's commits come from git, and this runs synchronously for
-	// every ticket on every replay — so the row is a marker to navigate into,
-	// and the commits are read when somebody does.
+	// Empty, unlike History: commits come from git, read on navigation, since
+	// this runs synchronously for every ticket on every replay.
 	const diffResult = createOrUpdateVirtualField({
 		id: getDiffNodeId(node.id),
 		name: FieldNames.DIFF,
@@ -326,9 +318,8 @@ const getLog = (node: Ticket) => {
 		.join('\n');
 };
 
-// A ticket's virtual fields exist for the TUI to navigate into; nothing in the
-// GUI or MCP reads them. Building them is most of a replay, so those processes
-// turn them off. Defaults on, so a caller that never opts out is unaffected.
+// Virtual fields serve only the TUI and dominate replay, so the GUI and MCP turn
+// them off. Defaults on.
 let virtualNodesEnabled = true;
 
 export const setVirtualNodesEnabled = (enabled: boolean): void => {

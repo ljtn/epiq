@@ -1,13 +1,5 @@
-// The project's identity, on the branch that is the project.
-//
-// `.epiq/project.json` in a checkout names the project, but the state branch
-// is what holds the board, and until now nothing tied the two together: a
-// checkout without the file could run init, mint a fresh id for a board that
-// already existed, and commit it — and from then on two ids fought over one
-// state worktree (JQS9XDR). So the state branch carries the same file. A boot
-// compares the two and refuses a mismatch; a branch from before this stamps
-// itself with the id of the first checkout that boots it, which a sync then
-// commits and pushes like any other change on the branch.
+// The project's id, also kept on the state branch: a boot refuses a mismatch with
+// the checkout's, and an unstamped branch takes the first booting checkout's.
 import fs from 'node:fs';
 import path from 'node:path';
 import {ORIGIN} from '../../git/git-constants.js';
@@ -81,9 +73,7 @@ export const describeIdentityMismatch = ({
 		'board is lost by it, but every checkout has to agree on one.',
 	].join('\n');
 
-// A project file as git holds it: on a branch, or in the index. Null where
-// the ref or the index carries no such file; a failure only for a file that
-// is there and unreadable.
+// A project file on a branch or in the index; null where there is none.
 const showProjectFile = async (
 	repoRoot: string,
 	spec: string,
@@ -106,10 +96,8 @@ const showProjectFile = async (
 };
 
 /**
- * The identity the state branch carries as git knows it — the local branch,
- * else origin's — rather than through a worktree path derived from the
- * checkout's own file, which is the file in question when drift is what is
- * being asked about. Null for a branch that has not committed one yet.
+ * The state branch's identity as git holds it (local, else origin's), never via
+ * the checkout's own file. Null before one is committed.
  */
 export const readCommittedStateIdentity = async ({
 	repoRoot,
@@ -131,11 +119,8 @@ export const readCommittedStateIdentity = async ({
 };
 
 /**
- * A staged project file whose id is not the state branch's: the commit that
- * started JQS9XDR, caught where it is made. Null when nothing is staged there,
- * when the branch has no identity to disagree with, or when the two agree.
- * The branch's identity is read from git first; a branch stamped by a boot
- * but not yet synced has it only in the state worktree, which comes second.
+ * A staged project file whose id is not the state branch's, or null. The branch's
+ * id is read from git, then from the state worktree for an unsynced stamp.
  */
 export const findStagedIdentityDrift = async ({
 	repoRoot,
@@ -177,10 +162,8 @@ export const findStagedIdentityDrift = async ({
 export type IdentityCheck = 'matched' | 'stamped' | 'no-checkout-file';
 
 /**
- * The state branch and the checkout agree on the project, or the boot does
- * not proceed. A branch that carries no identity takes the checkout's, and the
- * next sync publishes it; a checkout without a project file is init's, and
- * left alone.
+ * Boot proceeds only if branch and checkout agree on the project. An unstamped
+ * branch takes the checkout's id; a checkout without a project file is left to init.
  */
 export const verifyProjectIdentity = ({
 	repoRoot,

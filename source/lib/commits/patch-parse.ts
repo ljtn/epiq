@@ -1,21 +1,14 @@
 import {DiffCommentMeta, parseDiffCommentMeta} from '../utils/diff-comment.js';
 
-// What a unified patch says, as rows a terminal can draw.
-//
-// The patch is git's own, not one derived here from the two revisions of each
-// file: git already knows about renames, binary blobs, mode changes and the
-// missing trailing newline, and re-deriving hunks from `before`/`after` would
-// mean disagreeing with it at exactly those edges. The `@@` headers also carry
-// real line numbers, which is what a comment anchored to a line needs.
+// What a unified patch says, as rows a terminal can draw. Git's own patch, so
+// renames, binaries and line numbers match git.
 
 export type PatchLineKind = 'context' | 'added' | 'removed' | 'hunk' | 'note';
 
 export type PatchLine = {
 	kind: PatchLineKind;
 	text: string;
-	// The line's number in the old and the new revision. A removed line has no
-	// number in the new one, an added line none in the old, and a hunk header
-	// or a note belongs to neither.
+	// Line numbers in the old and new revision; absent on the side a line isn't in.
 	oldLine?: number;
 	newLine?: number;
 };
@@ -102,9 +95,8 @@ export const parsePatch = (patch: string): PatchFile[] => {
 	for (const row of patch.split('\n')) {
 		if (row.startsWith('diff --git ')) {
 			file = begin();
-			// A fallback name, for the files that never get a `+++` line: a binary
-			// blob, or a change of mode alone. Ambiguous where a path contains
-			// " b/", which is why it is only a fallback — `+++` overwrites it.
+			// Fallback name for files with no `+++` line (binary, mode-only); `+++`
+			// overrides it.
 			const pair = row.slice('diff --git '.length);
 			const split = pair.lastIndexOf(' b/');
 			if (split !== -1) {
@@ -122,12 +114,7 @@ export const parsePatch = (patch: string): PatchFile[] => {
 
 		const current: PatchFile = file;
 
-		// Everything below until the first hunk is this file's header. After it,
-		// the same prefixes are content: a removed line reading "-- x" arrives as
-		// "--- x", and an added one reading "++ x" as "+++ x". Read as headers
-		// they were dropped from the rows and stopped advancing the line
-		// numbers, so every line under them was numbered one too low and a
-		// comment anchored there quoted the wrong code.
+		// Header until the first hunk; after it, `---`/`+++` lines are content.
 		const inHeader = current.lines.length === 0;
 
 		if (inHeader && row.startsWith('--- ')) {
@@ -243,13 +230,7 @@ export const isFileRow = (
 	row: PatchRow,
 ): row is {kind: 'file'; text: string; file: PatchFile} => row.kind === 'file';
 
-/**
- * Every file's rows as one flat list, each headed by its path.
- *
- * One list rather than a list per file, because a reader scrolls a commit
- * rather than picking a file out of it — and the terminal has one cursor, so
- * one list is also what the navigation can address.
- */
+/** Every file's rows as one flat list, each headed by its path. */
 export const patchRows = (files: PatchFile[]): PatchRow[] =>
 	files.flatMap(file => [
 		{
@@ -283,26 +264,8 @@ const rowScopes = (rows: PatchRow[]): {file: string; hunk: number}[] => {
 };
 
 /**
- * The selection two rows of a patch describe, or why they describe none.
- *
- * Anchored to the new revision only. A new-side line number means the same
- * thing in every view of that revision; an old-side one is a position in
- * whichever revision this particular diff happened to be against, so a comment
- * carrying one renders in the view that made it and nowhere else.
- *
- * Held to a single hunk, which is what keeps the snippet identical to the one
- * the GUI cuts straight out of the file: across a hunk boundary the patch is
- * missing the unchanged lines in between, so the same range would quote fewer
- * lines here than there.
- */
-/**
- * The rows of this patch that somebody has already commented on.
- *
- * Matched on the same commit only: a comment's line number is a position in
- * the revision it was written against, so it means what it says here and
- * nowhere else. A comment made on another commit that touched these lines is
- * not placed — see the note on `24ZZPQD` for why that needs re-anchoring
- * rather than a looser match.
+ * Rows already commented on, matched on the same commit only: a line number
+ * means nothing in another revision.
  */
 export const commentedRows = (
 	rows: PatchRow[],
@@ -340,13 +303,7 @@ export const commentedRows = (
 	return marked;
 };
 
-/**
- * The lines a selection covers, written the way the command line shows them.
- *
- * The range travels in the typed command rather than in state the reader
- * cannot see, so `:comment lines:4-9 ...` says what it will attach to and can
- * be corrected before it is sent.
- */
+/** A selection's lines as the command line shows them, e.g. `lines:4-9`. */
 export const formatLineAnchor = (start: number, end: number): string =>
 	start === end ? `line:${start}` : `lines:${start}-${end}`;
 
@@ -374,11 +331,8 @@ export const fileOfRow = (rows: PatchRow[], index: number): string | null =>
 	rowScopes(rows)[index]?.file ?? null;
 
 /**
- * The selection two *line numbers* describe, in one file of the patch.
- *
- * Resolved back to rows so it goes through exactly the same refusals as a
- * range picked with the cursor — a line that is not in the new revision, or a
- * pair that spans a hunk, is refused however it was named.
+ * The selection two line numbers describe, resolved to rows so it gets the
+ * same refusals as a cursor range.
  */
 export const selectionFromLines = (
 	rows: PatchRow[],
@@ -411,6 +365,10 @@ export const selectionFromLines = (
 	return selectionFromRows(rows, first, last);
 };
 
+/**
+ * The selection two rows describe, or why they describe none. New-side lines
+ * only, within one hunk, so the snippet matches the GUI's.
+ */
 export const selectionFromRows = (
 	rows: PatchRow[],
 	from: number,

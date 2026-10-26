@@ -1,33 +1,18 @@
-// What "a node's children" means, said once.
-//
-// Two callers need it and used to say it separately: the state's derivation
-// groups every node by parent so a board can be drawn, and rank resolution asks
-// for one parent's children so a new ticket can be placed after them. Two
-// spellings of one rule is two things to keep in step, and the rule is the part
-// that must not drift — a board ordered one way and a rank resolved against
-// another is a ticket that lands in the wrong place.
-//
-// They still run differently, and for a reason: a replay batch holds the
-// derivation back deliberately, so inside one there is no current index to read
-// and the scan is the only correct answer. What is shared is what the answer
-// means, not how it is reached.
+// What "a node's children" means, shared by derivation and rank resolution so
+// the two can't drift. Inside a replay batch only the scan is correct.
 
 import {isTicketNode, type AnyContext} from '../model/context.model.js';
 import type {Filter} from '../model/app-state.model.js';
 import type {NavNode} from '../model/navigation-node.model.js';
 import {ticketMatchesFilter} from '../utils/filter.js';
 
-// Lexicographic by code unit, which is what a rank is built to be compared
-// as. Not `localeCompare`: collation is locale-dependent and an order of
-// magnitude slower, and a rank is lowercase hex, where the two agree.
+// By code unit, not `localeCompare`: ranks are lowercase hex.
 export const byRank = (
 	left: NavNode<AnyContext>,
 	right: NavNode<AnyContext>,
 ): number => (left.rank < right.rank ? -1 : left.rank > right.rank ? 1 : 0);
 
-// A deleted node is not a child: it keeps its id and its parent forever —
-// tombstoned, never removed — so every reader has to skip it rather than
-// expect it gone.
+// Deleted nodes are tombstoned, never removed, so skip them.
 const isChildOf = (
 	node: NavNode<AnyContext> | undefined,
 	parentId: string,
@@ -42,10 +27,7 @@ export const orderChildrenOf = (
 		.filter((node): node is NavNode<AnyContext> => isChildOf(node, parentId))
 		.sort(byRank);
 
-// Every parent's children at once, which is what a whole board needs.
-//
-// `filters` narrows tickets only: a swimlane is not a thing a filter hides, and
-// dropping one would take its children off the board with it.
+// Every parent's children at once. `filters` narrows tickets only, never lanes.
 export const groupChildrenByParent = (
 	nodes: Record<string, NavNode<AnyContext>>,
 	filters: Filter[],
@@ -76,10 +58,7 @@ export const groupChildrenByParent = (
 	return index;
 };
 
-// The lists of these parents alone, in one pass over the nodes: what a
-// write's derivation needs, since a write touches a ticket, its lane and at
-// most the lane it left. One pass whatever their number, so a batch that
-// touched every parent costs what grouping the whole board costs, not more.
+// The lists of these parents alone, in one pass over the nodes.
 export const groupChildrenOfSome = (
 	nodes: Record<string, NavNode<AnyContext>>,
 	parentIds: ReadonlySet<string>,

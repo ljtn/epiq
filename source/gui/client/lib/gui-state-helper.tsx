@@ -9,11 +9,8 @@ import {Result} from './gui-result.model';
 export const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
 	if (!payload) return undefined;
 
-	// A `value` key means this is a Result envelope, so its value is the answer
-	// even when there isn't one. Falling through on a failed Result would hand
-	// back `{status, message, value}` as if it were a T — which is how a repo
-	// with no epiq project turned into a white page: the caller got the
-	// envelope, read `.boards` off it, and threw mid-render.
+	// A `value` key means a Result envelope: its value is the answer even when
+	// absent, never the envelope itself.
 	if (typeof payload === 'object' && payload !== null && 'value' in payload) {
 		return (payload.value ?? undefined) as T | undefined;
 	}
@@ -29,11 +26,8 @@ export const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
 
 	return payload as T;
 };
-// URL segments carry the shorthand ref, but full ids (old links) still work.
-// A full id is unique by construction and wins outright. Refs are random
-// tails, so two nodes can theoretically share one; resolving an ambiguous ref
-// to "whichever came first" would silently open the wrong node, so it
-// resolves to nothing instead.
+// URL segments carry the ref; full ids still work and win. An ambiguous ref
+// resolves to nothing rather than the wrong node.
 const findByRefOrId = <T extends {id: string; ref: string}>(
 	nodes: T[],
 	refOrId: string,

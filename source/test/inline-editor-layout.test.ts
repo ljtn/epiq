@@ -5,11 +5,8 @@ import {
 	inlineEditorRowWidth,
 } from '../lib/utils/inline-editor-layout.js';
 
-// What the inline editor is left with once the chrome around its rows is
-// paid for: the ticket pane's right padding, the box's left margin, its
-// border on both sides, its left padding, and the scroll box's scrollbar
-// column. A row wider than this wraps, and every wrapped row pushes the ones
-// below it past the box's bottom border.
+// Width left after the pane padding, box margin, borders, padding and scrollbar;
+// a wider row wraps and pushes the rest past the box.
 const usableWidth = (maxWidth: number) => maxWidth - (1 + 1 + 2 + 1 + 1);
 
 describe('inline editor layout', () => {
@@ -40,9 +37,8 @@ describe('inline editor layout', () => {
 });
 
 describe('inline editor row count', () => {
-	// A 24-row terminal leaves the ticket pane 20 rows once the breadcrumb and
-	// the command line have theirs. The pane spends 5 on its own chrome and 2
-	// on each field below the box, so 5 rows of text are left.
+	// A 24-row terminal leaves the pane 20 rows; 5 for its chrome and 2 per
+	// field below leave 5 for text.
 	it('leaves the chrome and the fields below the room they take', () => {
 		expect(inlineEditorRowCount(20, 5)).toBe(5);
 		expect(inlineEditorRowCount(20, 0)).toBe(15);

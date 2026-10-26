@@ -16,32 +16,18 @@ import {
 
 export type CommitEntry = {
 	sha: string;
-	/**
-	 * The registered repo this commit was read from, by id. Absent for the
-	 * board's own repo, which is how every commit looked before there were
-	 * other repos.
-	 */
+	/** The registered repo this commit came from; absent for the board's own repo. */
 	repo?: string;
 	time: number;
 	author: string;
-	/**
-	 * The author's git address, which is what a contributor is matched on. The
-	 * name beside it is free text and two people can share one, so it is for
-	 * showing, never for matching.
-	 */
+	/** The author's git address, used for matching; the name is display only. */
 	authorEmail: string;
-	/**
-	 * Who the author is on this board, filled in by `withCommitAuthors` once
-	 * state is available. Absent here because reading it is not a pure function
-	 * of the repository, and this type is produced by one.
-	 */
+	/** The author's contributor on this board, filled in by `withCommitAuthors`. */
 	authorIdentity?: CommitAuthor;
 	subject: string;
 	/**
-	 * Refs named by `Epiq-Ref:` lines in the body. They link a commit to its
-	 * tickets without a ref in the subject, which would otherwise end up in
-	 * the history of repos the board's tickets are not public to; and they
-	 * survive a squash merge, whose body carries the squashed messages.
+	 * Refs from `Epiq-Ref:` body lines. They keep refs out of subjects and
+	 * survive a squash merge.
 	 */
 	refs?: string[];
 	linesChanged: number;
@@ -53,25 +39,17 @@ export type CommitEntry = {
 const GIT_LOG_FIELD_SEP = '\x1f';
 const GIT_LOG_RECORD_SEP = '\x1e';
 
-// The full (unwindowed) scan is the one both the scrubber ('All' scope) and
-// getCommitsForRef ask for, typically moments apart over the same history —
-// short-lived since nothing here invalidates it on a new commit landing, just
-// long enough to cover "the Commits tab opens right after the scrubber loads".
+// The unwindowed scan, shared by the scrubber and getCommitsForRef moments
+// apart.
 export const FULL_TIMELINE_CACHE_TTL_MS = 5_000;
 
 const CLONE_LOG_TIMEOUT_MS = 120_000;
 
-/**
- * One clone's log, at most. Another repo's history is its owner's to make as
- * long as they like, and twenty of them held at once would be more memory
- * than a server has; past this a clone is left out and the reason logged.
- */
+/** One clone's log size cap; past it the clone is left out and logged. */
 const CLONE_LOG_MAX_CHARS = 32 * 1024 * 1024;
 
-// Per source, keyed by where it is read and what is walked. A clone's entry
-// is good for as long as the clone is unchanged — `version` — failures
-// included: only a fetch changes a clone, and a read past the cap would fail
-// again on every call.
+// Per source and walk; a clone's entry, failures included, holds until its
+// `version` changes.
 const fullTimelineCache = new Map<
 	string,
 	{fetchedAt: number; version: number | null; result: Result<CommitEntry[]>}
@@ -86,11 +64,7 @@ const cloneVersion = (clonePath: string): number | null => {
 	}
 };
 
-// A clone's history is somebody else's, and a subject can hold the record
-// and field separators: a separator only this read knows cannot be forged.
-// The board's own repo gets one too, as the body and end markers are a
-// separator plus a letter, which a bare separator before a name like "Erik"
-// would otherwise spell.
+// A per-read separator, so a subject can't forge records or fields.
 const separatorsFor = () => {
 	const nonce = randomBytes(8).toString('hex');
 
@@ -104,9 +78,8 @@ const separatorsFor = () => {
 	};
 };
 
-// A line of its own, anywhere in the body: a squash commit carries each
-// squashed message's lines mid-body, where git's own trailer parsing (last
-// paragraph only) would not find them. One line may list several refs.
+// Any line of the body, not just git's trailer block, so squash bodies work.
+// One line may list several refs.
 const REF_TRAILER = /^[ \t]*Epiq-Ref:[ \t]*(.*)$/gim;
 // A ref is the tail of a ULID: Crockford base32, which has no I, L, O or U.
 const REF_TOKEN = new RegExp(`^[0-9A-HJKMNP-TV-Z]{${NODE_REF_LENGTH}}$`, 'i');
@@ -122,9 +95,7 @@ export const bodyRefs = (body: string): string[] => [
 
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
-// Test-only: the cache is module-level state, so it would otherwise leak
-// between `it()` blocks in the same file (unlike vi.clearAllMocks(), which
-// only resets mock call state, not arbitrary module variables).
+// Test-only: resets the module-level cache.
 export const resetCommitTimelineCacheForTests = (): void => {
 	fullTimelineCache.clear();
 };
@@ -134,15 +105,8 @@ export const invalidateCommitTimelineCache = (): void => {
 	fullTimelineCache.clear();
 };
 
-// Whether a commit belongs to the window it was fetched for. `--since`/`--until`
-// match on the committer date, but a commit is plotted at its author date, and a
-// rebase moves the two days apart; left in, such a commit stretches the axis to
-// reach it.
-//
-// The start is compared at its own second, which is all a commit time has: a
-// window opening mid-second would otherwise drop a commit made in that same
-// second — the second git itself was asked for. A ticket's window opens at the
-// moment the ticket was created, so the commit this loses is its very first.
+// Commits are plotted at author date but `--since` matches committer date, so
+// filter again; the start is compared at whole seconds.
 export const inCommitWindow = (
 	time: number,
 	start: number | undefined,
@@ -153,11 +117,7 @@ export const inCommitWindow = (
 
 type Window = {start?: number; end?: number};
 
-/**
- * Text a commit carries, as it may be drawn: whoever wrote the commit chose
- * every byte, and a terminal obeys an escape sequence — C0 and C1 controls
- * alike — while a bidi override makes a subject read as something else.
- */
+/** Strips C0/C1 controls and bidi overrides from author-chosen text. */
 const cleanText = (value: string | undefined): string =>
 	sanitizeInlineText(value).replace(
 		/[\u0080-\u009f\u202a-\u202e\u2066-\u2069]/g,
@@ -168,10 +128,8 @@ const readSourceLog = async (
 	source: CommitSource,
 	window: Window,
 ): Promise<Result<CommitEntry[]>> => {
-	// Only the unwindowed call is cached — it is the expensive, frequently-
-	// repeated one (a full `--shortstat` scan of the whole history); a
-	// start/end-scoped scrub is comparatively cheap and varies request to
-	// request, so caching it would mostly just grow a cache no one re-hits.
+	// Only the unwindowed scan is cached: it is costly and repeated, while scoped
+	// scrubs are cheap and vary.
 	const cacheable = window.start === undefined && window.end === undefined;
 	const cacheKey = [
 		source.cwd,
@@ -298,9 +256,8 @@ const readSourceLog = async (
 };
 
 /**
- * Each source's commits, in its own `git log` order. Only the board's own repo
- * failing fails the answer: a broken clone is its fetch's to report, and the
- * other sources stay readable.
+ * Each source's commits in its own `git log` order. Only the board's own repo
+ * failing fails the answer.
  */
 const readSourceLogs = async (
 	repoRoot: string | undefined,
@@ -339,10 +296,8 @@ const readSourceLogs = async (
 };
 
 /**
- * A commit two sources share — a fork, or the board's own remote registered by
- * mistake — listed once, from the first source that has it: the board's own
- * repo before any other. Applied after anything read off a list's own order,
- * which still needs the commits it shares.
+ * A commit shared by sources, listed once from the first that has it (own repo
+ * first). Applied after anything that reads a list's own order.
  */
 export const withoutShared = <T extends CommitEntry>(lists: T[][]): T[][] => {
 	if (lists.length <= 1) return lists;
@@ -357,10 +312,8 @@ export const withoutShared = <T extends CommitEntry>(lists: T[][]): T[][] => {
 };
 
 /**
- * Newest first across sources, by date. A single source comes back exactly as
- * git gave it; across several, git's order is each repo's own and says
- * nothing about another's. Anything read off one repo's order — "the commit
- * before this one" — is read before this.
+ * Newest first across sources, by date; a single source keeps git's order.
+ * Read anything from one repo's order before this.
  */
 const mergeNewestFirst = <T extends CommitEntry>(lists: T[][]): T[] => {
 	const nonEmpty = lists.filter(list => list.length > 0);
@@ -387,13 +340,8 @@ export const getCommitTimeline = async (
 	);
 };
 
-// Matches the convention documented in the epiq skill: a commit's subject is
-// prefixed with the issue's ref, e.g. "5S52AC8 message". Reuses the same
-// full-history read getCommitTimeline caches rather than a second git
-// invocation.
-// A matched commit whose immediate predecessor in the *unfiltered* history
-// (git log's very next entry, not just the next match) is also a matched
-// commit — i.e. no other ticket's commit sits between them.
+// A commit carrying the ref in its subject or an Epiq-Ref line. `precedingSha`:
+// the next log entry, when it shares a ticket.
 export type RefCommitEntry = CommitEntry & {precedingSha: string | null};
 
 /** A commit of several tickets', with the refs of those it carries. */
@@ -406,16 +354,12 @@ type RefsInput = RepoInput & {refs: string[]; end?: number};
 
 /**
  * Several tickets' commits per source in one pass, each in its own repo's
- * order, before a commit two sources share is listed once: a fork's share of a
- * ticket is read off its own history, shared commits included.
+ * order; shared commits are deduplicated afterwards.
  */
 const refsMatchesBySource = async (
 	input: RefsInput,
 ): Promise<Result<RefsCommitEntry[][]>> => {
-	// Matching below is a strict `<REF> ` prefix, so a ref of the wrong length
-	// can only ever return nothing — which reads identically to "this ticket
-	// has no commits". A ref is NODE_REF_LENGTH characters by construction, so
-	// any other length is a mistake worth naming rather than answering.
+	// A ref of the wrong length could only match nothing, so it's an error.
 	const wrong = input.refs.find(ref => ref.length !== NODE_REF_LENGTH);
 	if (wrong !== undefined) {
 		return failed(
@@ -427,9 +371,7 @@ const refsMatchesBySource = async (
 	const listsResult = await readSourceLogs(input.repoRoot, {});
 	if (isFail(listsResult)) return failed(listsResult.message);
 
-	// Case-insensitive, matching nodeRefMatches' convention (source/lib/utils/node-ref.ts)
-	// rather than a strict-case prefix: a hand-typed or manually-copied ref
-	// should still match, not just one pasted verbatim from the MCP response.
+	// Case-insensitive, like nodeRefMatches, so a hand-typed ref matches.
 	const wanted = new Set(input.refs.map(ref => ref.toUpperCase()));
 	const ticketsOf = (commit: CommitEntry): string[] => {
 		const lead = commit.subject.slice(0, NODE_REF_LENGTH).toUpperCase();
@@ -500,8 +442,8 @@ export const getCommitsForRef = async (
 };
 
 /**
- * Every commit of several tickets, each once, newest first. One order for one
- * set, whatever order the refs come in: whole seconds tie often.
+ * Every commit of several tickets once, newest first, in one order whatever
+ * order the refs come in: whole seconds tie often.
  */
 export const getCommitsForRefs = async (
 	input: RefsInput,

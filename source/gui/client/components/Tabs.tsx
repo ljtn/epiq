@@ -11,9 +11,7 @@ type Props<T extends string> = {
 	activeTab: T;
 	tabs: TabItem<T>[];
 	onChange: (tab: T) => void;
-	// False in a panel too narrow to hold five tabs and their counts on one
-	// line. The count is the first thing to go: a tab whose name has wrapped
-	// under its own number is harder to read than one without the number.
+	// False where the counts would wrap under the names.
 	showCounts?: boolean;
 };
 
@@ -23,11 +21,7 @@ export const Tabs = <T extends string>({
 	onChange,
 	showCounts = true,
 }: Props<T>) => (
-	// The same small square every control in the GUI is, the open one on the
-	// raised ground: a row of tabs reads as the row of controls it is, not as
-	// a web page's underlined links.
-	// Buttons, not ARIA tabs: a tablist promises arrow-key movement between
-	// its tabs, which these do not do, and every test reaches them as buttons.
+	// Buttons, not ARIA tabs: a tablist promises arrow-key movement these lack.
 	<div
 		style={{
 			display: 'flex',

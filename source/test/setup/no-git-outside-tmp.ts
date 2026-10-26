@@ -1,13 +1,6 @@
 /**
- * A test run once rewrote the developer's branches and git identity: `main` was
- * moved onto a chain of test commits and `user.name=Test` was written into the
- * shared `.git/config`. `git-safety.test.ts` already claims epiq only ever
- * commits into a user's repository in one place — this enforces that claim for
- * every suite, at the only chokepoint they share.
- *
- * Any `git` a test runs must be aimed at a throwaway directory. A cwd that does
- * not exist is allowed: git cannot reach a real repository through it, and a
- * couple of tests deliberately pass missing paths.
+ * Every `git` a test runs must target a throwaway directory. A missing cwd is
+ * allowed: git can't reach a real repository through it.
  */
 import childProcess from 'node:child_process';
 import fs from 'node:fs';

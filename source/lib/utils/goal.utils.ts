@@ -1,8 +1,5 @@
-// A goal is a name in the project that tickets belong to, on whichever board
-// they stand; how far along it is comes from those tickets, never from the
-// goal itself. The log can hold several goals for a ticket; for now every door
-// reads and sets one, the goal it shows. This module answers it for every door:
-// the API, the GUI behind it, and the TUI.
+// A goal is a project-wide name tickets belong to; its progress comes from
+// them. The log allows several per ticket, but every door shows and sets one.
 
 import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {Goal} from '../model/app-state.model.js';
@@ -113,12 +110,8 @@ const ticketBoards = (ticket: Ticket): string[] => {
 	return board ? [board] : [];
 };
 
-// Who belongs to which goal, and which of them each board shows, worked out
-// once per state: a terminal row asks for every ticket on screen, on every key
-// press, and the GUI for every board's goals on every broadcast. Keyed by the
-// state object, which every write replaces, batched ones included; the nodes
-// map is not, as a batch writes into it in place. A deleted lane or board marks
-// its tickets deleted, so they leave with it.
+// Goal membership and per-board goals, cached per state object (every write
+// replaces it; the nodes map is mutated in batches).
 type Membership = {
 	members: Map<string, Ticket[]>;
 	onBoard: Map<string, Map<string, Ticket[]>>;

@@ -17,12 +17,8 @@ const resolveStateBranchRoot = (): Result<string | null> => {
 };
 
 /**
- * Re-materialises the board when the log on disk has moved past what this
- * process applied. Other processes on this machine (an MCP server, the GUI, a
- * second TUI) append to the same worktree without telling anyone.
- *
- * Compared against `accountedSignature`, so this process's own writes, which
- * `noteOwnAppend` accounts for, never trigger a reload.
+ * Re-materialises the board when another process has appended to the log.
+ * Compared against `accountedSignature`, so this process's own writes never trigger it.
  */
 export const reloadIfEventLogMoved = async (): Promise<Result<null>> => {
 	const rootResult = resolveStateBranchRoot();

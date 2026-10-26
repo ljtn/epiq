@@ -1,25 +1,11 @@
-// Following the log: the one question of whether the board is riding the
-// present, and what stops it.
-//
-// A module rather than five pieces in `App`, which `HZCA9EG` is already about.
-// Three callers need parts of this — the bar draws the control, the log panel
-// runs the effect that opens each new line, and the board is what the reader
-// reaches for when they have stopped watching — so it belongs above all three
-// rather than in whichever one happened to need it first.
-//
-// The decision about *which* line to open is `follow-log.ts`. This is when
-// following is on at all.
+// Following the log: whether the board rides the present, and what stops it.
+// Which line to open is `follow-log.ts`.
 
 import {useEffect} from 'react';
 import {useState} from 'react';
 
-// What a click can land on without ending the watch: the log, which is the
-// thing being watched, and the control itself, which would otherwise switch
-// following on and off in the same gesture.
-//
-// The rest of the bar is deliberately not exempt. Dragging the track or naming
-// a period takes the board somewhere, which is the reader steering — and the
-// banner promises "click anywhere", which a bar-shaped exception quietly breaks.
+// Clicks here keep the watch: the log itself and the control. Anywhere else
+// ends it.
 const WATCHING_SURFACES =
 	'[data-testid="event-log"], [data-testid="live-toggle"]';
 
@@ -35,40 +21,23 @@ export const useFollowLog = ({
 	live,
 	onOpenLog,
 }: {
-	// The log's lines are what is followed, so a log that is shut has nothing
-	// to follow and the flag goes down with it. Popped out is *not* shut: the
-	// panel is drawn in a window of its own, the board still slices for it, and
-	// `use-followed-line` runs on this side for both.
+	// A shut log has nothing to follow; popped out is not shut.
 	logOpen: boolean;
-	// Whether the board is standing at the present *and* can hear about it. A
-	// checkout and a movie are somewhere else and drive the board themselves; a
-	// dropped socket brings nothing to follow, and leaves the control disabled,
-	// so a reader left following would have no way to stop.
+	// At the present and connected. Otherwise following ends, as the control is
+	// disabled.
 	live: boolean;
 	onOpenLog: () => void;
 }): FollowLog => {
-	// Not persisted, unlike the panel's field boxes. Those say what a line
-	// shows; this makes the board move on its own, and nobody would connect a
-	// board that starts navigating on open to a switch they left on yesterday.
+	// Not persisted: a board that navigates by itself on open would surprise.
 	const [following, setFollowingState] = useState(false);
 
-	// Anything that leaves nothing to follow ends the watch outright, rather
-	// than leaving the flag on behind a control that has gone unavailable.
-	// Without this a scrub left the banner up and the board in the past —
-	// following nothing, and saying it was following.
+	// Anything that leaves nothing to follow ends the watch.
 	useEffect(() => {
 		if (!live || !logOpen) setFollowingState(false);
 	}, [live, logOpen]);
 
-	// On the document rather than on a container, because the panels are not
-	// inside the board: the ticket panel and the diff panel are siblings of
-	// `<main>`, so a handler on either one misses the other. A tab changed in
-	// the ticket panel is the commonest way somebody stops watching, and it was
-	// the case that got this wrong twice.
-	//
-	// On the click rather than the pointer going down: the banner goes when
-	// following does, and a band that disappears between press and release moves
-	// the board out from under the press.
+	// On the document, since the ticket and diff panels sit outside `<main>`. On
+	// click, not pointerdown, so the banner doesn't vanish mid-press.
 	useEffect(() => {
 		if (!following) return;
 

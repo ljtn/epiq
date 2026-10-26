@@ -17,15 +17,7 @@ import {onConfirmCommandLineSequenceInput} from './on-cmd-input-confirm.js';
 
 const COMMAND_INPUT_MODES = [Mode.COMMAND_LINE, Mode.PALETTE];
 
-/**
- * The value a completed command opens with, where there is an obvious one.
- *
- * Only `edit title`, whose value is the ticket's current title and so is not a
- * candidate in any list. Anything that *is* in a list goes through the
- * completer, which fills an empty argument when there is exactly one thing it
- * could be — one rule rather than two that disagree about which of several
- * candidates to pick.
- */
+/** The value a completed command opens with; list values are left to the completer. */
 const prefillFor = (input: string): string => {
 	if (input === 'edit title ') return getState().selectedNode?.title ?? '';
 

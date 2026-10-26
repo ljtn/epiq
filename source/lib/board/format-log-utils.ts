@@ -17,9 +17,7 @@ const padVisibleEnd = (value: string, width: number): string =>
 const padVisibleStart = (value: string, width: number): string =>
 	' '.repeat(Math.max(0, width - stringWidth(value))) + value;
 
-// Exported for the GUI timeline, which phrases its scatter tooltips the same
-// way but cannot use the detail helpers below: those read the materialized
-// state, and the timeline is specified to stay readable mid-scrub.
+// Exported for the GUI timeline, which can't use the state-reading helpers below.
 export const formatLogAction = (action: string): string => {
 	const pastTbl: Partial<Record<EventAction, string>> = {
 		'add.issue': 'Created with title',
@@ -43,9 +41,7 @@ export const formatLogAction = (action: string): string => {
 		'add.issue.attachment': 'Attached',
 		'delete.issue.attachment': 'Removed attachment',
 		'edit.issue.comment': 'Edited comment',
-		// Structural events. Rare in a ticket's own history, but the GUI
-		// timeline plots the whole log, where the fallback below would render
-		// them as "add.boarded" / "init.workspaced".
+		// Structural events, which the GUI timeline plots.
 		'init.workspace': 'Created workspace',
 		'add.workspace': 'Created workspace',
 		'add.board': 'Created board',
@@ -184,9 +180,7 @@ const formatEventDetails = (event: AppEvent): string => {
 			return `"${'name' in event.payload ? event.payload.name : ''}"`;
 		}
 
-		// The address, because two claims on one address by different people is
-		// what a contested address looks like in the log, and without it every
-		// claim reads the same.
+		// The address, so contested claims read apart.
 		case 'link.contributor.email':
 		case 'unlink.contributor.email': {
 			return event.payload.email;
@@ -224,15 +218,7 @@ const formatUser = (userName: string): string => {
 	return padVisibleEnd(`${userName}`, USER_COL_WIDTH);
 };
 
-// By id, from the registry: an event carries no name, and a rename has to show
-// on the lines written before it as well as after.
-//
-// The registry or the id: a display function in `lib/` has no state branch root
-// to read log file names with. `loadActorNames` has the rule.
-//
-// Read through `getSafeState` because formatting a line is a display concern
-// that can run before a board is booted — a log line is not worth throwing
-// over.
+// The name from the registry by id, or the id; `getSafeState`, since this may run before boot.
 const actorName = (userId: string): string => {
 	const state = getSafeState();
 	if (isFail(state)) return userId;
@@ -313,9 +299,7 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 	}
 };
 
-// A short, colorless, single-line summary of an event — e.g. `Created with
-// title "Ship v2"` — reusing the same phrasing as the ticket history. Used by
-// the replay scrubber's topbar caption, which ellipsises it to fit.
+// A short, colorless, single-line summary of an event, in the ticket history's phrasing.
 export const describeEvent = (event: AppEvent): string =>
 	[formatLogAction(event.action), formatEventDetailsPlain(event)]
 		.filter(Boolean)

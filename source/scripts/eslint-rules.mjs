@@ -6,16 +6,8 @@
 const ALLOWED = new Set(['\t', '\n']);
 
 /**
- * Git classifies a file holding a control character as binary: no diff, no
- * blame, no review of it on GitHub, from then on. `grep` treats it as binary
- * too and silently finds nothing, so searching for the line you are looking at
- * reports it missing. Neither prettier nor tsc says a word, both being valid
- * string contents — which is how one reached a pull request as
- * `Bin 0 -> 3009 bytes`.
- *
- * Escapes (`\0`, `\x1e`) are ASCII in the file and unaffected; this is about
- * the raw byte only. `no-control-regex` covers regexes, and
- * `no-irregular-whitespace` its own list — neither covers source text.
+ * A raw control character makes git and grep treat the file as binary.
+ * Escapes like `\0` are fine; nothing else catches the raw byte in source text.
  */
 const noRawControlCharacters = {
 	meta: {

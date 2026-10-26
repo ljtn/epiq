@@ -9,17 +9,13 @@ import {
 } from '../lib/commands/command.model';
 import {CommandPaletteRow} from './CommandPaletteRow';
 
-// The second step of a two-stage command: which command it is for, and what it
-// offered. Held rather than recomputed, so a board update mid-choice cannot
-// swap the list under the pointer.
+// The second step of a two-stage command. Held, so a board update can't swap
+// the list mid-choice.
 type ArgumentStep = {command: GuiCommand; options: CommandArgument[]};
 
 const MAX_ROWS = 8;
 
-// How many rows are ever built. The list scrolls eight at a time and a project
-// can hold thousands of tickets: rendering every match would put thousands of
-// nodes behind a window showing eight of them, which is the difference between
-// a palette that opens instantly and one that stutters on every keystroke.
+// Rows ever rendered; a project can hold thousands of tickets.
 const MAX_MATCHES = 50;
 
 export const CommandPalette = ({
@@ -43,16 +39,8 @@ export const CommandPalette = ({
 	const inputRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 
-	// Deliberately two memos rather than one over both cases.
-	//
-	// The command list is short and its ranking reads the whole context, which
-	// is rebuilt on every board broadcast — so it recomputes constantly, and at
-	// fifteen items that costs nothing.
-	//
-	// The argument list is the opposite: a project-wide search can hold
-	// thousands of tickets, and its options were captured when the step opened.
-	// Keyed on the step and the query alone, it re-ranks when somebody types and
-	// not when a ticket moves on the board behind the palette.
+	// Two memos: commands re-rank on every board broadcast (cheap); arguments only
+	// on step or query, since they can be thousands of tickets.
 	const commandMatches = useMemo(
 		() =>
 			step
@@ -84,10 +72,7 @@ export const CommandPalette = ({
 
 	const matches = step ? argumentMatches : commandMatches;
 
-	// Said without a number: the matcher returns the capped list, so the count
-	// of what it cut is not known here — and "N more" built from the options it
-	// started with would count every ticket that did not match, which is not
-	// what a reader would take it to mean.
+	// No count: the matcher returns only the capped list.
 	const capped = matches.length >= MAX_MATCHES;
 
 	// Whatever the query does to the list, the highlight belongs on a row that

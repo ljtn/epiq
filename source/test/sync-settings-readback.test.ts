@@ -1,17 +1,5 @@
-// One case, and it needs the config module faked: the read that happens
-// *after* the write has landed.
-//
-// `writeAutoSyncSettings` persists, patches the live settings store, and then
-// reads back so it can answer with the whole picture. If that read fails the
-// write has still happened — reporting a refusal there would print a failure
-// for a setting already changed, and on the GUI's side skip
-// `onSyncSettingsChanged`, leaving the loop on the old cadence while
-// `config.json` holds the new one. That drift is what `reschedule()` exists to
-// stop, so it must not be reintroduced here.
-//
-// Against real files this is unreachable — both reads go to the same path, so
-// anything that breaks the second breaks the first and the write never runs.
-// Hence the mock, and hence its own file.
+// A failed read-back after the write landed must still report success, or the
+// GUI loop keeps the old cadence. Unreachable with real files, hence the mock.
 
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {failed, succeeded} from '../lib/model/result-types.js';

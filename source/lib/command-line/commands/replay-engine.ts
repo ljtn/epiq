@@ -15,9 +15,7 @@ const TARGET_FPS = 20;
 // reasonably repaint.
 const MIN_INTERVAL_MS = 16;
 
-// When the movie reaches the end we hold a full scrubber for this long before
-// handing back to the live head, so the bar visibly completes instead of
-// vanishing a frame short of 100%.
+// Holds a full bar briefly at the end so it visibly completes.
 const COMPLETION_HOLD_MS = 150;
 
 let replayTimer: ReturnType<typeof setInterval> | null = null;
@@ -25,9 +23,7 @@ let completionTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const isReplayActive = (): boolean => replayTimer !== null;
 
-// Stop any running replay. Safe to call when nothing is replaying. Callers that
-// want to leave replay mode are responsible for patching `timeMode` themselves
-// (e.g. `:peek now`); this only tears down the timers.
+// Stops any running replay's timers; callers patch `timeMode` themselves.
 export const cancelActiveReplay = (): void => {
 	if (replayTimer !== null) {
 		clearInterval(replayTimer);
@@ -40,9 +36,7 @@ export const cancelActiveReplay = (): void => {
 	}
 };
 
-// Land back in normal, editable, live mode once the movie catches up to now (or
-// if it has to bail). All events have been materialized at this point, so the
-// board already matches the live head.
+// Back to live, editable mode once the movie catches up or bails.
 const finishReplay = (): void => {
 	cancelActiveReplay();
 
@@ -61,11 +55,8 @@ const finishReplay = (): void => {
 	});
 };
 
-// Drive the forward replay. `events` are the (causally ordered) events that
-// occurred after `startTime`; the caller has already checked out the board at
-// `startTime` and made it read-only. We re-apply the events in time-compressed
-// frames, patching progress, a caption, and the flashed node ids each frame so
-// the topbar and board can visualize it.
+// Re-applies the causally ordered events after `startTime` in time-compressed
+// frames, patching progress, caption and flashed nodes. The caller has checked out the board.
 export const startReplay = ({
 	events,
 	startTime,
@@ -130,17 +121,13 @@ export const startReplay = ({
 			const result = materialize(event);
 
 			if (isFail(result)) {
-				// Lost a race in the merged log — the same event live replay skips.
-				// Stopping the movie for one would make an ordinary merge look like
-				// a broken board.
+				// Lost a race in the merged log: skipped, as live replay does.
 				if (isConvergenceFail(result)) {
 					cursor++;
 					continue;
 				}
 
-				// A real, already-persisted event failed to re-apply. Stop the movie
-				// rather than risk leaving an inconsistent board on screen, and hand
-				// control back to the live, editable head.
+				// A real event failed to re-apply: stop and return to the live head.
 				finishReplay();
 				return;
 			}
@@ -159,11 +146,7 @@ export const startReplay = ({
 				if (isFail(result) && !isConvergenceFail(result)) break;
 			}
 
-			// Snap the scrubber to a full bar and let it paint for a beat before
-			// handing back to the live head. Completion fires on the frame that
-			// applies the last event, which can land a frame (or several, for
-			// clustered history) short of 100% — patching progress to 1 here ensures
-			// the bar actually reads complete.
+			// The last event can land short of 100%, so snap to full and hold a beat.
 			const previous = getState().replay;
 
 			patchState({

@@ -1,16 +1,6 @@
 /**
- * The addresses most recently offered for claiming, in the order they were
- * drawn.
- *
- * The scan that produces them shells out to git, and the command line validates
- * on every keystroke, synchronously. So the list is put here by whoever last
- * drew or computed it, and the validator reads it rather than scanning: a
- * completion that had to wait for a subprocess would arrive after the character
- * that asked for it.
- *
- * Stale by nature, and harmless when it is. The command re-scans before it
- * writes anything, so a suggestion that has since been claimed is refused there
- * rather than acted on.
+ * The addresses last offered for claiming, so the keystroke validator never
+ * shells out to git. Stale is fine: the command re-scans before writing.
  */
 let offered: string[] = [];
 

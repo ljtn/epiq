@@ -1,11 +1,6 @@
 /**
- * Loads and boots a board from an event directory, in a process of its own.
- *
- * Spawned rather than called: the failures this probes for are an uncaught
- * throw out of replay and a walk that never terminates, and both take the
- * process with them. A child can be killed; the test runner cannot.
- *
- * argv[2] is the state-branch root. Writes one JSON line to stdout.
+ * Boots a board from argv[2]'s state-branch root in its own process, since a
+ * throw or endless walk would take the test runner down. Prints one JSON line.
  */
 import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
 import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';

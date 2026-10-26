@@ -102,9 +102,7 @@ const CATEGORIES_EXPANDED_STORAGE_KEY = 'epiq.timeScrubber.categoriesExpanded';
 // Which axis's list is open in the series popover, not whether one is: with an
 // axis per row only one is shown at a time, so the answer is a name.
 const EXPANDED_AXIS_STORAGE_KEY = 'epiq.timeScrubber.expandedAxis';
-// What the Code series' bars measure: how many commits landed, or how many
-// lines they moved. A different question from which commits are drawn, which is
-// why it is remembered separately from the narrowing.
+// Whether Code bars count commits or lines; stored apart from the narrowing.
 const LINES_MEASURE_STORAGE_KEY = 'epiq.timeScrubber.linesMeasure';
 
 export const TimeScrubber = ({
@@ -163,10 +161,8 @@ export const TimeScrubber = ({
 	onNeedleDragging: (dragging: boolean) => void;
 	onNeedleSettle: () => void;
 	onReturnToLive: () => void;
-	// Undefined start/end asks for the default "all time" window. Both series
-	// must come from one call: they share an axis derived from both, so
-	// independent fetches can put a half-updated pair on screen.
-	// Returns the id its reply will carry.
+	// Undefined bounds ask for all time. Both series in one call, since they share
+	// an axis. Returns the reply's id.
 	onRequestHistory: (
 		start?: number,
 		end?: number,
@@ -182,15 +178,11 @@ export const TimeScrubber = ({
 	onInspectCommit: (sha: string) => void;
 	// A click on a flow line opens its ticket.
 	onOpenIssue: (issueId: string) => void;
-	// Owned above rather than here: the selection that colours the chart is the
-	// same one that decides which tickets the board shows, and it lives in the
-	// URL.
+	// Owned above, in the URL: it also decides which tickets the board shows.
 	selection: BoardSelection;
 	onChangeSelection: (patch: Partial<BoardSelection>) => void;
-	// The ticket whose details are open, which the ticket narrowing
-	// needs for both halves of what it does: its id filters the events, and the
-	// moment it was created is where its window starts. Null with none open,
-	// which is what greys that checkbox out.
+	// The open ticket, for the ticket narrowing: its id filters events, its
+	// creation starts the window. Null greys the checkbox out.
 	selectedIssue: {id: string; createdAt: number} | null;
 	// The board's text query. Owned above with the rest of the board's
 	// narrowings; it sits on this bar because every narrowing does.
@@ -199,15 +191,11 @@ export const TimeScrubber = ({
 	// The tickets that query keeps, and null while there is none: the chart
 	// plots the tickets the columns show.
 	queryIssueIds: ReadonlySet<string> | null;
-	// The Code series down to commits linked to a ticket, remembered with the
-	// series flags above; and the tickets by ref that rule reads. Two maps,
-	// because the flag below decides which: the board's own, or — plotting every
-	// board — the repository's.
+	// The Code series narrowed to ticket-linked commits, and the ref maps that
+	// rule reads: the board's own, or the repository's across every board.
 	linkedCommitsOnly: boolean;
 	onChangeLinkedCommitsOnly: (next: boolean) => void;
-	// Which repos the Code series plots: the hidden ones are dropped where the
-	// commits are drawn, as the linked narrowing is, so the window keeps its
-	// scale. `commitRepos` is for the menu that changes it.
+	// Which repos the Code series plots; hidden ones drop out without rescaling.
 	commitRepos: readonly string[];
 	hiddenCommitRepos: ReadonlySet<string>;
 	onToggleCommitRepo: (repo: string) => void;
@@ -226,13 +214,8 @@ export const TimeScrubber = ({
 	// Every tag and person the board knows, per axis, for naming a selected
 	// identity the window itself holds no event for.
 	knownIdentities: Record<FilterAxis, GuiEventIdentity[]>;
-	// Anything whose identity changing means the window has to be asked for
-	// again. The window is otherwise fetched only when it moves, which is fine
-	// while it is just a picture — but two things read it as live data. Once it
-	// decides which tickets the board shows, a ticket filed since the last fetch
-	// is missing from it and would be hidden from the board it has just joined;
-	// and once the log is drawn from it, an event made since the last fetch
-	// never reaches the panel that is supposed to be listing it.
+	// A change refetches the window: it decides which tickets the board shows and
+	// feeds the log, so it must include anything filed since.
 	refreshOn: unknown;
 	// The live half of the transport. Owned by the board, which also turns it
 	// off when the reader reaches for it.
@@ -279,19 +262,14 @@ export const TimeScrubber = ({
 		from: number;
 		to: number;
 	} | null>(null);
-	// The same two, live. Pointer moves arrive faster than React commits, so a
-	// release handler reading the state would ask for wherever the last
-	// *rendered* move was rather than where the pointer let go — parking the
-	// board behind the release, or zooming to a window short of it.
+	// The same, live: pointer moves outrun React commits, so release reads these.
 	const dragFractionRef = useRef<number | null>(null);
 	const rangeDragRef = useRef<{from: number; to: number} | null>(null);
 	// Set by the needle's own press, which fires before the track's: it says
 	// this drag moves the needle rather than dragging out a range.
 	const grabbedNeedleRef = useRef(false);
-	// Likewise from the scatter, naming the commit a press landed on. A click on
-	// a dot opens its diff instead of time travelling; a drag from one is a range
-	// like any other. Cleared at the end of every gesture, so a press that never
-	// crosses the canvas cannot inherit it.
+	// The commit a scatter press landed on: a click opens its diff, a drag is a
+	// range. Cleared after every gesture.
 	const pressedCommitRef = useRef<string | null>(null);
 	// And from the flow chart, naming the ticket whose line a press landed on:
 	// a click on a line opens the ticket.
@@ -322,9 +300,7 @@ export const TimeScrubber = ({
 		false,
 	);
 
-	// Only the scatter retracts on its way out. The bar charts have no per-bar
-	// exit to wait for, so outside "Events" the duration is zero and unticking
-	// stays immediate.
+	// Only the scatter animates out; bar charts untick at once.
 	const exitMs = layoutMode === 'real' && animate ? DOT_EXIT_TOTAL_MS : 0;
 	const issueScatter = useExitTransition(showIssues, exitMs);
 	const commitScatter = useExitTransition(showCommits, exitMs);
@@ -356,14 +332,10 @@ export const TimeScrubber = ({
 		number | null
 	>(null);
 
-	// Only while a ticket is actually open: the checkbox can be left ticked by
-	// a link, and a window starting at a ticket that is not on screen would be
-	// a stretch nobody chose.
+	// Only with a ticket open; a link can leave the box ticked.
 	const ticketFocus = ticketOnly && selectedIssue !== null;
 
-	// The ticket's whole life, which stands in front of a dragged-out window
-	// the way that one stands in front of the rolling period. Derived rather
-	// than written into the selection, so unticking hands back what was there.
+	// The ticket's lifetime overrides a dragged window, derived so unticking restores it.
 	const ticketRange = ticketFocus
 		? {start: selectedIssue.createdAt, end: Date.now()}
 		: null;
@@ -375,11 +347,8 @@ export const TimeScrubber = ({
 		[issueOnly, queryIssueIds],
 	);
 
-	// Which ticket the window is cut from, and null whenever it is not cut from
-	// one. Only while the narrowing is on does a different ticket mean a
-	// different window to ask the server for; listing the open ticket itself
-	// would refetch the whole timeline on every click between two of them,
-	// which is most clicks and none of them a change of window.
+	// The ticket the window is cut from, or null; only then does switching tickets
+	// refetch.
 	const ticketWindowKey = ticketFocus
 		? `${selectedIssue.id}:${selectedIssue.createdAt}`
 		: null;
@@ -388,11 +357,8 @@ export const TimeScrubber = ({
 	// with fixed bounds — every other is anchored to now.
 	const periodRange = ticketRange ?? zoom ?? getPeriodRange(scope, offset);
 
-	// periodRange is derived from scope/offset each render, so it is
-	// deliberately absent from the dependencies; the zoom's own bounds are
-	// listed instead, since it is a fresh object on every read of the URL. The
-	// ticket window is the same: anchored to now like the rolling one, so what
-	// is listed is the ticket it is cut from rather than the range itself.
+	// periodRange is rebuilt each render, so the zoom's bounds and the ticket key
+	// stand in for it in the deps.
 	useEffect(() => {
 		if (!connected) return;
 
@@ -417,18 +383,13 @@ export const TimeScrubber = ({
 	const changeLayoutMode = (next: LayoutMode) =>
 		onChangeSelection({layout: next});
 
-	// Naming a scope is also the only way out of a zoom, which
-	// applySelectionPatch clears for any patch that names one — including a
-	// patch naming the scope already held, since while zoomed no scope button
-	// reads as pressed and every one of them is a way out.
+	// Naming a scope leaves a zoom, even the scope already held.
 	const changeScope = (nextScope: Scope) => {
 		armEntrance();
 		onChangeSelection({scope: nextScope});
 	};
 
-	// Under a zoom there are no periods to count back, so the pager slides the
-	// window by its own width instead — one press back is the stretch before the
-	// one on screen.
+	// Zoomed, the pager slides by the window's own width.
 	const changeOffset = (nextOffset: number) => {
 		armEntrance();
 
@@ -448,11 +409,8 @@ export const TimeScrubber = ({
 	// present is not, so a window already at it has nowhere later to go.
 	const atLatest = zoom ? zoom.end >= Date.now() : offset === 0;
 
-	// Paging is off the chart's ends and a horizontal wheel over it. Not over
-	// all time, which has no periods to count back; not while narrowed to a
-	// ticket, whose window is the ticket's; and not with the socket down, since
-	// a page is a fetch. The label says which window this is where the scope
-	// buttons cannot: paged back, dragged out, or cut to a ticket.
+	// Paging (end arrows, horizontal wheel) needs periods, no ticket narrowing,
+	// and a socket. The label names a window no scope button does.
 	const pageable =
 		connected && !ticketFocus && (scope !== 'all' || zoom !== null);
 	const paging = {
@@ -469,9 +427,8 @@ export const TimeScrubber = ({
 				: null,
 	};
 
-	// The wheel listener is native rather than React's: React registers wheel
-	// as passive, and a horizontal swipe left to the browser is a step back
-	// through its history. One page per gesture — see lib/scrubber/paging.
+	// Native wheel listener: React's is passive, and an unprevented swipe navigates
+	// back. One page per gesture (lib/scrubber/paging).
 	const pageRef = useRef<HTMLDivElement | null>(null);
 	const changeOffsetRef = useRef(changeOffset);
 	changeOffsetRef.current = changeOffset;
@@ -506,11 +463,7 @@ export const TimeScrubber = ({
 		// Re-attached when the charts mount: collapsing the bar unmounts them.
 	}, [collapsed]);
 
-	// The scope is left as it was rather than inferred from the span: nothing
-	// reads it while a zoom is up. The chart's bucketing and segment unit come
-	// off the axis span, the pager slides by the window's own width, and the
-	// label dates the window — so the only scope that matters is the one named
-	// on the way out.
+	// The scope stays as it was: nothing reads it while zoomed.
 	const zoomToRange = (from: number, to: number) => {
 		const start = Math.min(from, to);
 		const span = Math.max(MIN_ZOOM_SPAN_MS, Math.abs(to - from));
@@ -524,10 +477,7 @@ export const TimeScrubber = ({
 	const toggleAxisOn = (axis: FilterAxis, on: boolean) =>
 		onChangeSelection({only: toggleAxis(only, axis, on)});
 
-	// Toggles: isolating again restores the rest, so the button is a way back as
-	// well as a way in. Ticking each of a dozen tags to undo it is not. Both act
-	// on one axis and leave the others where they are, which is what lets a tag
-	// and an assignee narrow the board at once.
+	// Toggles, so isolating again restores the rest; each axis is independent.
 	const isolateIdentity = (axis: FilterAxis, id: string) =>
 		onChangeSelection({
 			only: withNarrowing(
@@ -551,11 +501,8 @@ export const TimeScrubber = ({
 		setAllBoards(next);
 	};
 
-	// What narrows the window already in hand. Answered on the spot, with no
-	// round trip, so it can replay the entrance the moment it changes. Only the
-	// plotted axis counts: narrowing one the chart is not coloured by changes
-	// the board underneath and not a dot up here, and replaying the entrance
-	// over it would animate a picture nothing had happened to.
+	// Narrows the window in hand with no round trip. Only the plotted axis
+	// counts, since the others don't change a dot.
 	const filterKey = useMemo(() => {
 		const plotted = narrowedIds(narrowingFor(only, identityAxisFor(boardView)));
 
@@ -572,20 +519,12 @@ export const TimeScrubber = ({
 		armed.current = true;
 	};
 
-	// Only the reply to the window this chart asked for. Taking whichever
-	// history arrived next meant a reply still in flight for the window just
-	// left could land first and be shown instead, and the real one was then
-	// ignored — the chart stuck on the previous scope.
+	// Only the reply to the window this chart asked for, so a stale reply can't win.
 	const shownRef = useRef({timeline, commits});
 	const pendingRequestId = useRef<number | null>(null);
 
-	// Held back while the pointer is down. The window is the coordinate system a
-	// drag is working in — every fraction of the track stands for a moment in
-	// it — so adopting a new one mid-gesture moves the ground under the pointer,
-	// and the needle released at one spot commits another. Scrubbing itself
-	// causes a broadcast and so a fresh window, which is exactly when this
-	// happens. The release re-renders, and that is where the held reply is taken
-	// up.
+	// Held while the pointer is down: a new window mid-drag would move the ground
+	// under the pointer. Taken up on release.
 	const gestureInFlight =
 		dragFractionRef.current !== null || rangeDragRef.current !== null;
 
@@ -658,9 +597,7 @@ export const TimeScrubber = ({
 	const hiddenIdentityIds =
 		viewAxis === null ? EMPTY_HIDDEN : hiddenIdsByAxis[viewAxis];
 
-	// Filtered down to one tag or person, the bars are that identity and nothing
-	// else, so they take its colour rather than the kind's. The scatter already
-	// colours per identity, so this is what keeps the two layout modes agreeing.
+	// Down to one identity, the bars take its colour, as the scatter does.
 	const soleIdentity = useMemo(
 		() => soleVisibleIdentity(identities, hiddenIdentityIds),
 		[identities, hiddenIdentityIds],
@@ -732,9 +669,7 @@ export const TimeScrubber = ({
 		return colors;
 	}, [issueSummaryById]);
 
-	// Built only while it is on screen: it walks every event in the window. The
-	// Board series off leaves the strands and takes the lines, the way the
-	// volume layout folds the board track away.
+	// Built only while shown: it walks every event in the window.
 	const flowChart = useMemo(
 		() =>
 			layoutMode === 'flow'
@@ -824,9 +759,7 @@ export const TimeScrubber = ({
 		[liveEventDots, axis],
 	);
 
-	// Two maxima, because a coarse bucket's count is a sum of many fine ones;
-	// normalizing every series against one max flattens the others. The scatter
-	// needs no maximum of its own: buildEventDots sizes its dots.
+	// A max per series: one shared max flattens the finer ones.
 	const issueBars = useMemo(() => {
 		const max = maxOf(issueCounts, 1);
 
@@ -847,11 +780,7 @@ export const TimeScrubber = ({
 		}));
 	}, [commitStats]);
 
-	// Both halves of the diverging pair are measured against one scale, or a
-	// window that only deletes would draw its deletions as tall as a window that
-	// only adds draws its additions, and the two pictures would not compare.
-	// Stacked, so the bucket's whole churn sets the bar's height and the halves
-	// split it by their share.
+	// One scale for both halves so windows compare; stacked, the churn sets height.
 	const lineBars = useMemo(() => {
 		const max = maxOf(
 			Array.from(
@@ -861,11 +790,7 @@ export const TimeScrubber = ({
 			1,
 		);
 
-		// Removals first, so they are the half that touches the baseline. Only
-		// the segment on the line has one to be measured from — the other floats
-		// at whatever depth the bar before it ended — and removals are both the
-		// minority share and the one that is hard to see. What was added still
-		// reads from the bar's own length.
+		// Removals first, so they sit on the baseline.
 		return Array.from(commitStats, ([index, stats]) => {
 			const total = stats.insertions + stats.deletions;
 			const height = logShare(total, max);
@@ -927,17 +852,8 @@ export const TimeScrubber = ({
 		[commitPoints, issuePoints, commitScatter, issueScatter, windowKey],
 	);
 
-	// Null when the moment the needle stands for is not in the window, so it is
-	// not drawn rather than drawn somewhere it is not. fractionForTime clamps,
-	// so a moment off either end would otherwise pin the needle to that edge and
-	// read as "the board is parked here" — pointing at a time the window does
-	// not contain.
-	//
-	// While live it stands for the present, which is in the window exactly when
-	// the window runs up to it. That is read off the selection rather than by
-	// comparing against the clock: an "up to now" window is only fetched up to
-	// the moment it was asked for, so seconds later the clock is already past
-	// its end and the needle would blink out.
+	// Null when the needle's moment is outside the window (fractionForTime would
+	// clamp it to an edge). Live, read off the selection: the fetch lags the clock.
 	const confirmedFraction =
 		timeTravel.mode === 'scrub' && timeTravel.asOfTime !== null
 			? timeTravel.asOfTime >= axis.earliest &&
@@ -949,17 +865,8 @@ export const TimeScrubber = ({
 			: null;
 
 	/**
-	 * Where the unapplied stretch starts, as a fraction of the window, or null
-	 * where none of the window is unapplied.
-	 *
-	 * Not the needle's own fraction, which is null whenever the checkout falls
-	 * outside the window — zoom past it and the needle leaves the chart while
-	 * every bar on screen is still after it. Three cases, and only the last one
-	 * draws nothing:
-	 *
-	 * - the checkout is before the window: all of it is unapplied, from 0
-	 * - the checkout is in the window: unapplied from where the needle stands
-	 * - the checkout is after the window: everything in view is applied
+	 * Where the unapplied stretch starts, as a fraction: 0 if the checkout is
+	 * before the window, the needle if inside, null if after.
 	 */
 	const unappliedFrom =
 		timeTravel.mode === 'scrub' && timeTravel.asOfTime !== null
@@ -983,14 +890,10 @@ export const TimeScrubber = ({
 		// with the rest of the controls when there is nothing to ask.
 		if (!connected) return;
 
-		// The player is driving the board's position. Pointer events cannot reach
-		// the chart while it is up, but a drag begun before it opened still ends
-		// somewhere.
+		// The player drives the position; a drag begun earlier still ends here.
 		if (theatreOpen) return;
 
-		// Nothing to scrub to until a window has been drawn: every fraction on a
-		// degenerate axis reads as now, so the click would check the board out at
-		// the live instant and park the needle there with Resume lit.
+		// Nothing to scrub until a window is drawn: a degenerate axis reads as now.
 		if (!isScrubbable(axis)) return;
 
 		const target = axis.fractionToTime(fraction);
@@ -1019,11 +922,8 @@ export const TimeScrubber = ({
 		const pressedIssue = pressedIssueRef.current;
 		pressedIssueRef.current = null;
 
-		// Everything the gesture was holding goes at once, before deciding what it
-		// was: a second pointer can leave both a range and a needle drag set, and
-		// a ref left behind by the branch not taken would read as a gesture still
-		// in flight — which now holds the window back for good rather than just
-		// parking the thumb.
+		// Clears the whole gesture first: a second pointer can set both refs, and a
+		// stray one holds the window back for good.
 		const draggedTo = dragFractionRef.current;
 		const range = rangeDragRef.current;
 
@@ -1048,9 +948,7 @@ export const TimeScrubber = ({
 		// Pressed and released on one spot: a click. Only a drag wide enough to
 		// have been aimed is read as a range.
 		if (Math.abs(to - from) * trackWidth < MIN_RANGE_DRAG_PX) {
-			// A click that began on a commit dot was aimed at the commit, so it
-			// opens the diff rather than time travelling. The dot pressed decides
-			// it, not whatever the release happens to land on.
+			// A press that began on a dot opens its diff.
 			if (pressedCommit !== null) {
 				onInspectCommit(pressedCommit);
 				return;
@@ -1156,9 +1054,7 @@ export const TimeScrubber = ({
 	const hoveredBucketTime = bucketTimeAt(hoveredBucketIndex);
 	const hoveredBucketCount =
 		hoveredBucketIndex !== null ? issueCounts[hoveredBucketIndex] : undefined;
-	// Nothing to say about a series that is not drawn: with the box unticked
-	// the track is folded away, but the hit strip above it still sets the
-	// hovered bucket.
+	// Nothing to say for an undrawn series, though its hit strip still hovers.
 	const boardHint: HintContent | null =
 		layoutMode === 'flow'
 			? flowHint
@@ -1203,9 +1099,7 @@ export const TimeScrubber = ({
 							`${hoveredCommitStats.count} commit${
 								hoveredCommitStats.count === 1 ? '' : 's'
 							}`,
-							// The measure in hand, said the way the bars say it: one
-							// figure while they count commits, and the two the pair is
-							// drawn from while they measure lines.
+							// One figure for commits, two for lines.
 							linesMeasure
 								? `+${hoveredCommitStats.insertions.toLocaleString()} −${hoveredCommitStats.deletions.toLocaleString()}`
 								: `${hoveredCommitStats.linesChanged.toLocaleString()} lines changed`,
@@ -1226,9 +1120,7 @@ export const TimeScrubber = ({
 			  }
 			: null;
 
-	// Deliberately one segment for both tracks: hovering a commit lights up the
-	// same day in the issue track above, which is what makes the two halves read
-	// as one time grid.
+	// One segment for both tracks, so the halves read as one time grid.
 	const hoveredSegmentTime =
 		(layoutMode === 'even'
 			? hoveredBucketTime ?? bucketTimeAt(hoveredCommitBucketIndex)
@@ -1249,10 +1141,7 @@ export const TimeScrubber = ({
 		[axis, grainUnit],
 	);
 
-	// Everything hover puts on the chart is about the bucket under the pointer,
-	// which is not what a range drag is asking about — and it is drawn over the
-	// stretch being picked. So the drag takes the chart over while it lasts, and
-	// says what it has covered so far in place of the hover's own hint.
+	// A range drag takes over the chart's hint while it lasts.
 	const pickingRange = rangeDrag !== null;
 
 	const rangeHint: HintContent | null = rangeDrag && {
@@ -1264,9 +1153,7 @@ export const TimeScrubber = ({
 		fraction: (rangeDrag.from + rangeDrag.to) / 2,
 	};
 
-	// A window can be unplayable for opposite reasons: too little in it, or so
-	// much that the server sent counts alone and named no moments to walk. The
-	// same disabled button stands for both, so the title has to separate them.
+	// Unplayable for too few events or too many (counts only); the title says which.
 	const playTitle = !connected
 		? 'Not while the connection is down'
 		: canPlayTimeline(timeline)
@@ -1352,9 +1239,7 @@ export const TimeScrubber = ({
 				onSetExpandedAxis: setExpandedAxis,
 			}}
 			chart={{
-				// Only where it is actually hiding something: ticked over a window
-				// that narrows nothing draws no outline, the way the box itself goes
-				// flat there.
+				// Only where it actually hides something.
 				scoped:
 					windowOnly &&
 					isPeriodWindow(scope, zoom !== null) &&
@@ -1397,9 +1282,7 @@ export const TimeScrubber = ({
 						? segmentAt(hoveredSegmentTime, segmentUnit)
 						: null,
 				segmentBoundaries: boundaries,
-				// The grain segment under the pointer, whose label the highlight's
-				// name stands in for — the whole segment, since the hover may cut
-				// finer than the grain and its name lands anywhere inside it.
+				// The whole grain segment under the pointer, which the hover may cut finer.
 				hoveredGrain:
 					hoveredSegmentTime !== null && !pickingRange
 						? segmentAt(hoveredSegmentTime, grainUnit)
@@ -1421,9 +1304,8 @@ export const TimeScrubber = ({
 
 						const fraction = fractionFromClientX(event.clientX);
 
-						// Off the needle, a press is the corner of a range until it turns
-						// out to have been a click. Scrubbing on the way would checkout
-						// every moment swept over on the way to picking a window.
+						// Off the needle, a press starts a range until it proves a click; no
+						// scrub on the way, or every swept moment is checked out.
 						if (!grabbedNeedleRef.current) {
 							rangeDragRef.current = {from: fraction, to: fraction};
 							setRangeDrag({from: fraction, to: fraction});
@@ -1435,9 +1317,7 @@ export const TimeScrubber = ({
 						dispatchScrub(fraction, true);
 					},
 					onPointerMove: event => {
-						// The handler is on the wrapper, so this runs for every move over
-						// the whole scrubber. Measuring the track is a layout read, and
-						// nothing outside a drag has a use for it.
+						// Runs on every move over the scrubber, so only measure mid-drag.
 						const range = rangeDragRef.current;
 						if (dragFractionRef.current === null && range === null) return;
 

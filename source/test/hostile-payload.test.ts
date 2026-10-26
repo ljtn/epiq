@@ -1,16 +1,6 @@
 /**
- * A peer's log line is arbitrary bytes. `hostile-log.test.ts` covers the
- * envelope — a truncated line, a forged root, a duplicate id — because the
- * envelope is the only part the loader parses.
- *
- * The payload is not parsed at all. `fromPersistedEvent` hands
- * `entry[action]` to the materializer as-is, so a line that is valid JSON, at
- * a supported schema version, naming an action this build knows, reaches a
- * handler with whatever shape it likes. These cases ask what that costs.
- *
- * Every case asserts the same thing: the board still opens. A line that
- * arrives over `merge=union` is in every clone permanently, so anything that
- * stops the board here stops it for everybody, forever.
+ * A known action's payload reaches its handler in whatever shape a peer wrote.
+ * Every case asserts the board still opens: a union-merged line is in every clone forever.
  */
 import {spawn} from 'node:child_process';
 import fs from 'node:fs';
@@ -71,8 +61,7 @@ const seedBoard = (): {root: string; edge: string; swimlaneId: string} => {
 
 /**
  * Appends raw lines to a peer's log, chained after the real history so they
- * order last. Ids are fixed and ascending, which is what a peer's own writer
- * would have produced.
+ * order last.
  */
 const appendHostile = (
 	root: string,
@@ -278,10 +267,8 @@ describe('a peer publishes a known action with a payload of its own shape', () =
 		expect(opens(outcome), JSON.stringify(outcome)).toBe('booted');
 	});
 
-	// `createNode` writes into the node map unconditionally, and the
-	// materializer's `isFail` branch can never fire on a duplicate. A second
-	// `add.*` naming a live id replaces that node wholesale — title, rank,
-	// parent, description, tags, assignees and its readonly flag.
+	// `createNode` writes unconditionally, so a second `add.*` with a live id
+	// replaces that node wholesale.
 	it('does not let a second add replace a live node', async () => {
 		const victim = '01JISSUEVICTIMID0000000000';
 

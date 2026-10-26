@@ -21,26 +21,14 @@ import {readEpiqConfig, setConfig} from '../../config/user-config.js';
 import {currentBoardId, hasClaimedAnEmail} from '../../config/setup-utils.js';
 import {resolveClosestEpiqProjectRoot} from '../../storage/paths.js';
 
-/**
- * Remembers that this board's question was refused, so the step stops asking.
- *
- * Per board and on this machine only: the addresses offered are a repository's
- * own history, and a refusal is nobody else's business — it must not replicate
- * to every clone the way a link does.
- */
+/** Records this board's refusal locally; it must not replicate like a link. */
 const declineEmailSetup = (): Result<null> => {
 	const boardId = currentBoardId();
 
-	// Outside a board there is nothing to record and nothing asking: without a
-	// project `isSetEmails` is already true. Saying no still succeeds, which is
-	// the invariant this command opens with — it is the answer somebody gives
-	// precisely when the rest of this is not working for them.
+	// No board, nothing to decline; saying no always succeeds.
 	if (!boardId) return succeeded('Nothing here to decline', null);
 
-	// Read back from disk rather than added to this process's boot-time copy.
-	// Two epiq instances in two repositories both hold a list from their own
-	// boot, and merging into a stale one drops whatever the other declined
-	// since — `setConfig` merges keys, not the contents of this array.
+	// Read from disk, not the boot-time copy: another instance may have declined since.
 	const stored = readEpiqConfig();
 	const onDisk = isFail(stored) ? [] : stored.value.declinedEmailBoards ?? [];
 
@@ -59,22 +47,13 @@ const declineEmailSetup = (): Result<null> => {
 };
 
 /**
- * Claiming the git addresses whose commits are yours.
- *
- * A list to pick from rather than a box to type an address into. You can only
- * claim what this repository's history already contains, so a typo claims
- * nothing and there is no way to reach for an address that was never yours.
- *
- * Asked once, as a setup step, because that is the moment somebody is already
- * thinking about who they are. Nothing links itself: every link here has a
- * person behind it who saw the address, the name on it and its commit count.
+ * Claims git addresses from a list drawn from this repository's history, so a
+ * typo claims nothing. Nothing links itself.
  */
 export const setEmailsCommand = async () => {
 	const answer = getCmdState().commandMeta.inputString.trim();
 
-	// Before any lookup. Saying no must work whatever the board, the repository
-	// or git is doing — it is the answer somebody gives precisely when the rest
-	// of this is not working for them.
+	// Before any lookup: no must work whatever else is failing.
 	if (answer === 'none') {
 		const declined = declineEmailSetup();
 		if (isFail(declined)) return declined;
@@ -102,29 +81,18 @@ export const setEmailsCommand = async () => {
 		links: stateResult.value.emailLinks,
 	});
 
-	// Said rather than swallowed: with nothing linking itself, this list is the
-	// only way to claim an address, so a failed scan must not read as a history
-	// with nothing left in it.
+	// A failed scan must not read as an empty history.
 	if (isFail(scanned)) return scanned;
 
 	const candidates = offerableCandidates(scanned.value);
 
-	// Every offerable one, in the order `EmailCandidates` draws them. Filtering
-	// here to the ones that look like the user's would renumber the list against
-	// the screen they are reading it off, so `2` would claim whatever this
-	// happened to think second.
+	// All of them, in `EmailCandidates`' order, so the numbers match the screen.
 	const offered = candidates;
 
 	setOfferedEmails(offered.map(candidate => candidate.email));
 
-	// Nothing here to claim, so the step has no answer to wait for and is
-	// recorded as declined — the alternative is a git scan inside the
-	// synchronous check that draws the setup screen.
-	//
-	// Only for somebody who has claimed nothing. `offerableCandidates` drops
-	// every address anyone already claims, including their own, so after a
-	// claim every later `:config emails` reaches here — and recording a refusal
-	// then would keep the step silent even once they unlinked again.
+	// Nothing to claim: record a decline so setup needn't scan git. Only for
+	// someone with no claims, or a later unlink would leave the step silent.
 	if (offered.length === 0) {
 		if (!hasClaimedAnEmail()) {
 			const declined = declineEmailSetup();
@@ -134,10 +102,7 @@ export const setEmailsCommand = async () => {
 		return succeeded('No unclaimed addresses in this history.', null);
 	}
 
-	// Bare, it opens the screen that draws the list. A successful command's
-	// message is discarded by the TUI, so the list cannot be the reply — and
-	// during setup the step already draws it, where this is a no-op that leaves
-	// the numbers on screen alone.
+	// Bare, it opens the list screen: a successful command's message isn't shown.
 	if (!answer) {
 		patchState({mode: Mode.IDENTITY});
 		return succeeded('Opened identity', null);
@@ -189,9 +154,7 @@ export const setEmailsCommand = async () => {
 	const written = materializeAndPersistAll(events, stateBranchRootResult.value);
 	if (isFail(written)) return failed(written.message);
 
-	// Nothing is written to config. The link is the answer, and the setup step
-	// reads it off the board — so a claim made in the GUI's identity panel ends
-	// the step just as this one does.
+	// The link itself ends the setup step, from here or the GUI.
 	return succeeded(
 		`Claimed ${chosen
 			.map(candidate => candidate.email)

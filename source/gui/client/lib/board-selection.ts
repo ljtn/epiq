@@ -16,9 +16,8 @@ import {
 	SelectionNarrowing,
 } from './scrubber';
 
-// What the scrubber is looking at, and what that narrows the board to. Kept
-// in the query string so a view can be handed to someone else, with
-// localStorage as the fallback for a bare board link.
+// What the scrubber looks at and narrows the board to. Kept in the query
+// string so a view can be shared; localStorage is the fallback.
 export type BoardSelection = {
 	scope: Scope;
 	// Periods back from now; meaningless under 'all' or under a zoom.
@@ -27,19 +26,14 @@ export type BoardSelection = {
 	// scope and offset describe. Null while the scope buttons are in charge.
 	zoom: PeriodRange | null;
 	layout: LayoutMode;
-	// What each axis asks of a ticket. Absent takes no part; 'all' asks only
-	// that the ticket carry something on that axis; a list names the few that
-	// pass. Axes hold at once and a ticket has to pass them all, so "assigned to
-	// her" and "tagged bug" is one question rather than two that overwrite each
-	// other. What the chart plots is read off this rather than chosen beside it.
+	// Per axis: absent takes no part, 'all' asks for any value, a list names
+	// those that pass. A ticket must pass every axis.
 	only: SelectionNarrowing;
 	// Narrows the board to the tickets the window holds an event for, rather
 	// than to what the selection colours.
 	windowOnly: boolean;
-	// Narrows the chart to the selected ticket: the window becomes the stretch
-	// that ticket has existed for, and every event belonging to another goes.
-	// The window is derived while this is on rather than written into `zoom`,
-	// so turning it off hands the scope buttons back what they had.
+	// Narrows the chart to the selected ticket's lifetime and events. Derived
+	// rather than written into `zoom`, so turning it off restores the scope.
 	ticketOnly: boolean;
 	// Narrows the board to one goal's tickets.
 	goal: string | null;
@@ -119,9 +113,7 @@ export const axisState = (
 	return narrowedIds(narrowing) === null ? 'all' : 'some';
 };
 
-// Ticking the parent takes the whole axis, unticking it switches the axis off
-// — which is the way back out of a list ticked down to one, and the reason
-// unticking the last child cannot strand the board on an axis nothing passes.
+// Ticking the parent takes the whole axis; unticking it switches the axis off.
 export const toggleAxis = (
 	only: SelectionNarrowing,
 	axis: FilterAxis,
@@ -172,10 +164,7 @@ const normalize = (selection: BoardSelection): BoardSelection => {
 			selection.offset < 0
 				? 0
 				: selection.offset,
-		// One named ticket is a narrower ask than every ticket a window happens
-		// to touch, so the two never hold at once — the ticket wins, and its box
-		// is the only one lit. Enforced here rather than at the patch, so a URL
-		// carrying both cannot put the board in a state the controls cannot say.
+		// A named ticket wins over windowOnly, even from a URL carrying both.
 		windowOnly: selection.ticketOnly ? false : selection.windowOnly,
 		only: normalizeNarrowing(selection.only),
 	};
@@ -192,9 +181,7 @@ export const isDefaultSelection = (selection: BoardSelection): boolean =>
 	selection.goal === DEFAULT_SELECTION.goal;
 
 // A change to one field, with what it implies for the others: a new scope
-// starts at its most recent period. A new view implies nothing for the
-// narrowing any more — every axis keeps its own list, so switching what the
-// chart plots no longer throws away what the board was narrowed to.
+// starts at its most recent period.
 export const applySelectionPatch = (
 	current: BoardSelection,
 	patch: Partial<BoardSelection>,
@@ -202,9 +189,7 @@ export const applySelectionPatch = (
 	const scopeChanged =
 		patch.scope !== undefined && patch.scope !== current.scope;
 
-	// Reaching for a scope button is how you get back out of a zoom, so it
-	// clears one even when the scope named is the one a zoom inferred — which is
-	// the button that looks pressed while zoomed.
+	// Any scope patch clears a zoom, even one naming the scope the zoom inferred.
 	const zoom =
 		patch.zoom !== undefined
 			? patch.zoom
@@ -212,9 +197,7 @@ export const applySelectionPatch = (
 			? null
 			: current.zoom;
 
-	// The ticket's own window stands in front of both of those, so naming a
-	// scope or dragging one out is how you leave it, the same way naming a
-	// scope is how you leave a zoom.
+	// Naming or dragging a scope also leaves the ticket's window.
 	const ticketOnly =
 		patch.ticketOnly !== undefined
 			? patch.ticketOnly
@@ -233,22 +216,16 @@ export const applySelectionPatch = (
 
 // ---------------------------------------------------------------- carrying
 
-// What a route change carries that neither the rebuilt query nor storage does:
-// opening a ticket rebuilds the query from scratch, and none of a board
-// narrowed to a window, a stretch dragged out of the chart, or a window paged
-// back off the present must come undone under the reader who clicked one of
-// the cards it left showing. Nor must the goal a board is narrowed to.
+// What a route change must carry that neither the rebuilt query nor storage
+// does: opening a ticket rebuilds the query from scratch.
 export type CarriedSelection = Pick<
 	BoardSelection,
 	'offset' | 'zoom' | 'windowOnly' | 'ticketOnly' | 'goal'
 >;
 
-// The carried values together with the query they were read out of. The query
-// is what makes a change survive: writing one is two steps — the values here,
-// then the URL a render later — and any re-render in between still reads the
-// pre-change query. Keyed, such a render is recognised as having nothing newer
-// to say and leaves the values alone; unkeyed it reads the switched-off
-// narrowing back over them, and a bare query then puts it straight back on.
+// The carried values with the query they were read from. A render between
+// writing the values and the URL still reads the old query; the key lets it
+// leave the values alone.
 export type SelectionCarry = {query: string; values: CarriedSelection};
 
 const carriedFrom = (selection: BoardSelection): CarriedSelection => ({
@@ -264,9 +241,7 @@ export const DEFAULT_CARRY: SelectionCarry = {
 	values: carriedFrom(DEFAULT_SELECTION),
 };
 
-// A render offering the selection it derived. The query is compared as a
-// string rather than by identity, since a fresh URLSearchParams for the same
-// query says nothing new either.
+// Compared as a string: a fresh URLSearchParams for the same query is no news.
 export const carryRender = (
 	carry: SelectionCarry,
 	query: string,
@@ -286,9 +261,7 @@ export const carryChange = (
 export const hasSelectionParams = (params: URLSearchParams): boolean =>
 	PARAM_KEYS.some(key => params.has(key));
 
-// The narrowing rides in the one `only` key rather than a key per axis, which
-// would put four more names in the query's way for the sake of a shape nobody
-// types by hand: `only=tag:a,b;assignee:c`.
+// Every axis rides in the one `only` key: `only=tag:a,b;assignee:c`.
 const AXIS_SEPARATOR = ';';
 const NAME_SEPARATOR = ':';
 
@@ -311,9 +284,8 @@ const writeNarrowing = (only: SelectionNarrowing): string | null => {
 	return groups.length === 0 ? null : groups.join(AXIS_SEPARATOR);
 };
 
-// A group with no axis in front of it is the one-axis form links were written
-// in before: it named no axis because the view was the axis, so it is read onto
-// whichever axis the view in the same URL colours by.
+// A group with no axis prefix is the older one-axis form, read onto the axis
+// the URL's view colours by.
 const readNarrowing = (
 	value: string | null,
 	view: BoardView,
@@ -337,9 +309,8 @@ const readNarrowing = (
 	return only;
 };
 
-// Null when the URL says nothing about the selection. Any one key present
-// makes the URL authoritative for all of them, so a link means the same thing
-// whoever opens it.
+// Null when the URL says nothing about the selection. Any one key makes the
+// URL authoritative for all of them.
 export const readSelectionParams = (
 	params: URLSearchParams,
 ): BoardSelection | null => {
@@ -349,9 +320,7 @@ export const readSelectionParams = (
 	const layout = params.get('layout');
 	const from = params.get('from');
 	const to = params.get('to');
-	// Read but never written: `view` was the picked series, and the only thing
-	// still asking for it is a link from then, whose unprefixed `only` list
-	// named no axis because the view was the axis.
+	// Read but never written, for older links whose unprefixed `only` named no axis.
 	const viewParam = params.get('view');
 	const legacyView = isBoardView(viewParam) ? viewParam : 'all';
 
@@ -390,7 +359,7 @@ export const writeSelectionParams = (
 	put('from', next.zoom === null ? null : String(next.zoom.start));
 	put('to', next.zoom === null ? null : String(next.zoom.end));
 	put('layout', next.layout === DEFAULT_SELECTION.layout ? null : next.layout);
-	// Not written any more: what the chart plots is read off `only`.
+	// Never written: what the chart plots is read off `only`.
 	put('view', null);
 	put('only', writeNarrowing(next.only));
 	put('window', next.windowOnly ? '1' : null);
@@ -425,12 +394,8 @@ const readStoredNarrowing = (
 	return only;
 };
 
-// Neither the offset nor a zoom is kept: a stretch of last Tuesday is a
-// moment, not a preference, and reopening the board a week later on it would be
-// a surprise. Nor is windowOnly: it hides tickets outright, which is too much
-// to restore silently days later — it travels in the URL and nowhere else. Nor
-// is ticketOnly, which names a ticket that need not even be open next time,
-// nor the goal, which hides tickets as windowOnly does.
+// Not stored: the offset, a zoom, windowOnly, ticketOnly and the goal. They
+// are moments or hide tickets, too much to restore silently days later.
 export const readStoredSelection = (): BoardSelection => {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
@@ -488,9 +453,8 @@ export const hiddenIdsFor = (
 	return new Set(listed.filter(id => !shown.has(id)));
 };
 
-// Ticking or unticking one identity. Back to 'all' once every listed identity
-// is ticked, so a tag or person that turns up later joins the axis rather than
-// being missing from a list nobody meant to close.
+// Back to 'all' once every listed identity is ticked, so one that turns up
+// later joins the axis.
 export const toggleOnly = (
 	narrowing: AxisNarrowing | undefined,
 	identities: readonly GuiEventIdentity[],
@@ -525,9 +489,8 @@ export const isolateOnly = (
 ): readonly string[] | null =>
 	only !== null && only.length === 1 && only[0] === id ? null : [id];
 
-// The legend lists what the window holds, which need not include what the
-// selection names — a tag isolated from a card, or arriving by link, may have
-// no event in view. Appended from what the board knows, so it can be unticked.
+// The selection may name identities with no event in view; appended so they
+// can still be unticked.
 export const withSelectedIdentities = (
 	listed: readonly GuiEventIdentity[],
 	only: readonly string[] | null,

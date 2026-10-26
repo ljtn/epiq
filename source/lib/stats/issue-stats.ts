@@ -1,10 +1,5 @@
-// What one ticket's code says about itself.
-//
-// The flow, in one place: take the commits the ticket owns, read their patches
-// in a single `git show`, read what the repository looked like just before the
-// ticket started, and derive a section per question from those two reads.
-// Every section is a pure function of the scan, so a new one is a new module
-// here and a line below — never a third walk over git.
+// What one ticket's code says about itself: one `git show` of its commits and
+// one baseline read, each section a pure function of the scan.
 
 import {listCommitSources, sourceCwdOf} from '../commits/commit-sources.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';

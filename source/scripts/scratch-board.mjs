@@ -1,14 +1,6 @@
 #!/usr/bin/env node
-// A throwaway repository and an unconfigured machine, with the client from this
-// working tree running in it.
-//
-// For walking the setup and init flow, which is the one path that cannot be
-// tried on a board that already exists. `seed-scratch.mjs` is its opposite: it
-// drives setup to completion and hands back a project ready to use.
-//
-// Nothing here can reach a real board. The repository is a fresh temp
-// directory, and EPIQ_GLOBAL_DIR points at another one, so `~/.epiq-global` is
-// never read or written and every run starts from nothing.
+// A throwaway repository and an unconfigured machine running this working
+// tree, for walking setup and init. EPIQ_GLOBAL_DIR keeps it off real boards.
 
 import {execFileSync, spawn} from 'node:child_process';
 import {mkdtempSync, writeFileSync, existsSync} from 'node:fs';
@@ -32,10 +24,8 @@ git('config', 'user.email', 'jola@example.com');
 git('config', 'commit.gpgsign', 'false');
 
 /**
- * Three addresses, because the claiming step has nothing to say without them:
- * the one git is configured with, an old job's under a different name, and a
- * colleague's. The middle one is the case the feature exists for — it matches
- * nothing the user is called now.
+ * The configured address, an old one under another name, and a colleague's;
+ * the middle one is what claiming is for.
  */
 const commit = (subject, name, email) => {
 	writeFileSync(join(repo, `${subject.replaceAll(' ', '-')}.txt`), subject);

@@ -2,14 +2,8 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 
-// Written by serve.ts, read by the Playwright fixture. A file rather than an
-// env var because the server runs as a separate process from the test workers.
-//
-// Keyed by checkout, because one fixed path is shared by every run on the
-// machine: a second run's setup and teardown both delete it, and the first
-// run's tests then fail to open it. Deterministic rather than random, since
-// each worker resolves this independently. `EPIQ_GUI_E2E_HANDOFF` overrides it
-// for two runs that really do share a checkout.
+// Written by serve.ts, read by the fixture. Keyed by checkout so concurrent runs
+// don't delete each other's; `EPIQ_GUI_E2E_HANDOFF` overrides it.
 const handoffFileName = (): string => {
 	const key = crypto
 		.createHash('sha256')

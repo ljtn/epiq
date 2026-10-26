@@ -16,11 +16,8 @@ import {getSettingsState} from '../../state/settings.state.js';
 import {formatBytes} from '../../utils/format-bytes.js';
 import {sanitizeInlineText} from '../../utils/string.utils.js';
 
-// `:config repoConnect <url> [branches=default|all] [since=board|all|YYYY-MM-DD]
-// [label=<name>] [confirm]` and `:config repoDisconnect <name>`: the TUI's way
-// to the repos the GUI's palette opens. Both write board events, which sync
-// like any other change. A new repo is previewed first, and connected only
-// when the same line is run again with `confirm`.
+// `:config repoConnect <url> [branches=…] [since=…] [label=…] [confirm]` and
+// `:config repoDisconnect <name>`. A connect previews until rerun with `confirm`.
 
 export type RepoConnectArgs = {
 	url: string;

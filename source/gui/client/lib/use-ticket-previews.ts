@@ -1,10 +1,5 @@
-// What a ticket ref shows when the pointer rests on it.
-//
-// Most of the card is already on this machine: the board's state carries every
-// ticket's title, lane, tags, assignees and comment count. Only the
-// description is missing — `slimStateForBoard` strips it from the broadcast,
-// which is the whole reason that broadcast is affordable — so the excerpt is
-// the one thing fetched, once per ticket, and kept.
+// What a ticket ref shows on hover. Only the description is fetched (the
+// broadcast strips it), once per ticket.
 
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getResultValue} from './gui-state-helper';
@@ -29,9 +24,7 @@ type Summary = Omit<TicketPreview, 'excerpt'>;
 
 type Held = {
 	excerpt: string;
-	// The board state this excerpt was read from. A later state may have
-	// changed the description, so a hover past that point asks again — while
-	// still drawing what it has, which is right far more often than not.
+	// The state it was read from; a later one asks again while still drawing this.
 	from: GuiState;
 };
 
@@ -81,10 +74,7 @@ export const useTicketPreviews = ({
 	// only question asked of it is whether to send a second one.
 	const inFlight = useRef(new Set<string>());
 
-	// A reply that never came — the socket dropped while one was out — would
-	// otherwise leave its ticket marked as asked for good, and that card would
-	// never get its prose again. Cleared on each new state, which is also when
-	// a reconnect lands: at worst one ticket is asked about twice.
+	// Cleared on each new state, so a lost reply doesn't mark a ticket asked forever.
 	useEffect(() => {
 		inFlight.current.clear();
 	}, [state]);
@@ -120,9 +110,7 @@ export const useTicketPreviews = ({
 		(message: any) => {
 			if (message.type !== 'issue:preview:result') return;
 
-			// Wrapped with the issueId it was asked for, like the commits and
-			// stats replies: the pointer moves on faster than a reply arrives,
-			// and a failed Result carries no issueId of its own.
+			// Wrapped with its issueId, since a failed Result carries none.
 			const {issueId, result} = message.payload as {
 				issueId: string;
 				result: {
@@ -137,9 +125,7 @@ export const useTicketPreviews = ({
 			const next = getResultValue<{issueId: string; excerpt: string}>(result);
 			if (!next) return;
 
-			// Stamped with the state the reply describes — which is the one on
-			// screen now, since the server derived it from the same log this
-			// client has been broadcast.
+			// Stamped with the state on screen, which the reply describes.
 			setHeld(prev =>
 				state
 					? {...prev, [next.issueId]: {excerpt: next.excerpt, from: state}}

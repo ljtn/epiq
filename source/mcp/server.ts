@@ -83,12 +83,9 @@ export const resultJson = <T>(result: Result<T>) => ({
 	],
 });
 
-// The MCP SDK does not serialize requests, and every epiq-api call is a
-// boot-read-persist over the shared state singleton across several awaits —
-// two in flight interleave, so one call's boot() can rebuild the state another
-// call already checked its preconditions against. Serialized here, at the
-// registration boundary, like the GUI's `runMutation` and websocket handlers.
-// `runExclusive` is not re-entrant; nothing reached from epiq-api takes it.
+// Tools run one at a time: each is a boot-read-persist over the shared state
+// across awaits, and the SDK doesn't serialize. `runExclusive` isn't re-entrant,
+// so nothing under epiq-api may take it.
 const exclusiveTool =
 	<I, R>(fn: (input: I) => Promise<Result<R>>) =>
 	(input: I) =>
@@ -161,9 +158,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		// Deliberately not exclusiveTool: this reads git and never the state
-		// singleton, so taking the write lock for it would only make board calls
-		// queue behind a scan.
+		// Not exclusive: reads git only, so board calls needn't queue behind it.
 		async input => resultJson(await getIssueStats(input)),
 	);
 

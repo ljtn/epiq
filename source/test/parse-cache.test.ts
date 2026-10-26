@@ -7,13 +7,8 @@ import {ulid} from 'ulid';
 import {clearEdgeCache, loadMergedEvents} from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
 
-// A log file's parse is remembered while the file has not moved, so a scrub
-// asking for cut after cut stops re-parsing a log that cannot have changed.
-//
-// What these are about is the half that can go wrong: the cache must never
-// answer for a file that grew, was rewritten, or was replaced — any of which a
-// sync, a pull or a teammate's write does routinely. A real directory, because
-// that is what the cache watches.
+// A log file's parse is cached while the file is unchanged; it must never answer
+// for a file that grew, was rewritten or replaced. A real directory, since that's what it watches.
 
 let root = '';
 const eventsDir = () => path.join(root, '.epiq', 'events');
@@ -50,14 +45,8 @@ const issue = (id: string, refId: string, title: string) =>
 		'add.issue': {id: ulid(), name: title, parent: LANE, rank: 'aQ'},
 	});
 
-// Puts a file's mtime far enough in the past that the loader will remember its
-// parse — a file written this instant is deliberately not remembered, since a
-// stamp cannot tell two writes apart that the clock cannot.
-//
-// Each call is a second later than the last, because that is what a clock
-// does: two calls inside one millisecond would otherwise hand two different
-// writes the same timestamp, which is the one thing reality does not do to a
-// file that has settled.
+// Backdates a file's mtime so the loader caches its parse; each call a second
+// later, so no two writes share a stamp.
 let settledAt = 0;
 
 const settle = (filePath: string): Date => {
@@ -156,10 +145,8 @@ describe('the remembered parse of a log file', () => {
 		expect(titlesOf()).toEqual(['again']);
 	});
 
-	// The cache exists or none of the above is about anything. Proved by its one
-	// side effect: a file rewritten to the same length AND forced back to the
-	// same mtime is, by construction, indistinguishable from the one remembered,
-	// so a hit is the only way the old content can come back.
+	// Proves the cache exists: a same-length rewrite forced to the same mtime
+	// can only return old content on a hit.
 	it('answers a settled, unchanged log from what it remembered', () => {
 		const {tail, text} = genesis();
 		const id = ulid(1_700_000_001_000);
@@ -174,14 +161,8 @@ describe('the remembered parse of a log file', () => {
 		expect(titlesOf()).toEqual(['aaaaa']);
 	});
 
-	// The same forced collision, on a file the clock has not left behind yet. A
-	// stamp can only tell apart two writes the clock could, so one inside that
-	// window is not remembered at all — and the stale answer above, which the
-	// identical stamp would otherwise produce, does not happen here.
-	//
-	// The mtime is put slightly ahead rather than merely at `now`, so the window
-	// covers it however long the load takes. A peer whose clock runs fast writes
-	// exactly this, and it is no more trustworthy for being in the future.
+	// A file the clock hasn't left behind isn't cached, so a stamp collision
+	// can't go stale; the mtime sits slightly ahead, as a fast peer clock writes.
 	it('does not remember a log the clock has not left behind', () => {
 		const {tail, text} = genesis();
 		const id = ulid(1_700_000_001_000);

@@ -1,23 +1,14 @@
-// The board's connection to its server: opening it, losing it, getting it back,
-// and sending on it. Everything about the transport and nothing about what the
-// frames mean — the caller is handed each message and decides that for itself.
-//
-// The split is deliberate. Moving the message handling in here as well would
-// have meant passing a dozen state setters into a hook, which relocates the
-// coupling rather than removing it.
+// The board's connection to its server: open, lose, regain and send. What the
+// frames mean is the caller's.
 
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {createMutationGate} from './mutation-gate';
 import {reconnectDelayMs} from './reconnect';
 import {sendSocketJson} from './socket-send';
 
-// What a message handler is allowed to do with the connection the message
-// arrived on. Stable for the life of the hook, so a handler stored in a ref
-// cannot end up holding a stale one.
+// What a handler may do with the connection; stable for the hook's life.
 export type BoardSocketActions = {
-	// Goes through the mutation gate: broadcasts are held until this client's
-	// own change has been answered, so an optimistic update is not reverted by
-	// state that left the server before it landed.
+	// Through the mutation gate, so an optimistic update isn't reverted.
 	send: (type: string, payload: unknown) => void;
 	// A frame the gate has no interest in — a read, or a reply of our own.
 	sendRaw: (message: unknown) => void;
@@ -28,9 +19,7 @@ export type BoardSocketActions = {
 
 export type BoardSocket = BoardSocketActions & {
 	connected: boolean;
-	// Bumped per socket, not per connection state: a socket the effect replaces
-	// never reports a disconnect, so `connected` alone cannot tell a reader that
-	// its outstanding requests died with the old one.
+	// Bumped per socket: a replaced socket never reports a disconnect.
 	socketEpoch: number;
 	// True once the automatic attempts are spent, so the topbar can offer the
 	// button rather than retrying behind the reader's back forever.
@@ -39,16 +28,8 @@ export type BoardSocket = BoardSocketActions & {
 };
 
 /**
- * Whether an answer that belongs to one board may still be acted on.
- *
- * One socket lasts the session, so a reply can arrive after the reader has
- * moved to another board — replacing the socket on every switch is what used to
- * throw those away, and dropping that is `8GXKQR4`. An answer naming no board
- * belongs to none of them and is nobody's to be stale for.
- *
- * Whatever names the board is the caller's to choose: some answers carry the
- * board the server answered for, others the board the reader asked from. Both
- * are asking this.
+ * Whether an answer for one board may still be acted on; one socket lasts the
+ * session, so a reply can arrive after a board switch. No board: never stale.
  */
 export const answersBoardOnScreen = (
 	answeredFor: string | undefined,
@@ -77,9 +58,7 @@ export const useBoardSocket = ({
 	const reconnectTimer = useRef<number | null>(null);
 	const [gate] = useState(createMutationGate);
 
-	// Held in a ref rather than listed as a dependency: the caller re-creates
-	// its handler on every render, and a dependency would tear the socket down
-	// and open a new one just as often.
+	// A ref, so re-creating the handler never reopens the socket.
 	const onMessageRef = useRef(onMessage);
 	onMessageRef.current = onMessage;
 
@@ -102,9 +81,7 @@ export const useBoardSocket = ({
 
 	const holdsState = useCallback(() => gate.holdsState(), [gate]);
 
-	// A ref, not a dependency, for the same reason the handler is one — and
-	// because a useMemo is a cache React is free to discard, which would tear
-	// down a live socket to rebuild an identical object.
+	// A ref: a useMemo may be discarded, tearing down a live socket.
 	const actionsRef = useRef<BoardSocketActions>({
 		send,
 		sendRaw,
@@ -119,14 +96,8 @@ export const useBoardSocket = ({
 		setReconnectTick(tick => tick + 1);
 	}, []);
 
-	// One socket for the session, whichever board is on screen. The board was
-	// once a query parameter here, which the server has never read — its only
-	// effect was to re-run this effect and replace the socket every time the
-	// board changed, including the first time the route learns one at all. A
-	// request in flight across that swap loses its reply: the board boots at
-	// `/`, redirects to the first board a moment later, and a ticket filed in
-	// between was created but never opened, because `issues:create:result` came
-	// back to a socket that had already gone (`8GXKQR4`).
+	// One socket for the session, whichever board is on screen, so no reply in
+	// flight is lost to a board switch.
 	useEffect(() => {
 		const socket = new WebSocket(boardSocketUrl(window.location));
 
@@ -151,10 +122,7 @@ export const useBoardSocket = ({
 				socketRef.current = null;
 			}
 
-			// A socket this effect is replacing is not a lost connection: the next
-			// one is already opening. That is a reconnect or an unmount now, the
-			// effect having stopped re-running on navigation — but reporting one
-			// would still flash the whole offline treatment over it.
+			// A replaced socket is not a lost connection; no offline flash.
 			if (replaced) return;
 
 			setConnected(false);

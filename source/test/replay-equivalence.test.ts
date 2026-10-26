@@ -12,15 +12,8 @@ import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {bigIntToHex, midRank} from '../lib/utils/rank.js';
 
-// materializeAll batches derivation to one pass instead of one per event, which
-// is what took a 1429-event replay from 905ms to 278ms. The whole safety
-// argument rests on derive() being a pure function of the base state, so
-// running it once at the end must land on exactly the state that running it
-// after every event would have. That is what this asserts — directly, rather
-// than hoping a rendered TUI screen happens to disagree.
-//
-// It now covers the same argument for the event logs and the ticket virtual
-// fields, which are collected during a replay and applied once at the end.
+// Batched derivation, event logs and virtual fields must land on exactly the
+// state per-event application would.
 
 const IDS = {
 	root: '01H00000000000000000000000',
@@ -55,9 +48,8 @@ const event = <A extends AppEvent['action']>(
 const issueId = (n: number) =>
 	`01H0000000000000000010${String(n).padStart(4, '0')}`;
 
-// Deliberately varied: node creation, renames, the tag and assignee paths, a
-// comment, a move between swimlanes and a close. A derived index that went
-// stale would show up as a different child ordering or a different selection.
+// Varied on purpose; a stale derived index shows as a different child order or
+// selection.
 const buildEvents = (issueCount: number): AppEvent[] => {
 	eventSeq = 0;
 

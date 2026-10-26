@@ -1,8 +1,5 @@
-// The viewer's own totals, for the identity panel.
-//
-// Fetched when the panel opens, and again whenever a claim lands: the commit
-// figure is counted over the addresses the viewer holds, so claiming one is
-// the one thing that moves it without the board changing at all.
+// The viewer's own totals, for the identity panel. Refetched when a claim
+// lands, since commits count over claimed addresses.
 
 import {useCallback, useEffect, useState} from 'react';
 import {PersonalStats} from '../../../lib/stats/personal-stats.model.js';

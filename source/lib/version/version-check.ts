@@ -116,9 +116,8 @@ export const getVersionStatus = async (
 };
 
 /**
- * A release body as the release workflow writes it: a version line, then
- * sections of a bare title line over `- ` bullets, a bullet continued on
- * indented lines.
+ * A release body: a version line, then title lines over `- ` bullets, which
+ * may continue on indented lines.
  */
 export const parseReleaseNotes = (body: string): ReleaseSection[] => {
 	const sections: ReleaseSection[] = [];

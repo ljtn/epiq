@@ -1,15 +1,10 @@
-// Two faces, one job each. Sans for what is clicked and what people wrote:
-// buttons, toggles, group labels, titles, descriptions, comments. Inter, shipped
-// with the GUI (see GlobalStyles), so it is the same face on every machine and
-// never fetched from anywhere; the rest is what shows while it loads.
+// Sans for what is clicked and what people wrote. Inter, shipped with the GUI
+// (see GlobalStyles), never fetched.
 export const SANS_FONT =
 	'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
-// Mono for what the board records: log lines, times, refs, ids, diff stats,
-// code — anything read in columns. Set once on the tree the app draws into, and
-// again by anything drawn outside it: a window of its own, the screen shown
-// before there is a board, and any popover portalled to the body, which
-// inherits from there rather than from the control it belongs to.
+// Mono for what the board records, read in columns. Set again on anything
+// drawn outside the app's tree, such as popovers portalled to the body.
 export const MONO_FONT =
 	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
 
@@ -24,9 +19,8 @@ export const TEXT = {
 	title: 15,
 } as const;
 
-// Prose as it is read and as it is written: the description, the comments
-// and the fields that edit them share these, so an editor opens as the same
-// text with an edge around it rather than as a different, denser thing.
+// Shared by prose and the fields that edit it, so an editor opens as the
+// same text.
 export const PROSE = {
 	fontFamily: SANS_FONT,
 	fontSize: TEXT.prose,
@@ -36,9 +30,7 @@ export const PROSE = {
 
 export const GUI_THEME = {
 	bg: '#06070a',
-	// The instrumentation around the work: the top bar, the timeline and the
-	// event log. Below the board's own ground rather than above it, so the
-	// chrome reads as the room and the board as what is lit in it.
+	// The top bar, timeline and event log: below the board's own ground.
 	chrome: '#000000',
 	bgHighlight: '#10111a65',
 	panel: '#11141b',
@@ -47,54 +39,30 @@ export const GUI_THEME = {
 	// the cards carry the lift and the ground stays back without going black.
 	well: '#0d0f14',
 	line: 'rgba(70, 87, 126, 0.15)',
-	// The detail panel's own outer edge. `line` divides sections inside one
-	// surface; this one has to hold the panel apart from the board behind it,
-	// which takes considerably more contrast.
+	// The detail panel's outer edge, holding it apart from the board.
 	edge: 'rgba(96, 116, 165, 0.55)',
-	// The side panel's edge toward the board. Quieter than `edge`: it runs the
-	// full height of the screen, and its shadow already holds the panel apart.
-	// The resize handle on it lights the accent when it is reached for.
+	// The side panel's edge toward the board, quieter than `edge`.
 	asideEdge: 'rgba(96, 116, 165, 0.25)',
-	// The same edge over the chrome's ground rather than the panel's. That
-	// ground is black, so a translucent line lands on more contrast there and
-	// reads brighter at the same value — half the alpha is what makes the two
-	// look like one edge drawn twice.
+	// `edge` over the black chrome, at half the alpha so it reads the same.
 	edgeOnChrome: 'rgba(96, 116, 165, 0.28)',
 	primary: '#c2c5d0',
-	// One step under `primary`, for text that is the content of what it sits in
-	// but repeats all the way down a column — a card's title. Thirty of those at
-	// full `primary` is the brightest thing on the board, louder than the accent
-	// marking the selected card, and it leaves the ref and the tags nothing to
-	// stand against. Still well clear of a reading contrast: what comes off is
-	// the shout, not the legibility.
+	// One step under `primary`, for text repeated down a column, like card titles.
 	primarySoft: '#aeb3c2',
 	secondary: '#7f8aa3',
 	tertiary: 'rgb(31 33 43)',
-	// The chrome's quiet text — labels, unselected scope buttons, placeholders,
-	// the connection line. Both moved up together by a fifth, `dim` having been
-	// hard to read on the black chrome at 3.2:1; they are a ladder, and lifting
-	// one alone would have put the chrome above the panel text that sits a step
-	// over it. 4.3:1 and 5.4:1 now, against 3.2 and 4.0.
+	// The chrome's quiet text: labels, unselected buttons, placeholders. A ladder
+	// with `secondary`; lift them together.
 	dim: '#6a7090',
 	dim2: 'rgb(120 128 160)',
-	// Under the ladder, for what a line carries but is not read for: a log
-	// line's time and leading ticket ref. About 2.8:1, so it recedes behind
-	// `secondary`.
+	// Under the ladder, for a log line's time and leading ref.
 	faint: '#4e546c',
-	// What anything the pointer is over takes on, throughout: buttons, rows,
-	// menu items. A lift off whatever it sits on rather than a colour of its
-	// own, so it reads the same on the panel as on the board.
+	// What anything under the pointer takes on: a lift, not a colour.
 	hover: 'rgba(255,255,255,0.04)',
-	// What the confirming button in a row is filled with — `hover` a step
-	// further up, and a wash rather than a colour for the same reason: it sits
-	// on the panel, on a modal and inside the diff's own composer, whose ground
-	// is the flat colour this used to be painted in.
+	// The confirming button in a row: `hover` a step further up.
 	raised: 'rgba(255,255,255,0.055)',
 	raisedHover: 'rgba(255,255,255,0.1)',
 	accent: '#76d4ff',
-	// The accent laid over whatever is underneath, for the one thing a link or
-	// a follow is pointing at: the log's followed line, the comment a log line
-	// leads to. Faint on purpose — it says "this one", not "look here".
+	// The accent as a faint wash, for the one thing a link or follow points at.
 	accentWash: 'rgba(118, 212, 255, 0.1)',
 	// The accent as the edge of a selected card: the only accent it carries.
 	accentEdge: 'rgba(118, 212, 255, 0.65)',
@@ -108,10 +76,8 @@ export const GUI_THEME = {
 	scrim: 'rgba(0, 0, 0, 0.5)',
 };
 
-// The Board series split by what kind of change each event was. Tickets keeps
-// the accent, being both the bulk of the log and what "Board" meant before the
-// split; the rest are spaced around the wheel at a matching lightness. Green is
-// avoided throughout — that is the commit series.
+// The Board series split by kind of change. Tickets keeps the accent; no
+// green, which is the commit series.
 export const EVENT_CATEGORY_COLORS = {
 	tickets: GUI_THEME.accent,
 	comments: '#ffd479',
@@ -119,10 +85,7 @@ export const EVENT_CATEGORY_COLORS = {
 	assigning: '#ff9ecd',
 } as const;
 
-// The Contributors series, which is not a kind of event but a way of splitting
-// every kind. Its own hue rather than the Board accent: it plots what "Board
-// events" plots, so sharing a colour would leave the two rows saying the same
-// thing.
+// The Contributors series: its own hue, since it plots what Board events do.
 export const BOARD_CONTRIBUTOR_COLOR = '#7fd8c4';
 
 export const getContrastTextColor = (backgroundColor: string): string => {

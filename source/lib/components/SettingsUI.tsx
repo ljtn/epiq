@@ -14,11 +14,7 @@ type StepRowProps = {
 	isDone: boolean;
 	command: string;
 	value?: string;
-	/**
-	 * How to reach this step, when it is the one being asked for. The first step
-	 * is typed; every one after it is already in the command line, so telling
-	 * somebody to type it again would be telling them to type over it.
-	 */
+	/** How to reach the step: typed for the first, already in the line after. */
 	verb?: string;
 	hint?: React.ReactNode;
 };
@@ -53,10 +49,8 @@ const StepRow: React.FC<StepRowProps> = ({
 };
 
 /**
- * The claimed addresses as the step shows them, inside the width it has.
- *
- * The row it sits on spends about 28 columns on its tick, verb and command
- * before the value starts, and the box around it has a border either side.
+ * The claimed addresses, fitted to the step row's width. 34: the row spends about 28
+ * columns on its tick, verb and command, and the box has a border either side.
  */
 export const claimedAddresses = (
 	emails: string[],
@@ -110,10 +104,7 @@ export default function SettingsUI({width, height}: Props) {
 			key: 'emails',
 			done: isSetEmails,
 			command: ':config emails',
-			// Cut to fit. Every other step's value is a word — a username, `vim`,
-			// `on` — and this one is addresses, which run to 254 characters each
-			// and come in pairs. Unbounded it wraps the row out of the box the
-			// setup screen draws it in.
+			// Cut to fit: addresses run long and would wrap out of the box.
 			value: emailSetupDeclined
 				? 'declined'
 				: claimedAddresses(claimedEmails, width),
@@ -158,9 +149,7 @@ export default function SettingsUI({width, height}: Props) {
 
 					const isActive = index === activeStepIndex;
 
-					// The first step is the only one typed from scratch, so it is where
-					// the shortcut is worth showing. Every later one is already in the
-					// command line, waiting for its value.
+					// Only the first step is typed from scratch, so only it shows the shortcut.
 					const isFirstAsk = isActive && activeStepIndex === 0;
 
 					return (
@@ -176,11 +165,7 @@ export default function SettingsUI({width, height}: Props) {
 											{' then '}
 											<Text color={theme.accent}>tab</Text>
 											{' to auto-complete '}
-											{/* The chip the command would become, drawn like the
-											    one beside it, so the two read as the before and
-											    after of one keystroke. Taken from the step rather
-											    than written out, so it stays true if the order
-											    of the steps ever changes. */}
+											{/* The chip the command becomes, taken from the step. */}
 											<Text backgroundColor={theme.secondary}>
 												{` ${step.command.split(' ').pop()} `}
 											</Text>
@@ -188,9 +173,7 @@ export default function SettingsUI({width, height}: Props) {
 									) : undefined
 								}
 							/>
-							{/* The one step that asks about something in the repository
-							    rather than about a preference, so it has to show what it
-							    found before the numbers in its command mean anything. */}
+							{/* The repository's addresses, so the step's numbers mean something. */}
 							{step.key === 'emails' && !step.done && <EmailCandidates />}
 						</Box>
 					);

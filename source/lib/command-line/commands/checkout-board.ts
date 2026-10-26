@@ -9,11 +9,8 @@ import {
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getState, patchState, resetState} from '../../state/state.js';
 
-// Rewind the board to a historical point in time. Shared by `:peek` (which then
-// holds the snapshot read-only) and `:replay` (which then animates forward from
-// it). Materializes everything up to `targetTime`, leaving the later events for
-// the caller to either ignore (peek) or play back (replay). On any failure the
-// previous live state is restored so the caller is never left mid-checkout.
+// Rewinds the board to `targetTime` for `:peek` and `:replay`, leaving later
+// events to the caller. Restores live state on any failure.
 export const checkoutBoardAt = ({
 	boardId,
 	targetTime,
@@ -23,9 +20,7 @@ export const checkoutBoardAt = ({
 	boardId: string;
 	targetTime: number;
 	stateBranchRoot: string;
-	// Where to land the selection after navigating to the historical board. Peek
-	// keeps the usual first item; replay passes -1 to suppress the highlight while
-	// the movie plays.
+	// Selection after navigating; replay passes -1 to hide it during the movie.
 	selectedIndex: number;
 }): Result<{unappliedEvents: AppEvent[]}> => {
 	const previousState = getState();

@@ -8,20 +8,8 @@ import {IconChevronDown} from './IconChevronDown';
 import {IconClose} from './IconClose';
 import {SectionRule} from './SectionRule';
 
-// The board's setup, as against its content: who the viewer is, what this
-// machine does on its own, which repos are read. One panel from the right
-// edge under the topbar rather than a popover and a modal, so each setting
-// has a fixed place and the board stays in view behind it.
-//
-// Built like the ticket aside — the same shadow and padding — and told apart
-// from it by its face and its ground: the prose font on a well of cards,
-// where every panel about the board's work is monospace on the raised panel.
-// It is about the system, not the work.
-//
-// One card per section, under a heading for its scope: the sections are
-// about the viewer, this machine and the project, and the heading says which
-// before any card does. Only the section the panel was opened for is
-// unfolded, so the control that opened it lands on what it promised.
+// The board's setup: identity, this machine's behaviour, repos. A panel from
+// the right in the prose font, one card per section; only the asked-for one opens.
 
 export type SettingsSection = 'identity' | 'addresses' | 'sync' | 'repos';
 
@@ -136,9 +124,7 @@ const Fold = ({
 			</button>
 
 			{open && (
-				// A shade down from the header, so the header reads as the handle
-				// and the body as what it opened. A tint of the card, not a
-				// colour of its own, and no rule between: the shade is the edge.
+				// A shade below the header, so the shade is the edge.
 				<div
 					style={{
 						// Less below than beside: what ends a body carries padding of
@@ -189,9 +175,7 @@ export const SettingsPanel = ({
 	const panel = useDismissOnOutsideClick(true, onClose, keepOpenFor);
 	const scroller = useRef<HTMLDivElement | null>(null);
 
-	// Focus on opening, and back where it was on closing: opened from the
-	// keyboard, Tab must move through the panel rather than past it, and
-	// Escape must leave the reader where they were.
+	// Focus moves in on open and back on close.
 	useEffect(() => {
 		const before = document.activeElement;
 		panel.current?.focus();
@@ -205,9 +189,7 @@ export const SettingsPanel = ({
 	);
 	const [top, setTop] = useState(0);
 
-	// Measured rather than taken from a constant: the topbar wraps on a narrow
-	// window, and a banner above it comes and goes; the panel must start where
-	// it ends either way.
+	// Measured: the topbar wraps and a banner comes and goes.
 	useLayoutEffect(() => {
 		const place = () =>
 			setTop(below.current?.getBoundingClientRect().bottom ?? 0);
@@ -232,12 +214,8 @@ export const SettingsPanel = ({
 		setOpen(prev => (prev.has(section) ? prev : new Set([...prev, section])));
 	}, [section]);
 
-	// Scrolled to the section asked for, and kept there while the sections
-	// above it fill: everything here is fetched on opening, so the section
-	// moves down as the answers land. Held until the viewer scrolls or presses
-	// anything in it — a list opened there must not be pulled from under the
-	// pointer — read off their input rather than off scroll events, since those
-	// are also what the holding causes.
+	// Keeps the asked-for section in view while those above it load, until the
+	// viewer's own input (not scroll events, which this causes).
 	useEffect(() => {
 		const pane = scroller.current;
 		if (!pane || section === 'overview') return;
@@ -297,9 +275,7 @@ export const SettingsPanel = ({
 				maxWidth: '100vw',
 				boxSizing: 'border-box',
 				zIndex: Z_INDEX,
-				// A well, not the aside's raised panel: the cards carry the lift,
-				// so the ground under them stays back. The edge is the chrome's
-				// quieter one for the same reason.
+				// A well, so the cards carry the lift.
 				background: GUI_THEME.well,
 				borderLeft: `1px solid ${GUI_THEME.edgeOnChrome}`,
 				boxShadow: '-10px 0 24px rgba(0, 0, 0, 0.45)',
@@ -342,9 +318,7 @@ export const SettingsPanel = ({
 				</IconButton>
 			</div>
 
-			{/* Everything under the title scrolls as one page. The padding is
-			    the scroller's, so the bar runs along the panel's own edge rather
-			    than through the cards' margin. */}
+			{/* One scroller under the title, its bar along the panel's edge. */}
 			<div
 				ref={scroller}
 				data-testid="settings-scroller"

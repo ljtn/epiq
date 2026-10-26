@@ -173,10 +173,7 @@ export const CommandLine: React.FC<{width: number; mode: ModeUnion}> = ({
 		validationStatus,
 	} = state;
 
-	// Pending alone is not an error: every confirmed command passes through a
-	// pending window while its action runs, and painting the lingering hint red
-	// there reads as a false "validation failed" flash. Red is reserved for a
-	// failed result, which arrives as pending + invalid.
+	// Pending alone isn't failure; red means pending + invalid.
 	const isFailureMessage =
 		commandIsPending && validationStatus === cmdValidity.Invalid;
 
@@ -200,13 +197,7 @@ export const CommandLine: React.FC<{width: number; mode: ModeUnion}> = ({
 		};
 	}, [commandIsPending]);
 
-	// Outside the line's own memo: this changes several times a second while a
-	// command runs, and re-styling every character for it would be work for a
-	// single column. It also picks up `mode`, which the memo reads without
-	// listing.
-	// Outside the line's own memo: this changes several times a second while a
-	// command runs, and re-styling every character for it would be work for a
-	// single column.
+	// Outside the line's memo: it changes several times a second while a command runs.
 	const sigil = commandLineSigil({
 		isPalette: mode === Mode.PALETTE,
 		isPending: commandIsPending,
@@ -282,12 +273,7 @@ export const CommandLine: React.FC<{width: number; mode: ModeUnion}> = ({
 				borderStyle="round"
 				width={width}
 			>
-				{/*
-				 * One row, whatever is in it. The command being edited holds its
-				 * width and the hint gives way: it was the other way round, so a
-				 * long list of editors clipped the command to `:config edito` and
-				 * pushed the cursor onto a second line inside the box.
-				 */}
+				{/* One row: the command keeps its width and the hint gives way. */}
 				<Box height={1} flexWrap="nowrap">
 					<Box flexShrink={0}>
 						<Text wrap="truncate-start">

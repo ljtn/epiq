@@ -1,13 +1,9 @@
-// Everything a swimlane's stats panel is told, in one place.
-//
-// Types only, and no imports, for the same reason `issue-stats.model.ts` has
-// none: the GUI client reads this file the way the Node side does, and nothing
-// here is anything but JSON on a websocket.
+// Everything a swimlane's stats panel is told. Types only, no imports: the GUI
+// client reads it too.
 
 /**
- * One end of a lane's traffic — where its tickets were before, or where they
- * went after. `laneId` is null for the two cases that are not another lane:
- * a ticket filed straight into this one, and one closed out of it.
+ * One end of a lane's traffic. `laneId` is null for a ticket filed straight
+ * in or closed out.
  */
 export type LaneFlow = {
 	laneId: string | null;
@@ -40,9 +36,7 @@ export type SwimlaneStats = {
 	swimlaneId: string;
 	// Decoded from the swimlane's own ULID.
 	createdAt: number;
-	// Tickets that have been in this lane and left it. The flows below are
-	// counted over these, since a ticket sitting in the lane now has an
-	// arrival but no departure yet.
+	// Tickets that have been in this lane and left it; the flows count these.
 	departed: number;
 	arrived: number;
 	arrivesFrom: LaneFlow[];

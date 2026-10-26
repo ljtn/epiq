@@ -1,6 +1,4 @@
-// The "Flow" chart: a strand per swimlane, stacked in board order with the
-// closed lane at the bottom, and each ticket as a line running left to right
-// along the strand it sits in, stepping to another where a move took it there.
+// The "Flow" chart: a strand per swimlane, each ticket a line stepping between strands as it moves.
 
 import {GuiEventTimeline, GuiEventTimelineEntry} from '../gui-state.model';
 import {BoardView, isShown} from './series';
@@ -8,10 +6,7 @@ import {BoardView, isShown} from './series';
 // A swimlane as the board hands it over: what a strand is made from.
 export type FlowLane = {id: string; title: string};
 
-// One horizontal line of the chart. The board's own lanes come first, in the
-// order the columns stand in; a lane the window names that the board no longer
-// has follows them; the closed lane is always last, since it is where every
-// line is heading.
+// One horizontal line: board lanes in order, then lanes the board no longer has, then closed.
 export type FlowStrand = FlowLane & {
 	// The most lines the strand holds at once over the window, which is how
 	// many slots its band is fanned into. Zero on a strand nothing sits in.
@@ -30,14 +25,9 @@ export type FlowVertex = {
 	t: number;
 	// Index into the chart's strands.
 	strand: number;
-	// Which of the strand's slots the line runs in from here until its next
-	// vertex, so lines sharing a strand stack inside its band rather than
-	// drawing over one another. The first free slot at the moment of arrival,
-	// so the band packs from its centre out.
+	// The strand slot the line runs in until its next vertex, so lines stack, not overlap.
 	slot: number;
-	// The event that put the ticket here — a creation, a move, a close or a
-	// reopen — or null at the window's edge, where the line simply starts or
-	// stops rather than arriving.
+	// The event that put the ticket here, or null at the window's edge.
 	eventId: string | null;
 };
 
@@ -111,12 +101,8 @@ export const buildFlowChart = (
 		return {strands: [...strands, closedStrand()], paths: []};
 	}
 
-	// The events of each ticket, in the order the window holds them, which is
-	// time order. Every ticket open as the window began is listed first, with
-	// or without an event inside it: a ticket that sat still is a line all the
-	// same. Every lane the window names gets its strand here, before any ticket
-	// is dropped by a narrowing: the strata are the window's, and narrowing the
-	// tickets must not shift the lines that remain.
+	// Each ticket's events in time order, open tickets first even without one.
+	// Strands come before narrowing, so narrowing never shifts the remaining lines.
 	const byIssue = new Map<string, GuiEventTimelineEntry[]>();
 
 	for (const laneId of Object.values(timeline.lanesAtStart)) strandOf(laneId);
@@ -139,12 +125,8 @@ export const buildFlowChart = (
 	const rawPaths: FlowPath[] = [];
 
 	for (const [issue, entries] of byIssue) {
-		// A ticket is drawn when anything of it is: narrowed to comments by one
-		// person, the chart shows the tickets they commented on, with every move
-		// those tickets made — the path is the ticket's, not the event's. One
-		// with no event in the window has nothing to pass a view by kind, so it
-		// is drawn under the plain view alone, and only where the ticket
-		// narrowing keeps it.
+		// A ticket is drawn whole when any of its events passes; one with no events
+		// only under the plain view.
 		const shown =
 			entries.length === 0
 				? view === 'all' && (keptIssues === null || keptIssues.has(issue))
@@ -246,18 +228,13 @@ export const buildFlowChart = (
 // line's last vertex is a stay of no length, so the dots share the centre.
 type Stay = {start: number; end: number; vertex: FlowVertex};
 
-// Packs the stays of each strand into slots, first free slot first, in order of
-// arrival — interval colouring, so two lines on one strand at one time never
-// share a slot, and a strand's slot count is the most it holds at once.
+// Packs each strand's stays into slots by interval colouring, first free slot first.
 const assignSlots = (
 	paths: readonly FlowPath[],
 	strands: FlowStrand[],
 ): void => {
 	const stays: Stay[] = [];
-	// A line's last vertex ends the stay before it rather than starting one: an
-	// open line's edge vertex is on the strand it was already on, and would
-	// otherwise hop into a slot freed at the last moment. A close is the one
-	// last vertex on a strand of its own, and is a stay of no length there.
+	// A last vertex ends the previous stay rather than starting one, so it can't hop slots.
 	const closers: {vertex: FlowVertex; previous: FlowVertex}[] = [];
 
 	for (const path of paths) {
@@ -299,9 +276,7 @@ const assignSlots = (
 	}
 };
 
-// Where a path is at a moment: the last vertex at or before it, which names
-// the strand and the slot the line is running in. Null before the line begins
-// or after it ends.
+// The path's last vertex at or before a moment, or null outside the line.
 export const flowVertexAt = (path: FlowPath, t: number): FlowVertex | null => {
 	const first = path.vertices[0];
 	const last = path.vertices[path.vertices.length - 1];
@@ -320,9 +295,7 @@ export const flowVertexAt = (path: FlowPath, t: number): FlowVertex | null => {
 export const flowStrandOf = (path: FlowPath, t: number): number | null =>
 	flowVertexAt(path, t)?.strand ?? null;
 
-// The path under a pointer, or null. A line is a hit within `tolerance` of its
-// y at the pointer's moment; the nearest wins. Given y per vertex rather than
-// a pitch so the caller's layout is the one truth about where the lines are.
+// The nearest path within `tolerance` of the pointer, or null.
 export const flowPathAt = (
 	paths: readonly FlowPath[],
 	t: number,

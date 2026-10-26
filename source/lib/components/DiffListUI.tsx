@@ -35,12 +35,8 @@ const detachCommitNodes = (commitNodes: NavNode<'FIELD'>[]) => {
 	}
 };
 
-// The sha is the node id, so both the editor hand-off and the pager can read
-// it straight back off the node — the same trick the attachment list plays
-// with its attachment ids.
-//
-// Vertical, because entering one opens its patch and the rows of a patch are
-// navigated up and down.
+// The sha is the node id, read back by the editor hand-off and the pager.
+// Vertical, as the patch rows are.
 const createCommitNode = (
 	commit: RefCommitEntry,
 	index: number,
@@ -69,11 +65,8 @@ const attachCommitNodes = (
 		.map(({value}) => value)
 		.filter(isFieldNode);
 
-	// Only when the list itself is what the reader is in. Entering a commit
-	// leaves `selectedIndex` at -1 until its patch has loaded, and this effect
-	// re-runs whenever the ticket node is replaced — any sync or write. Without
-	// the context check, one arriving in that window threw the reader out of the
-	// patch they were reading and back to the list.
+	// Only while the list itself is the context, or a sync during a patch's load
+	// throws the reader back to the list.
 	if (
 		commits.length > 0 &&
 		getState().selectedIndex < 0 &&
@@ -151,9 +144,7 @@ export function DiffListUI({ticket, width, height}: Props) {
 
 	const {selectedIndex, contextNode} = useAppState();
 
-	// Entering a commit opens its patch. The list stays mounted underneath —
-	// unmounting it would detach the very nav node the pager is now the context
-	// of, and navigation would have nowhere to go back to.
+	// The list stays mounted under the pager, whose context is its nav node.
 	const openCommit =
 		commits?.find(candidate => candidate.sha === contextNode.id) ?? null;
 

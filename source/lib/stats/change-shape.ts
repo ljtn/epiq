@@ -1,9 +1,4 @@
-// The shape of a ticket's change: how big it is, how it is spread, and how
-// much of it the ticket spent rewriting itself.
-//
-// Nothing here is a verdict. A wide change is not worse than a narrow one —
-// it is a different thing to read, and the point of the numbers is to say
-// which kind of reading this is before anyone opens the diff.
+// The shape of a ticket's change: its size, its spread, and its self-churn.
 
 import {filePointer} from './file-pointer.js';
 import {ChangeShape, FilePointer, StatsCommit} from './issue-stats.model.js';

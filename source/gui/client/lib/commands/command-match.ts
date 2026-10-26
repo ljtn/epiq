@@ -1,6 +1,4 @@
-// Matching and ranking for the palette, over commands and over the arguments of
-// a two-stage one alike — both are "a label, maybe some extra words to find it
-// by", so both go through here.
+// Matching and ranking for the palette, over commands and their arguments.
 
 export type Matchable = {
 	id: string;
@@ -16,9 +14,8 @@ export type Match<T> = {
 	score: number;
 };
 
-// A subsequence rather than a substring: "cmt" finds "Comment on ticket", which
-// is what anyone typing quickly expects. Returns where it matched, so the row
-// can mark the same characters the reader aimed at.
+// A subsequence, so "cmt" finds "Comment on ticket". Returns the matched
+// positions for highlighting.
 const subsequenceHits = (text: string, query: string): number[] | null => {
 	const lowerText = text.toLowerCase();
 	const hits: number[] = [];
@@ -35,9 +32,7 @@ const subsequenceHits = (text: string, query: string): number[] | null => {
 	return hits;
 };
 
-// Higher is better. Three things earn points, in the order a reader would rank
-// them: the query is a prefix of what they are looking at, the match is
-// unbroken, and it starts early.
+// Higher is better: prefix, then unbroken, then early.
 const scoreHits = (text: string, query: string, hits: number[]): number => {
 	const prefix = text.toLowerCase().startsWith(query) ? 1000 : 0;
 
@@ -50,14 +45,8 @@ const scoreHits = (text: string, query: string, hits: number[]): number => {
 };
 
 /**
- * Ranks `items` against `query`.
- *
- * An empty query is the palette's resting state rather than a match of
- * everything: `recentIds` leads, most recent first, and the rest keep the order
- * they were declared in — which is grouped, and deliberate.
- *
- * `rank` orders within equal scores. It is what keeps unavailable commands last
- * without hiding them, the way the TUI palette does.
+ * Ranks `items` against `query`. An empty query lists `recentIds` first, then
+ * the rest in declared order; `rank` orders within equal scores.
  */
 export const matchItems = <T extends Matchable>(
 	items: readonly T[],
@@ -65,10 +54,7 @@ export const matchItems = <T extends Matchable>(
 	options: {
 		recentIds?: readonly string[];
 		rank?: (item: T) => number;
-		// Kept after ranking, so what survives is the best of the whole set and
-		// not the first N it happened to scan. A project can hold thousands of
-		// tickets and the list is a picker: nobody reads past the top of it, and
-		// a row that is never read still costs a DOM node to build.
+		// Applied after ranking, so the best of the whole set survive.
 		limit?: number;
 	} = {},
 ): Match<T>[] => {
@@ -111,9 +97,7 @@ export const matchItems = <T extends Matchable>(
 			];
 		}
 
-		// The keywords carry the TUI spelling and a ticket's ref, so `:tag` finds
-		// "Add a tag" and `ABC1234` finds the ticket it names. No hits: nothing in
-		// the title to mark.
+		// Keywords carry the TUI spelling and a ticket's ref; no title hits to mark.
 		const byKeyword = [item.id, ...(item.keywords ?? [])].some(keyword =>
 			keyword.toLowerCase().includes(normalized),
 		);

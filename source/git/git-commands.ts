@@ -21,15 +21,8 @@ export const git = {
 			cwd,
 		}),
 
-	// `pathspec` commits only those paths and ignores the rest of the index.
-	// Without it a commit takes whatever the user happened to have staged, which
-	// in their own repo means committing work that is not ours to commit.
-	//
-	// `--no-verify`: every call here is epiq's own bookkeeping — the state
-	// branch, or `.epiq/project.json` on init — never the user's application
-	// changes, so a repo's pre-commit hook has nothing of ours to check. On the
-	// state branch it is actively wrong: that worktree holds only `.epiq/`, no
-	// package.json, so a hook built for the user's repo fails outright there.
+	// `pathspec` keeps the user's own staged work out of the commit.
+	// `--no-verify`: these are epiq's bookkeeping commits, where the repo's hooks would fail.
 	commit: ({
 		cwd,
 		message,
@@ -53,9 +46,7 @@ export const git = {
 			cwd,
 		}),
 
-	// Explicit refspec: FETCH_HEAD is shared by every process using this
-	// worktree, and a concurrent fetch leaves more than one entry in it. A named
-	// remote-tracking ref is not clobbered that way.
+	// Explicit refspec: FETCH_HEAD is shared by concurrent fetches, a tracking ref is not.
 	fetch: ({
 		cwd,
 		remote,
@@ -84,10 +75,7 @@ export const git = {
 	checkout: ({cwd, branch}: {cwd: string; branch: string}) =>
 		execGit({args: ['checkout', branch], cwd}),
 
-	// `--no-verify`: same reasoning as `commit` above — this is epiq's own state
-	// branch push, and this repo's pre-push hook (lint/build/test/e2e/gui) has
-	// no business running against that storage-only worktree. It currently
-	// fails there outright, since `npm run` finds no package.json to work with.
+	// `--no-verify`: as for `commit`, the repo's hooks don't belong on the state branch.
 	push: ({
 		cwd,
 		remote,

@@ -2,26 +2,14 @@ import {LaneVisit} from '../utils/lane-dwell.js';
 import {medianOfSorted} from '../utils/number.js';
 import {LaneStayPoint} from './swimlane-stats.model.js';
 
-// Whether a lane is getting slower, which none of its current figures can say.
-//
-// A lane's median stay today is one reading; the same reading taken on each of
-// the last thirty days is a slope. Every ticket's visits say exactly which lane
-// it was in at any past moment and when it got there, so each day's figure is
-// reconstructed rather than remembered — no snapshot has to have been kept.
-//
-// Driven from the visits rather than from the days: a stay already knows the run
-// of days it covers, so each one is counted into the lane it was actually in.
-// Asking every lane about every ticket on every day gives the same answer and
-// costs the product of all four.
+// Each lane's daily median stay over recent days, rebuilt from ticket visits.
+// Driven per visit, not per lane per day.
 
 const DAY = 24 * 60 * 60 * 1000;
 
 /**
- * One point per day for each of `laneIds`, oldest first, ending at `now`.
- *
- * `journeys` is every ticket's visits — including tickets that have long since
- * left, since what makes the line move is as much what left the lane as what is
- * standing in it.
+ * One point per day per lane, oldest first, ending at `now`. `journeys`
+ * includes tickets that have since left.
  */
 export const deriveLaneStayTrends = ({
 	laneIds,

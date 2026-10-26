@@ -23,11 +23,7 @@ export const commitRepoKeys = (
 export const showsRepoToggles = (keys: readonly string[]): boolean =>
 	keys.length > 1;
 
-/**
- * What is hidden in effect: only repos with a toggle on screen, so a repo
- * hidden in a wider window and alone in this one is not hidden with nothing
- * to show it again by.
- */
+/** Hidden in effect: only repos with a toggle on screen, so none hides unseen. */
 export const effectiveHidden = (
 	keys: readonly string[],
 	hidden: ReadonlySet<string>,
@@ -57,10 +53,8 @@ export const prunedHidden = (
 };
 
 /**
- * The repo filter as the scrubber and the log share it. Not remembered: the
- * repos on offer are whichever the window's commits name. `registered` is the
- * repo list when it is known: a repo removed is unhidden, so it is not hidden
- * again if it comes back.
+ * The repo filter the scrubber and the log share; not remembered. A repo no
+ * longer `registered` is unhidden.
  */
 export const useCommitRepoFilter = (
 	commits: GuiCommitEntry[],

@@ -1,8 +1,4 @@
-/**
- * Runs `check` on a timer until stopped. The pause is at least as long as the
- * last run took, so a slow check on a large board cannot keep its process
- * busy back to back.
- */
+/** Runs `check` on a timer, pausing at least as long as the last run took. */
 export const startPacedWatch = (
 	check: () => Promise<unknown>,
 	intervalMs: number,

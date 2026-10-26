@@ -1,9 +1,6 @@
 /**
- * Client-side attachment compression. The browser's own codecs do the work,
- * keeping heavy image dependencies (sharp/libvips) out of the binary.
- *
- * Pipeline: decode → downscale to a sane long edge → re-encode as webp,
- * stepping quality down until the blob fits under the cap.
+ * Client-side attachment compression with the browser's codecs: downscale,
+ * then re-encode as webp, stepping quality down until it fits the cap.
  */
 
 const MAX_LONG_EDGE = 1600;

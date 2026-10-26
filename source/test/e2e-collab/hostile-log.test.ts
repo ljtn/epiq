@@ -1,13 +1,6 @@
 /**
- * A peer's event log arrives over git as arbitrary bytes. Nothing on the read
- * path may assume a well-behaved writer produced them: a half-written line
- * survives `merge=union` into every clone, an id is chosen by whoever writes
- * it, and the log is append-only, so anything that stops the board here stops
- * it for everybody, permanently.
- *
- * Every case asserts the same four things: the board still opens on both
- * machines, both derive the same order from the same events, both see the same
- * issues, and writes still work afterwards.
+ * A peer's log is arbitrary bytes. Each case asserts the board still opens on
+ * both machines, with the same order and issues, and still takes writes.
  */
 import {afterAll, describe, expect, it} from 'vitest';
 import {encodeTime} from 'ulid';
@@ -33,9 +26,7 @@ afterAll(() => {
 	for (const collab of running) cleanUp(collab);
 });
 
-// The log the actor writes now, so the hostile bytes land where a real peer's
-// would. `upgrade.test.ts` owns the case where they are in a log named the way
-// the build before ZFZFW9D named it.
+// The log the actor writes now, where a real peer's bytes would land.
 const logFileFor = (actor: Actor): string =>
 	getPersistFileName({userId: actor.userId});
 
@@ -64,11 +55,7 @@ const openProject = async (): Promise<Pair> => {
 	return {alice, mallory};
 };
 
-/**
- * Mallory publishes whatever bytes she appended, then Alice pulls them and
- * writes something of her own. The assertions live here because every case
- * wants the same ones.
- */
+/** Mallory publishes her bytes, then Alice pulls and writes; the shared assertions. */
 const publishAndSettle = async ({alice, mallory}: Pair, label: string) => {
 	const published = await runActor(mallory, {actions: [], sync: true});
 	expect(published.problems, `${label}: mallory publishing`).toEqual([]);
@@ -144,8 +131,7 @@ describe.concurrent(
 			async () => {
 				const pair = await openProject();
 
-				// `decodeTime(edge) + 1` cannot be encoded, so this used to make every
-				// later write fail on every machine, forever.
+				// `decodeTime(edge) + 1` cannot be encoded.
 				appendRawToOwnLog(
 					pair.mallory,
 					logFileFor(pair.mallory),
@@ -192,9 +178,7 @@ describe.concurrent(
 			TIMEOUT_MS,
 		);
 
-		// The convergence case: whichever of the two the loader keeps, both
-		// machines have to keep the same one. Ties used to be settled by
-		// `readdirSync` order, so each machine kept whichever it read first.
+		// Whichever the loader keeps, both machines must keep the same one.
 		it(
 			'derives one order when two events share an id',
 			async () => {
@@ -225,10 +209,7 @@ describe.concurrent('a log longer than the call stack', () => {
 		async () => {
 			const pair = await openProject();
 
-			// Recursing the causal chain overflowed at ~4.7k events, and every
-			// event refs its predecessor, so a log is one chain as deep as it is
-			// long. Written straight into the log rather than through 6k API calls:
-			// this is a test of the loader, not of throughput.
+			// One causal chain as deep as the log is long, written straight into the log.
 			const edge = idsInStateWorktree(pair.mallory).at(-1) ?? null;
 			const lines: string[] = [];
 			let previous = edge;

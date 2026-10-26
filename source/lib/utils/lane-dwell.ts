@@ -18,12 +18,8 @@ const parentOf = (event: AppEvent): string | null => {
 export type LaneVisit = {laneId: string; enteredAt: number};
 
 /**
- * Every lane the ticket has been in, oldest first, read off its own log.
- *
- * The parent is compared rather than counted: dragging a card up its own column
- * writes a move carrying the lane it is already in, which is not a visit. One
- * walk answers all three questions a lane gets asked — when a ticket arrived,
- * where it came from, and where it went next.
+ * Every lane the ticket has been in, oldest first, from its log. A move to
+ * its current lane is not a visit.
  */
 export const laneVisits = (
 	log: readonly AppEvent[],

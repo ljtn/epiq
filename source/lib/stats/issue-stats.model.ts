@@ -1,9 +1,5 @@
-// Everything a ticket's Stats tab is told, in one place.
-//
-// Types only, and no imports at all, so the GUI client can read this file the
-// same way the Node side does without dragging anything runnable across the
-// boundary that separates them. Nothing here holds a Map or a Set: every field
-// travels over a websocket as JSON.
+// Everything a ticket's Stats tab is told. Types only, no imports, all
+// JSON-serializable: the GUI client reads it too.
 
 export type StatsCommit = {
 	sha: string;
@@ -14,13 +10,7 @@ export type StatsCommit = {
 	subject: string;
 };
 
-/**
- * A file, and the last of the ticket's commits to touch it.
- *
- * The sha is what makes a stat a place rather than a number: a reader who sees
- * "22% of the change is in one file" wants that file's diff, and the pair is
- * exactly what the Commits tab's deep link takes.
- */
+/** A file and the last ticket commit to touch it, as the Commits tab links it. */
 export type FilePointer = {
 	path: string;
 	sha: string;
@@ -37,24 +27,18 @@ export type ChangeShape = {
 	filesModified: number;
 	filesDeleted: number;
 	binaryFiles: number;
-	// How many distinct directories the change touches. One file in each of
-	// fourteen directories and fourteen files in one are the same +/- and
-	// nothing like the same review.
+	// Distinct directories the change touches.
 	directories: number;
 
 	insertions: number;
 	deletions: number;
 	net: number;
 
-	// The single busiest file, and its share of every changed line. A ticket
-	// at 0.9 is one file's rewrite with some tidying; at 0.1 it is spread
-	// evenly and there is no obvious place to start.
+	// The busiest file and its share of every changed line.
 	largestFile: (FilePointer & {changed: number}) | null;
 	concentration: number;
 
-	// Lines the ticket added and then removed again in a later commit of its
-	// own — thrash it did to itself, as against churn against what was already
-	// there.
+	// Lines the ticket added and then removed in a later commit of its own.
 	selfChurn: number;
 	// A cap cut the scan short, so every count below is a floor.
 	truncated: boolean;
@@ -79,9 +63,8 @@ export type LanguageBreakdown = {
 };
 
 export type TestSignal = {
-	// Lines, not a ratio against the code beside them: test-lines-per-code-line
-	// says more about how a language is written than about whether a change is
-	// tested, and a number nobody can act on is a number in the way.
+	// Lines, not a test-to-code ratio, which reflects the language more than
+	// testing.
 	testLinesAdded: number;
 	testLinesRemoved: number;
 
@@ -100,9 +83,7 @@ export type LanguageCommentShare = {
 	codeLines: number;
 	// Comments as a share of the lines that are not blank.
 	share: number;
-	// The same share across the repository just before this ticket, or null
-	// when there was no baseline to read. Null renders as "no comparison",
-	// never as zero.
+	// The repo's share just before this ticket; null means no comparison, not zero.
 	repoShare: number | null;
 };
 
@@ -125,9 +106,7 @@ export type ChangeFlags = {
 
 	debugPrintLinesAdded: number;
 
-	// Nesting in levels of the file's own indentation. An approximation, and
-	// nothing more: it is not cyclomatic complexity and does not stand in for
-	// it.
+	// Nesting in indentation levels; an approximation, not cyclomatic complexity.
 	maxIndentLevels: number;
 	// Where that deepest nesting is, so the number is a place to look.
 	deepestFile: FilePointer | null;

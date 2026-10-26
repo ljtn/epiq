@@ -1,17 +1,8 @@
 import {RefObject, useCallback, useEffect, useRef} from 'react';
 
 /**
- * A canvas that stays sharp, and a frame loop that stops when the drawing does.
- *
- * The surface is sized in device pixels with the context scaled to match, or
- * what is drawn on it is blurry on a retina display, and it is resized with its
- * parent. `paint` is asked for a frame on every resize, and on each animation
- * frame while it answers that it is still going; the first frame that says it
- * has settled ends the loop and calls `onSettled`.
- *
- * The scrubber draws two canvases — the flow's strands and the scatter's dots —
- * and they had this apiece, to the line. What differs between them is `paint`,
- * which is the drawing itself; keeping the surface underneath is one job.
+ * A canvas sized in device pixels, and a frame loop that runs while `paint`
+ * says it is still going, then calls `onSettled`.
  */
 export const useCanvasSurface = ({
 	canvasRef,

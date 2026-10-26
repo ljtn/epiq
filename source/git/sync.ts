@@ -104,24 +104,10 @@ const ensureSyncReady = async ({
 
 	logger.debug('[sync] state branch root', stateBranchRoot);
 
-	// Before anything touches the worktree, because the first thing bootstrap
-	// does is check out the state branch, and a `index.lock` left by a killed
-	// git stops that with "Another git process seems to be running" — which is
-	// how a crash used to wedge a board for good (`TATEM5B`).
-	//
-	// That nobody is running it has to be known rather than assumed, because
-	// unwinding a live rebase is the very failure `sync-lock.ts` was written to
-	// stop. Two things make it knowable: this runs under that lock, and the lock
-	// says how it was come by. `clean` or `dead` means the previous holder is
-	// gone and the operating system said so. `stale` means a live process's
-	// claim was broken on age alone — its worktree is not ours to touch, and the
-	// refusal below stands for that case exactly as it did before.
+	// Clears a dead process's git leftovers before bootstrap checks out the branch.
+	// Not on a `stale` claim: its holder may still be alive.
 	if (claim !== 'stale' && fs.existsSync(stateBranchRoot)) {
-		// Git takes `<file>.lock` before writing `<file>` and removes it after; a
-		// process killed in between leaves it, and every later git refuses.
-		// Every `.lock` here is a dead writer's, with one exception: our own
-		// claim over this worktree, which lives in the same directory and ends
-		// the same way.
+		// Every `.lock` here is a dead writer's, except our own sync lock.
 		const locksResult = await clearStaleGitLocks(stateBranchRoot, {
 			preserve: [SYNC_LOCK_FILE],
 		});
@@ -134,10 +120,7 @@ const ensureSyncReady = async ({
 			});
 		}
 
-		// And the lock git leaves in the common directory, which the sweep above
-		// cannot see: refs live there rather than in a linked worktree's own git
-		// directory, so a `git commit` killed mid-update leaves the state branch
-		// unlockable and every later sync fails with "cannot lock ref".
+		// The ref lock lives in the common git dir, out of the sweep's reach.
 		const branchResult = getStateBranch(repoRoot);
 		if (isFail(branchResult)) return failed(branchResult.message);
 
@@ -154,12 +137,7 @@ const ensureSyncReady = async ({
 			});
 		}
 
-		// Abort rather than `--quit` or removing the state directory: a rebase
-		// autostashes the appends made while it ran, and only abort puts them
-		// back. It returns to the pre-rebase HEAD, which still carries every
-		// local commit, so the pull further down simply starts the rebase again.
-		// A rebase that will not unwind reports its own failure, naming the
-		// worktree.
+		// Abort, not `--quit`: only abort restores the appends the rebase autostashed.
 		const abortResult = trace(
 			'abortRebaseIfPresent(stateBranchRoot)',
 			await abortRebaseIfPresent(stateBranchRoot),
@@ -203,11 +181,7 @@ const ensureSyncReady = async ({
 	});
 
 	if (stateOpResult.value !== null) {
-		// Whatever is still here after the clearing above is not this process's
-		// to force: a merge, which sync never starts, so it came from outside
-		// epiq — or anything at all when the claim was `stale` and nothing was
-		// cleared. It says where, now, because the answer is a git command run
-		// in a directory the reader has no reason to know about.
+		// Not ours to force; the message names the worktree so the user can resolve it.
 		logger.info('[sync] state branch git operation in progress', {claim});
 
 		return failed(
@@ -261,11 +235,7 @@ const commitOwnEventFileToStateBranch = async ({
 		ownEventFileName,
 	});
 
-	// Every log this actor owns, not just the one they write to now. A machine
-	// upgraded across ZFZFW9D still holds its older `<id>.<name>.jsonl`, and a
-	// line flushed into that one but never committed would otherwise sit there
-	// unstaged for good. Each is checked and staged on its own; one that has
-	// not changed stages nothing.
+	// Every log this actor owns, including one under an older `<id>.<name>.jsonl` name.
 	const stagedOwnPaths: (string | null)[] = [];
 
 	for (const fileName of ownEventFileNames(
@@ -371,9 +341,7 @@ const runSync = async (
 	{cwd = process.cwd(), ownEventFileName}: SyncArgs,
 	claim: LockClaim,
 ): Promise<Result<SyncSummary>> => {
-	// ============================
 	// Abort-guards
-	// ============================
 	logger.debug('[sync] syncEpiqWithRemote:start', {
 		cwd,
 		ownEventFileName,
@@ -396,14 +364,10 @@ const runSync = async (
 		return failed('Own event file must end with .jsonl');
 	}
 
-	// ============================
 	// Update state
-	// ============================
 	setSyncing();
 
-	// ============================
 	// Ensure ready
-	// ============================
 	const ready = trace(
 		'ensureSyncReady',
 		await ensureSyncReady({
@@ -416,9 +380,7 @@ const runSync = async (
 
 	const {repoRoot, stateBranchRoot, bootstrapped} = ready.value;
 
-	// ============================
 	// Block on detached head
-	// ============================
 	const detachedResult = trace(
 		'isDetachedHead(stateBranchRoot)',
 		await isDetachedHead(stateBranchRoot),
@@ -440,9 +402,7 @@ const runSync = async (
 	let pulled = false;
 	let pushed = false;
 
-	// ============================
 	// Commit local events before remote sync
-	// ============================
 	const stateBranchResult = trace('getStateBranch', getStateBranch(repoRoot));
 	if (isFail(stateBranchResult)) return failSync(stateBranchResult.message);
 
@@ -453,15 +413,8 @@ const runSync = async (
 		stateBranchRoot,
 	});
 
-	// Everything this actor wrote since the last sync lives in a pending file,
-	// which git does not track and therefore cannot reset out from under a
-	// writer. Folded in here: this process holds the worktree, and it is before
-	// the commit, so the lines go out with this sync rather than waiting for the
-	// next one. Own file only — the commit below takes nothing else, and other
-	// actors' lines are safer left pending than dirty in a tracked file.
-	//
-	// Not fatal on its own. The lines are still on disk and the next sync will
-	// try again — refusing to sync at all would strand them further.
+	// Folds only this actor's pending file before the commit; others' stay pending.
+	// Not fatal: the lines stay on disk.
 	const flushResult = trace(
 		'flushPendingLogs',
 		flushPendingLogs(stateBranchRoot, ownEventFileName),
@@ -483,11 +436,7 @@ const runSync = async (
 	createdCommit = localCommitResult.value.createdCommit;
 	commitSha = localCommitResult.value.commitSha;
 
-	// ============================
-	// Pull remote
-	// ============================
-	// A repository with no origin is a local-only board, not a broken one:
-	// nothing to pull or push, and nothing to fail on every autosync tick.
+	// Pull remote. No origin is a local-only board, not a broken one.
 	const remoteResult = trace(
 		'hasRemote',
 		await hasRemote({repoRoot: stateBranchRoot}),
@@ -524,11 +473,7 @@ const runSync = async (
 
 	pulled = pullResult.value;
 
-	// ============================
-	// Push remote
-	// ============================
-	// Checked after the pull, and not folded into `createdCommit`: a commit an
-	// earlier run failed to push is still ours to send.
+	// Push remote, checked apart from `createdCommit`: an earlier unpushed commit still goes.
 	const aheadResult = trace(
 		'isAheadOfUpstream',
 		await isAheadOfUpstream(stateBranchRoot),
@@ -582,9 +527,7 @@ const runSync = async (
 		pushed = pushResult.value;
 	}
 
-	// ============================
 	// Resolve commit sha
-	// ============================
 	if (createdCommit) {
 		logger.debug('[sync] resolving final sync commit sha', {
 			stateBranchRoot,
@@ -607,9 +550,7 @@ const runSync = async (
 		logger.debug('[sync] final sync commit sha', commitSha);
 	}
 
-	// ============================
 	// Update state
-	// ============================
 	setSynced(
 		pushed
 			? 'Synced and pushed'
@@ -633,18 +574,8 @@ const runSync = async (
 };
 
 /**
- * Runs the sync with the event logs on disk held to their one rule: they may
- * gain lines and lose none.
- *
- * Everything inside hands the worktree to git — a checkout, a `rebase
- * --abort`, an autostash reverting the working copy to HEAD and putting it
- * back — while other processes on this machine are appending to the same
- * directory with no lock of their own. Lines that were there when we took the
- * worktree and are not there when we give it back were lost by git, never
- * removed on purpose, so they go back.
- *
- * `finally`, because a sync that failed part-way is exactly when a rebase is
- * left half-applied.
+ * Runs the sync, then puts back any log line git dropped while unlocked writers
+ * appended. In `finally`, since a failed sync is when a rebase is left half-applied.
  */
 export const withEventLogsIntact = async <T>(
 	stateBranchRoot: string,
@@ -667,15 +598,7 @@ export const withEventLogsIntact = async <T>(
 	}
 };
 
-/**
- * Only one process may drive the state worktree at a time.
- *
- * `runExclusive` covers a single process; this covers the several that share
- * one board — a TUI, a GUI autosync, an MCP server per agent. Without it,
- * bootstrap's `git rebase --abort` could not tell a live sync's rebase from one
- * a crashed process abandoned, and recovered from the second by destroying the
- * first.
- */
+/** Only one process may drive the state worktree at a time. */
 export const syncEpiqWithRemote = async (
 	args: SyncArgs,
 ): Promise<Result<SyncSummary>> => {
@@ -693,12 +616,7 @@ export const syncEpiqWithRemote = async (
 
 	const stateBranchRoot = stateBranchRootResult.value;
 
-	// There is no worktree to hold before bootstrap creates one. Two processes
-	// racing a project's very first sync is a narrower window than this lock
-	// addresses, and taking a lock inside a directory that does not exist yet
-	// would need somewhere else to put it.
-	// Nothing to hold and nothing to recover: the worktree does not exist yet,
-	// so there is no lock to take and no rebase anybody could have left in it.
+	// No worktree yet: nothing to lock, nothing to recover.
 	if (!fs.existsSync(stateBranchRoot)) return runSync(args, 'clean');
 
 	const lockedResult = await withSyncLock({
@@ -709,9 +627,7 @@ export const syncEpiqWithRemote = async (
 	});
 	if (isFail(lockedResult)) return failSync(lockedResult.message);
 
-	// Held elsewhere. Reported as a skip rather than a failure: autosync runs
-	// every few seconds, and a contended worktree is normal traffic, not an
-	// error worth putting in front of the user each time.
+	// Held elsewhere: a skip, not a failure, since contention is normal for autosync.
 	if (lockedResult.value === null) {
 		return succeeded('Another process is syncing this board', {
 			repoRoot: repoRootResult.value,

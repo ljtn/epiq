@@ -9,19 +9,10 @@ import {SyncSettingsState} from '../lib/use-sync-settings';
 import {Input} from './FormPrimitives';
 import {Switch} from './Switch';
 
-// The two settings that were the TUI's alone: whether the board syncs itself,
-// and how often. Two rows — the switch, then the interval it runs at — each a
-// thing on the left and its control on the right.
-//
-// Seconds here, milliseconds on the wire. Nobody thinks about a sync in
-// milliseconds, and the three zeroes were the whole reason the TUI's own
-// prompt has to carry an examples list.
+// Autosync: the switch and its interval. Seconds here, milliseconds on the wire.
 
 const MIN_SECONDS = MIN_AUTO_SYNC_INTERVAL_MS / 1000;
-// A day. Past the ceiling `setTimeout` turns a very long interval into a 1ms
-// one, and this field takes seconds where the TUI's takes milliseconds — so
-// somebody carrying `3600000` over from `:config autosync-duration` is one
-// paste away from asking for it.
+// A day: past `setTimeout`'s ceiling a long interval turns into 1ms.
 const MAX_SECONDS = MAX_AUTO_SYNC_INTERVAL_MS / 1000;
 
 const secondsOf = (intervalMs: number) => String(Math.round(intervalMs / 1000));
@@ -35,14 +26,10 @@ export const IdentitySettings = ({
 }) => {
 	const settings = state.data;
 
-	// What is in the box while it is being typed in, which is not yet a
-	// setting. Committed on Enter or on leaving the field, so a half-typed "1"
-	// on the way to "15" is never sent and never refused.
+	// The box's text, committed on Enter or blur so a half-typed value is never sent.
 	const [draft, setDraft] = useState('');
 
-	// On every answer from the server, not only on a changed value: a refused
-	// write comes back with the setting unaltered, and the box must fall back
-	// to what is configured rather than keep the number that was turned down.
+	// On every answer, so a refused write falls back to the configured value.
 	useEffect(() => {
 		if (settings) setDraft(secondsOf(settings.intervalMs));
 	}, [settings?.intervalMs, state.answeredAt]);
@@ -57,13 +44,8 @@ export const IdentitySettings = ({
 
 	const seconds = Number(draft);
 
-	// What is configured is never wrong to show, whatever it is. The bounds
-	// govern what somebody may *ask* for, and a stored value below the floor is
-	// a state the loops deliberately preserve — the suites run at 1ms and
-	// `follow-arrival.pw.ts` writes 1000 into this very file. Flagging it on
-	// sight opened the panel with a red error against a number nobody typed,
-	// and `commit` wrote the same number straight back, so it could not be
-	// cleared without changing the setting.
+	// The configured value is never flagged, even below the floor: the bounds
+	// govern only what may be asked for, and tests store tiny intervals.
 	const pristine = draft === secondsOf(settings.intervalMs);
 
 	const outOfRange =
@@ -85,10 +67,7 @@ export const IdentitySettings = ({
 
 		const intervalMs = Math.round(seconds) * 1000;
 
-		// Nothing to send, but the box may still not be showing the setting:
-		// `37.4` against a configured 37s rounds to the same interval, and
-		// without this it sits there as a number that is not what is
-		// configured and never will be.
+		// Same interval after rounding: reset the box to the configured value.
 		if (intervalMs === settings.intervalMs) {
 			setDraft(secondsOf(settings.intervalMs));
 			return;

@@ -1,16 +1,6 @@
 /**
- * A write survives git resetting the log underneath it — deterministically.
- *
- * `write-during-sync.test.ts` in the collaboration suite covers the same
- * ground by racing a real writer against a real sync, and that is worth having:
- * it is the honest end-to-end shape. But it is a race, so it reports the bug
- * only when the writer happens to land inside git's window. It has passed while
- * the bug was present and failed while it was absent, which makes it useless
- * for proving either.
- *
- * The destructive step is not random, though. It is git resetting a tracked
- * file, and that can simply be done on demand. Everything here is exact: no
- * timing, no retries, no luck.
+ * A write survives git resetting the log underneath it, with the reset done on
+ * demand rather than raced, so the result is deterministic.
  */
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -59,10 +49,7 @@ beforeEach(() => {
 
 	git('init', '-q');
 
-	// The real layout, not a hand-rolled one: the merge attribute and the
-	// ignore rule that keeps a pending log untrackable are part of what is
-	// under test, and a test that wrote its own copy would pass while the
-	// product's version was wrong.
+	// The real layout: its merge attribute and ignore rule are under test.
 	const layout = ensureStateBranchLayout(repo, repo);
 	if (isFail(layout)) throw new Error(layout.message);
 
@@ -80,9 +67,8 @@ afterEach(() => {
 });
 
 describe('a write while git holds the worktree', () => {
-	// The bug, stated exactly. `git checkout -- .` is what a rebase's stash and
-	// checkout, and what `rebase --abort`, do to a tracked file: they put back
-	// the committed content and discard whatever was written since.
+	// What a rebase's stash, checkout or `--abort` does to a tracked file:
+	// restores the committed content, discarding later writes.
 	it('is destroyed when it went into the tracked log', () => {
 		fs.appendFileSync(path.join(eventsDir, TRACKED), eventLine('written'));
 		expect(idsIn(TRACKED)).toEqual(['committed', 'written']);
@@ -131,11 +117,8 @@ describe('a write while git holds the worktree', () => {
 		expect(fs.existsSync(path.join(eventsDir, PENDING))).toBe(false);
 	});
 
-	// The snapshot exists to put back lines git dropped. A pending log is not
-	// something git can drop, and a sync deliberately consumes one — so if the
-	// snapshot covered it, the restore would read the flush as loss and put the
-	// file back. The lines would then sit in both, and every later sync would
-	// append them again.
+	// A sync consumes the pending log on purpose; the snapshot must not restore
+	// it, or its lines would be appended again on every sync.
 	it('is not resurrected by the integrity snapshot after a flush', () => {
 		fs.appendFileSync(path.join(eventsDir, PENDING), eventLine('written'));
 
@@ -173,11 +156,8 @@ describe('a write while git holds the worktree', () => {
 	});
 });
 
-// The sync's order is snapshot (pending excluded), flush, stage the own file,
-// commit, hand the worktree to git, restore. Another actor sharing the worktree
-// has lines in their pending log throughout; they are committed by nobody here.
-// Folding them would put them in a tracked file with nothing behind them —
-// leaving them pending is what keeps them.
+// Another actor's pending lines are committed by nobody here, so a sync must
+// leave them pending rather than fold them.
 describe("another actor's pending log during someone else's sync", () => {
 	const OTHER = '01hzzother.bo.jsonl';
 

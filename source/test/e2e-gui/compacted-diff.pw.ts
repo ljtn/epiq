@@ -18,9 +18,7 @@ const openDiffTab = async (page: Page, appUrl: string, title: string) => {
 	return new URL(page.url()).pathname.split('/issue/')[1]!;
 };
 
-// Two commits to one file, so the compacted diff has something to compact:
-// per-commit it reads as two changes, compacted as one file going from the
-// first state to the last.
+// Two commits to one file: per-commit two changes, compacted one.
 test('the compacted view shows a file once, however many commits touched it', async ({
 	page,
 	appUrl,
@@ -56,8 +54,8 @@ test('the compacted view shows a file once, however many commits touched it', as
 	expect(pageErrors).toEqual([]);
 });
 
-// TCYD699 decided B: each row carries the last of the ticket's commits to
-// touch that file, so there is something for a tick to be recorded against.
+// Each row carries the last of the ticket's commits to touch that file, for
+// the tick to be recorded against.
 test('a file ticked off in one view is ticked off in the other', async ({
 	page,
 	appUrl,
@@ -80,10 +78,7 @@ test('a file ticked off in one view is ticked off in the other', async ({
 	await expect(tick).toHaveCount(1);
 	await tick.check();
 
-	// One commit touched this file, so both views key the tick the same way
-	// and it is the same tick. Where several of a ticket's commits touched a
-	// file, the compacted view's tick belongs to the last of them — the
-	// earlier commits' copies are a different diff and stay unticked.
+	// One commit touched this file, so both views share its tick.
 	await page.getByTestId('diff-view-commits').click();
 	await expect(
 		page.getByTestId('file-row').getByLabel('reviewed'),
@@ -92,9 +87,7 @@ test('a file ticked off in one view is ticked off in the other', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The case literal "anchor to the newest sha" gets wrong: the ticket's newest
-// commit did not touch this file, so a comment anchored there would name a
-// commit whose diff has no such file.
+// The ticket's newest commit did not touch this file, so it must not be the anchor.
 test('a comment in the compacted view lands on the commit that touched the file', async ({
 	page,
 	appUrl,
@@ -129,10 +122,7 @@ test('a comment in the compacted view lands on the commit that touched the file'
 
 	await expect(page.getByText('anchored here').first()).toBeVisible();
 
-	// Following the comment's own permalink is what says where it anchored:
-	// the commit it opens is the one recorded in the marker. Anchoring to the
-	// ticket's newest commit instead would name `second`, whose diff has no
-	// such file.
+	// The comment's permalink opens the commit it anchored to.
 	await page.getByRole('button', {name: /^Comments/}).click();
 	await page.locator('aside').getByTestId('open-in-diff').first().click();
 
@@ -142,9 +132,7 @@ test('a comment in the compacted view lands on the commit that touched the file'
 	expect(pageErrors).toEqual([]);
 });
 
-// The obstacle the whole design turns on: another ticket's commit between two
-// of this one's. The compacted diff is narrowed to this ticket's own files,
-// and the reader is told why.
+// Another ticket's commit between two of this one's narrows the compacted diff, with a note why.
 test('an interleaved commit is kept out of the compacted diff, and named', async ({
 	page,
 	appUrl,
@@ -180,10 +168,7 @@ test('an interleaved commit is kept out of the compacted diff, and named', async
 	expect(pageErrors).toEqual([]);
 });
 
-// A reload would not prove this: choosing a view writes it into the route as
-// well, and the query survives a reload — so the assertion would hold on the
-// param alone with the remembered half torn out. Arriving at a URL that names
-// no view is what asks storage the question.
+// Arrives at a URL naming no view, since a reload would keep the query param.
 test('the chosen view is remembered for a link that names none', async ({
 	page,
 	appUrl,
@@ -255,9 +240,7 @@ test('leaving the tab lets go of the view a link named', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The view is in the route so a link can name it. Without that, sending
-// someone `?tab=code` hands them whichever view they last used, which need
-// not be the one being talked about.
+// The view is in the route so a link can name it.
 test('a link names the view, over whatever this browser last used', async ({
 	page,
 	appUrl,
@@ -344,13 +327,8 @@ test('opening the tab puts the view in the address bar', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Two effects replace the query independently — this one and the board
-// selection's — and React Router builds each updater's input from the
-// render-time params rather than chaining them, so within a commit they do not
-// compose. They converge because both re-derive from what they own rather than
-// from the URL they read, and `selectIssue` rebuilding the query from `?tab=`
-// is where that gets exercised. Pinned here so the convergence is a checked
-// property rather than an assumption about hook declaration order.
+// Two effects replace the query independently; they converge only because each
+// re-derives what it owns. Pinned so that stays checked.
 test('a board selection and the diff view survive each other', async ({
 	page,
 	appUrl,
@@ -366,9 +344,7 @@ test('a board selection and the diff view survive each other', async ({
 		await page.getByTestId('add-issue').first().click();
 		await page.getByPlaceholder('ticket name').fill(name);
 		await page.getByPlaceholder('ticket name').press('Enter');
-		// This ticket's own panel: after the first pass the url is already an
-		// `/issue/` one, so a loose check passes before the second ticket exists
-		// and the board below is read without it.
+		// This ticket's own panel: a loose `/issue/` check passes early on the second pass.
 		await expect(page.locator('aside')).toContainText(name);
 	}
 

@@ -21,11 +21,8 @@ import {nodeRepo} from '../lib/repository/node-repo.js';
 import {Ticket} from '../lib/model/context.model.js';
 import {setupRepo, useTempHome} from './helpers/git-repo.js';
 
-// KWYX3CX: an event belongs to the board the ticket was on when it happened,
-// and the commits linked to it belong there too. So a ticket has to carry every
-// board it has lived on, not the one it sits on now — otherwise the board a
-// ticket was filed on loses the work done on it the moment somebody moves or
-// closes it.
+// A ticket carries every board it has lived on, so its events and commits stay
+// with the board they happened on after a move or close.
 
 useTempHome();
 
@@ -105,9 +102,8 @@ describe('the boards a ticket has lived on', () => {
 	});
 });
 
-// The same question one level up: a lane can be moved between boards too, and
-// a ticket's history must not follow it. Resolving a lane to its board as it
-// stands today would hand board A's work to board B retroactively.
+// A lane can move between boards too; a ticket's history must stay with the
+// board it happened on.
 describe('a swimlane that changes board', () => {
 	it('does not take the tickets that lived on it with it', async () => {
 		const {repoRoot, home, lane} = await seed();

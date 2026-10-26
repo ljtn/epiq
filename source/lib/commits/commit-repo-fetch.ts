@@ -35,9 +35,8 @@ import {
 /** A transfer whose size nobody knows in advance; long, but not forever. */
 const TRANSFER_TIMEOUT_MS = 30 * 60 * 1000;
 
-// Left by a remove that found the clone in use; the fetch holding it deletes
-// it on the way out. A clone goes only for a disconnect read off the log,
-// which every worktree of a board shares; never for a repo merely not listed.
+// Left by a remove: the fetch holding the clone deletes it, or it stays as a tombstone.
+// Only a remove deletes a clone, never a repo merely unlisted.
 const removalMark = (clonePath: string) => `${clonePath}.removed`;
 
 // Made, never written through: a link planted under the name is no mark, and
@@ -116,10 +115,8 @@ const readStatus = (clonePath: string): RepoFetchStatus | null => {
 
 const writeStatus = (clonePath: string, status: RepoFetchStatus) => {
 	try {
-		// Renamed into place: another process reads it without the clone's lock.
-		// `wx`: never through a link somebody planted under the name.
-		// Random beyond the pid: a dead process's leftover under a pid reused
-		// since would otherwise refuse every later write.
+		// Renamed into place; `wx` refuses a planted link; random suffix beyond the
+		// pid survives pid reuse.
 		const pending = `${statusPath(
 			clonePath,
 		)}.${ownerTag()}.${randomUUID()}.tmp`;
@@ -185,11 +182,8 @@ const git = (cwd: string, args: string[]) =>
 const SIZE_CHECK_MS = 1_000;
 
 /**
- * A transfer into `into`, held to this machine's cap: a repo listed by
- * somebody else's commit must not fill the disk. Stopped once the directory
- * passes it, and failed if it landed past it anyway — a fast transfer can
- * finish between two looks. Into an existing clone, a transfer that passed
- * the cap is undone: the clone keeps what it held.
+ * A transfer into `into`, held to this machine's size cap, and failed if it landed
+ * past the cap between checks. Into an existing clone, a transfer past the cap is undone.
  */
 const transfer = async (
 	cwd: string,
@@ -362,11 +356,7 @@ const clearTransferLeftovers = (gitDir: string) => {
 const GENERIC_GIT_LINE =
 	/could not read from remote repository|the remote end hung up unexpectedly|early EOF|fetch-pack: invalid index-pack output/i;
 
-/**
- * What a failed git call says to a person: git's first `fatal:` or `error:`
- * line that names a cause, not the argv `execGit` leads with. Whatever the
- * remote said is in it, so it is kept as plain text, and short.
- */
+/** Git's first `fatal:`/`error:` cause line, as short plain text. */
 const gitReason = (message: string): string => {
 	const lines = message
 		.split('\n')
@@ -466,21 +456,13 @@ const hasRefs = async (clonePath: string): Promise<boolean> => {
 	return !isFail(result) && result.value.stdout.trim() !== '';
 };
 
-/**
- * The window as git reads it: UTC midnight of the day, as an epoch. A bare
- * date is taken at the local time of day, which moves the cut with the hour
- * the clone happened to run at.
- */
+/** The window's day at UTC midnight, as an epoch; a bare date moves with the hour. */
 const sinceEpoch = (since: string) =>
 	Math.floor(Date.parse(`${since}T00:00:00Z`) / 1000);
 
 const shallowSince = (since: string) => `--shallow-since=@${sinceEpoch(since)}`;
 
-/**
- * Whether any branch tip falls in the window, by committer date as
- * `--shallow-since` cuts. With none, git had nothing to select; with one, a
- * refused window was some other failure.
- */
+/** Whether any branch tip falls in the window, by committer date. */
 const windowHoldsCommits = async (
 	clonePath: string,
 	since: string,
@@ -498,10 +480,8 @@ const windowHoldsCommits = async (
 };
 
 /**
- * `--shallow-since` cuts *at* the oldest commit in the window: that commit is
- * kept without its parent, so it would be left out as a boundary and its diff
- * could not be read. One commit deeper moves the cut to just outside the
- * window. Nothing to deepen in a repository with no commits yet.
+ * One commit deeper than `--shallow-since`, so the window's oldest commit
+ * keeps its parent and its diff can be read.
  */
 const deepenPastWindow = async (
 	clonePath: string,
@@ -519,16 +499,8 @@ const deepenPastWindow = async (
 };
 
 /**
- * A whole clone at `pending`, beside the clone it is to become, or nothing
- * there at all: whatever fails takes the directory with it.
- *
- * A window with no commits in it is not an error worth failing a clone over:
- * git refuses `--shallow-since` when it selects nothing, and one commit is the
- * smallest history there is. That commit is a shallow boundary, which the
- * timeline leaves out, so the repo simply shows nothing yet. Not every host
- * passes git's reason on (SSH can leave only "the remote end hung up"), so a
- * failed windowed clone is retried that way, and the retry stands only when
- * it shows the window was empty.
+ * A whole clone at `pending`, or nothing. A window git refuses as empty is
+ * retried as a one-commit clone, kept only if it proves the window empty.
  */
 const buildClone = async (
 	pending: string,
@@ -604,9 +576,7 @@ const cloneRepo = async (
 	const built = await buildClone(pending, repo, since);
 	if (isFail(built)) return built;
 
-	// The old one moved aside, the new one in, and only then the old one
-	// cleared: one that cannot be cleared leaves the new clone in place, and
-	// the sweep collects what is left.
+	// Old aside, new in, then old cleared; the sweep collects any leftover.
 	if (replace && fs.existsSync(clonePath)) {
 		const aside = `${clonePath}.${randomUUID()}.deleting`;
 		fs.renameSync(clonePath, aside);
@@ -697,10 +667,8 @@ const followDefaultBranch = async (
 };
 
 /**
- * Git's own lock files that a git process left behind. Only epiq runs git in
- * its clones, only while holding the clone's lock, and it kills its git when
- * it exits — so any found here belong to a git that is gone. Left, every
- * fetch after fails on them for good.
+ * Git lock files left in a clone; epiq's git only runs under the clone's
+ * lock, so any found here are stale.
  */
 const clearStaleGitLocks = (clonePath: string) => {
 	const visit = (dir: string, depth: number) => {
@@ -810,11 +778,8 @@ const fetchRepo = async (
 	// put back with the refs if the fetch passes the cap.
 	const before = snapshotOf(clonePath);
 
-	// What the clone tracks, checked on every fetch rather than changed on
-	// an event: a process stopped between two of these steps leaves them
-	// disagreeing, and whatever the next fetch finds, it puts right. Under
-	// `default` the remote's default is the one branch, HEAD names it and the
-	// refspec fetches it; a remote that does not say keeps HEAD's.
+	// Checked on every fetch, so whatever a stopped process left disagreeing is
+	// put right.
 	const trackResult = await trackBranches(clonePath, repo.branches);
 	if (isFail(trackResult)) return failed(trackResult.message);
 
@@ -849,9 +814,8 @@ const fetchRepo = async (
 		});
 	}
 
-	// A wider window that selects nothing is refused, and not every host says
-	// why: with nothing in it there was nothing to add, so a plain fetch
-	// stands in, and stands only when it shows the window was empty.
+	// An empty wider window is refused; a plain fetch stands in, kept only if it
+	// proves the window empty.
 	const widened = since !== null && window.length > 0;
 	const fellBack = isFail(fetchResult) && widened;
 	if (fellBack) {
@@ -891,11 +855,7 @@ export type RepoFetchOutcome = {
 	message: string;
 };
 
-/**
- * What the clone's branches point at, and where its history is cut: a fetch
- * that moved either moved the commits it holds. Widening the window moves no
- * branch at all.
- */
+/** Branch tips and the shallow cut: a fetch that moved either changed the clone. */
 const refsOf = async (clonePath: string): Promise<string> => {
 	if (!fs.existsSync(clonePath)) return '';
 
@@ -911,9 +871,8 @@ const refsOf = async (clonePath: string): Promise<string> => {
 	return `${isFail(result) ? '' : result.value.stdout}\n${shallow}`;
 };
 
-// What each clone held when this process last looked. Another process's fetch
-// moves a clone too, and only a comparison with what was seen here, rather
-// than with the moment before this process's own fetch, tells its clients so.
+// What each clone held when this process last looked, so another process's
+// fetch shows too.
 const lastSeen = new Map<string, string>();
 
 const movedSinceSeen = (clonePath: string, refs: string): boolean => {
@@ -946,9 +905,7 @@ const originOf = async (
  */
 const ignoreClonesDir = (dir: string) => {
 	const ignore = path.join(dir, '.gitignore');
-	// Looked for as a link too, and written `wx`: a dangling link planted
-	// under the name would otherwise have the file created wherever it
-	// points, as this user.
+	// `wx` and a link check, so a planted link can't redirect the write.
 	try {
 		if (fs.lstatSync(ignore, {throwIfNoEntry: false})) return;
 		fs.writeFileSync(ignore, '*\n', {flag: 'wx'});
@@ -1010,16 +967,10 @@ const deleteClone = (clonePath: string) => {
 	lastSeen.delete(clonePath);
 };
 
-// How long an explicit fetch waits for another process to let go of a clone.
-// Its pass is usually a moment's check; a real fetch outlasts this, and is
-// reported as one rather than as a fetch that happened here.
+// How long an explicit fetch waits for another process's lock on a clone.
 const EXPLICIT_LOCK_WAIT_MS = 5_000;
 
-/**
- * Whether git can read the clone at all: its config names where it came from,
- * its shallow boundary is whole, and its branch tips walk. A clone failing any
- * of these reads as empty or fails every read, while its fetches go on.
- */
+/** Whether git can read the clone: config, shallow boundary and branch tips. */
 const cloneOpens = async (clonePath: string): Promise<boolean> => {
 	const origin = await localGit({
 		cwd: clonePath,
@@ -1044,9 +995,7 @@ const cloneOpens = async (clonePath: string): Promise<boolean> => {
 	);
 };
 
-// Between start-overs of a clone that goes on breaking: at once the first
-// time, then longer, so one that breaks again straight away is no loop and
-// one broken again hours later is not left failing for hours.
+// Backoff between start-overs of a clone that keeps breaking.
 const RESTART_BACKOFF_MS = [0, 60_000, 10 * 60_000, 60 * 60_000];
 
 const backedOff = (status: RepoFetchStatus | null) => {
@@ -1078,10 +1027,8 @@ const mayStartOverFailedFetch = (status: RepoFetchStatus | null) => {
 const REACHABLE_TIMEOUT_MS = 60_000;
 
 /**
- * Why a failed fetch looks like the clone's fault rather than the remote's:
- * the clone alone is past the cap, or the remote answers by its URL while the
- * clone's own fetch of it failed. A fetch the cap stopped is the remote's
- * growth, and a fresh clone would hit the same cap.
+ * Why a failed fetch looks like the clone's fault: over the cap alone, or the
+ * remote answers while the clone's fetch failed.
  */
 const brokeHere = async (
 	clonePath: string,
@@ -1134,19 +1081,15 @@ const fetchOne = async (
 		return outcome(false, errorMessage(error));
 	}
 
-	// Decided before the lock: autosync asks every few seconds in every
-	// process, and a check that took the lock each time would turn away a fetch
-	// somebody asked for. A repo tried a moment ago with the same options is
-	// left alone, one that failed too; a sync somebody asked for passes no
-	// interval. A clock set back would otherwise hold every fetch off.
+	// Throttled before taking the lock, so autosync never blocks an explicit
+	// fetch. Explicit syncs pass no interval.
 	const previous = readStatus(clonePath);
 	if (
 		previous?.attemptedAt &&
-		// Options that changed are a reason to fetch again, unless the last
-		// attempt failed: then the remote is the reason, and changing an
-		// option on a dead one must not turn the throttle off.
+		// Changed options refetch, unless the last attempt failed.
 		(previous.error !== null ||
 			(previous.branches === repo.branches && previous.since === since)) &&
+		// A clock set back must not hold every fetch off.
 		Date.now() >= previous.attemptedAt &&
 		Date.now() - previous.attemptedAt < minIntervalMs &&
 		!fs.existsSync(removalMark(clonePath))
@@ -1178,19 +1121,14 @@ const fetchOne = async (
 	}
 
 	try {
-		// A remove that found the clone in use before this fetch began, or
-		// one that landed after this pass read its list: honoured, and not
-		// undone by a clone of what it removed. A list that merely changed
-		// under the pass — a branch switch, a pull — is no remove, and the
-		// clone goes ahead: other worktrees may still list it.
+		// A remove before or during this pass is honoured; a list that merely
+		// changed is not a remove.
 		const removed = fs.existsSync(removalMark(clonePath));
 		if (removed) deleteClone(clonePath);
 
 		let cloned = fs.existsSync(clonePath);
 
-		// A clone is fetched from wherever it was cloned from, so one that names
-		// another repo is not this one's, and it is started over: it is epiq's
-		// own copy. One whose config merely could not be read is left as it is.
+		// A clone of another repo is started over; one with unreadable config is left.
 		if (cloned && (await originOf(clonePath, repo)) === 'other') {
 			deleteClone(clonePath);
 			cloned = false;
@@ -1213,11 +1151,8 @@ const fetchOne = async (
 			return outcome(true, 'Removed before it was cloned');
 		}
 
-		// The clone is a cache: one that broke here — it will not open, its
-		// config is gone, packs a stopped repack left doubled past the cap —
-		// is started over rather than failing for good. Only when the remote
-		// itself answers or the clone cannot be read at all, and at most once
-		// in a while.
+		// The clone is a cache: a broken one is started over, at most once in a
+		// while, and only when the remote answers or the clone can't be read.
 		const broken = cloned && !(await cloneOpens(clonePath));
 		// Only with the remote there: a fresh clone of an unreachable one would
 		// fail, and that failure says nothing about this clone.
@@ -1306,10 +1241,7 @@ const fetchOne = async (
 		logger.info(`[repos] ${repo.label}: ${errorMessage(error)}`);
 		return outcome(false, errorMessage(error));
 	} finally {
-		// Removed while this fetch held it: it goes now, rather than staying.
-		// The lock is let go whatever the delete did: one it could not finish
-		// — a file held open, a directory this user cannot write — must not
-		// leave every later fetch of this repo waiting on a lock nobody holds.
+		// Removed while held: delete now. The lock is released whatever the delete did.
 		try {
 			if (fs.existsSync(removalMark(clonePath))) deleteClone(clonePath);
 		} catch (error) {
@@ -1325,9 +1257,8 @@ const fetchOne = async (
 };
 
 /**
- * A remove marked the clone while somebody held it. Checked by the holder once
- * it lets go, and by the remover once it has marked: whichever comes second
- * finds the lock free.
+ * A remove marked the clone while it was held; whichever of holder and
+ * remover comes second finds the lock free and deletes it.
  */
 const deleteIfMarked = (clonePath: string) => {
 	if (!fs.existsSync(removalMark(clonePath))) return;
@@ -1352,9 +1283,8 @@ const deleteIfMarked = (clonePath: string) => {
 };
 
 /**
- * Clones and status files a process died writing. A clone of a repo that is
- * no longer listed is left alone: another worktree's branch may still list it,
- * and only an explicit remove deletes one.
+ * Clones and status files a dead process left. Unlisted clones stay: only an
+ * explicit remove deletes one.
  */
 const sweepPending = (projectId: string) => {
 	const dir = getRepoClonesDir(projectId);
@@ -1386,11 +1316,7 @@ const sweepPending = (projectId: string) => {
 	}
 };
 
-/**
- * A clone made ahead of a connect, for the pre-flight to read and the confirm
- * to move into place. Named as a pending clone of this process, so a process
- * that dies leaves it to `sweepPending`.
- */
+/** A clone staged ahead of a connect, named so `sweepPending` reclaims it. */
 export const stageClone = async (
 	repoRoot: string,
 	repo: CommitRepo,
@@ -1564,9 +1490,8 @@ export const removeRepoClone = (input: {
 		}
 
 		deleteClone(clonePath);
-		// Left as a tombstone for a pass that read its list before this: it
-		// would otherwise clone the repo again. Never swept, since that pass
-		// may be in another worktree; the next clone after a re-add clears it.
+		// A tombstone for a pass that read its list before this; never swept, as that
+		// pass may be another worktree's. The next clone after a re-add clears it.
 		placeRemovalMark(clonePath);
 		return succeeded('Removed clone', null);
 	} catch (error) {
@@ -1623,11 +1548,8 @@ const isAlive = (pid: number): boolean => {
 const CONCURRENCY = 4;
 
 /**
- * Clones what is missing and fetches the rest. Never fails as a whole: a repo
- * that cannot be reached is reported in its outcome, and the others carry on.
- *
- * Called by every sync's front door after the board itself has synced, and
- * outside any lock the board holds — a first clone can take minutes.
+ * Clones what is missing and fetches the rest; a failure is per repo. Runs
+ * outside any board lock, since a first clone can take minutes.
  */
 export const fetchCommitRepos = (input: {
 	repoRoot: string;
@@ -1636,9 +1558,8 @@ export const fetchCommitRepos = (input: {
 }): Promise<Result<RepoFetchOutcome[]>> => {
 	const minIntervalMs = input.minIntervalMs ?? 0;
 
-	// One at a time per project in this process: an autosync pass and a click
-	// arriving together share the fetch already under way — unless that one
-	// was throttled and this asks for more, which runs once it is done.
+	// One at a time per project; a concurrent call shares the running fetch
+	// unless it asks for more than a throttled one.
 	const running = inFlight.get(input.repoRoot);
 	if (running) {
 		return running.minIntervalMs <= minIntervalMs

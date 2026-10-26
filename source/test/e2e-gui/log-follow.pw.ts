@@ -1,10 +1,5 @@
-// TQ3W5RF: following the log — a new line that leads somewhere opens itself.
-//
-// What a *remote* write does is not asserted here. An ordinary mutation is
-// answered by `sendStateAfterMutation`, which unicasts to the socket that made
-// it; only time travel broadcasts. So a second client's write reaches a
-// follower through autosync alone, which is a 15s poll and not a thing to hang
-// a browser test on. The decision itself is `follow-log.test.ts`.
+// Following the log: a new line that leads somewhere opens itself. Remote
+// writes are `follow-arrival.pw.ts`'s, as they arrive only via autosync.
 
 import {expect, test} from './fixtures.js';
 
@@ -20,16 +15,12 @@ test('filing a ticket yourself is reaching for the board, and lets following go'
 	await follow.click();
 	await expect(follow).toHaveAttribute('aria-pressed', 'true');
 
-	// Filing a ticket is itself reaching for the board, so following lets go —
-	// the reader has started working rather than watching. The ordinary path
-	// still runs: the ticket is filed and opened as it always was.
+	// Filing a ticket stops following; the ticket is still filed and opened.
 	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('ticket name').fill('A followed ticket');
 	await page.getByPlaceholder('ticket name').press('Enter');
 
-	// Both the log and the ticket panel are asides, and the log holds the
-	// ticket's name too — on the line that named it. Scoped to the one that is
-	// not the log, or this passes on the log line it is meant to be following.
+	// Not the log aside, which also holds the ticket's name.
 	const ticketPanel = page
 		.locator('aside')
 		.filter({hasNot: page.getByTestId('event-log-header')});
@@ -83,9 +74,7 @@ test('following is off until it is asked for, and lets go again', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Following needs the log — its lines are what is followed — so asking for it
-// from the bar opens the panel rather than leaving a control that is on and
-// inert, and says so in a band the board cannot be mistaken for.
+// Going live opens the log and shows the banner.
 test('asking to go live opens the log and raises the banner', async ({
 	page,
 	appUrl,
@@ -108,9 +97,7 @@ test('asking to go live opens the log and raises the banner', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The banner promises "click anywhere", and the ticket panel is a sibling of
-// the board rather than a child of it — so a tab changed there reached nothing
-// while the handler sat on <main>. jola hit this in a browser.
+// The ticket panel is a sibling of the board, so its clicks must release following too.
 test('changing a tab in the ticket panel leaves following', async ({
 	page,
 	appUrl,
@@ -135,9 +122,7 @@ test('changing a tab in the ticket panel leaves following', async ({
 	await follow.click();
 	await expect(follow).toHaveAttribute('aria-pressed', 'true');
 
-	// Scoped to the panel: the scrubber bar has a Code series button of its own,
-	// and a page-wide match would find that instead — which is on the bar, and
-	// so is deliberately not a release.
+	// Scoped to the panel: the bar's Code button is deliberately not a release.
 	await ticketPanel.getByRole('button', {name: /^Comments/}).click();
 
 	await expect(follow).toHaveAttribute('aria-pressed', 'false');
@@ -146,9 +131,7 @@ test('changing a tab in the ticket panel leaves following', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Pressing LIVE has to show what it does. Before `S516GCK` the board sat still
-// until an event happened to arrive, so on a quiet board there was nothing to
-// tell a working mode from a broken one.
+// Pressing LIVE opens the newest line at once.
 test('going live opens the newest line at once', async ({
 	page,
 	appUrl,

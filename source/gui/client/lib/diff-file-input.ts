@@ -14,12 +14,8 @@ const contentHash = (contents: string): string => {
 	return `${contents.length.toString(36)}.${hash.toString(36)}`;
 };
 
-// The worker pool keeps a file's highlighted lines under its cache key, which
-// falls back to the file's name. One path changed by two commits would then
-// share an entry, and the second drawn over the first's lines — a mismatch
-// the renderer throws on. Keyed by its contents, each version has its own, and
-// by its side: an added file and the same file deleted unchanged each have one
-// side only, which the key is then made of alone.
+// The worker pool caches by this key; keyed by contents and side, so two
+// versions of one path never share highlighted lines.
 const fileContents = (
 	side: 'old' | 'new',
 	path: string,
@@ -30,17 +26,13 @@ const fileContents = (
 	cacheKey: `${side}:${path}#${contentHash(contents)}`,
 });
 
-// Independently-nullable before/after strings don't structurally match
-// DiffFileInput's three-branch union (it forbids "both null"), so this picks
-// the one branch that fits rather than letting TypeScript infer a wider type.
+// Picks the one branch of DiffFileInput's union that fits.
 export const toDiffFileInput = (file: GuiCommitDiffFile): DiffFileInput => {
 	const oldFile = fileContents('old', file.path, file.before);
 	const newFile = fileContents('new', file.path, file.after);
 
-	// Empty means "did not exist at this revision", same convention the server
-	// side already uses (a missing git blob reads as ''). A genuinely empty
-	// file on one side, that also exists, is indistinguishable from this and
-	// renders as added/deleted rather than an empty-content change.
+	// Empty means "did not exist at this revision", as on the server. A truly
+	// empty file therefore renders as added or deleted.
 	if (file.before === '' && file.after !== '') return {oldFile: null, newFile};
 	if (file.after === '' && file.before !== '') return {oldFile, newFile: null};
 

@@ -3,17 +3,8 @@ import {failed, succeeded} from '../lib/model/result-types.js';
 import {emailLinkKey} from '../lib/model/email-link.js';
 
 /**
- * Whether the setup step still has a question to ask about git addresses.
- *
- * It used to ask a machine-global config flag that only `:config emails` ever
- * wrote. Claiming an address in the GUI's identity panel writes the same
- * `link.contributor.email` event and never touched that flag, so the step went
- * on asking on a board where it had already been answered — and since the
- * offered list keeps only *unclaimed* addresses, a repository holding
- * colleagues' addresses could never empty it either.
- *
- * So the claim is read from the board and only the refusal is kept locally,
- * per board. These hold it to that.
+ * Whether the setup step still asks about git addresses: a claim is read from
+ * the board, and only a refusal is kept locally, per board.
  */
 
 let projectId: string | null = 'BOARD-ONE';
@@ -115,9 +106,7 @@ describe('declining', () => {
 		expect(getUserSetupStatus().isSetEmails).toBe(true);
 	});
 
-	// The reason the refusal is a list rather than one flag: the addresses
-	// offered are a repository's own history, so declining one says nothing
-	// about the next.
+	// Per board: the addresses offered are a repository's own history.
 	it('says nothing about another board', () => {
 		patchSettingsState({declinedEmailBoards: ['BOARD-ONE']});
 		projectId = 'BOARD-TWO';
@@ -146,9 +135,7 @@ describe('the whole setup', () => {
 });
 
 describe('the addresses the setup screen shows', () => {
-	// Every other step's value is a word. This one is addresses, and an address
-	// runs to 254 characters — unbounded the row wraps out of the bordered box
-	// the setup screen draws it in, which is what a too-wide row always does.
+	// An address runs to 254 characters and must not wrap out of the setup box.
 	it('never outruns the room the row leaves it', async () => {
 		const {claimedAddresses} = await import('../lib/components/SettingsUI.js');
 		const long = `${'a'.repeat(200)}@example.com`;

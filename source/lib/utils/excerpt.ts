@@ -1,33 +1,20 @@
 import {sanitizeInlineText} from './string.utils.js';
 
-// A description flattened to the couple of lines a hover preview can hold.
-//
-// Not a markdown renderer: a preview is prose about what the ticket is, so
-// everything that only means something with room to lay it out — a fenced
-// block, an image, a table's pipes — is dropped rather than shrunk, and the
-// rest becomes the words it was written as.
+// A description flattened to a couple of lines for a hover preview. Blocks,
+// images and tables are dropped, not shrunk.
 
-// Dropped whole, contents and all. A code block in a two-line card is the
-// two lines spent on something unreadable at that size. Both fence characters
-// markdown allows, since a description is as likely to carry one as the other.
+// Fenced blocks dropped whole, with either fence character.
 const FENCED_BLOCK = /^(```|~~~)[^\n]*\n[\s\S]*?\n\1[ \t]*$/gm;
 
-// A description still being written can hold a fence that was opened and not
-// yet closed; everything after it is inside a code block that has no end, so
-// it goes the same way as a closed one.
+// An unclosed fence drops everything after it.
 const UNCLOSED_FENCE = /^(?:```|~~~)[\s\S]*$/m;
 
 // A table's ruling row carries nothing but the shape of the table.
 const TABLE_RULE =
 	/^[ \t]*\|?[ \t]*:?-{2,}:?[ \t]*(?:\|[ \t]*:?-{2,}:?[ \t]*)*\|?[ \t]*$/gm;
 
-// What is left of a table once its rule is gone: cells, and the bars that laid
-// them out. The bars become the spaces between the words, which is what a row
-// of a table reads as on one line.
-//
-// Only on a row that opens with one, so a description showing a shell pipeline
-// keeps its pipe. A markdown table's rows do open with one; a sentence that
-// merely contains a bar does not.
+// Table bars become spaces, only on rows that open with one, so a shell pipe
+// survives.
 const TABLE_ROW = /^[ \t]*\|.*$/gm;
 
 // Before the link rule below, which would otherwise keep an image's alt text
@@ -44,15 +31,11 @@ const ROW_PREFIX = /^[ \t]*(?:[#>]+[ \t]*|[-*+][ \t]+|\d+[.)][ \t]+)/gm;
 // but the blank line it becomes.
 const THEMATIC_BREAK = /^[ \t]*(?:-{3,}|\*{3,}|_{3,})[ \t]*$/gm;
 
-// The characters that carry emphasis and inline code. Dropped unconditionally
-// rather than matched in pairs: an unbalanced one is far likelier in a
-// half-written description than a literal asterisk is, and a preview that
-// keeps the word and loses the styling is right either way.
+// Emphasis and code marks, dropped unpaired: half-written text is often
+// unbalanced.
 const INLINE_MARKS = /[*`~]/g;
 
-// Underscore is the exception, because it is also how identifiers are spelled
-// and these descriptions are about code: `snake_case_name` has to survive.
-// Only an underscore against a word's outer edge is emphasis.
+// Underscores only at a word's edge, so `snake_case_name` survives.
 const EMPHASIS_UNDERSCORE = /(?<![0-9A-Za-z])_|_(?![0-9A-Za-z])/g;
 
 const flatten = (markdown: string): string =>
@@ -72,9 +55,7 @@ const flatten = (markdown: string): string =>
 			.replace(EMPHASIS_UNDERSCORE, ''),
 	);
 
-// Back up to a word boundary, but never past half the excerpt: a description
-// opening with one very long token would otherwise cut back to almost nothing,
-// and half a word read at a glance beats two words and empty space.
+// Back up to a word boundary, but never past half the excerpt.
 const WORD_BOUNDARY_REACH = 0.5;
 
 /**

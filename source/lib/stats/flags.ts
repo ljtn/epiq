@@ -1,10 +1,4 @@
-// The things worth a second look, each cheap enough to be worth checking on
-// every ticket.
-//
-// Every one of these is a prompt, not a fault: a lockfile moved, a dependency
-// arrived, something is nested eight deep, the same eight lines appear twice.
-// A reviewer with ten minutes should be able to read this list and know where
-// to spend them.
+// Things worth a second look on every ticket; prompts, not faults.
 
 import {
 	isBuildOrCiPath,
@@ -57,9 +51,7 @@ const countDuplicatedLines = (normalized: NormalizedLine[]): number => {
 	if (normalized.length < DUPLICATE_BLOCK_LINES * 2) return 0;
 
 	const firstSeenAt = new Map<string, NormalizedLine & {at: number}>();
-	// Marked rather than counted as they are found: windows overlap, so both
-	// the copy and the original would otherwise be counted once per window
-	// they appear in.
+	// Marked, not counted: windows overlap.
 	const duplicated = new Array<boolean>(normalized.length).fill(false);
 
 	for (
@@ -81,10 +73,7 @@ const countDuplicatedLines = (normalized: NormalizedLine[]): number => {
 			continue;
 		}
 
-		// Only across files. The same block landing twice in one path is the
-		// ticket re-adding what it wrote earlier — which self-churn already
-		// counts, and which would otherwise report every file a ticket split
-		// and re-split as a wall of copy-paste.
+		// Across files only; repeats within a file are self-churn.
 		if (first.file === window[0]?.file) continue;
 
 		for (let offset = 0; offset < DUPLICATE_BLOCK_LINES; offset++) {
@@ -107,10 +96,8 @@ export const deriveFlags = ({patch}: {patch: TicketPatch}): ChangeFlags => {
 	// rather than a fact with nowhere to go.
 	let deepestFile: FilePointer | null = null;
 
-	// One pool across the whole change: the copy-paste worth catching is the
-	// one from one file into another, which a per-file pass would miss. Each
-	// line remembers which file it came from, so a repeat *inside* one file
-	// can be told apart from a copy between two.
+	// One pool across the change, each line tagged with its file, so copies
+	// between files are found.
 	const normalizedAdded: NormalizedLine[] = [];
 
 	for (const [index, file] of patch.files.entries()) {
@@ -125,10 +112,8 @@ export const deriveFlags = ({patch}: {patch: TicketPatch}): ChangeFlags => {
 		const texts = file.added.map(added => added.text);
 		const unit = indentUnitOf(texts);
 
-		// A file the ticket ended by deleting is not code it is shipping, and
-		// leaving it in the pool turns every rename and every file split into
-		// a wall of copy-paste: with --no-renames the old path's lines and the
-		// new path's are two additions of the same block.
+		// Deleted files are left out, or every rename reads as copy-paste
+		// (--no-renames).
 		const shipping = file.status !== 'deleted';
 
 		for (const text of texts) {

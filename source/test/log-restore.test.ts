@@ -1,11 +1,6 @@
 /**
- * The safety net around every git operation a sync runs.
- *
- * `withSyncLock` binds the processes that sync; nothing binds the processes
- * that write. So while one process hands the worktree to git — a checkout, a
- * `rebase --abort`, an autostash reverting the working copy to HEAD — another
- * may be appending to the same directory. Lines that were on disk before and
- * are not on disk after were lost by git; nothing removes one on purpose.
+ * The safety net around a sync's git operations: writers aren't locked out, so
+ * lines on disk before git ran and missing after were lost by git.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -133,11 +128,7 @@ describe('restoreDroppedEventLines', () => {
 		expect(read(root).sort()).toEqual([line(1), line(2), line(9)].sort());
 	});
 
-	/**
-	 * A crash mid-append leaves a line with no id, which the loader quarantines
-	 * and no replica can order. Putting it back would only re-dirty the file
-	 * and give the next commit something to publish.
-	 */
+	/** A half-written line has no id and no order, so it is never put back. */
 	it('does not put back a half-written line', () => {
 		const root = makeRoot();
 		fs.writeFileSync(logPath(root), `${line(1)}\n{"v":1,"id":["01H`);

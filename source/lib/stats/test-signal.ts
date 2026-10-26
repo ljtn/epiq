@@ -1,10 +1,5 @@
-// Whether the ticket wrote any tests, and what it did to the ones already
-// there.
-//
-// The ratio is the least interesting number here and the easiest to game. The
-// three counts under it are the ones worth a reader's eye: a ticket that
-// deleted tests, or added a skipped one, or added a focused one, has done
-// something that needs a sentence of explanation somewhere.
+// Whether the ticket wrote tests, and what it did to existing ones: deleted,
+// skipped or focused counts matter more than the ratio.
 
 import {
 	isFocusedTestLine,

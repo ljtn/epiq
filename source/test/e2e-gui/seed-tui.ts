@@ -4,10 +4,7 @@ import path from 'node:path';
 import {execSync} from 'node:child_process';
 import pty from 'node-pty';
 
-// A deliberately minimal pty driver rather than the vitest e2e helper: that
-// helper imports `{Terminal}` from @xterm/headless, a CJS package whose named
-// exports only resolve under vitest's interop. Seeding needs to wait for text,
-// not to render a terminal grid, so the raw stream is enough.
+// A minimal pty driver: the vitest helper's @xterm/headless import only resolves under vitest.
 
 // eslint-disable-next-line no-control-regex
 const ANSI = /\x1B\[[0-9;?]*[ -/]*[@-~]|\x1B[@-Z\\-_]/g;
@@ -36,10 +33,7 @@ export const startSeedTui = (): SeedTui => {
 
 	let output = '';
 
-	// Ink stops rendering frame by frame when it detects CI and writes only the
-	// final frame, on unmount — so on a CI runner the pty stays silent and every
-	// `waitFor` here times out on empty output. The TUI e2e helper strips the
-	// same two for the same reason.
+	// Ink renders only the final frame under CI, so the CI variables are stripped.
 	const env = {...process.env};
 	delete env['CI'];
 	delete env['GITHUB_ACTIONS'];
@@ -94,20 +88,12 @@ export const startSeedTui = (): SeedTui => {
 export const seedProject = async (): Promise<string> => {
 	const tui = startSeedTui();
 
-	// ENTER is a separate write *and* waits for the prompt to ask for it. Sent
-	// any earlier it lands before the command is committed and is dropped, which
-	// hangs the seed on the next waitFor.
+	// ENTER is a separate write after the prompt asks for it, or it is dropped.
 	const pause = () => new Promise(resolve => setTimeout(resolve, 200));
 
 	/**
-	 * Clears whatever is in the command line, then types a command into it.
-	 *
-	 * Setup hands each step its command already typed, so writing a whole
-	 * command on top of one lands as `:config editor :config editor vim`.
-	 * Backspace rather than escape: an escape written on its own is still
-	 * pending when the next character arrives, and the two are read as one
-	 * alt-modified keypress, so the line never opens and the characters fall
-	 * through to the board's own keys — `n` there opens a new item.
+	 * Clears the prefilled command line, then types a command. Backspace, not
+	 * escape: a lone escape merges with the next key into an alt keypress.
 	 */
 	const command = async (value: string) => {
 		tui.input('\x7f'.repeat(60));
@@ -118,9 +104,7 @@ export const seedProject = async (): Promise<string> => {
 	};
 
 	await tui.waitFor('choose your username');
-	// A slash in it on purpose: the log's file name cannot hold one, so a name
-	// read back out of the file reads `claude-tester` where the registry says
-	// `claude/tester`. A fixture named `test` cannot tell the two apart.
+	// The slash is deliberate: file names cannot hold one, so a name read off a file differs.
 	await command(':config username claude/tester');
 
 	await tui.waitFor('pick your editor');
@@ -139,11 +123,7 @@ export const seedProject = async (): Promise<string> => {
 	// is committed and the confirm is dropped.
 	await command(':init');
 
-	// The address step only exists once there is a board to offer addresses
-	// from, so it stands between `:init` and the board rather than sitting with
-	// the other three. Declined here: a fixture that claimed one would put a
-	// link in every seeded board and change what the commit track says for
-	// every test.
+	// Declined: a claimed address would change every test's commit track.
 	await tui.waitFor('Claim the git addresses');
 	await command(':config emails none');
 
@@ -151,10 +131,7 @@ export const seedProject = async (): Promise<string> => {
 
 	// A second board, so the switcher has somewhere to switch to.
 	await command(':new board QA');
-	// The command being typed is itself on screen, so "QA" is in the buffer
-	// before ENTER is even sent. Without forgetting it first, this wait is
-	// already satisfied and `destroy` can land before the board is written —
-	// leaving a seeded repo whose switcher has nothing to switch to.
+	// The typed command already shows "QA", so forget the buffer before waiting.
 	tui.forget();
 	await tui.waitFor('QA');
 

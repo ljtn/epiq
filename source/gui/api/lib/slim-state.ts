@@ -2,16 +2,8 @@ import {ApiState} from '../../../mcp/api-state.model.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {plainExcerpt} from '../../../lib/utils/excerpt.js';
 
-// The board draws titles, refs, tags, assignees and a comment count. It never
-// draws a description or a comment body — yet those are ~70% of the payload,
-// and a scrub reships the whole thing on every tick. Measured on a 142-issue
-// board: 337KB per broadcast, of which 88KB is descriptions and 148KB comment
-// bodies. Both are fetched for the one ticket that is open instead.
-//
-// Comments keep their id, issue and author, so the card's count and the
-// scrubber's author filter still work without the text.
-// Every collection is read defensively: this sits on the broadcast path, and a
-// state missing a field must not stop the GUI hearing about it at all.
+// Drops descriptions and comment text (the open ticket fetches them); comments keep
+// id, issue and author for counts and the author filter. Read defensively: broadcast path.
 export const slimStateForBoard = (state: ApiState): ApiState => ({
 	...state,
 	boards: (state.boards ?? []).map(board => ({
@@ -74,12 +66,8 @@ export const issueDetail = (
 // the card stays a hint rather than becoming the ticket.
 const EXCERPT_LENGTH = 280;
 
-// The one field a hover preview needs and the board's state does not carry.
-// Everything else on the card — title, lane, tags, assignees, comment count —
-// the client already has, so only this crosses the wire.
-//
-// Deliberately not `issue:get`: the client keeps a single detail slot for the
-// ticket that is open, and a hover would evict it.
+// The one field a hover preview needs. Not `issue:get`, which would evict the
+// open ticket from the client's single detail slot.
 export const issuePreview = (
 	issueId: string,
 	description: string,

@@ -101,25 +101,11 @@ export const listEventFiles = (root: string): Result<string[]> => {
 
 	return succeeded('Listed event files', files);
 };
-// One person writing from two machines appends to the same per-actor log, and
-// the two sides diverge textually. Union takes both, which is safe here because
-// line order is not load-bearing: `getSortedEvents` rebuilds order causally from
-// the edge ref and dedupes by event id.
-//
-// It lives under `.epiq/` deliberately — `ensureStateBranchIsStorageOnly` removes
-// anything at the state branch root that is not `.epiq`.
+// Union merge is safe since line order is not load-bearing. Kept under `.epiq/`,
+// since `ensureStateBranchIsStorageOnly` removes anything else at the root.
 const EVENT_LOG_ATTRIBUTES = '*.jsonl merge=union\n';
 
-/**
- * A pending log is protected by being untracked — git resets the files it
- * tracks, and leaves the rest alone. Untracked is not the same as ignored,
- * though: a bare `git add -A` in this worktree would stage one, and once
- * committed it is tracked, and the protection is silently gone for good.
- *
- * Ignoring them makes that impossible rather than merely unlikely. Committed
- * for the same reason the merge attribute is: a clone that has not seen this
- * file yet does not have the rule.
- */
+// Pending logs must stay untracked, or git resets them; ignored so `git add -A` can't commit one.
 const EVENT_LOG_IGNORES = '*~pending*.jsonl\n';
 
 export const getRelativeEventAttributesPath = (): string =>
@@ -160,9 +146,7 @@ export const ensureStateBranchLayout = (
 	return succeeded('Ensured state branch', undefined);
 };
 
-/**
- * Make sure state branch only contains the .epiq folder
- * */
+/** Makes sure the state branch only contains the .epiq folder. */
 export const ensureStateBranchIsStorageOnly = async (
 	stateBranchRoot: string,
 ): Promise<Result<boolean>> => {
@@ -195,10 +179,7 @@ export const ensureStateBranchIsStorageOnly = async (
 		return failed(`Failed to clean storage branch\n${removeResult.message}`);
 	}
 
-	// Only the paths this repair removed. Without a pathspec the commit takes
-	// whatever else is in the index — and this runs during bootstrap, before
-	// the pull and before `assertLogOnlyGrew`, so event-log content a crashed
-	// sync left staged would be published here with no integrity check at all.
+	// Only the removed paths: anything else staged would skip `assertLogOnlyGrew`.
 	const commitResult = await commitAndGetSha({
 		cwd: stateBranchRoot,
 		message: '[epiq:repair-storage-branch]',

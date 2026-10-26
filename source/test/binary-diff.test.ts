@@ -12,14 +12,8 @@ import {
 	openableByDefault,
 } from '../lib/utils/diff-size.js';
 
-// A commit that added a jpeg drew the jpeg: 156 rows of decoded bytes, syntax
-// highlighted, down the diff panel. Git had already said the file was binary —
-// `--numstat` gives `-\t-` for one — and the answer was being read and thrown
-// away.
-//
-// Against real git rather than a fixture: what is under test is agreement with
-// git about which files it will diff, and a hand-written numstat line would
-// only test the regex.
+// A binary file shows a notice, not decoded bytes. Against real git, since
+// what's tested is agreement with git's `--numstat`.
 
 let repo = '';
 
@@ -115,9 +109,7 @@ describe('a binary file in a commit diff', () => {
 		expect(readme?.after).toBe('# first\n# second\n');
 	});
 
-	// A file a `.gitattributes` marks `-diff` is one git will not diff either,
-	// and it says so the same way. The reader gets the same answer for the same
-	// reason, rather than a guess at the bytes disagreeing with git.
+	// A `-diff` attribute makes git treat a text file as binary; follow it.
 	it('follows git when .gitattributes says not to diff a text file', async () => {
 		write('.gitattributes', 'secrets.txt -diff\n');
 		write('secrets.txt', 'plain text\n');
@@ -146,11 +138,7 @@ describe('a binary file in a commit diff', () => {
 		expect(openableByDefault(files)).toEqual([false, true]);
 	});
 
-	// "Expand all" counts what it could open; the auto-open counts what it did.
-	// While the only reason to refuse a file was its size the two agreed by
-	// accident, and a binary file has no size — so on a commit holding one the
-	// button read "Expand all" with everything already open, and clicking it
-	// expanded the jpeg to reveal the notice.
+	// "Expand all" must count only what it can open, which excludes binaries.
 	it('is not something "expand all" offers to expand', () => {
 		const picture = {
 			path: 'picture.jpeg',
@@ -163,7 +151,7 @@ describe('a binary file in a commit diff', () => {
 		expect(hasDiffToShow(picture)).toBe(false);
 		expect(hasDiffToShow(readme)).toBe(true);
 
-		// What the two views build their expandable list from, now said once.
+		// What both views build their expandable list from.
 		const expandable = [picture, readme].filter(
 			file => hasDiffToShow(file) && !isLargeDiff(file),
 		);

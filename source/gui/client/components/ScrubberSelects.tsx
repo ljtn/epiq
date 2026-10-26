@@ -1,7 +1,5 @@
-// The two things on the control row that open: the series picker, which says
-// what the chart plots and can narrow each series to particular tags or
-// people, and the scope picker, which is the same choice of window the wide
-// bar spells out in full. Both are popovers that dismiss on a click away.
+// The row's popovers: the series picker (what the chart plots, narrowed by tag
+// or person) and the scope picker.
 
 import {GUI_THEME} from '../lib/gui-theme';
 import {
@@ -41,10 +39,7 @@ const CATEGORY_LABELS: Record<EventCategory, string> = {
 	assigning: 'Assignees',
 };
 
-// "Board" rather than "All": as the collapsed trigger it is the only thing
-// naming the series, and a bare "All" two controls from "All boards" says
-// nothing about which is which. The commit series' trigger beside it names
-// what it is measuring — "Commits" or "Lines" — the same way.
+// "Board", not "All", which would read like "All boards" beside it.
 const VIEW_LABELS: Record<BoardView, string> = {
 	all: 'Board',
 	...CATEGORY_LABELS,
@@ -68,12 +63,8 @@ const AXIS_TITLES: Record<FilterAxis, string> = {
 	actor: 'Only tickets touched in this window',
 };
 
-// Fixed, not sized to its label: the selection changes as the thing is used,
-// and a trigger that grew with it would shove the scope buttons beside it out
-// from under the pointer. Wide enough for the labels themselves — the longest
-// being "Contributors (all)" at 18 monospace characters, plus the padding, the
-// chevron and some slack. A tag or a person's name long enough to overflow
-// past that is clipped, and the open list spells it out in full.
+// Fixed, so a changing selection doesn't shove the scope buttons; fits
+// "Contributors (all)". Longer names clip.
 const SELECT_TRIGGER_WIDTH = 162;
 
 const nestedListStyle: React.CSSProperties = {
@@ -164,17 +155,8 @@ const Radio = ({
 const EMPTY_IDENTITIES: GuiEventIdentity[] = [];
 const EMPTY_HIDDEN: ReadonlySet<string> = new Set<string>();
 
-// A checkbox for the series and a select for what it draws, one kind at a time.
-// That is what lets a colour mean one thing: "Board" colours by kind,
-// and any single kind colours by the tag or person behind each event, never both
-// at once. The trigger reads back whatever is selected, down to the one tag or
-// person left when the rest are unticked — the same name and colour the bars and
-// dots are then drawn in.
-//
-// Narrowing is the other half, and it is not tied to that choice: every row
-// with a list can be ticked down, several at once, and the board below shows
-// the tickets that pass all of them. Only the plotted row's list changes the
-// picture; the rest narrow what is underneath it.
+// The series checkbox and a select for what it draws, one kind at a time so a
+// colour means one thing. Every list can also narrow the board below.
 export const BoardSeriesGroup = ({
 	connected,
 	showIssues,
@@ -220,19 +202,13 @@ export const BoardSeriesGroup = ({
 	const hiddenIds =
 		viewAxis === null ? EMPTY_HIDDEN : hiddenIdsByAxis[viewAxis];
 
-	// Down to one tag or person, that identity *is* the series, so it gives the
-	// trigger its name and its colour. Several hidden and no single colour would
-	// be honest, so the trigger only says that it is narrowed.
+	// Down to one tag or person, it names and colours the trigger.
 	const sole = soleVisibleIdentity(identities, hiddenIds);
 	const partial = filtered && hiddenIds.size > 0 && viewAxis !== null;
-	// Narrowed somewhere the plotted series does not show: the picture is intact
-	// and the board under it is not, which the trigger has to say or nothing on
-	// this row accounts for the missing tickets.
+	// Narrowed by a series not plotted: the trigger must account for missing tickets.
 	const elsewhere = filtered && narrowed && !partial && sole === null;
 
-	// The series, then what of it, in every state — `(all)` included, so the
-	// unnarrowed trigger says so rather than leaving it to be inferred from the
-	// absence of a note. The commit select beside it reads the same way.
+	// The series then its narrowing, `(all)` included.
 	const label = sole
 		? `${VIEW_LABELS[view]}: ${sole.name}`
 		: partial
@@ -245,9 +221,7 @@ export const BoardSeriesGroup = ({
 		sole?.color ??
 		(partial || elsewhere ? GUI_THEME.dim2 : boardViewColor(view));
 
-	// Where the server capped the window its buckets are pre-summed across every
-	// kind, so nothing in here is selectable. The select still opens — the greyed
-	// options are what says why, and a dead trigger would not.
+	// A server-capped window is pre-summed across kinds; greyed options say why.
 	return (
 		<Menu
 			open={expanded}
@@ -363,17 +337,8 @@ export const BoardSeriesGroup = ({
 	);
 };
 
-// The Code series' select, the shape of the board series' beside it: a box
-// for whether commits are drawn at all, and a trigger naming which — every
-// commit in the repository, or only the ones linked to a ticket. The trigger
-// names the series and then which, the way `Board (filtered)` does two controls
-// along — `Linked` on its own named the narrowing and left the series unsaid.
-// Wide enough for the longest of the four whole, and fixed there, so switching
-// between them does not resize the row under the pointer. `Commits (linked)` is
-// the longest: 16 characters of the app's own monospace face, which the trigger
-// inherits — measured at 106px, with the padding and chevron taking 35 more. A
-// box sized to the pixel is what the rounding then ellipsises, so this carries
-// slack on purpose.
+// The Code series' select: whether commits are drawn, and which. Fixed width,
+// fitting `Commits (linked)` with slack against ellipsis.
 const COMMIT_SELECT_WIDTH = 150;
 
 export const CommitSeriesGroup = ({
@@ -400,9 +365,7 @@ export const CommitSeriesGroup = ({
 	repos: readonly string[];
 	hiddenRepos: ReadonlySet<string>;
 	onToggleRepo: (repo: string) => void;
-	// What a bar measures, as against which commits it counts. Two questions,
-	// so two groups in the list rather than one row of four options: flattened,
-	// "the deletions among linked commits" could not be asked for.
+	// What a bar measures, separate from which commits it counts.
 	linesMeasure: boolean;
 	onChangeShowCommits: (next: boolean) => void;
 	onChangeLinkedOnly: (next: boolean) => void;
@@ -530,11 +493,8 @@ export const CommitSeriesGroup = ({
 	);
 };
 
-// The scope row's narrow form: one trigger naming the scope in hand, over the
-// same popover the board series uses, rather than seven buttons that do not fit.
-//
-// The narrow form's width, shared by the trigger and the menu under it so the
-// two line up.
+// The scope row's narrow form, one popover trigger; this width is shared by
+// trigger and menu.
 const SCOPE_SELECT_WIDTH = 108;
 
 export const ScopeSelect = ({

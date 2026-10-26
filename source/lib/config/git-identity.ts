@@ -2,17 +2,8 @@ import {execGitAllowFail} from '../../git/git-utils.js';
 import {normalizeEmail} from '../model/email-link.js';
 
 /**
- * What git in this repository is configured to sign commits as.
- *
- * Read once per boot and kept in the settings store, never on the write path.
- * `ensureContributorCurrent` runs on every write and deliberately reads that
- * store rather than config, to keep the config module graph out of every
- * caller; a git subprocess per write would be worse than what that avoided,
- * and it would not show up in a test — only under the batch writes a real
- * board does.
- *
- * `allowFail`, because a repository with no `user.email` is ordinary and not an
- * error: nothing is linked, and commits keep showing their raw author name.
+ * What git here signs commits as. Read at boot, never on the write path; a
+ * missing `user.email` is ordinary, not an error.
  */
 export type GitIdentity = {name: string | null; email: string | null};
 
@@ -20,21 +11,10 @@ type Cached = GitIdentity & {readAt: number};
 
 const byRepo = new Map<string, Cached>();
 
-// Long enough that a boot per request costs nothing, short enough that somebody
-// who has just fixed a wrong `user.email` sees it take effect without
-// restarting. An unbounded cache made that a restart, which is the sort of
-// thing people work around rather than report.
+// Short enough that a fixed `user.email` takes effect without a restart.
 const CACHE_MS = 30_000;
 
-/**
- * Both halves, in one read.
- *
- * Cached per repository, because `boot()` runs on every MCP call and every
- * socket message, above the fast path that exists to avoid redundant work: an
- * uncached read here spawns a git process per request to answer the same thing
- * every time. Together, because they are always wanted together and come from
- * the same file, so asking twice buys nothing.
- */
+/** Name and email in one read, cached per repository, since every request boots. */
 export const readGitIdentity = async (cwd: string): Promise<GitIdentity> => {
 	const cached = byRepo.get(cwd);
 	if (cached && Date.now() - cached.readAt < CACHE_MS) {
@@ -71,11 +51,7 @@ export const readGitIdentity = async (cwd: string): Promise<GitIdentity> => {
 export const readGitEmail = async (cwd: string): Promise<string | null> =>
 	(await readGitIdentity(cwd)).email;
 
-/**
- * The git author name, used to propose a board name at setup and to recognise
- * which addresses in a history are yours. Never written over a name the user
- * already has.
- */
+/** The git author name, used to propose a board name and recognise your addresses. */
 export const readGitName = async (cwd: string): Promise<string | null> =>
 	(await readGitIdentity(cwd)).name;
 

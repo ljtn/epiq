@@ -15,11 +15,8 @@ import {
 	parseDiffCommentMeta,
 } from '../lib/utils/diff-comment.js';
 
-// A comment made in the TUI's pager and one made in the GUI's diff have to be
-// the same comment. They are built from different things — the TUI has the
-// patch's rows, the GUI has both whole revisions of the file — so the only
-// thing keeping them identical is that both end at buildDiffCommentBody with
-// the same selection. This is where that is checked.
+// The TUI pager and the GUI diff build a comment from different inputs; both
+// must produce the same body through buildDiffCommentBody.
 
 const AFTER = [
 	'const keep = 1;',

@@ -1,7 +1,5 @@
-// The scrubber's markup entry point: how the header, controls, charts, needle
-// and hints are arranged. The pieces it places come from ScrubberControls,
-// ScrubberTrack, ScatterCanvas and FlowCanvas; the numbers it places them at
-// from TimeScrubber, which owns all the logic.
+// The scrubber's markup: where header, controls, charts, needle and hints go.
+// TimeScrubber owns the logic.
 
 import {memo, useEffect, useRef} from 'react';
 import {GuiCommitEntry} from '../lib/gui-state.model';
@@ -68,10 +66,7 @@ import {REVEAL_MS, useReveal} from '../lib/use-reveal';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Module scope, not an object literal at the call site: the bars are memoized
-// because this component re-renders on every mouse move across the track, and a
-// fresh object each render is a prop change that defeats the memo on exactly
-// that path.
+// Module scope, so the memoized bars aren't re-rendered on every mouse move.
 const LINE_BAR_COLORS = {top: GUI_THEME.red, bottom: GUI_THEME.green};
 
 const dotAnimation = (key: string, animate: boolean, leaving: boolean) =>
@@ -147,9 +142,7 @@ export type ScrubberChartHandlers = {
 
 export type ScrubberChart = {
 	trackRef: React.RefObject<HTMLDivElement | null>;
-	// The wrapper round both charts, which a horizontal wheel over pages the
-	// window — the listener is native, for the preventDefault React's cannot
-	// give, so it is attached by ref.
+	// Wraps both charts; a native wheel listener pages the window (React's can't preventDefault).
 	pageRef: React.RefObject<HTMLDivElement | null>;
 	// Which way the window can be paged, and what to call the one on screen
 	// when the scope buttons do not already say — null while they do.
@@ -183,9 +176,7 @@ export type ScrubberChart = {
 	// The Board series' colour under the current view, so the bars and the
 	// baseline say the same thing the scatter's dots do.
 	issueSeriesColor: string;
-	// Dots stop being hover targets mid-drag. Sweeping the needle across the
-	// track otherwise crosses hundreds of them, and each enter and leave sets
-	// state — 1.5s of blocking over a three-second drag.
+	// Dots stop being hover targets mid-drag, or each one crossed sets state.
 	dragging: boolean;
 	// The stretch a range drag has covered so far, in track fractions, or null
 	// when no range is being dragged out.
@@ -195,9 +186,7 @@ export type ScrubberChart = {
 	hoveredBucketIndex: number | null;
 	hoveredCommitBucketIndex: number | null;
 	hoveredSegment: Segment | null;
-	// Where the window is cut into segments, drawn as the track's grain, and
-	// the grain segment under the pointer, whose short label gives way to the
-	// highlight's full name.
+	// The track's segment grain, and the segment under the pointer.
 	segmentBoundaries: readonly SegmentBoundary[];
 	hoveredGrain: Segment | null;
 	// Nothing can be asked for with the socket down.
@@ -208,9 +197,7 @@ export type ScrubberChart = {
 	// Null when the moment it marks is outside the window, which is drawn as no
 	// needle at all rather than one clamped to an edge it is not at.
 	thumbFraction: number | null;
-	// Where the stretch the board has not applied begins, or null where none of
-	// the window is. Not the needle's fraction: a zoom past the checkout leaves
-	// the needle off the chart while everything on it is still unapplied.
+	// Where the unapplied stretch begins, or null. Not the needle: a zoom can hide it.
 	unappliedFrom: number | null;
 	// The one event singled out by a hovered Log row, or null.
 	highlightEventId: string | null;
@@ -240,10 +227,7 @@ export const ScrubberLayout = ({
 	// The event log panel, switched from the box in this row.
 	logOpen: boolean;
 	onChangeLogOpen: (next: boolean) => void;
-	// The history player is up and owns the board's position. Nothing on the bar
-	// answers a pointer while it is, but only the controls dim for it: the charts
-	// are part of what is being watched — the needle sweeps them as the movie
-	// runs — so they stay lit.
+	// The history player owns the board's position: controls dim, charts stay lit.
 	standDown: boolean;
 	// The transport is not the caller's to pass: this component decides where it
 	// goes, which differs between the open row and the collapsed one.
@@ -255,18 +239,14 @@ export const ScrubberLayout = ({
 }) => {
 	const {axis, layoutMode, animate, windowKey, on} = chart;
 	const flowGeo = flowGeometry(chart.flowChart.strands);
-	// The track heights slide when a series is folded away, never when the
-	// layout changes: volume and events end at the same height, and parts of
-	// the two arriving at different speeds bounced the board below.
+	// Track heights slide when a series folds, never on a layout change.
 	const shownLayout = useRef(layoutMode);
 	const layoutChanged = shownLayout.current !== layoutMode;
 	useEffect(() => {
 		shownLayout.current = layoutMode;
 	}, [layoutMode]);
 	const foldAnimate = animate && !layoutChanged;
-	// The charts are unmounted while the bar is shut, as they were before they
-	// moved: shutting it is how somebody takes a busy timeline off the page.
-	// They are only held past the toggle for as long as the closing move.
+	// The charts unmount while shut, held only through the closing move.
 	const track = useReveal(!collapsed, animate ? REVEAL_MS : 0);
 	// The commit bars outlive the box being unticked by the length of the fold,
 	// and no longer: what is folded to nothing draws nothing.
@@ -282,9 +262,7 @@ export const ScrubberLayout = ({
 				borderRight: 'none',
 				borderTop: 'none',
 				padding: '20px 30px 18px',
-				// Panel clips children to keep its glow inside its rounded corners,
-				// which would lop off the overhanging hint. Safe to disable only
-				// because this panel is square.
+				// Lets the hint overhang; safe only because this panel is square.
 				overflow: 'visible',
 				pointerEvents: standDown ? 'none' : undefined,
 			}}
@@ -304,9 +282,7 @@ export const ScrubberLayout = ({
 						display: 'flex',
 						alignItems: 'center',
 						justifyContent: 'space-between',
-						// The wells at either end carry the break between what draws the
-						// chart and what does not, so this is the same gap as between the
-						// groups of controls.
+						// The same gap as between the control groups.
 						gap: 20,
 						opacity: standDown ? 0.3 : 1,
 						transition: 'opacity 240ms ease',
@@ -320,12 +296,8 @@ export const ScrubberLayout = ({
 					/>
 
 					{collapsed ? (
-						// What outlives the charts comes up here rather than going out of
-						// reach with them: the transport, which plays the window rather
-						// than drawing it, and the narrowing — a link can arrive with the
-						// scrubber shut, and collapsing it is remembered, so the board
-						// must not be left hiding tickets behind a control nobody can
-						// see.
+						// Kept reachable while collapsed: the transport and the narrowing, which a
+						// link can turn on with the scrubber shut.
 						<div style={{display: 'flex', alignItems: 'center', gap: 12}}>
 							<TextFilterInput
 								value={controls.textFilter}
@@ -340,9 +312,7 @@ export const ScrubberLayout = ({
 								/>
 							)}
 
-							{/* Collapsed, the transport still has both halves: shutting the
-							    charts is not a reason to lose the way back to the present. One
-							    group here too, at the same gap as the open row keeps. */}
+							{/* Collapsed, the transport keeps both halves. */}
 							<span
 								style={{display: 'inline-flex', alignItems: 'center', gap: 6}}
 							>
@@ -371,12 +341,8 @@ export const ScrubberLayout = ({
 				</div>
 
 				{track.mounted && (
-					// The fold, in a grid because a row given `0fr` and `1fr` moves
-					// between them without anybody having to know how tall the charts
-					// are — which depends on the layout and on which series are up.
-					// The clip is let go of once the bar is open: the needle's grip,
-					// the pager's arrows and the scope's outline all draw past the
-					// track's own edges.
+					// The fold: a grid row from `0fr` to `1fr`, so no height is measured. Unclipped
+					// once open, as the grip, pager and scope draw past the track.
 					<div
 						style={{
 							display: 'grid',
@@ -392,15 +358,10 @@ export const ScrubberLayout = ({
 								minHeight: 0,
 							}}
 						>
-							{/* Wraps both charts so the period highlight can be one tall block
-					    spanning them and the gap between. Pointer handlers belong here
-					    rather than on either chart, so a drag or hover anywhere across
-					    the pair — the gap included — counts as one timeline. */}
+							{/* Wraps both charts, so highlight, drag and hover span them and the gap. */}
 							<div
 								data-testid="scrubber-track"
-								// The stretch the chart is drawing, for anything that has to know
-								// whether it is drawing one yet: with no window the axis is a
-								// single instant, and a press on it asks for now.
+								// Zero with no window yet, when a press asks for now.
 								data-axis-span={Math.round(axis.span)}
 								ref={chart.pageRef}
 								className={PAGED_TRACK_CLASS}
@@ -414,10 +375,7 @@ export const ScrubberLayout = ({
 									position: 'relative',
 									display: 'flex',
 									flexDirection: 'column',
-									// No gap either side of a track folded away with its series
-									// off: the fold is to nothing, not to a blank band. It closes
-									// over the same moment the track does rather than snapping shut
-									// at the start of it.
+									// No gap beside a folded-away track; it closes with the track.
 									gap:
 										layoutMode === 'even' &&
 										!(chart.showIssues && chart.showCommits)
@@ -433,14 +391,8 @@ export const ScrubberLayout = ({
 									WebkitUserSelect: 'none',
 								}}
 							>
-								{/* The box that says the board is showing this window and
-					    nothing else. Positioned rather than an outline: it takes up
-					    no space either way, so narrowing cannot reflow the charts
-					    under the pointer that just clicked, but insets can differ
-					    per edge where an outline's offset cannot. It needs more room
-					    at the sides than above — the needle's grip overhangs the
-					    live end by half its width — and less above, where the
-					    controls are only TRACK_HIT_PADDING away. */}
+								{/* The scope box. Positioned, not an outline, so it takes no space and can
+								    inset each edge differently (the grip overhangs the live end). */}
 								{chart.scoped && (
 									<div
 										aria-hidden
@@ -449,18 +401,14 @@ export const ScrubberLayout = ({
 											position: 'absolute',
 											inset: `${-SCOPED_OUTLINE_INSET_Y}px ${-SCOPED_OUTLINE_INSET_X}px`,
 											border: `1px solid ${SCOPED_OUTLINE_COLOR}`,
-											// Cornered like the row's buttons, not like a card: this is
-											// chrome around the chart, and 4px read as a pill on a line
-											// this thin.
+											// Cornered like the row's buttons.
 											borderRadius: 2,
 											pointerEvents: 'none',
 										}}
 									/>
 								)}
 
-								{/* The gap above the charts, made part of the track for the
-					    pointer and nothing else. Absolutely positioned so it draws
-					    nothing and takes no room. */}
+								{/* The gap above the charts as a pointer target only. */}
 								<div
 									aria-hidden
 									style={{
@@ -485,11 +433,8 @@ export const ScrubberLayout = ({
 									/>
 								)}
 
-								{/* Kept mounted with the series off — the pointer geometry is
-						    measured off it — but folded to nothing in volume layout, the
-						    way the commit track below goes when its box is unticked: a
-						    series switched off leaves no row, baseline or otherwise. In
-						    the scatter both series share this one box, so it stays. */}
+								{/* Kept mounted with the series off, since pointer geometry is measured off it;
+								    folded to nothing in volume layout. */}
 								<div
 									ref={chart.trackRef}
 									style={{
@@ -593,15 +538,9 @@ export const ScrubberLayout = ({
 									)}
 								</div>
 
-								{/* Up whenever the series is, commits or none: an empty window
-						    keeps its baseline the way the board track above keeps its,
-						    and the scrubber's height does not come and go with what the
-						    window happens to hold. */}
+								{/* Up whenever the series is, so the height doesn't follow the data. */}
 								{layoutMode === 'even' && (
-									// Folded to nothing rather than taken away, so unticking the box
-									// slides the track out instead of dropping the chart above it.
-									// The bars themselves go once the fold is over: a row of them
-									// clipped to no height is a hundred nodes drawing nothing.
+									// Folded rather than removed, so unticking slides it out; bars drop once folded.
 									<div
 										style={{
 											height: chart.showCommits ? TRACK_HEIGHT : 0,
@@ -637,10 +576,7 @@ export const ScrubberLayout = ({
 												)}
 
 												{chart.linesMeasure ? (
-													// What the window churned, hanging from the same
-													// edge the commit bars hang from: the length is the
-													// whole of it and the colours divide it, so the bar
-													// keeps the track's full height either way.
+													// What the window churned, the colours dividing a full-height bar.
 													<StackedVolumeBars
 														segments={chart.lineBars}
 														bucketCount={axis.bucketCount}
@@ -678,15 +614,8 @@ export const ScrubberLayout = ({
 									/>
 								)}
 
-								{/* On the chart rather than on the bar, at the end the press
-						    sends the needle to. A control that stands where it takes
-						    you needs no label to explain the journey.
-
-						    Gone while a movie is up rather than dimmed with the rest
-						    of the bar: the stand-down does not reach the chart, so a
-						    filled accent box here would be the one thing still lit on
-						    a bar that has stood down — and inert, since the way out of
-						    a movie is the player's own. */}
+								{/* On the chart at the end it sends the needle to. Gone during a movie, which
+								    the player exits. */}
 								{!standDown && (
 									<ReturnToNowButton
 										isScrubbing={controls.isScrubbing}
@@ -719,10 +648,8 @@ export const ScrubberLayout = ({
 									/>
 								)}
 
-								{/* The pager, off either end of the track in the panel's own
-						    margin, so it covers no data. Shown while the chart is
-						    hovered — see SCRUBBER_PAGER_STYLES — and only the way the
-						    window can actually go. */}
+								{/* The pager, in the panel margin either side; shown on hover only where the
+								    window can go. */}
 								{chart.paging.earlier && (
 									<PageArrow side="earlier" onPage={on.onPageEarlier} />
 								)}
@@ -730,9 +657,7 @@ export const ScrubberLayout = ({
 									<PageArrow side="later" onPage={on.onPageLater} />
 								)}
 
-								{/* What the window is, where no scope button says: a stretch
-						    paged back to, dragged out, or cut to a ticket. Tucked into
-						    the track's top corner over whatever grain label lands there. */}
+								{/* Names a window no scope button does, in the track's top corner. */}
 								{chart.paging.label !== null && (
 									<span
 										data-testid="scrubber-window-label"

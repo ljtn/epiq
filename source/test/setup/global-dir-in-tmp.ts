@@ -1,13 +1,6 @@
 /**
- * The real `~/.epiq-global` holds the state-branch worktree — the live event
- * logs of every project on this machine. A test that resolves it writes real
- * events without ever running git outside tmp, so `no-git-outside-tmp` never
- * fires; a 529-line `*.test.jsonl` log ended up committed to this repo's own
- * state branch that way.
- *
- * Defaulted first, so a suite that forgets `EPIQ_GLOBAL_DIR` is isolated
- * rather than failed; asserted per test, so one that points it somewhere real
- * fails on the spot.
+ * Keeps tests off the real `~/.epiq-global`, which holds live event logs:
+ * defaulted to tmp up front, asserted per test.
  */
 import fs from 'node:fs';
 import os from 'node:os';

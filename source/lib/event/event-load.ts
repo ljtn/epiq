@@ -22,9 +22,7 @@ import {
 } from './log-signature.js';
 import {stripPendingMarker} from './pending-log.js';
 
-// What a log file name yields where it carries no name segment, which is every
-// log written since the name left it. Named so the checks below read as
-// "nobody chose this" rather than as a comparison against a bare string.
+// The actor name a log file name without a name segment yields.
 const UNNAMED_ACTOR = 'unknown';
 
 const EventFileNameSchema = z.object({
@@ -32,16 +30,12 @@ const EventFileNameSchema = z.object({
 	userName: z.string().min(1).default(UNNAMED_ACTOR),
 });
 
-// `v` is the version as written, not necessarily one we support: ordering and
-// ancestry run over these, so an unreadable event keeps its place.
-// Carries the file name's own `userName` beside the actor: the name is not
-// part of an event, but it is part of the older file names, and this is what
-// `loadActorNames` reads it from before `fromPersistedEvent` drops it.
+// `v` is the version as written, maybe unsupported: an unreadable event keeps its place.
+// `userName` is the older file names' segment, read by `loadActorNames`.
 export type ReconstructedEvent = PersistedEnvelope & Actor & {userName: string};
 
-// Orderable but not interpretable — except `corrupt-line`, which has no
-// envelope to order by and is reported only so the gap is visible.
-// `targetNodeId` scopes the resulting lock.
+// Orderable but not interpretable; `corrupt-line` has no envelope and is only
+// reported. `targetNodeId` scopes the resulting lock.
 export type UnreadableEvent = {
 	eventId: string | null;
 	reason:
@@ -55,17 +49,13 @@ export type UnreadableEvent = {
 
 const ENVELOPE_KEYS = new Set(['id', 'v', 'userId', 'userName']);
 
-// Best-effort, and deliberately unwilling to guess: anything ambiguous returns
-// null so the caller falls back to a log-wide lock rather than locking the
-// wrong node.
+// Anything ambiguous returns null, falling back to a log-wide lock.
 const getTargetNodeId = (entry: ReconstructedEvent): string | null => {
 	const payloads = Object.entries(entry).filter(
 		([key]) => !ENVELOPE_KEYS.has(key),
 	);
 
-	// The one-payload-key invariant `getPersistedAction` enforces is never
-	// checked on this path, so more than one key means we cannot tell which is
-	// the action.
+	// Unchecked here: more than one key means the action is unknown.
 	if (payloads.length !== 1) return null;
 
 	const value = payloads[0]?.[1];
@@ -78,10 +68,8 @@ const getTargetNodeId = (entry: ReconstructedEvent): string | null => {
 		: null;
 };
 
-// File names are lowercased on the way to disk, but an id is minted by `ulid()`
-// in upper case, so reading a lowercased one back splits one actor in two.
-// Restoring the canonical casing is lossless for ULIDs; anything else is left
-// alone rather than guessed at.
+// File names are lowercased but ULIDs are upper case; restores the casing of
+// ULID-shaped ids only.
 const ULID_SHAPE = /^[0-9a-hjkmnp-tv-z]{26}$/i;
 
 const canonicalUserId = (userId: string): string =>
@@ -92,13 +80,9 @@ const parseEventFileActor = (
 ): Result<{userId: string; userName: string}> => {
 	const baseName = path.basename(filePath, '.jsonl');
 
-	// Split on the FIRST '.' only. '.' survives sanitizing, so a user name may
-	// contain any number of them ("J. Lampa" -> `<id>.j.-lampa`), while the id
-	// segment never can.
+	// Split on the FIRST '.' only: names may contain dots, ids never do.
 	const separatorIndex = baseName.indexOf('.');
-	// The pending log's marker rides on the id segment, so it comes off here —
-	// the actor is the same one either way, and a line is not attributed
-	// differently for having been written while a sync held the worktree.
+	// A pending log's marker rides on the id segment; same actor either way.
 	const userId = stripPendingMarker(
 		separatorIndex === -1 ? baseName : baseName.slice(0, separatorIndex),
 	);
@@ -145,29 +129,14 @@ const hasPersistedActionPayload = (
 	action: string,
 ): entry is Record<string, unknown> => action in entry;
 
-// What one log file parsed to, while it is still that file.
-//
-// A read of the log parses every line of every file, and most reads happen
-// over a log that has not moved: a scrub asks for a cut every 120 ms, and each
-// one re-read and re-parsed the lot — 88 ms at thirty thousand events, again
-// and again for an answer that could not have changed.
-//
-// The stamp is taken BEFORE the read, never after. Taken after, a line landing
-// in the gap would be remembered under a stamp that already accounts for it,
-// and the stale parse would be served forever. Taken before, a write in the
-// gap means the entry is remembered under the older stamp and simply missed
-// next time — the same rule, and for the same reason, as `logSignature`.
+// Parsed files, keyed by a stat stamp taken BEFORE the read, so a write landing
+// in between is reparsed next time rather than cached as seen.
 const parseCache = new Map<
 	string,
 	{stamp: string; entries: ReconstructedEvent[]; quarantined: UnreadableEvent[]}
 >();
 
-// A board's worth, so the cache holds the log it is being asked about and not
-// a history of every log this process has seen. Both counted, because both are
-// what a log can be made of: a log of nothing but corrupt lines produces no
-// events and a quarantine entry per line, and counting only the events would
-// let it sit here for free. A cap on entries as well, or ten thousand one-line
-// logs stay under any total and never leave.
+// Caps on lines (events and quarantined lines alike) and on entries.
 const PARSE_CACHE_MAX_LINES = 300_000;
 const PARSE_CACHE_MAX_FILES = 512;
 
@@ -189,10 +158,7 @@ const rememberParse = (
 
 	const next = {stamp, entries, quarantined};
 
-	// Deleted first, so a re-remembered file goes to the back of the insertion
-	// order rather than keeping the place it took when it was new. Otherwise the
-	// log this process writes to — the one re-parsed most — would be the first
-	// evicted.
+	// Deleted first, so a re-remembered file moves to the back of the eviction order.
 	parseCache.delete(filePath);
 	parseCache.set(filePath, next);
 	parseCacheLines += linesOf(next);
@@ -217,23 +183,8 @@ export const clearParseCache = (): void => {
 	parseCacheLines = 0;
 };
 
-// How recently written a file may be and still be worth remembering.
-//
-// A stamp can only distinguish two writes the clock could tell apart, and the
-// clock is coarse: Linux gives mtime at exactly millisecond granularity, so
-// `mtimeNs` there carries no more than `mtimeMs` does. Two same-length writes
-// inside one tick therefore share a stamp, and a parse remembered under it
-// would be served for the wrong content. Git has the same problem with its
-// index and calls such a file racily clean.
-//
-// So a file whose mtime is within a tick of the read is not remembered at all;
-// the next read parses it again, by which time it has settled. It costs
-// nothing that matters — a file written this instant is the one about to be
-// written again — and it is what makes the stamp a fact rather than a guess.
-//
-// `mtimeNs` rather than `mtimeMs` all the same: where the filesystem does keep
-// sub-millisecond times, as APFS does, it narrows the window this guard has to
-// cover.
+// A file written within a clock tick of the read is not cached: two same-length
+// writes in one tick share a stamp (Linux mtime is millisecond-grained).
 const RACY_WRITE_WINDOW_MS = 2n;
 
 const MS_IN_NS = 1_000_000n;
@@ -274,9 +225,7 @@ export const parsePersistedEventsFile = (
 				unreadable.push(entry);
 			}
 
-		// A copy of the list, not of the events: the caller concatenates and
-		// sorts, and nothing reads an event by mutating it — but a caller that
-		// sorted the array it was handed would reorder the cache with it.
+		// A copy of the list, so a caller sorting it cannot reorder the cache.
 		return succeeded('Parsed persisted events file', [...remembered.entries]);
 	}
 
@@ -294,11 +243,8 @@ export const parsePersistedEventsFile = (
 	// with the events it belongs to, and replayed on a hit.
 	const quarantined: UnreadableEvent[] = [];
 
-	// A line whose envelope will not parse carries no id, so unlike an
-	// unreadable payload it cannot keep its place in the chain. Skipping it
-	// loses that one event; failing the load loses the whole state, for
-	// everyone, permanently — `merge=union` splices a half-written line into
-	// every clone that pulls, and the log is append-only.
+	// An unparseable envelope has no id to keep its place: skip the line, never
+	// fail the load, as union merge spreads it to every clone.
 	const quarantine = (lineNumber: number, reason: string) => {
 		quarantined.push({
 			eventId: null,
@@ -337,10 +283,7 @@ export const parsePersistedEventsFile = (
 
 	if (unreadable) for (const entry of quarantined) unreadable.push(entry);
 
-	// Only a file whose stamp was readable and has settled: without a stamp
-	// there is nothing to say the entry is still that file's, and within a tick
-	// of the write there is nothing to say the next write will look different.
-	// A cache that cannot be invalidated is worse than none.
+	// Cached only with a readable, settled stamp.
 	if (stamp?.settled) {
 		rememberParse(filePath, stamp.value, entries, quarantined);
 	}
@@ -348,21 +291,13 @@ export const parsePersistedEventsFile = (
 	return succeeded('Parsed persisted events file', [...entries]);
 };
 
-// Code units, not `localeCompare`: collation follows the process locale, so
-// the same ids could order differently on two machines. The relational
-// operators compare UTF-16 code units, which every runtime does the same way.
+// Code units, not `localeCompare`, which follows the process locale.
 const byCodeUnit = (a: string, b: string): number =>
 	a < b ? -1 : a > b ? 1 : 0;
 
 /**
- * Total, so the order is a function of the event *set* alone.
- *
- * Two events can legitimately share a parent, and — through a reused id, or a
- * line that reached two logs — they can share an id too. Comparing ids alone
- * left equal ones tied, and a tie is settled by `readdirSync` order, so two
- * machines holding the same events derived different states. Falling through
- * to the content breaks every tie the same way everywhere: the actor comes off
- * the file name and the payload off the line, both identical on every replica.
+ * Total, so order depends only on the event set: equal ids fall through to the
+ * actor and payload, which every replica has identically.
  */
 const compareEvents = (
 	a: ReconstructedEvent,
@@ -403,9 +338,7 @@ export const sortEvents = (
 	const result: ReconstructedEvent[] = [];
 	const placed = new Set<string>();
 
-	// Depth-first, but on an explicit stack: every event refs its predecessor,
-	// so the forest is one chain as long as the log and recursion would blow
-	// the call stack a few thousand events in.
+	// An explicit stack: the forest is one chain as long as the log.
 	const visit = (root: ReconstructedEvent) => {
 		const stack: ReconstructedEvent[] = [root];
 
@@ -426,10 +359,8 @@ export const sortEvents = (
 		}
 	};
 
-	// Only genesis is a legal root. Any other `refId: null` event — trivially
-	// forgeable, and able to sort in front of all of history via a low ULID —
-	// is anchored after the known history, with the orphans. Exactly one action
-	// key, or extra keys smuggle a payload past a bare `in` check.
+	// Only genesis may be a root: a forged `refId: null` would sort before history.
+	// Exactly one action key, or extra keys smuggle a payload past the check.
 	const roots = (childrenByRef.get(null) ?? []).filter(event => {
 		const keys = Object.keys(event).filter(key => !ENVELOPE_KEYS.has(key));
 		return keys.length === 1 && keys[0] === genesis;
@@ -465,8 +396,7 @@ export const sortEvents = (
 };
 
 // The time a checkout cut judges each event by: raw where honest, inherited
-// where poisoned. One computation over the full reconstructed set, so every
-// consumer of a cut agrees on where a poisoned id falls.
+// where poisoned. Computed once, so every consumer agrees.
 export const effectiveEventTimes = (
 	events: ReadonlyArray<Pick<ReconstructedEvent, 'id'>>,
 ): Array<number | null> =>
@@ -515,11 +445,7 @@ export const splitEventsAtTime = (
 	};
 };
 
-/**
- * Reads the log for one catalog: which actions it knows, how a payload is
- * checked, and which action is genesis are the only things that differ
- * between products.
- */
+/** Reads the log for one catalog: its actions, payload checks and genesis. */
 export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	const knownActions: ReadonlySet<string> = new Set(catalog.actions);
 
@@ -544,10 +470,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			return failed(`Persisted event is missing payload for action: ${action}`);
 		}
 
-		// The id and not the name: `userName` is the file name's, kept on the
-		// reconstructed entry for `loadActorNames` and destructured off here, so
-		// a replayed event is identical to the one the write applied in place —
-		// which is what makes skipping the reload after a write sound.
+		// `userName` is dropped, so a replayed event equals the one applied in place.
 		return succeeded('Decoded persisted event', {
 			id: eventId,
 			action,
@@ -565,9 +488,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		const skippedVersions = new Map<number, number>();
 
 		for (const entry of events) {
-			// Skipped here, after ordering and anchoring, so the event keeps its
-			// place in history. Decoding is what would fail on an unknown payload
-			// shape.
+			// Skipped after ordering, so the event keeps its place in history.
 			if (!isSupportedSchemaVersion(entry.v)) {
 				skippedVersions.set(entry.v, (skippedVersions.get(entry.v) ?? 0) + 1);
 				unreadable?.push({
@@ -581,10 +502,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 			const eventResult = fromPersistedEvent(entry);
 
-			// Quarantined, not fatal: `merge=union` splices any line a peer pushes
-			// into every clone, so a malformed payload that failed the load would
-			// brick the state for everyone, permanently. The envelope parsed, so
-			// the event keeps its place in the chain.
+			// Quarantined, not fatal: union merge spreads a bad line to every clone.
 			if (isFail(eventResult)) {
 				unreadable?.push({
 					eventId: entry.id[0],
@@ -595,9 +513,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 				continue;
 			}
 
-			// Events written by a newer build may carry actions this version does
-			// not understand. Skip them instead of failing the whole replay — the
-			// persisted logs are untouched, so upgrading restores them.
+			// An action from a newer build is skipped; the log is untouched, so upgrading restores it.
 			const action = eventResult.value.action as string;
 			if (!isKnownAction(action)) {
 				skippedActions.set(action, (skippedActions.get(action) ?? 0) + 1);
@@ -610,10 +526,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 				continue;
 			}
 
-			// The action is one we know, so the payload is one we are about to
-			// dereference. Quarantined like any other unreadable line rather than
-			// handed to a materializer that assumes a well-behaved writer produced
-			// it — the same reasoning as the envelope check above, one layer in.
+			// A known action's payload is checked before any materializer sees it.
 			const payloadResult = catalog.readPayload(
 				action,
 				eventResult.value.payload,
@@ -652,13 +565,8 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		return succeeded('Decoded reconstructed events', decoded);
 	};
 
-	// The tail of the causal order, which every write has to point at.
-	//
-	// Held rather than re-derived. Reading it meant reading every line the log
-	// has ever held and rebuilding the whole forest, to take one id off the
-	// end: at two hundred thousand events that was four seconds for a single
-	// write. `EdgeCursor` already avoids it within a batch, for the same
-	// reason; a lone write had nothing to belong to.
+	// The tail of the causal order, which every write points at. Cached by log
+	// signature: deriving it means reading the whole log.
 	let edgeCache: {root: string; signature: string; edge: string | null} | null =
 		null;
 
@@ -668,19 +576,15 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	): Result<ReconstructedEvent[]> {
 		const dir = getEventsDirPath(eventsRoot);
 
-		// Before the read, never after: a line landing in the gap would otherwise
-		// be remembered under a signature that already accounts for it, and the
-		// edge would stay wrong until something else moved.
+		// Before the read, never after, as with the parse cache.
 		const signature = logSignature(eventsRoot);
 
 		if (!fs.existsSync(dir)) {
 			return succeeded('No events found', []);
 		}
 
-		// A file gone between the listing and its read is one a sync just renamed
-		// or git just rewrote; the listing is taken again so the read sees the
-		// directory as it is, not as it was. Quarantined lines are collected per
-		// attempt, or a listing that had to be repeated would report them twice.
+		// A file gone mid-read means a sync renamed it: list again. Quarantine is
+		// collected per attempt so it is not reported twice.
 		let entries: ReconstructedEvent[] = [];
 		let quarantined: UnreadableEvent[] = [];
 
@@ -707,10 +611,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 					continue;
 				}
 
-				// Appended rather than spread. An argument list has room for about
-				// 125,000 entries on this runtime and then throws — out of a
-				// function whose whole contract is to return its failures, and on
-				// exactly the log large enough for any of this to matter.
+				// Pushed, not spread: a spread throws past ~125k arguments.
 				for (const entry of result.value) entries.push(entry);
 			}
 
@@ -753,10 +654,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		});
 	}
 
-	// Actors come off the file name, so they survive a payload this build cannot
-	// decode. A guard that asks "has this id ever authored anything" has to read
-	// these rather than the decoded events, or an unreadable version makes
-	// someone look unauthored.
+	// Actors come off file names, so they survive an undecodable payload.
 	function loadEventActors(
 		stateBranchRoot: string,
 	): Result<{userId: string; userName: string}[]> {
@@ -769,20 +667,8 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		);
 	}
 
-	// The names the log file names carry, by author id. A log written before the
-	// name left the file name is `<id>.<name>.jsonl` and yields one; a log
-	// written since is `<id>.jsonl` and yields nothing, since UNNAMED_ACTOR is
-	// nobody's chosen name.
-	//
-	// Whatever registry the product keeps is the source of record; this is the
-	// fallback for an id it has never heard of. Matching and listing take it,
-	// because a name that fails to match there mints a duplicate id for somebody
-	// who already has one.
-	//
-	// Reads the directory listing and nothing else. The names are *in* the file
-	// names, so parsing a single line would be waste — on a log of a few hundred
-	// thousand events that is the difference between a listing and a full parse
-	// of every file, on a path a user action sits behind.
+	// Names carried by older `<id>.<name>.jsonl` file names, by author id: the
+	// fallback for ids the registry lacks. Reads only the directory listing.
 	function loadActorNames(stateBranchRoot: string): Map<string, string> {
 		const byId = new Map<string, string>();
 		const dir = getEventsDirPath(stateBranchRoot);
@@ -798,10 +684,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			return byId;
 		}
 
-		// An id named by two different files: before the rename a new name
-		// started a new log, so one person can be `<id>.alice.jsonl` and
-		// `<id>.alice-cooper.jsonl` at once. Directory order says nothing about
-		// which is newer.
+		// One id under two older file names; directory order says nothing of which is newer.
 		const ambiguous = new Set<string>();
 
 		for (const fileName of fileNames) {
@@ -821,9 +704,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		if (ambiguous.size === 0) return byId;
 
-		// Only those ids, and only now: the log's own order is what says which
-		// name came last, and paying for a full parse to settle a rare legacy tie
-		// beats showing whichever name the filesystem happened to list second.
+		// Only for those ids: the log's order says which name came last.
 		const actors = loadEventActors(stateBranchRoot);
 		if (isFail(actors)) return byId;
 
@@ -903,17 +784,8 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	}
 
 	/**
-	 * Moves the edge on after this actor wrote `id` to `fileName`, without
-	 * reading the log to confirm it.
-	 *
-	 * Safe only because of what the id is: a child of the edge it was minted
-	 * against, and the deepest node in the forest, so the walk that derives the
-	 * order ends on it.
-	 *
-	 * Any other file moving means someone else's events arrived, and the tail
-	 * is then theirs to decide — so the cache is dropped rather than advanced,
-	 * and the next read derives it properly. That is the case this has to get
-	 * right; a log with one writer would not need the check at all.
+	 * Advances the cached edge to `id` without rereading; sound only for an id minted
+	 * as a child of that edge. Dropped instead if any other file moved.
 	 */
 	function advanceEdgeRef(
 		rootDir: string,
@@ -937,11 +809,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			next === null ? null : {root: rootDir, signature: next, edge: id};
 	}
 
-	// The tests drive the log through mocks, so they need the edge gone between
-	// cases; a signature is no help where the files never existed. The parsed
-	// files go with it, for the same reason and in the same breath — a mocked
-	// `statSync` is as unreliable a stamp as a mocked `readdirSync` is a
-	// signature, and a caller clearing one and not the other would be surprised.
+	// For tests, which mock the filesystem; clears the parse cache too.
 	function clearEdgeCache(): void {
 		edgeCache = null;
 		clearParseCache();

@@ -1,14 +1,5 @@
-// What the board says about a ticket, as against what its code says.
-//
-// Three facts, all of them from the ticket's own event log: how long it has
-// existed, how often it has gone backwards through the lanes, and how long it
-// has sat where it is now. None of them is a verdict either — a ticket can be
-// old because it is hard, or because nobody looked at it, and the difference is
-// exactly what the third number is for.
-//
-// Types only in, numbers out, no imports: the caller hands over the history it
-// already has, so this costs no read of its own and the GUI, the TUI and the
-// MCP can each derive the same answer from their own copy.
+// What a ticket's own event log says: its age, how often it went backwards,
+// and how long it has sat where it is. Pure, no imports.
 
 export type BoardMove = {
 	// Epoch ms.
@@ -38,10 +29,8 @@ export type BoardStats = {
 const MOVE = 'move.node';
 
 /**
- * `lanes` in board order, which is what makes "backwards" mean anything. A
- * move to a lane the board does not list — the Closed board's own lane, most
- * often — is counted as neither forwards nor back: it left the board rather
- * than moving within it.
+ * `lanes` in board order. A move to an unlisted lane (e.g. Closed) counts as
+ * neither forwards nor back.
  */
 export const deriveBoardStats = ({
 	createdAt,
@@ -52,10 +41,8 @@ export const deriveBoardStats = ({
 	currentLaneId,
 }: {
 	createdAt: number;
-	// When the ticket last arrived where it is, derived once from the whole log
-	// by `laneEntryTime` and carried on the ticket. Not recomputed here: this
-	// function sees only the moves, and a move within one lane looks exactly
-	// like an arrival from that angle.
+	// From `laneEntryTime`, which sees the whole log; the moves alone can't tell
+	// an arrival from a reorder.
 	enteredLaneAt: number;
 	now: number;
 	// Oldest first, as the ticket's log is kept.
@@ -67,9 +54,7 @@ export const deriveBoardStats = ({
 
 	let timesSentBack = 0;
 
-	// Walked forwards, carrying where the ticket was. A ticket is filed into
-	// the board's first lane, so that is where the first move is measured
-	// from; the log records where each move went, never where it came from.
+	// Walked forwards from the board's first lane, where a ticket is filed.
 	let previousIndex: number | null = 0;
 
 	for (const event of history) {

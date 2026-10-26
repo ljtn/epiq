@@ -4,17 +4,8 @@
 import {useEffect, useRef} from 'react';
 
 /**
- * `alsoInside` is for a panel that is not a descendant of the trigger — one
- * rendered through a portal to escape a clipping ancestor. Without it every
- * click inside such a panel reads as a click outside, and it closes the moment
- * it is used.
- *
- * `nested` is for a popover inside something that also closes on Escape — a
- * dropdown in the settings panel. It takes the key before the outer one and
- * claims it, so one Escape closes the list and not the panel around it.
- *
- * `escape: false` leaves Escape to the caller: a popover holding menus of its
- * own, whose Escape must close the innermost one first.
+ * `alsoInside`: a portalled panel that counts as inside. `nested`: takes Escape
+ * before an outer closer. `escape: false`: Escape is the caller's.
  */
 export const useDismissOnOutsideClick = (
 	open: boolean,
@@ -50,10 +41,7 @@ export const useDismissOnOutsideClick = (
 			document.removeEventListener('mousedown', onPointerDown);
 			document.removeEventListener('keydown', onKeyDown, {capture: nested});
 		};
-		// `alsoInside` is a fresh array each render and is read through its refs
-		// when a click arrives, never captured, so it is deliberately not a
-		// dependency: listing it would tear these listeners down and re-add them
-		// on every render for no change in behaviour.
+		// `alsoInside` is read through refs on click, so it is not a dependency.
 	}, [open, onDismiss, nested, escape]);
 
 	return ref;

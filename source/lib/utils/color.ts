@@ -120,13 +120,7 @@ const interpolateColor = (a: Rgb, b: Rgb, t: number): Rgb => mixRgb(a, b, t);
 // string-based single color
 // =========================
 
-// The full circle, deliberately, after trying to quantise it into 24 slots to
-// guarantee a minimum separation (Q8NP90Q). That worked on the pairs it was
-// filed for — `assignees`/`jola` went from 2° apart to 30° — but every other
-// name moved with it, by up to 176°: `time-travel` went magenta to green. A
-// colour a user already knows is worth more than the near-misses it prevents,
-// and it traded them for exact collisions anyway. Separation, if it is worth
-// having, has to come from somewhere other than the hue.
+// The full hue circle: quantising hues for separation would recolour every known name.
 export const stringToHslHexColor = (value: string): string => {
 	const hue = hashString(value) % 360;
 
@@ -139,10 +133,7 @@ export const stringToHslHexColor = (value: string): string => {
 	return rgbToHex(rgb);
 };
 
-// Tolerates a missing name rather than throwing on one. Callers colour things
-// the log does not have to name — a comment whose author was never written, an
-// event from a build that knew a field this one does not — and a colour is
-// never worth taking a request down for.
+// Tolerates a missing name: a colour never fails a request.
 export const getStringColor = (
 	id: string | undefined,
 	config = TAGS_DEFAULT,
@@ -184,15 +175,7 @@ export const getGradientColor = (t: number): Rgb => {
 	return interpolateColor(stops[index]!, stops[index + 1]!, localT);
 };
 
-/**
- * Samples an arbitrary list of hex stops at `t` (0..1), as hex.
- *
- * `getGradientColor` above answers the same question for the one gradient the
- * palette owns; this one is for a caller bringing its own stops — the sync
- * animations, which cycle a gradient of their own. Both components had written
- * `hexToRgb`, `rgbToHex`, a mixer and this walk out for themselves, a third
- * copy of primitives this module already had.
- */
+/** Samples a caller's own list of hex stops at `t` (0..1), as hex. */
 export const sampleGradient = (stops: readonly string[], t: number): string => {
 	if (stops.length === 0) return '#000000';
 	if (stops.length === 1) return stops[0]!;

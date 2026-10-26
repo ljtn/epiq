@@ -24,10 +24,8 @@ import {
 } from './commit-repos.js';
 import {bodyRefs, invalidateCommitTimelineCache} from './commit-timeline.js';
 
-// Connecting a repo makes every contributor's epiq download it, so it is never
-// one step. A first call clones it into a stage and says what it is and what
-// it costs, writing nothing; only a second call that confirms writes the event,
-// and the staged clone moves into place.
+// A connect is two calls: the first stages a clone and reports its cost; a
+// confirming second writes the event.
 
 export type RepoPreview = {
 	repo: CommitRepo;
@@ -66,10 +64,8 @@ type Stage = {
 // One per repo, per process: a confirm moves only a clone this process staged.
 const stages = new Map<string, Stage>();
 
-// Bumped by every preview and cancel of a repo: a clone that finishes after a
-// newer one began, or after a cancel, is not kept. One stage at a time per
-// process, too: a stage can be gigabytes, so a newer preview of any repo
-// takes the place of an older one.
+// Bumped by every preview and cancel, so a stale clone is dropped; one stage
+// per process.
 let latestPreview = 0;
 const generations = new Map<string, number>();
 const bump = (repoId: string) => {
@@ -193,19 +189,13 @@ export const claimedBytesOf = (repoRoot: string): number => {
 };
 
 /**
- * How a connect is asked for:
- * - `auto`: an option change applies; a new repo is previewed.
- * - `preview`: nothing is written; a new repo is staged and previewed.
- * - `confirm`: an option change applies; a new repo connects only with the
- *   clone this process staged for it, and is never staged here — a caller
- *   holding a lock asks this, and a clone can take minutes.
+ * `auto` applies option changes and previews new repos; `preview` writes nothing.
+ * `confirm` connects only with a clone this process staged, never staging one:
+ * its caller holds a lock, and a clone can take minutes.
  */
 export type ConnectMode = 'auto' | 'preview' | 'confirm';
 
-/**
- * Connects a repo, or changes a connected one's options. A new connect (or a
- * reconnect) is previewed first and written only on a confirm.
- */
+/** Connects a repo or changes its options; a new connect needs a confirm. */
 export const connectCommitRepo = async (
 	input: RepoChange & {
 		actorId: string;

@@ -10,9 +10,8 @@ import {
 } from '../lib/project-setup/init-project.js';
 import {logger} from '../logger.js';
 
-// Setting up a board from an agent, without the TUI. The tools here run before
-// a project exists, so unlike the rest of the API they never boot: there is no
-// project.json to resolve yet, and the board is what they create.
+// Setting up a board from an agent. These run before a project exists, so they
+// never boot.
 
 type InitInput = {
 	repoRoot?: string;
@@ -21,10 +20,8 @@ type InitInput = {
 	autoSync?: boolean;
 };
 
-// What the TUI's setup screen asks for, in its order, with the question the
-// agent should put to the user. A board can be written without an editor or
-// autosync, but the TUI would greet the user with its setup screen the first
-// time they opened it, so the same three fields are required here.
+// The TUI setup screen's questions, in order; required so the TUI doesn't greet
+// the user with setup on first open.
 const SETUP_FIELDS = [
 	{
 		name: 'userName',
@@ -45,11 +42,8 @@ const SETUP_FIELDS = [
 const normalize = (value: string): string => value.trim().toLowerCase();
 
 /**
- * Sets up a board in a git repository for the configured user, recording the
- * user's setup answers on the way. Called without them on a machine that has
- * none, it says which are missing rather than guessing: the answers are the
- * user's, and the agent is expected to ask and call again. Whatever was given
- * is kept, so the second call needs only the rest.
+ * Sets up a board for the configured user. Missing setup answers are reported,
+ * not guessed: the agent asks the user and calls again.
  */
 export const initProjectTool = async (
 	input: InitInput = {},
@@ -67,19 +61,16 @@ export const initProjectTool = async (
 	const givenName = input.userName?.trim();
 	const envActor = (process.env[ACTOR_NAME_ENV] ?? '').trim();
 
-	// The name asked for here is the user's. An agent's own — the one this
-	// server was launched with or assumed — would make the agent the configured
-	// user, signing everything the TUI and GUI do as the agent from then on.
+	// The name must be the user's, not the agent's, or the agent becomes the
+	// configured user.
 	if (givenName && envActor && normalize(givenName) === normalize(envActor)) {
 		return failed(
 			`userName "${givenName}" is this agent's own identity. Pass the user's name, the one they want the TUI and GUI to write as.`,
 		);
 	}
 
-	// Fills in what the machine lacks and never changes what it has: a
-	// different name here would rename the configured user on every board they
-	// write to, and a different editor would silently replace their choice.
-	// Changing an answer is the TUI's `:config`, made by the user.
+	// Fills in what the machine lacks, never changes what it has: that is the
+	// user's `:config`.
 	const given = {
 		userName: givenName || undefined,
 		preferredEditor: input.preferredEditor?.trim() || undefined,
@@ -142,11 +133,8 @@ export const initProjectTool = async (
 			.map(field => `${field.name} (${field.question})`)
 			.join('; ');
 
-		// Named rather than used. Reading git's name and configuring it unasked
-		// would set this machine's identity without the user ever seeing it, and
-		// git config in an agent container or on a shared box is not necessarily
-		// the user — the guard above refuses an agent's own name for that very
-		// reason. Proposing it costs one turn and keeps a person in the loop.
+		// Proposed, never configured unasked: git config on a shared box or in an
+		// agent container may not be the user.
 		const suggestion = missing.some(field => field.name === 'userName')
 			? await readGitName(input.repoRoot ?? process.cwd())
 			: null;

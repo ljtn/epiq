@@ -1,7 +1,5 @@
-// Getting an image into a body being written: the picker, the drop and the
-// paste all end here, upload, and leave the markdown reference at the cursor.
-// Without that last step the affordance is worthless — the reference points at
-// a content-hashed URL nobody is going to type by hand.
+// Picker, drop and paste all upload and leave the markdown reference at the
+// cursor.
 
 import {useCallback, useRef, useState} from 'react';
 import {GUI_THEME} from './gui-theme';
@@ -21,9 +19,7 @@ export const imageFilesFrom = (
 		? []
 		: Array.from(files).filter(file => file.type.startsWith('image/'));
 
-// An image reads as its own block, so it is put on one. Only ever adds the
-// newlines that are missing, so inserting into a blank body stays blank-clean
-// and inserting mid-paragraph does not glue the picture to a word.
+// Puts the image on its own block, adding only the newlines missing.
 export const spliceImageMarkdown = (
 	body: string,
 	caret: number,
@@ -41,11 +37,8 @@ export const spliceImageMarkdown = (
 };
 
 /**
- * Wires a textarea up to accept images. Returns the handlers to spread onto it
- * plus `pickFiles` for a button to call.
- *
- * `onUploadImages` resolves to one markdown reference per file it managed to
- * store, so a rejected file simply contributes nothing.
+ * Wires a textarea up to accept images: handlers to spread onto it, and
+ * `pickFiles` for a button. A rejected file contributes nothing.
  */
 export const useImageInsert = ({
 	issueId,
@@ -112,11 +105,8 @@ export const useImageInsert = ({
 		dragging,
 		busy,
 		inputRef,
-		// What the textarea wears while an image is over it, so a drag has
-		// somewhere visible to land rather than being a guess.
-		// The shorthand, not borderColor/borderStyle: the Textarea primitive sets
-		// `border`, and React warns that mixing the two on one element can drop
-		// whichever loses the race.
+		// The drop target's look while an image is over it. The `border` shorthand,
+		// since the Textarea sets it and mixing it with longhands warns.
 		dropStyle: dragging
 			? {
 					border: `1px dashed ${GUI_THEME.accent}`,

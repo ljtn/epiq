@@ -180,10 +180,8 @@ describe('event persist', () => {
 		expect(secondLine.id[1]).toBe(firstLine.id[0]);
 	});
 
-	// The edge is only a lower bound for the next id. An edge that cannot have
-	// a successor used to throw inside the mint, which left every machine
-	// unable to write anything ever again — the log is append-only, so there
-	// was no way back.
+	// The edge is only a lower bound for the next id; one with no successor
+	// must not stop writes.
 	const writeEdge = (id: string) => {
 		const eventsDir = path.join(rootDir, '.epiq', 'events');
 		fs.mkdirSync(eventsDir, {recursive: true});
@@ -225,11 +223,7 @@ describe('event persist', () => {
 		expect(result.value.entry.id[1]).toBe(centuryOut);
 	});
 
-	// The display name used to be a segment of the file name, where
-	// `getEventLogPath`'s two-`.jsonl` guard locked out anyone called something
-	// like `a.jsonl.b`. ZFZFW9D took the name off the path entirely — an event
-	// does not carry one — so the log is named by the id and nothing else, and
-	// no name a person chooses can reach it.
+	// No name a person chooses reaches the log's file name.
 	it('names the log by the id alone, whatever the actor is called', () => {
 		const result = persist({event: event(), rootDir});
 

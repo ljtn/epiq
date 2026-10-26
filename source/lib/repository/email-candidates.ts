@@ -4,17 +4,8 @@ import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {scanCacheMs} from '../utils/cache-ttl.js';
 
 /**
- * Addresses in a repository's history that nobody has claimed, and whether each
- * looks like it belongs to the person asking.
- *
- * Here rather than in `mcp/api` because the TUI's setup step and the MCP tool
- * have to offer the same list. Two scanners would mean two answers to "which of
- * these are mine", and the one the user was shown would depend on where they
- * happened to be standing.
- *
- * This is the only way an address gets claimed now. Nothing links unattended,
- * so every link has a person behind it who saw the address, the name on it and
- * how many commits it authored.
+ * Unclaimed addresses in a repository's history, and whether each looks like
+ * the asker's. Shared by the TUI and MCP; every link is made by a person.
  */
 
 export type EmailCandidate = {
@@ -28,9 +19,7 @@ export type EmailCandidate = {
 	claimedBy: string[];
 };
 
-// Two characters, not three: plenty of people go by a handle that short, and a
-// longer floor matched nothing at all for exactly those users. Every candidate
-// is confirmed by a person, so a loose token costs a glance.
+// Two characters, since plenty of handles are that short.
 const words = (value: string): string[] =>
 	value
 		.toLowerCase()
@@ -45,19 +34,15 @@ type Seen = {names: Set<string>; commits: number};
 
 const scanCache = new Map<string, {at: number; authors: Map<string, Seen>}>();
 
-// The walk is over the whole history, and the panel asks again after every link
-// and unlink. Its answer only moves when the repository gains commits, never
-// when a link changes, so the filtering below runs fresh over a cached walk.
+// The walk changes only with new commits, so it's cached and filtered fresh.
 const SCAN_CACHE_MS = 15_000;
 
 /** So one test's history does not answer the next one's scan. */
 export const resetEmailScanCacheForTests = (): void => scanCache.clear();
 
 /**
- * Every author in the history, by address. Cached per repository for a few
- * seconds, and a `Result` rather than an empty list: with nothing linking
- * itself any more, this list is the only way to claim an address, so a scan
- * that failed must not look like a history with nothing left in it.
+ * Every author in the history, by address, cached briefly. A failed scan is
+ * an error, not an empty list.
  */
 const scanAuthors = async (
 	repoRoot: string,
@@ -90,10 +75,7 @@ const scanAuthors = async (
 	const authors = new Map<string, Seen>();
 
 	for (const line of (result.stdout ?? '').split('\n')) {
-		// The last separator, not the first: git accepts a control character in
-		// an author name, so a commit whose name ends in one and an address
-		// would otherwise be read as being by that address. The name is
-		// whatever comes before, however many separators it contains.
+		// The last separator: an author name may contain one.
 		const at = line.lastIndexOf(FIELD);
 		if (at === -1) continue;
 
@@ -163,13 +145,7 @@ export const findEmailCandidates = async ({
 	);
 };
 
-/**
- * What to put in front of somebody: unclaimed addresses, likely ones first.
- *
- * Addresses already claimed are dropped rather than shown greyed out. Offering
- * one would be offering to make it contested, which is the state this whole
- * feature exists to avoid walking into by accident.
- */
+/** Unclaimed addresses, likely ones first; claimed ones are dropped. */
 export const offerableCandidates = (
 	candidates: EmailCandidate[],
 ): EmailCandidate[] =>

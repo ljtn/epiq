@@ -8,10 +8,7 @@ const tabButtons = (page: Page) =>
 		.locator('aside')
 		.getByRole('button', {name: /^(Overview|Comments|Code)\b/});
 
-// By its test id, not its title: the click below leaves the pointer on the
-// button, TooltipLayer opens over it and takes the `title` away, and whether
-// this file passed was a race between that and the next locator. It lost four
-// gate runs in a row while passing on its own.
+// By test id: TooltipLayer strips `title` on hover.
 const fullscreenToggle = (page: Page) => page.getByTestId('fullscreen-toggle');
 
 test.beforeEach(async ({page, appUrl}) => {
@@ -87,11 +84,7 @@ test('a narrow fullscreen panel keeps the tabs', async ({page, pageErrors}) => {
 	expect(pageErrors).toEqual([]);
 });
 
-// `ES6E62N` opened every commit and file here, "since it is for reading rather
-// than scanning" — which was true while this was the only place the whole
-// change could be read. `EEXWZN5` then gave the Code tab a compacted view that
-// shows it in one piece, and took that job. So the lanes list the commits like
-// the tabs do, and the reading happens next door (3RQ4QG4).
+// The lanes list commits like the tabs; the compacted Code view is for reading.
 test('the lanes list the commits to scan, as the tabs do', async ({
 	page,
 	pageErrors,
@@ -121,10 +114,7 @@ test('the lanes list the commits to scan, as the tabs do', async ({
 		.getByRole('button', {name: /^Code/})
 		.click();
 
-	// A budget each, because these are two arrivals: the row comes with the
-	// commit, its diff stat only once git has been asked for one. Sharing a
-	// single 10s timeout between them is what made this flake on a busy
-	// machine — and said "element not found" for whichever half was late.
+	// A timeout each: the row and its diff stat arrive separately.
 	const commitRow = page.getByRole('button', {name: /^add notes/});
 	await expect(commitRow).toBeVisible();
 	await expect(commitRow).toHaveAccessibleName('add notes +3 -0');

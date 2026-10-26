@@ -1,14 +1,6 @@
 #!/usr/bin/env node
-// Builds a Node.js Single Executable Application (SEA) for the epiq CLI.
-//
-// Why this approach:
-//   Node.js SEA only supports CJS entry points, but ink and yoga-layout use
-//   top-level await which CJS can't express. The workaround is to bundle the
-//   app as ESM, then wrap it in a tiny CJS bootstrap that loads it via a
-//   data: URL (Node.js resolves node: built-ins from data: URLs).
-//
-//   react-devtools-core is a dev-only optional dep that ink tries to import
-//   statically. We stub it so the bundle is fully self-contained.
+// Builds a Node.js Single Executable Application (SEA) for the epiq CLI. SEA
+// needs CJS, so the ESM bundle is loaded from a CJS bootstrap via a data: URL.
 
 import {execSync, spawn} from 'node:child_process';
 import {build} from 'esbuild';
@@ -53,12 +45,8 @@ await build({
 	outfile: 'dist/sea-inner.js',
 });
 
-// 2. Patch the ESM bundle:
-//    a) Inject a `require` shim — esbuild emits a CJS-compat shim that
-//       falls back to throwing when `require` is undefined (which it is in
-//       ESM/data-URL context). We supply a real one via createRequire.
-//    b) Patch import.meta.url so meow resolves package.json from the
-//       executable location rather than the data: URL.
+// 2. Patch the ESM bundle: inject a `require` shim, since esbuild's CJS shim throws
+//    without one in ESM, and point import.meta.url at the executable so meow finds package.json.
 console.log('\n[2/7] Patching bundle...');
 let inner = readFileSync(resolve(root, 'dist/sea-inner.js'), 'utf8');
 
@@ -69,9 +57,8 @@ const requireShim = [
 ].join('\n');
 inner = requireShim + inner;
 
-// Use a placeholder so the two replacements don't interfere.
-// In the SEA binary process.env.__EPIQ_SEA_URL__ is always set by the CJS
-// bootstrap before the import() call, so no fallback is needed.
+// A placeholder keeps the two replacements apart. The bootstrap always sets
+// __EPIQ_SEA_URL__.
 const PH = '__EPIQ_IMPORT_META_URL__';
 inner = inner.replace(/\bimport\.meta\.url\b/g, PH);
 // Replace any remaining standalone import.meta with a synthetic object.
@@ -81,9 +68,7 @@ inner = inner.replace(new RegExp(PH, 'g'), 'process.env.__EPIQ_SEA_URL__');
 
 writeFileSync(resolve(root, 'dist/sea-inner.js'), inner);
 
-// 3. Wrap the ESM bundle in a CJS bootstrap.
-//    The bootstrap sets __EPIQ_SEA_URL__ so the patched import.meta.url
-//    inside the ESM module gets a file:// URL pointing to the executable.
+// 3. Wrap the ESM bundle in a CJS bootstrap that sets __EPIQ_SEA_URL__.
 console.log('\n[3/7] Creating CJS bootstrap...');
 const esmCode = readFileSync(resolve(root, 'dist/sea-inner.js'), 'utf8');
 const b64 = Buffer.from(esmCode).toString('base64');
@@ -111,10 +96,7 @@ run('npm run build:gui');
 const seaConfig = JSON.parse(
 	readFileSync(resolve(root, 'source/config/sea-config.json'), 'utf8'),
 );
-// Embeds every file the GUI build produced, not a fixed list: esbuild code-
-// splitting (build-gui.mjs) writes one chunk per lazily-loaded language/theme
-// alongside main.js, and serveStatic (api-server.ts) resolves any of them by
-// path — a fixed list would silently 404 on whichever chunk a diff needs.
+// Every file the GUI build produced, since it is code-split into chunks.
 const guiDir = resolve(root, 'dist/gui');
 seaConfig.assets = Object.fromEntries(
 	readdirSync(guiDir).map(name => [`gui/${name}`, resolve(guiDir, name)]),
@@ -134,12 +116,8 @@ run(`node --experimental-sea-config "${generatedConfigPath}"`);
 console.log('\n[6/7] Assembling binary...');
 const exeSuffix = platform === 'win32' ? '.exe' : '';
 const outBin = resolve(root, `dist/epiq${exeSuffix}`);
-// Base Node binary the SEA blob is injected into. Defaults to the running
-// Node, but EPIQ_SEA_NODE lets us cross-build for another architecture by
-// pointing at a Node binary for that arch. The SEA blob itself is
-// architecture-independent here because sea-config.json enables neither
-// useSnapshot nor useCodeCache, so it can be injected into any same-version
-// Node binary.
+// Defaults to the running Node; EPIQ_SEA_NODE cross-builds, as the blob uses
+// no snapshot or code cache.
 const baseNode = process.env.EPIQ_SEA_NODE
 	? resolve(process.env.EPIQ_SEA_NODE)
 	: process.execPath;
@@ -181,13 +159,8 @@ function browserShimDir() {
 	return dir;
 }
 
-// The GUI client ships inside the binary as SEA assets, which `serveStatic`
-// (source/gui/api/api-server.ts) reads through `sea.getAsset`. Nothing else
-// takes that branch: the source and npm builds both read the same files off
-// disk, so an asset the blob is missing or names differently is invisible
-// until a user opens the GUI. Booting the binary's own server and pulling the
-// client through it is the only check that covers it, and it only costs the
-// seconds of a build that already takes minutes.
+// Boots the binary's server and pulls the client through it: the only check
+// of the SEA asset branch of `serveStatic`.
 async function verifyGuiAssets(binary) {
 	const cwd = mkdtempSync(join(tmpdir(), 'epiq-sea-gui-'));
 	const shimDir = browserShimDir();
@@ -255,10 +228,7 @@ async function verifyGuiAssets(binary) {
 			throw new Error(`index.html referenced no assets:\n${html}`);
 		}
 
-		// The diff highlighter's worker, which nothing in the HTML names — the
-		// client asks for it by URL at runtime. Missing from the blob, diffs
-		// would render blank with nothing but a line in the browser's console,
-		// which is exactly the failure this check exists to catch.
+		// The worker is fetched by URL at runtime, so the HTML never names it.
 		const assets = [...referenced, '/diffs-worker.js'];
 
 		for (const asset of assets) {
@@ -281,19 +251,13 @@ async function verifyGuiAssets(binary) {
 // 7. Verify
 console.log('\n[7/7] Verifying...');
 if (isCrossBuild) {
-	// The binary targets a different architecture than this host, so it may
-	// not run here. The release workflow verifies it separately (an arch
-	// check plus a best-effort Rosetta smoke test).
+	// Cross-built, so it may not run here; the release workflow checks it.
 	console.log('Cross-build: skipping native --version check.');
 } else {
 	run(`"${outBin}" --version`);
 
-	// Posix only. What the check catches — an asset the blob does not carry
-	// under the name `serveStatic` asks for — is decided by the asset map
-	// above, which is the same on every platform, so the macOS and Linux legs
-	// already cover the regression for all of them. Booting a server and
-	// killing it is the platform-specific part, and nobody has been able to
-	// exercise it on a Windows runner; see Y7RKPTH.
+	// Posix only: the asset map is the same everywhere, and the server boot is
+	// unexercised on Windows.
 	if (platform === 'win32') {
 		console.log('Windows: skipping the GUI asset check.');
 	} else {

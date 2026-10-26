@@ -19,10 +19,8 @@ export const isValidUserName = (value: string): boolean =>
 const normalize = (value: string): string => value.trim().toLowerCase();
 
 /**
- * One name is one id, on every machine, forever. Actor ids are compared and
- * used as a log file name, never decoded for a time, so a digest stands in for
- * a ULID here — and a fresh `ulid()` per process would register another
- * contributor and start another log file on every run.
+ * One name is one id on every machine: a digest, since a fresh `ulid()` per
+ * process would register a new contributor and log file on every run.
  */
 export const deriveActorId = (name: string): string => {
 	const digest = crypto
@@ -40,10 +38,8 @@ export const deriveActorId = (name: string): string => {
 };
 
 /**
- * Lets a process act as somebody other than the configured user, so several
- * agents sharing a machine reach the board as themselves rather than as
- * whoever owns `config.json`. Returns null when the environment asks for
- * nothing.
+ * Lets a process act as someone other than the configured user, so agents
+ * sharing a machine write as themselves. Null when the environment asks for nothing.
  */
 export const resolveEnvActor = (
 	configured: Partial<User>,
@@ -92,9 +88,8 @@ export const resolveEnvActor = (
 		);
 	}
 
-	// The normalized name, not the given one, because the derived id is a
-	// function of it: `Claude` and `claude` are one identity, and letting them
-	// keep separate display names makes the registry flip between the two.
+	// The normalized name, since the id derives from it: `Claude` and `claude`
+	// are one identity.
 	return succeeded('Resolved actor from environment', {
 		userId: pinnedId || deriveActorId(name),
 		userName: pinnedId ? name : normalize(name),
@@ -102,10 +97,8 @@ export const resolveEnvActor = (
 };
 
 /**
- * Puts a name given on the command line where `resolveEnvActor` reads it, so an
- * argument and the environment resolve through the same path. A conflicting
- * variable is an error rather than a precedence rule: whichever source lost
- * would have named the board's author silently.
+ * Routes a command-line name through `resolveEnvActor`. A conflicting variable
+ * is an error, so neither source silently names the author.
  */
 export const applyActorNameArgument = (
 	name: string,
@@ -126,10 +119,8 @@ export const applyActorNameArgument = (
 		);
 	}
 
-	// Only when the variable is not already saying it. With `EPIQ_USER_ID`
-	// pinned, `resolveEnvActor` takes the display name from here verbatim, so
-	// writing the argument's casing over an agreeing variable renames that
-	// contributor on the board.
+	// Only when the variable doesn't already agree: with `EPIQ_USER_ID` pinned,
+	// rewriting its casing would rename that contributor.
 	if (!fromEnv) env[ACTOR_NAME_ENV] = trimmed;
 
 	return succeeded('Applied actor name argument', fromEnv || trimmed);

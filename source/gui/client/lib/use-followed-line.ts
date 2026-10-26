@@ -1,16 +1,5 @@
-// Running the follow: watching the log's newest line and opening what it leads
-// to. The decision itself is `followStep`; this is what drives it.
-//
-// On the board's side, never in the panel. The panel is drawn in two places —
-// beside the board, and in a window of its own — and it was the panel that ran
-// this once, so following simply stopped existing whenever the log popped out.
-// The board already slices the log for both, and following is the same kind of
-// answer: one place decides, and whichever panel is up reports what it needs to
-// and draws what it is told.
-//
-// So this takes the pin as a value rather than reading a ref off a pane. A
-// docked panel reports its own; a popped-out one posts it back across the
-// window boundary, the same way it posts back a click.
+// Drives `followStep`: watches the log's newest line and opens where it leads.
+// Runs board-side, so it survives a popped-out log; the pin arrives as a value.
 
 import {useEffect, useRef, useState} from 'react';
 import {LogEntry} from './event-log';
@@ -47,10 +36,8 @@ export const useFollowedLine = ({
 
 	const newestId = entries[entries.length - 1]?.id ?? null;
 
-	// Read by the effect but deliberately not among its dependencies: both are
-	// rebuilt on every render of the board, and depending on either would run
-	// this on renders where no line arrived — the first of which to find the
-	// pane pinned would navigate with nothing new to show.
+	// Not dependencies: both are rebuilt every render, and a run with no new line
+	// would navigate.
 	const sourcesRef = useRef({entries, at, onOpen});
 	sourcesRef.current = {entries, at, onOpen};
 
@@ -82,9 +69,7 @@ export const useFollowedLine = ({
 		// Replaced rather than pushed: an hour of following would otherwise leave
 		// Back walking the reader through somebody else's afternoon.
 		if (step.open) sources.onOpen(step.open, {replace: true});
-		// `pinned` is listed so that returning to the foot resumes a following the
-		// reader paused by reading back, rather than leaving it dormant until the
-		// next line happens to arrive.
+		// `pinned`, so returning to the foot resumes following.
 	}, [following, live, newestId, pinned]);
 
 	return {followedLine};

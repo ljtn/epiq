@@ -1,9 +1,5 @@
-// The board's history played as a movie: what gets played, when each event
-// lands, and the clock that walks it. TheatrePlayer draws against this.
-//
-// Nothing new is asked of the server. The clock walks the timeline the scrubber
-// already holds, and each event it reaches checks the board out at that moment
-// with the same `time-travel:scrub` a needle drag sends.
+// The board's history played as a movie, walking the scrubber's timeline and
+// checking out each event with `time-travel:scrub`.
 
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {buildPlaybackFractions} from '../../../lib/utils/playback-pacing.js';
@@ -60,17 +56,13 @@ export const buildTheatrePlan = (
 	return {
 		events,
 		fractions: buildPlaybackFractions(times),
-		// A tick before the first event, not the window's own start: the movie
-		// opens on the board as it was just before any of this happened, with no
-		// dead air in front of it.
+		// A tick before the first event, so the movie opens on the board just before it.
 		startTime: times[0]! - 1,
 		endTime: times[times.length - 1]!,
 	};
 };
 
-// How long the movie runs at 1x. Scaled by the number of events so a handful is
-// not padded out to the same length as a year of history, and bounded at both
-// ends so neither becomes unwatchable.
+// Scaled by event count and bounded at both ends.
 const MS_PER_EVENT = 350;
 const MIN_DURATION_MS = 6_000;
 const MAX_DURATION_MS = 45_000;
@@ -88,21 +80,14 @@ export type TheatreSpeed = (typeof THEATRE_SPEEDS)[number];
 export const nextSpeed = (speed: TheatreSpeed): TheatreSpeed =>
 	THEATRE_SPEEDS[(THEATRE_SPEEDS.indexOf(speed) + 1) % THEATRE_SPEEDS.length]!;
 
-// The index of the last event whose scheduled position `progress` has reached,
-// or -1 before the first one lands. The same search the log takes its tail
-// with, over positions rather than moments.
+// The last event `progress` has reached, or -1 before the first.
 export const cursorAt = (fractions: number[], progress: number): number =>
 	lastIndexAtOrBefore(fractions, progress, fraction => fraction);
 
-// The opening beat, as a share of the movie: the board as it was before any of
-// this happened, held long enough to be read as a starting point. Without it
-// the first event lands on frame zero, since it is what the clock is measured
-// from, and the movie opens one edit in.
+// The opening beat, as a share of the movie, holding the board before any event.
 export const THEATRE_LEAD_IN = 0.06;
 
-// Where the clock's [0..1] sits in the events themselves, once the opening beat
-// is taken off the front. Negative for as long as that beat is running, which
-// is the position of a board no event has reached yet.
+// The clock's [0..1] past the opening beat; negative while it runs.
 export const playbackPosition = (progress: number): number =>
 	(progress - THEATRE_LEAD_IN) / (1 - THEATRE_LEAD_IN);
 
@@ -150,11 +135,8 @@ export const useTheatrePlayback = ({
 	// A bar being dragged owns the position, so the clock stands aside for it.
 	const [seeking, setSeeking] = useState(false);
 
-	// Where the clock actually is. The frame loop advances this and mirrors it
-	// into state for rendering; everything that moves the position by hand
-	// writes both. Deliberately not re-assigned from `progress` on render: a
-	// movie renders on every state broadcast, and one landing between a frame's
-	// write and its commit would drag the clock back a frame each time.
+	// Where the clock is: the frame loop writes it and mirrors it into state.
+	// Never reassigned from `progress` on render, which would drag it back a frame.
 	const progressRef = useRef(0);
 
 	const frameRef = useRef<number | null>(null);
@@ -164,9 +146,7 @@ export const useTheatrePlayback = ({
 	const sentCursorRef = useRef<number | null>(null);
 	const inflightRef = useRef(false);
 
-	// Held in a ref so the dispatch below turns on the cursor moving and nothing
-	// else. The caller re-creates its sender every render, and an effect that
-	// listed it would run on each one.
+	// A ref, so the dispatch runs only when the cursor moves.
 	const onSeekRef = useRef(onSeek);
 	onSeekRef.current = onSeek;
 
@@ -209,10 +189,8 @@ export const useTheatrePlayback = ({
 		let last = performance.now();
 
 		const step = (now: number) => {
-			// Frames stop arriving while the tab is in the background, and the first
-			// one back carries the whole gap. Capped, so a movie left in another tab
-			// carries on from where it was being watched instead of fast-forwarding
-			// to the end — and firing a checkout per event on the way.
+			// Capped, so a backgrounded tab resumes rather than fast-forwarding through a
+			// checkout per event.
 			const delta = Math.min(now - last, MAX_FRAME_MS);
 			last = now;
 
@@ -263,9 +241,7 @@ export const useTheatrePlayback = ({
 		progressRef.current = next;
 		setProgress(next);
 
-		// Dropped here rather than left to the next frame: the clock stops at the
-		// end wherever the end is reached from, and a seek to it while a hidden
-		// tab is withholding frames would otherwise still read as playing.
+		// Stopped here, since a hidden tab may withhold the next frame.
 		if (next >= 1) setPlaying(false);
 	}, []);
 
@@ -319,9 +295,8 @@ export const THEATRE_KEYFRAMES = `
 
 export const THEATRE_CARD_IN_ANIMATION = 'epiqTheatreCardIn 260ms ease-out';
 
-// The spotlight on the ticket an event just landed on. Web-animation frames
-// rather than a keyframes rule: the card's own entrance owns its `animation`
-// property, and this has to be able to run twice in a row on one card.
+// Web-animation frames, since the card's entrance owns its `animation` and
+// this must run twice in a row.
 export const THEATRE_FLASH_FRAMES: Keyframe[] = [
 	{
 		boxShadow: '0 0 0 0 rgba(118, 212, 255, 0.6)',
@@ -338,7 +313,5 @@ export const THEATRE_FLASH_TIMING: KeyframeAnimationOptions = {
 	easing: 'ease-out',
 };
 
-// The height of the player's drawer. The board and the log panel both give it
-// up rather than running underneath and playing their last rows behind the
-// transport, so the two have to read it from one place.
+// The player drawer's height, which the board and log panel both give up.
 export const THEATRE_PLAYER_CLEARANCE = 80;

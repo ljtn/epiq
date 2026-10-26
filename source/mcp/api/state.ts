@@ -65,24 +65,12 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 	});
 };
 
-// How far back the closed lane is sent. It is the one collection that grows
-// without bound — everything a team finishes lands there and stays — so a
-// decade of a twenty-person board is ninety-five thousand closed tickets
-// against a couple of hundred open ones.
-//
-// A year is what a reader is plausibly still looking for by eye. Reaching
-// further back is a request of its own rather than a cost every board pays on
-// every load.
+// How far back the closed lane is sent: the one collection that grows without bound.
 const CLOSED_TICKET_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
 
 /**
- * One ticket's description, read straight off the node.
- *
- * `deriveGuiState` would answer this too, but it projects every board, lane,
- * ticket and comment to do it — and the ref hover preview asks on every
- * `mouseover`, so sweeping a pointer across a paragraph of refs would rebuild
- * the whole board once per ref. A ticket that is missing or deleted has no
- * description, which is not an error: the ref simply names nothing to show.
+ * One ticket's description, off the node rather than `deriveGuiState`: hover
+ * previews ask on every mouseover. Missing or deleted reads as empty.
  */
 export const getIssueDescription = (issueId: string): Result<string> => {
 	const stateResult = getStateResult();
@@ -125,11 +113,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 		}
 
 		if (isTicketNode(node) && node.parentNodeId) {
-			// Everything a team ever finished lands in the closed lane and stays,
-			// so it is the one collection with no ceiling: a decade of a
-			// twenty-person board is ninety-five thousand tickets against a
-			// couple of hundred open ones, and sending them all is most of an
-			// 88 MB payload the browser has to parse before it can draw.
+			// The closed lane is windowed; it would be most of the payload.
 			if (
 				node.parentNodeId === CLOSED_SWIMLANE_ID &&
 				ulidTimeMs(node.id) < closedSince
@@ -143,9 +127,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 		}
 	}
 
-	// The tickets the payload actually carries. Comments and attachments are
-	// built for these rather than for every ticket that has ever existed: a
-	// closed ticket nobody is sent does not need its conversation sent either.
+	// Comments and attachments are built only for the tickets sent.
 	const sentIssueIds = new Set<string>();
 
 	for (const tickets of ticketsBySwimlaneId.values()) {
@@ -157,9 +139,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 
 	const commentsByIssueId: ApiState['commentsByIssueId'] = {};
 
-	// Grouped once rather than asked for per issue: asking per issue reads every
-	// comment on the board each time, which on a board with a hundred thousand
-	// of each never finishes.
+	// Grouped once: per-issue lookups each read every comment.
 	const commentsByIssue = nodeRepo.getCommentsGroupedByIssue();
 
 	for (const issue of nodes.filter(isTicketNode)) {
@@ -173,10 +153,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 					id: comment.id,
 					issueId: comment.issue,
 					body: comment.md,
-					// The author is optional in the log by design — the payload schema
-					// leaves it unconstrained so an event already written without one
-					// is not thrown away. `identityOf` owns what a missing one shows
-					// as, so this does not restate it.
+					// The author is optional in the log; `identityOf` decides how a missing one shows.
 					author: identityOf(comment.authorId, contributor?.name),
 					createdAt: ulidTimeMs(comment.id),
 				};
@@ -268,9 +245,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 			...x,
 			...identityOf(x.id, x.name),
 		})),
-		// Not `identityOf`: this name is the config's, not the registry's, and
-		// an unconfigured one is a state the header draws as blank rather than a
-		// missing name to fall back from — an id here would read as an initial.
+		// Not `identityOf`: the config's name, drawn blank when unset.
 		user: {
 			id: settingsRes.value.userId ?? '',
 			name: settingsRes.value.userName ?? '',
@@ -320,9 +295,7 @@ export const getGuiState = async (
 
 type SyncInput = ToolInput;
 
-// The board only. Every caller holds the board's lock across this, so the
-// other repos are fetched after it has let go — `syncThenFetchRepos` — since
-// a first clone can take minutes.
+// The board only, under its lock; `syncThenFetchRepos` fetches the other repos after.
 export const sync = async (input: SyncInput = {}) => {
 	setSyncing();
 	const repoRootResult = resolveRepoRoot(input.repoRoot);

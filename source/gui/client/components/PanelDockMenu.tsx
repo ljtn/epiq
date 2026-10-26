@@ -7,12 +7,8 @@ import {IconDockRight} from './IconDockRight';
 import {KebabMenu} from './KebabMenu';
 
 /**
- * Where the panel attaches, behind a trigger that shows the side in force.
- *
- * Out of the header proper on purpose: it is a preference set once, and the
- * row beside the close button is for things you reach for every ticket. The
- * trigger wears the current dock's icon rather than three dots, so the header
- * answers "where is it now" without a click; inside, both sides show at once.
+ * Where the panel docks, behind a trigger wearing the current dock's icon. Kept
+ * out of the header row, which is for per-ticket actions.
  */
 export const PanelDockMenu = ({
 	dock,

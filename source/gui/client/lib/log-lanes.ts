@@ -1,11 +1,5 @@
-// Who gets a lane when the log is split, and which lane a line belongs in.
-// The panel draws the lanes — see the split rules in lib/event-log — this says
-// what there is to draw.
-//
-// Split, the log stops being one interleaved list and becomes a lane per
-// actor: time still runs down the pane and every line keeps its place in it,
-// but a line is indented into its own actor's lane, so two agents working at
-// once read as two streams rather than as one column nobody can untangle.
+// Who gets a lane when the log is split by actor, and which lane a line
+// belongs in. The panel draws them (see lib/event-log).
 
 import {LogEntry} from './event-log';
 import {usePersistedFlag} from './use-persisted-flag';
@@ -16,14 +10,10 @@ export type LogLane = {
 	others?: boolean;
 };
 
-// Narrower than this and a lane holds no readable words, so lanes stop being
-// added and the rest of the actors share the final one instead. The panel is
-// dragged to width, so a reader who wants them all can have them.
+// Below this, the rest of the actors share the final lane.
 export const MIN_LANE_WIDTH_PX = 110;
 
-// What the clock column and the dot's gap take before the first lane starts.
-// An estimate, deliberately: it only decides how many lanes fit, and the exact
-// figure is a `ch` the stylesheet resolves.
+// An estimate: it only decides how many lanes fit.
 const LANE_LEAD_PX = 48;
 
 // How many lanes a pane that wide has room for, at least one.
@@ -35,14 +25,8 @@ export const laneCapacity = (paneWidth: number): number =>
 const byName = (left: {name: string}, right: {name: string}): number =>
 	left.name < right.name ? -1 : left.name > right.name ? 1 : 0;
 
-// The actors in the slice, by name rather than by when they first appear: the
-// slice slides as lines arrive, and a lane order that follows first appearance
-// would shuffle the whole pane sideways when the oldest line drops off the top.
-//
-// Off the slice rather than off the board's contributors: a lane for somebody
-// who did nothing in this window is a column of empty rows. Where there are
-// more actors than the pane has room for, the busiest keep their lanes and the
-// rest share the last one.
+// The slice's actors, ordered by name so lanes never shuffle as the slice
+// slides. The busiest keep lanes; the rest share the last.
 export const logLanes = (
 	entries: readonly LogEntry[],
 	capacity = Number.POSITIVE_INFINITY,
@@ -84,9 +68,8 @@ export const laneIndexByName = (
 ): ReadonlyMap<string, number> =>
 	new Map(lanes.map((lane, index) => [lane.name, index]));
 
-// The lane a line sits in: its actor's, the shared last one where that actor
-// has none, or null on a line nobody signed — which spans the pane instead,
-// because it belongs to no one column.
+// The actor's lane, the shared last one, or null for an unsigned line, which
+// spans the pane.
 export const laneIndexOf = (
 	entry: LogEntry,
 	lanes: readonly LogLane[],

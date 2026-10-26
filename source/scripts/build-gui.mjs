@@ -10,27 +10,16 @@ import * as esbuild from 'esbuild';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '../..');
 
-// The diff highlighter's worker body, as the package's own exports map gives
-// it — `@pierre/diffs` ships the body but cannot ship a URL the browser can
-// fetch, since that depends on how the app is bundled. Resolved rather than
-// spelled out, so a move inside the package is the package's business.
-//
-// An entry point rather than a module of ours importing it: the package
-// declares itself side-effect-free, so a bare `import '…/worker.js'` is
-// tree-shaken to nothing. An entry point never is.
-//
-// `import.meta.resolve`, not `createRequire().resolve` — the subpath is
-// exported under `import` only, which a require resolution does not see.
+// The diff highlighter's worker body, built as its own entry point since the
+// package is side-effect-free. `import.meta.resolve`, as the subpath is
+// exported under `import` only.
 const diffsWorkerEntry = relative(
 	root,
 	fileURLToPath(import.meta.resolve('@pierre/diffs/worker/worker.js')),
 );
 
-// Emptied first: every lazily-loaded chunk carries a content hash in its name,
-// so a rebuild leaves the previous build's set behind rather than replacing it,
-// and `build-sea.mjs` embeds whatever it finds in this directory. Nothing is
-// served stale — the names a browser asks for are fixed — but the blob carries
-// a dead copy of every chunk that ever changed.
+// Emptied first: chunk names are hashed, and `build-sea.mjs` embeds every
+// file here.
 rmSync(resolve(root, 'dist/gui'), {recursive: true, force: true});
 mkdirSync(resolve(root, 'dist/gui'), {recursive: true});
 copyFileSync(
@@ -50,21 +39,8 @@ for (const name of ['inter.woff2', 'inter-OFL.txt']) {
 	);
 }
 
-// React reads `process.env.NODE_ENV` to decide which of its two runtimes it is.
-// Nothing defined it, so esbuild left the expression alone and the bundle got
-// the development one — bigger, and slower at every render, because each one
-// pays the dev-only checks. Defining it picks the production runtime;
-// minifying takes the rest. Together they take main.js from 3.22mb to 1.20mb,
-// and the worker entry below takes it to 0.98mb by moving the highlighter into
-// a chunk the two of them share.
-//
-// EPIQ_GUI_DEV_BUILD=1 asks for the development one back — `npm run
-// test:gui:warnings` is that build plus the browser suite. React's warnings — a
-// style shorthand fighting a longhand, a missing key, invalid DOM nesting —
-// exist only in the development runtime, and `source/test/e2e-gui/fixtures.ts`
-// fails a test on any console.error, so that pair is the only thing that
-// catches them. The production bundle is what ships and what the gate runs
-// against, so the warning pass is a deliberate, separate run.
+// Production React unless EPIQ_GUI_DEV_BUILD=1, which `test:gui:warnings`
+// uses to surface React's dev-only warnings.
 const nodeEnv =
 	process.env['EPIQ_GUI_DEV_BUILD'] === '1' ? 'development' : 'production';
 
@@ -72,22 +48,14 @@ const nodeEnv =
 // carries quotes that a Windows shell would eat before esbuild saw them.
 await esbuild.build({
 	absWorkingDir: root,
-	// The worker is built beside the client rather than in a run of its own, so
-	// the Shiki grammars both of them load on demand are one set of chunks
-	// rather than two. `lib/diffs-worker-pool` points a `new Worker()` at the
-	// name given here.
+	// Built beside the client so both share one set of grammar chunks.
+	// `lib/diffs-worker-pool` loads it by the name given here.
 	entryPoints: [
 		{in: 'source/gui/client/main.tsx', out: 'main'},
 		{in: diffsWorkerEntry, out: 'diffs-worker'},
 	],
 	bundle: true,
-	// Splitting rather than a single outfile: @pierre/diffs pulls in Shiki's
-	// full bundled-language and theme set, which a single-file bundle inlines
-	// wholesale (~12mb) regardless of which languages actually render. Splitting
-	// lets each language/theme load lazily as its own chunk, only when a diff
-	// actually needs it. serveStatic (api-server.ts) already serves any path
-	// under dist/gui, and build-sea.mjs embeds the directory's full contents —
-	// both already account for a chunked output, not just main.js.
+	// Split so each Shiki language and theme loads lazily as its own chunk.
 	splitting: true,
 	format: 'esm',
 	target: 'es2020',

@@ -1,11 +1,5 @@
-// How much of what the ticket wrote is prose.
-//
-// Two things this deliberately is not. It is not a lexer: a diff at
-// --unified=0 hands over changed lines with no context, so there is no way to
-// know whether an added line sits inside a block comment somebody else opened,
-// and every line is classified on its own. And it is not a target — the number
-// alone is trivially gamed and says nothing, which is why it is only ever
-// shown beside the repository's own share for the same language.
+// How much of what the ticket wrote is prose. Each line is classified alone
+// (no context at --unified=0), and shown only beside the repo's baseline.
 
 import {
 	commentSyntaxOf,
@@ -85,10 +79,7 @@ export const deriveCommentDensity = ({
 
 		const syntax = commentSyntaxOf(file.path);
 
-		// A language with no comment syntax at all — JSON is the one that turns
-		// up — can only ever report 0%, against a repo baseline of 0%. Left in,
-		// it is a row that looks like a finding and is a property of the file
-		// format.
+		// Skips languages with no comment syntax (JSON), always 0%.
 		if (!syntax || (syntax.line.length === 0 && syntax.block.length === 0)) {
 			continue;
 		}
