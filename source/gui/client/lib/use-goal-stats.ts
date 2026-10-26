@@ -9,6 +9,15 @@ import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {GuiBoard} from './gui-state.model';
 import {getResultValue} from './gui-state-helper';
 
+// FNV-1a: enough to tell one signature from the next.
+const hashOf = (text: string): string => {
+	let hash = 0x811c9dc5;
+	for (let i = 0; i < text.length; i++) {
+		hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
+	}
+	return (hash >>> 0).toString(36);
+};
+
 /** Which tickets a goal holds, and what each one's commits add up to. */
 export const goalStatsSignature = (
 	goalId: string,
@@ -47,6 +56,7 @@ export const useGoalStats = ({
 	goalId,
 	signature,
 	asOfTime,
+	socketEpoch,
 	sendRaw,
 }: {
 	// Null while the tab is closed.
@@ -54,6 +64,8 @@ export const useGoalStats = ({
 	// From goalStatsSignature.
 	signature: string;
 	asOfTime: number | null;
+	// A reconnect asks again: an answer on the old socket never arrives.
+	socketEpoch: number;
 	sendRaw: (message: unknown) => void;
 }) => {
 	const [stats, setStats] = useState<GoalStatsState | null>(null);
@@ -66,7 +78,10 @@ export const useGoalStats = ({
 			return;
 		}
 
-		const key = `${goalId} ${signature} ${asOfTime ?? ''}`;
+		// Hashed, so the key stays small however many tickets the goal holds.
+		const key = `${goalId}:${hashOf(signature)}:${
+			asOfTime ?? ''
+		}:${socketEpoch}`;
 		if (asked.current === key) return;
 		asked.current = key;
 
@@ -81,7 +96,7 @@ export const useGoalStats = ({
 			type: 'goal:stats:get',
 			payload: asOfTime === null ? {goalId, key} : {goalId, key, asOfTime},
 		});
-	}, [goalId, signature, asOfTime, sendRaw]);
+	}, [goalId, signature, asOfTime, socketEpoch, sendRaw]);
 
 	const onMessage = useCallback((message: any) => {
 		if (message.type !== 'goal:stats:result') return;

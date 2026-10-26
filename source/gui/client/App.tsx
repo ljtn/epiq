@@ -800,12 +800,20 @@ export const App = () => {
 			? state?.goals.find(goal => goal.id === isolatedGoalId) ?? null
 			: null;
 	const [goalTab, setGoalTab] = useState<GoalDetailsTab>('overview');
-	const {stats: goalStats, onMessage: onGoalStatsMessage} = useGoalStats({
-		goalId: detailedGoal && goalTab === 'stats' ? detailedGoal.id : null,
-		signature:
-			detailedGoal && state
-				? goalStatsSignature(detailedGoal.id, state.boards, refDiffStats)
+	// Walks every ticket, so only while the tab is open.
+	const statsGoalId =
+		detailedGoal && goalTab === 'stats' ? detailedGoal.id : null;
+	const goalSignature = useMemo(
+		() =>
+			statsGoalId && state
+				? goalStatsSignature(statsGoalId, state.boards, refDiffStats)
 				: '',
+		[statsGoalId, state?.boards, refDiffStats],
+	);
+	const {stats: goalStats, onMessage: onGoalStatsMessage} = useGoalStats({
+		goalId: statsGoalId,
+		signature: goalSignature,
+		socketEpoch,
 		asOfTime: scrubCut(state?.timeTravel),
 		sendRaw,
 	});
