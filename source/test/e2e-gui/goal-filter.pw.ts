@@ -227,7 +227,7 @@ test('the palette puts the open ticket in a goal by name, and takes it out', asy
 	await page.keyboard.type('take out of its goal');
 	await expect(rows.first()).toContainText('Take out of its goal');
 	await page.keyboard.press('Enter');
-	await expect(page.getByTestId('goal-current')).toHaveText('No goal');
+	await expect(page.getByTestId('goal-current')).toHaveText('None');
 
 	expect(pageErrors).toEqual([]);
 });
@@ -266,7 +266,7 @@ test('the Goal dropdown picks, leaves, and closes on a press outside it', async 
 
 	await page.getByTestId('goal-current').click();
 	await page.getByTestId('goal-leave').click();
-	await expect(page.getByTestId('goal-current')).toHaveText('No goal');
+	await expect(page.getByTestId('goal-current')).toHaveText('None');
 	await expect(pill(page, goal)).toContainText('0/1');
 
 	expect(pageErrors).toEqual([]);

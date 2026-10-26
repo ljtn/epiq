@@ -78,7 +78,7 @@ export const GoalSection = ({
 							onSetGoal(issue.id, null);
 							done();
 						},
-						content: <span style={{color: GUI_THEME.dim}}>No goal</span>,
+						content: <span style={{color: GUI_THEME.dim}}>None</span>,
 					},
 			  ]
 			: []),
@@ -176,7 +176,7 @@ export const GoalSection = ({
 						}}
 					>
 						{issue.goal && <ColorBar color={issue.goal.color} height={14} />}
-						{issue.goal?.name ?? 'No goal'}
+						{issue.goal?.name ?? 'None'}
 					</span>
 					<IconChevronDown size={12} />
 				</button>
