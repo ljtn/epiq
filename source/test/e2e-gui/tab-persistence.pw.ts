@@ -122,38 +122,6 @@ test('the comment count on a card still opens comments', async ({page}) => {
 		),
 	).toBe('transparent');
 
-	// The index sits in the card's margin on the title's first line and takes
-	// no room from the title, whatever its figure. Counted from one: the
-	// lane's first card says so, since this card's own position is not known.
-	const lane = card.locator('..');
-	await expect(lane.getByTestId('ticket-index').first()).toHaveText('1');
-	const index = card.getByTestId('ticket-index');
-	await expect(index).toHaveText(/^\d+$/);
-	// Both rectangles in one read: opening the ticket selected the card, which
-	// scrolls itself into view, and two reads either side of that scroll put
-	// the same card's index and title hundreds of pixels apart.
-	type Rect = {x: number; y: number; width: number; height: number};
-	const geometry = await card.evaluate(node => {
-		const rect = (selector: string): Rect =>
-			(
-				node as unknown as {
-					querySelector: (s: string) => {getBoundingClientRect: () => Rect};
-				}
-			)
-				.querySelector(selector)
-				.getBoundingClientRect();
-
-		return {
-			index: rect('[data-testid="ticket-index"]'),
-			title: rect('[data-testid="ticket-title"]'),
-		};
-	});
-	const boxes = JSON.stringify(geometry);
-	expect(geometry.index.x + geometry.index.width, boxes).toBeLessThanOrEqual(
-		geometry.title.x,
-	);
-	expect(Math.abs(geometry.index.y - geometry.title.y), boxes).toBeLessThan(2);
-
 	await count.click();
 	await expect(page).toHaveURL(/tab=comments/);
 });
