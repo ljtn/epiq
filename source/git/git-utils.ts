@@ -363,6 +363,7 @@ const runGit = ({
 	forClone = false,
 	keepPartial = false,
 	abort,
+	input,
 }: {
 	args: string[];
 	cwd: string;
@@ -372,6 +373,7 @@ const runGit = ({
 	forClone?: boolean;
 	keepPartial?: boolean;
 	abort?: AbortSignal;
+	input?: string;
 }): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
 		const inClone = isCloneDir(cwd);
@@ -398,11 +400,17 @@ const runGit = ({
 		if (clone) registerCloneKills();
 		const child = spawn(GIT_BIN, args, {
 			cwd,
-			stdio: ['ignore', 'pipe', 'pipe'],
+			stdio: ['pipe', 'pipe', 'pipe'],
 			env: clone ? cloneEnv : gitEnv,
 			detached: clone && OWN_GROUP,
 		});
 		if (clone) trackCloneChild(child);
+		// Ended at once without input, as an ignored stdin would be. Every stdin
+		// error is dropped: the one expected is EPIPE from a git that exits before
+		// reading it all, which answers through 'close'. Safe only while callers
+		// pass input to commands that read to EOF, as `log --stdin` does.
+		child.stdin.on('error', () => {});
+		child.stdin.end(input ?? '');
 		const kill = (signal: NodeJS.Signals) =>
 			clone ? killClone(child, signal) : child.kill(signal);
 
@@ -553,9 +561,12 @@ export const execGit = ({
 	forClone,
 	keepPartial,
 	abort,
+	input,
 }: {
 	args: string[];
 	cwd: string;
+	/** Written to git's stdin, for a list too long for a command line. */
+	input?: string;
 	/** Overrides the per-subcommand cap, for a transfer whose size is unknown. */
 	timeoutMs?: number;
 	/** A tighter output cap, for a read whose size somebody else decides. */
@@ -579,6 +590,7 @@ export const execGit = ({
 		forClone,
 		keepPartial,
 		abort,
+		input,
 	}) as Promise<Result<GitExecResult>>;
 
 export const execGitAllowFail = ({

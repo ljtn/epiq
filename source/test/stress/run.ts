@@ -41,8 +41,13 @@ const BUDGET_TIMELINE_WARM_MS = 300;
 // The board panel walks every ticket's log once, on opening.
 const BUDGET_BOARD_OVERVIEW_MS = 1000;
 // A goal's Stats and Code tabs read every commit of every ticket in it: the
-// biggest goal, against STRESS_COMMITS commits on its tickets.
+// biggest goal, against STRESS_COMMITS commits on its tickets. The history is
+// read once first, under its own budget: that read is git's, about 0.7 s for
+// CI's 50,000 on an M3 and twice that on a loaded runner, and counted inside a
+// tab it made the tab's budget flaky. What is left is the tabs' own work,
+// 0.4 s here; a read per ticket or a git spawn per 200 bodies took 3.5.
 const COMMITS = number('STRESS_COMMITS', 5000);
+const BUDGET_COMMIT_HISTORY_MS = 5000;
 const BUDGET_GOAL_TAB_MS = 2000;
 
 const ROOT =
@@ -372,6 +377,7 @@ const biggest = goals.reduce<(typeof goals)[number] | undefined>(
 );
 
 let goalTabMs = 0;
+let historyMs = 0;
 if (biggest) {
 	const refs = goalMembers(biggest.id).map(ticket => nodeRef(ticket.id));
 	const start = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
@@ -393,6 +399,17 @@ if (biggest) {
 	}).join('\n');
 	execSync('git fast-import --quiet', {cwd: REPO, input: stream});
 	git('reset --hard -q main');
+
+	// What every tab after it reads from the cache.
+	const {getCommitTimeline} = await import('../../lib/commits/commits.js');
+	const historyAt = performance.now();
+	ok(await getCommitTimeline({repoRoot: REPO}));
+	historyMs = performance.now() - historyAt;
+	console.log(
+		`  ${'commit history, cold'.padEnd(38)} ${historyMs
+			.toFixed(1)
+			.padStart(6)} ms   ${COMMITS.toLocaleString()} commits`,
+	);
 
 	for (const [label, read] of [
 		[
@@ -486,6 +503,10 @@ if (CHECK) {
 			`the board overview took ${overviewMs.toFixed(
 				1,
 			)} ms, budget ${BUDGET_BOARD_OVERVIEW_MS} ms`,
+		historyMs > BUDGET_COMMIT_HISTORY_MS &&
+			`the commit history took ${historyMs.toFixed(
+				1,
+			)} ms, budget ${BUDGET_COMMIT_HISTORY_MS} ms`,
 		goalTabMs > BUDGET_GOAL_TAB_MS &&
 			`a goal tab took ${goalTabMs.toFixed(
 				1,

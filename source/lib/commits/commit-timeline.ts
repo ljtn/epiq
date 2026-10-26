@@ -396,28 +396,30 @@ export const getCommitTimeline = async (
 // commit — i.e. no other ticket's commit sits between them.
 export type RefCommitEntry = CommitEntry & {precedingSha: string | null};
 
+/** A commit of several tickets', with the refs of those it carries. */
+export type RefsCommitEntry = RefCommitEntry & {tickets: string[]};
+
 // `end` cuts the history at a moment, for a board being replayed there: a
 // ticket's commits are those made by then.
 type RefInput = RepoInput & {ref: string; end?: number};
+type RefsInput = RepoInput & {refs: string[]; end?: number};
 
 /**
- * A ticket's commits per source, each in its own repo's order, before a commit
- * two sources share is listed once: a fork's share of a ticket is read off its
- * own history, shared commits included.
+ * Several tickets' commits per source in one pass, each in its own repo's
+ * order, before a commit two sources share is listed once: a fork's share of a
+ * ticket is read off its own history, shared commits included.
  */
-export const getRefMatchesBySource = async (
-	input: RefInput,
-): Promise<Result<RefCommitEntry[][]>> => {
-	const ref = input.ref.trim();
-	if (!ref) return failed('ref must not be empty');
-
+const refsMatchesBySource = async (
+	input: RefsInput,
+): Promise<Result<RefsCommitEntry[][]>> => {
 	// Matching below is a strict `<REF> ` prefix, so a ref of the wrong length
 	// can only ever return nothing — which reads identically to "this ticket
 	// has no commits". A ref is NODE_REF_LENGTH characters by construction, so
 	// any other length is a mistake worth naming rather than answering.
-	if (ref.length !== NODE_REF_LENGTH) {
+	const wrong = input.refs.find(ref => ref.length !== NODE_REF_LENGTH);
+	if (wrong !== undefined) {
 		return failed(
-			`"${ref}" is ${ref.length} characters; a ref is ${NODE_REF_LENGTH}. ` +
+			`"${wrong}" is ${wrong.length} characters; a ref is ${NODE_REF_LENGTH}. ` +
 				`Read it off the issue rather than slicing the id by hand.`,
 		);
 	}
@@ -428,28 +430,37 @@ export const getRefMatchesBySource = async (
 	// Case-insensitive, matching nodeRefMatches' convention (source/lib/utils/node-ref.ts)
 	// rather than a strict-case prefix: a hand-typed or manually-copied ref
 	// should still match, not just one pasted verbatim from the MCP response.
-	const prefix = `${ref.toUpperCase()} `;
-	const matches = (commit: CommitEntry) =>
-		commit.subject.toUpperCase().startsWith(prefix) ||
-		commit.refs?.includes(ref.toUpperCase()) === true;
+	const wanted = new Set(input.refs.map(ref => ref.toUpperCase()));
+	const ticketsOf = (commit: CommitEntry): string[] => {
+		const lead = commit.subject.slice(0, NODE_REF_LENGTH).toUpperCase();
+		const named =
+			commit.subject[NODE_REF_LENGTH] === ' ' && wanted.has(lead) ? [lead] : [];
+		const inBody = (commit.refs ?? []).filter(ref => wanted.has(ref));
+		return inBody.length > 0
+			? [...new Set([...named, ...inBody])].sort()
+			: named;
+	};
 
 	// Per source, in git log's order — so all[i + 1] is exactly the commit
 	// immediately before all[i] in that repo's real history, matched or not.
 	return succeeded(
 		'Matched commits by ref',
 		listsResult.value.map(all => {
-			const matched: RefCommitEntry[] = [];
+			const matched: RefsCommitEntry[] = [];
 
 			for (const [index, commit] of all.entries()) {
-				if (!matches(commit)) continue;
+				const tickets = ticketsOf(commit);
+				if (tickets.length === 0) continue;
 				if (!inCommitWindow(commit.time, undefined, input.end)) continue;
 
 				const precedingCommit = all[index + 1];
 
 				matched.push({
 					...commit,
+					tickets,
 					precedingSha:
-						precedingCommit && matches(precedingCommit)
+						precedingCommit &&
+						ticketsOf(precedingCommit).some(ref => tickets.includes(ref))
 							? precedingCommit.sha
 							: null,
 				});
@@ -457,6 +468,22 @@ export const getRefMatchesBySource = async (
 
 			return matched;
 		}),
+	);
+};
+
+/** One ticket's commits per source; see refsMatchesBySource. */
+export const getRefMatchesBySource = async (
+	input: RefInput,
+): Promise<Result<RefCommitEntry[][]>> => {
+	const ref = input.ref.trim();
+	if (!ref) return failed('ref must not be empty');
+
+	const bySource = await refsMatchesBySource({...input, refs: [ref]});
+	if (isFail(bySource)) return failed(bySource.message);
+
+	return succeeded(
+		bySource.message,
+		bySource.value.map(list => list.map(({tickets: _, ...commit}) => commit)),
 	);
 };
 
@@ -472,45 +499,25 @@ export const getCommitsForRef = async (
 	);
 };
 
-/** A commit of several tickets', with the refs of those it carries. */
-export type RefsCommitEntry = RefCommitEntry & {tickets: string[]};
-
 /**
  * Every commit of several tickets, each once, newest first. One order for one
  * set, whatever order the refs come in: whole seconds tie often.
  */
 export const getCommitsForRefs = async (
-	input: RepoInput & {refs: string[]; end?: number},
+	input: RefsInput,
 ): Promise<Result<RefsCommitEntry[]>> => {
-	const commits = new Map<string, RefsCommitEntry>();
-
-	for (const ref of input.refs) {
-		const owned = await getCommitsForRef({...input, ref});
-		if (isFail(owned)) return failed(owned.message);
-
-		for (const commit of owned.value) {
-			const key = `${commit.repo ?? ''}:${commit.sha}`;
-			const seen = commits.get(key);
-			commits.set(
-				key,
-				seen
-					? {
-							...seen,
-							precedingSha: seen.precedingSha ?? commit.precedingSha,
-							tickets: [...seen.tickets, ref],
-					  }
-					: {...commit, tickets: [ref]},
-			);
-		}
-	}
+	const bySource = await refsMatchesBySource(input);
+	if (isFail(bySource)) return failed(bySource.message);
 
 	return succeeded(
 		'Matched commits by refs',
-		[...commits.values()].sort(
-			(a, b) =>
-				b.time - a.time ||
-				(a.repo ?? '').localeCompare(b.repo ?? '') ||
-				a.sha.localeCompare(b.sha),
-		),
+		withoutShared(bySource.value)
+			.flat()
+			.sort(
+				(a, b) =>
+					b.time - a.time ||
+					(a.repo ?? '').localeCompare(b.repo ?? '') ||
+					a.sha.localeCompare(b.sha),
+			),
 	);
 };

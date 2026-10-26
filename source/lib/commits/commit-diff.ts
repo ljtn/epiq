@@ -59,8 +59,6 @@ const cleanBody = (body: string): string =>
 		)
 		.trim();
 
-const BODY_BATCH = 200;
-
 const commitBody = async (repoRoot: string, sha: string): Promise<string> => {
 	const result = await execGit({
 		cwd: repoRoot,
@@ -71,9 +69,9 @@ const commitBody = async (repoRoot: string, sha: string): Promise<string> => {
 };
 
 /**
- * A list of commits, each with its body where it has one: one `git log` per
- * repo, which is what a ticket's commits cost. The separators carry a nonce,
- * since a hostile body could otherwise pass text off as another commit's.
+ * A list of commits, each with its body where it has one: a `git log` per
+ * repo, its shas on stdin. The separators carry a nonce, since a hostile body
+ * could otherwise pass text off as another commit's.
  */
 export const withCommitBodies = async <T extends CommitEntry>(
 	repoRoot: string,
@@ -89,17 +87,34 @@ export const withCommitBodies = async <T extends CommitEntry>(
 	const field = `\x1f${nonce}`;
 	const bodies = new Map<string, string>();
 
-	const readBodies = async (cwd: string, batch: string[]) => {
+	// git refuses the whole list over one sha that is not a commit there, as a
+	// rebased-away one is not: those are asked about first and left out.
+	const commitsAmong = async (cwd: string, shas: string[]) => {
+		const checked = await execGit({
+			cwd,
+			args: ['cat-file', '--batch-check=%(objectname) %(objecttype)'],
+			input: `${shas.join('\n')}\n`,
+		});
+		if (isFail(checked)) return [];
+
+		return checked.value.stdout
+			.split('\n')
+			.filter(line => line.endsWith(' commit'))
+			.map(line => line.slice(0, line.indexOf(' ')));
+	};
+
+	const readBodies = async (cwd: string, shas: string[]) => {
 		const log = await execGit({
 			cwd,
 			args: [
 				'log',
 				'--no-walk=unsorted',
 				'--no-show-signature',
+				'--stdin',
 				`--format=${record}%H${field}%b`,
-				...batch,
 				'--',
 			],
+			input: `${shas.join('\n')}\n`,
 		});
 		if (isFail(log)) return;
 
@@ -117,11 +132,10 @@ export const withCommitBodies = async <T extends CommitEntry>(
 			.filter(commit => commit.repo === source.repo)
 			.map(commit => commit.sha)
 			.filter(isPlausibleSha);
+		if (shas.length === 0) continue;
 
-		// In batches: Windows caps a command line near 32k characters.
-		for (let at = 0; at < shas.length; at += BODY_BATCH) {
-			await readBodies(source.cwd, shas.slice(at, at + BODY_BATCH));
-		}
+		const found = await commitsAmong(source.cwd, shas);
+		if (found.length > 0) await readBodies(source.cwd, found);
 	}
 
 	return succeeded(
