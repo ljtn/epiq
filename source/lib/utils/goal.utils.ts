@@ -74,36 +74,50 @@ const ticketBoards = (ticket: Ticket): string[] => {
 	return board ? [board] : [];
 };
 
-// Who belongs to which goal, worked out once per state: a terminal row asks
-// for every ticket on screen, on every key press. Keyed by the state object,
-// which every write replaces, batched ones included; the nodes map is not, as
-// a batch writes into it in place.
-const membersCache = new WeakMap<object, Map<string, Ticket[]>>();
+// Who belongs to which goal, and which of them each board shows, worked out once per
+// state: a terminal row asks for every ticket on screen, on every key press,
+// and the GUI for every board's goals on every broadcast. Keyed by the state
+// object, which every write replaces, batched ones included; the nodes map is
+// not, as a batch writes into it in place. A deleted lane or board marks its
+// tickets deleted, so they leave with it.
+type Membership = {
+	members: Map<string, Ticket[]>;
+	onBoard: Map<string, Map<string, Ticket[]>>;
+};
+const membershipCache = new WeakMap<object, Membership>();
 
-const membersByGoal = (): Map<string, Ticket[]> => {
+const membership = (): Membership => {
 	const state = stateOrNone();
-	if (!state) return new Map();
-	const cached = membersCache.get(state);
+	if (!state) return {members: new Map(), onBoard: new Map()};
+	const cached = membershipCache.get(state);
 	if (cached) return cached;
 
 	const members = new Map<string, Ticket[]>();
+	const onBoard = new Map<string, Map<string, Ticket[]>>();
 	for (const node of Object.values(nodesOrNone())) {
 		if (!isTicketNode(node) || node.isDeleted) continue;
 		const goal = getTicketGoal(node)?.id;
-		if (goal) members.set(goal, [...(members.get(goal) ?? []), node]);
+		if (!goal) continue;
+
+		members.set(goal, [...(members.get(goal) ?? []), node]);
+		const boards = onBoard.get(goal) ?? new Map<string, Ticket[]>();
+		for (const board of ticketBoards(node)) {
+			boards.set(board, [...(boards.get(board) ?? []), node]);
+		}
+		onBoard.set(goal, boards);
 	}
 
-	membersCache.set(state, members);
-	return members;
+	const result = {members, onBoard};
+	membershipCache.set(state, result);
+	return result;
 };
 
 export const goalMembers = (goalId: string): Ticket[] =>
-	membersByGoal().get(goalId) ?? [];
+	membership().members.get(goalId) ?? [];
 
-/** How many of a goal's tickets a board shows. */
-export const goalMembersOn = (goalId: string, boardId: string): number =>
-	goalMembers(goalId).filter(ticket => ticketBoards(ticket).includes(boardId))
-		.length;
+/** The tickets of a goal a board shows. */
+export const goalMembersOn = (goalId: string, boardId: string): Ticket[] =>
+	membership().onBoard.get(goalId)?.get(boardId) ?? [];
 
 /**
  * The goals a board shows: those with a ticket on it, and those with none
@@ -113,7 +127,7 @@ export const boardGoals = (boardId: string): Goal[] =>
 	projectGoals().filter(goal =>
 		goalMembers(goal.id).length === 0
 			? boardId !== CLOSED_BOARD_ID
-			: goalMembersOn(goal.id, boardId) > 0,
+			: goalMembersOn(goal.id, boardId).length > 0,
 	);
 
 /**
@@ -122,22 +136,27 @@ export const boardGoals = (boardId: string): Goal[] =>
  */
 export const goalProgress = (goalId: string): {done: number; total: number} => {
 	const members = goalMembers(goalId);
-
-	// By name, not by place: lanes are in whatever order a team put them.
-	const isDone = (ticket: Ticket) =>
-		ticket.parentNodeId === CLOSED_SWIMLANE_ID ||
-		nodesOrNone()[ticket.parentNodeId ?? '']?.title.trim().toLowerCase() ===
-			'done';
-
-	return {done: members.filter(isDone).length, total: members.length};
+	return {done: members.filter(isGoalTicketDone).length, total: members.length};
 };
+
+/** Whether a ticket counts as done for its goal. */
+// By name, not by place: lanes are in whatever order a team put them.
+export const isGoalTicketDone = (ticket: Ticket): boolean =>
+	ticket.parentNodeId === CLOSED_SWIMLANE_ID ||
+	nodesOrNone()[ticket.parentNodeId ?? '']?.title.trim().toLowerCase() ===
+		'done';
 
 /** Why a goal may not be named so, or null when it may. */
 export const goalNameRefusal = (
 	name: string,
 	exceptId?: string,
 ): string | null => {
-	if (!goalName(name)) return 'A goal needs a name';
+	const wanted = goalName(name);
+	if (!wanted) return 'A goal needs a name';
+	// An id that names no goal is a mistake, not a name for a new one.
+	if (/^[0-9A-HJKMNP-TV-Z]{26}$/i.test(wanted) && !getGoal(wanted)) {
+		return `No goal has the id ${wanted}`;
+	}
 
 	const taken = findGoal(name);
 	return taken && taken.id !== exceptId

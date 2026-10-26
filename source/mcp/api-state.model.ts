@@ -62,8 +62,8 @@ export type ApiGoalRef = {
 /** A goal, and how far along its tickets are, on every board. */
 export type ApiGoal = ApiGoalRef & {done: number; total: number};
 
-/** A goal a board shows, and how many of its tickets are on that board. */
-export type ApiBoardGoal = ApiGoal & {here: number};
+/** A goal a board shows, and which of its tickets that board shows. */
+export type ApiBoardGoal = ApiGoal & {members: {id: string; done: boolean}[]};
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};
 

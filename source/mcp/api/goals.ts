@@ -15,6 +15,7 @@ import {
 	getTicketGoal,
 	goalColor,
 	goalMembersOn,
+	isGoalTicketDone,
 	goalNameRefusal,
 	goalProgress,
 	projectGoals,
@@ -45,11 +46,14 @@ const apiGoal = (goal: Goal): ApiGoal => ({
 /** The project's goals, each with how far along its tickets are. */
 export const apiGoals = (): ApiGoal[] => projectGoals().map(apiGoal);
 
-/** The goals a board shows, and how many of each one's tickets are on it. */
+/** The goals a board shows, and which of each one's tickets it shows. */
 export const apiBoardGoals = (boardId: string): ApiBoardGoal[] =>
 	boardGoals(boardId).map(goal => ({
 		...apiGoal(goal),
-		here: goalMembersOn(goal.id, boardId),
+		members: goalMembersOn(goal.id, boardId).map(ticket => ({
+			id: ticket.id,
+			done: isGoalTicketDone(ticket),
+		})),
 	}));
 
 const persist = (

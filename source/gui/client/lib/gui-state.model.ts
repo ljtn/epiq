@@ -56,8 +56,8 @@ export type GuiGoalRef = {id: string; name: string; color: string};
 /** A goal, and how far along its tickets are, on every board. */
 export type GuiGoal = GuiGoalRef & {done: number; total: number};
 
-/** A goal a board shows, and how many of its tickets are on that board. */
-export type GuiBoardGoal = GuiGoal & {here: number};
+/** A goal a board shows, and which of its tickets that board shows. */
+export type GuiBoardGoal = GuiGoal & {members: {id: string; done: boolean}[]};
 
 export type GuiSwimlane = {
 	id: string;

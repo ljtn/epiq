@@ -18,8 +18,8 @@ const GoalPill = ({
 }) => {
 	const share = goal.total > 0 ? goal.done / goal.total : 0;
 	// Counted on every board; said, as the filter shows only this one's.
-	const elsewhere =
-		goal.here < goal.total ? `, ${goal.total - goal.here} on other boards` : '';
+	const away = goal.total - goal.members.length;
+	const elsewhere = away > 0 ? `, ${away} on other boards` : '';
 
 	return (
 		<button

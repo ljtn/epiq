@@ -1,6 +1,7 @@
 // A goal's panel, opened from its pill: how far along it is, and every
 // ticket in it, on whichever board, each a way to that ticket.
 
+import {CLOSED_BOARD_ID} from '../../../lib/board/static-ids.js';
 import {AsideDock} from '../lib/aside-dock';
 import {GuiBoard, GuiGoal, GuiIssue} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -13,22 +14,49 @@ import {DetailsHeader} from './NodeDetails';
 import {Section} from './Section';
 import {Stat} from './StatRow';
 
-type Member = {issue: GuiIssue; board: GuiBoard; lane: string; done: boolean};
+type Member = {issue: GuiIssue; lane: string; done: boolean};
+type Group = {board: GuiBoard; members: Member[]};
 
-// The same rule the server counts by: closed, or in a lane called Done.
-const membersOf = (goalId: string, boards: GuiBoard[]): Member[] =>
-	boards.flatMap(board =>
-		board.swimlanes.flatMap(lane =>
-			lane.issues
-				.filter(issue => issue.goal?.id === goalId)
-				.map(issue => ({
-					issue,
-					board,
-					lane: lane.title,
-					done: issue.isClosed || lane.title.trim().toLowerCase() === 'done',
-				})),
-		),
-	);
+// Each ticket once, under the first board that shows it: this one, then the
+// others by rank, the Closed board last. Open tickets lead each group.
+const groupsOf = (
+	goalId: string,
+	boards: GuiBoard[],
+	boardId: string,
+): Group[] => {
+	const found = new Map<string, {issue: GuiIssue; lane: string}>();
+	for (const board of boards) {
+		for (const lane of board.swimlanes) {
+			for (const issue of lane.issues) {
+				found.set(issue.id, {issue, lane: lane.title});
+			}
+		}
+	}
+
+	const rank = (board: GuiBoard) =>
+		board.id === boardId ? 0 : board.id === CLOSED_BOARD_ID ? 2 : 1;
+	const seen = new Set<string>();
+
+	return [...boards]
+		.sort((a, b) => rank(a) - rank(b))
+		.map(board => {
+			const shown = board.goals.find(goal => goal.id === goalId)?.members ?? [];
+			const members = shown.flatMap(({id, done}) => {
+				const at = found.get(id);
+				if (!at || seen.has(id)) return [];
+				seen.add(id);
+				return [{...at, done}];
+			});
+			return {
+				board,
+				members: [
+					...members.filter(member => !member.done),
+					...members.filter(member => member.done),
+				],
+			};
+		})
+		.filter(group => group.members.length > 0);
+};
 
 export const GoalDetails = ({
 	dock,
@@ -46,46 +74,51 @@ export const GoalDetails = ({
 	onOpenIssue: (issueId: string, boardRef: string) => void;
 	onClose: () => void;
 }) => {
-	const members = membersOf(goal.id, boards);
+	const groups = groupsOf(goal.id, boards, boardId);
 	const share = goal.total > 0 ? goal.done / goal.total : 0;
-	const here = members.filter(member => member.board.id === boardId);
-	const elsewhere = members.filter(member => member.board.id !== boardId);
+	const here =
+		boards
+			.find(board => board.id === boardId)
+			?.goals.find(shown => shown.id === goal.id)?.members.length ?? 0;
 
-	const row = (member: Member) => (
-		<MenuItem
-			key={member.issue.id}
-			testId="goal-member"
-			onSelect={() => onOpenIssue(member.issue.id, member.board.ref)}
-		>
-			<span
-				style={{
-					display: 'flex',
-					alignItems: 'baseline',
-					gap: 8,
-					minWidth: 0,
-					flex: 1,
-				}}
+	const row = (board: GuiBoard) => (member: Member) =>
+		(
+			<MenuItem
+				key={member.issue.id}
+				testId="goal-member"
+				onSelect={() => onOpenIssue(member.issue.id, board.ref)}
 			>
-				<span style={{fontSize: 11, color: GUI_THEME.dim, flexShrink: 0}}>
-					{member.issue.ref}
-				</span>
 				<span
 					style={{
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap',
-						color: member.done ? GUI_THEME.dim : GUI_THEME.primarySoft,
-						textDecoration: member.issue.isClosed ? 'line-through' : undefined,
+						display: 'flex',
+						alignItems: 'baseline',
+						gap: 8,
+						minWidth: 0,
+						flex: 1,
 					}}
 				>
-					{member.issue.title}
+					<span style={{fontSize: 11, color: GUI_THEME.dim, flexShrink: 0}}>
+						{member.issue.ref}
+					</span>
+					<span
+						style={{
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+							color: member.done ? GUI_THEME.dim : GUI_THEME.primarySoft,
+							textDecoration: member.issue.isClosed
+								? 'line-through'
+								: undefined,
+						}}
+					>
+						{member.issue.title}
+					</span>
 				</span>
-			</span>
-			<span style={{fontSize: 11, color: GUI_THEME.dim, flexShrink: 0}}>
-				{member.lane}
-			</span>
-		</MenuItem>
-	);
+				<span style={{fontSize: 11, color: GUI_THEME.dim, flexShrink: 0}}>
+					{member.lane}
+				</span>
+			</MenuItem>
+		);
 
 	return (
 		<Aside dock={dock}>
@@ -111,7 +144,8 @@ export const GoalDetails = ({
 					/>
 					<Stat
 						size="compact"
-						value={String(here.length)}
+						value={String(here)}
+						testId="goal-details-here"
 						label="On this board"
 					/>
 				</div>
@@ -123,23 +157,25 @@ export const GoalDetails = ({
 				/>
 			</Section>
 
-			{members.length === 0 && (
+			{groups.length === 0 && (
 				<Section title="Tickets">
 					<Empty>No tickets yet</Empty>
 				</Section>
 			)}
 
-			{here.length > 0 && (
-				<Section title="On this board">
-					<div style={{marginTop: 8}}>{here.map(row)}</div>
-				</Section>
-			)}
-
-			{/* Grouped by board, the board named once. */}
-			{[...new Set(elsewhere.map(member => member.board))].map(board => (
-				<Section key={board.id} title={`On ${board.title}`}>
-					<div style={{marginTop: 8}}>
-						{elsewhere.filter(member => member.board === board).map(row)}
+			{groups.map(({board, members}) => (
+				<Section
+					key={board.id}
+					title={
+						board.id === boardId
+							? 'On this board'
+							: board.id === CLOSED_BOARD_ID
+							? 'Closed'
+							: `On ${board.title}`
+					}
+				>
+					<div data-testid="goal-group" style={{marginTop: 8}}>
+						{members.map(row(board))}
 					</div>
 				</Section>
 			))}

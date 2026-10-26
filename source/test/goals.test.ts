@@ -20,6 +20,7 @@ import {
 	createBoard,
 	createSwimlane,
 	moveIssue,
+	deleteSwimlane,
 } from '../mcp/epiq-api.js';
 import {deriveGuiState} from '../mcp/api/state.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
@@ -81,7 +82,7 @@ describe('a goal', () => {
 				color: expect.stringMatching(/^#[0-9a-f]{6}$/i),
 				done: 0,
 				total: 0,
-				here: 0,
+				members: [],
 			},
 		]);
 	});
@@ -194,8 +195,12 @@ describe('a ticket in a goal', () => {
 		unwrap(await setIssueGoal({repoRoot, issueId: here, goal: 'shared'}));
 
 		expect(issueOf(here).goal!.id).toBe(id);
-		expect(goalsOf(boardId)).toMatchObject([{id, total: 2, here: 1}]);
-		expect(goalsOf(other.id)).toMatchObject([{id, total: 2, here: 1}]);
+		expect(goalsOf(boardId)).toMatchObject([
+			{id, total: 2, members: [{id: here, done: false}]},
+		]);
+		expect(goalsOf(other.id)).toMatchObject([
+			{id, total: 2, members: [{id: there, done: false}]},
+		]);
 	});
 });
 
@@ -214,7 +219,9 @@ describe('a goal across boards', () => {
 		unwrap(await moveIssue({repoRoot, issueId: part, parentId: awayLane.id}));
 
 		expect(issueOf(part).goal!.id).toBe(id);
-		expect(goalsOf(away.id)).toMatchObject([{id, total: 1, here: 1}]);
+		expect(goalsOf(away.id)).toMatchObject([
+			{id, total: 1, members: [{id: part}]},
+		]);
 		expect(goalsOf(boardId)).toEqual([]);
 	});
 
@@ -236,7 +243,7 @@ describe('a goal across boards', () => {
 
 		expect(issueOf(part).goal!.name).toBe('Kept');
 		expect(goalsOf(boardId)).toMatchObject([
-			{name: 'Kept', done: 1, total: 1, here: 1},
+			{name: 'Kept', done: 1, total: 1, members: [{id: part, done: true}]},
 		]);
 
 		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'Other'}));
@@ -244,6 +251,37 @@ describe('a goal across boards', () => {
 
 		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: null}));
 		expect(issueOf(part).goal).toBeUndefined();
+	});
+
+	it('drops the tickets of a deleted lane from its count', async () => {
+		const {repoRoot, boardId, file} = await seed();
+		const lane = unwrap(
+			await createSwimlane({repoRoot, boardId, title: 'Doomed'}),
+		);
+		const gone = unwrap(
+			await createIssue({repoRoot, title: 'Gone', parentId: lane.id}),
+		).id;
+		const kept = await file('Kept');
+		unwrap(await createGoal({repoRoot, name: 'Survivor', issueId: gone}));
+		unwrap(await setIssueGoal({repoRoot, issueId: kept, goal: 'Survivor'}));
+
+		unwrap(await deleteSwimlane({repoRoot, swimlaneId: lane.id}));
+
+		expect(goalsOf(boardId)).toMatchObject([{total: 1, members: [{id: kept}]}]);
+	});
+
+	it('takes an id that names no goal as a mistake, not a new name', async () => {
+		const {repoRoot, file} = await seed();
+		const part = await file('Part');
+
+		const result = await setIssueGoal({
+			repoRoot,
+			issueId: part,
+			goal: '01M5Z0000000000000000000QQ',
+		});
+
+		expect(isFail(result) && result.message).toMatch(/No goal has the id/);
+		expect(unwrap(deriveGuiState()).goals).toEqual([]);
 	});
 
 	it('finds a goal whatever spacing its name was typed with', async () => {

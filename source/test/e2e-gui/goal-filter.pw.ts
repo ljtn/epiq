@@ -99,6 +99,41 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	expect(pageErrors).toEqual([]);
 });
 
+test("a goal's panel counts a closed ticket on the board it was closed from, as its pill does", async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const goal = `Closing ${stamp}`;
+	const open = `Open ${stamp}`;
+	const closing = `Closed ${stamp}`;
+
+	await addTicket(page, open);
+	await startGoal(page, goal);
+	await addTicket(page, closing);
+	await joinGoal(page, goal);
+
+	await page.keyboard.press('Control+k');
+	await page.keyboard.type('close ticket');
+	const row = page.getByTestId('command-palette').getByRole('option').first();
+	await expect(row).toContainText('Close ticket');
+	await page.keyboard.press('Enter');
+	await expect(card(page, closing)).toHaveCount(0, {timeout: 30_000});
+
+	await pill(page, goal).click();
+	await expect(page.getByTestId('goal-details-done')).toContainText('1/2');
+	await expect(page.getByTestId('goal-details-here')).toContainText('2');
+	// One group, this board's, the open ticket first.
+	await expect(page.getByTestId('goal-group')).toHaveCount(1);
+	await expect(page.getByTestId('goal-member').first()).toContainText(open);
+	await expect(page.getByTestId('goal-member')).toHaveCount(2);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('the Goal dropdown picks, leaves, and closes on a press outside it', async ({
 	page,
 	appUrl,
