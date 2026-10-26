@@ -163,6 +163,10 @@ export type GuiMessage =
 			type: 'goal:stats:get';
 			payload: {goalId: string; key: string; asOfTime?: number};
 	  }
+	| {
+			type: 'goal:commits:get';
+			payload: {goalId: string; key: string; asOfTime?: number};
+	  }
 	| {type: 'board:overview:get'; payload: {boardId: string}}
 	| {type: 'emails:get'}
 	| {

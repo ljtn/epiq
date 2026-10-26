@@ -70,10 +70,12 @@ export {
 	FULL_TIMELINE_CACHE_TTL_MS,
 	getCommitTimeline,
 	getCommitsForRef,
+	getCommitsForRefs,
 	invalidateCommitTimelineCache,
 	resetCommitTimelineCacheForTests,
 	type CommitEntry,
 	type RefCommitEntry,
+	type RefsCommitEntry,
 } from './commit-timeline.js';
 
 export {

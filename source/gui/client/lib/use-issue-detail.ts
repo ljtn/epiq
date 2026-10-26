@@ -98,7 +98,7 @@ export type IssueDetailPanel = {
 	// not with the rest of the ticket. Most readers never open it.
 	loadSquashedDiff: (issueId: string, signature: string) => void;
 	commitDiffs: Record<string, CommitDiffState>;
-	loadCommitDiff: (sha: string) => void;
+	loadCommitDiff: (sha: string, repo?: string) => void;
 	// An optimistic edit to the comments on screen, before the board's own state
 	// catches up with the change.
 	updateComments: (
@@ -271,14 +271,15 @@ export const useIssueDetail = ({
 		),
 	);
 
+	// A commit listed elsewhere, as a goal's are, names its repo itself.
 	const loadCommitDiff = useCallback(
-		(sha: string) => {
+		(sha: string, repoOfSha?: string) => {
 			setCommitDiffs(prev => ({
 				...prev,
 				[sha]: {loading: true, error: null, files: null},
 			}));
 
-			const repo = repoBySha.current.get(sha);
+			const repo = repoOfSha ?? repoBySha.current.get(sha);
 			sendRaw({
 				type: 'commit:diff:get',
 				payload: repo ? {sha, repo} : {sha},

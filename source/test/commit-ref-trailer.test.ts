@@ -4,6 +4,7 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {
 	getCommitsForRef,
+	getCommitsForRefs,
 	getCommitTimeline,
 	resetCommitTimelineCacheForTests,
 } from '../lib/commits/commits.js';
@@ -95,5 +96,28 @@ describe("the board's own repo", () => {
 			await getCommitsForRef({repoRoot: board, ref: 'B8PYTCM'}),
 		);
 		expect(linked.map(entry => entry.author)).toEqual(['Erik']);
+	});
+
+	// A goal's list: one commit naming two of its tickets is one row.
+	it("lists several tickets' commits once each, naming the tickets", async () => {
+		commit(board, 'Erik', ['B8PYTCM pin the tag']);
+		commit(board, 'Ada', ['W1TCS14 bump the floor', 'Epiq-Ref: B8PYTCM']);
+		commit(board, 'Bea', ['QQQQQQQ elsewhere']);
+
+		const listed = async (refs: string[]) =>
+			value(await getCommitsForRefs({repoRoot: board, refs})).map(
+				({subject, tickets}) => ({subject, tickets: [...tickets].sort()}),
+			);
+
+		// One second apart at most, so the order is the tiebreak's: the same
+		// either way round.
+		const forward = await listed(['B8PYTCM', 'W1TCS14']);
+		expect(await listed(['W1TCS14', 'B8PYTCM'])).toEqual(forward);
+		expect(
+			[...forward].sort((a, b) => a.subject.localeCompare(b.subject)),
+		).toEqual([
+			{subject: 'B8PYTCM pin the tag', tickets: ['B8PYTCM']},
+			{subject: 'W1TCS14 bump the floor', tickets: ['B8PYTCM', 'W1TCS14']},
+		]);
 	});
 });

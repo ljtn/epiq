@@ -18,19 +18,23 @@ vi.mock('../lib/storage/paths.js', async importOriginal => ({
 
 vi.mock('../lib/commits/commits.js', () => ({
 	getCommitsForRef: vi.fn(),
+	getCommitsForRefs: vi.fn(),
 }));
 
 vi.mock('../lib/stats/issue-stats.js', () => ({
 	deriveIssueStats: vi.fn(),
 }));
 
-const {getCommitsForRef} = await import('../lib/commits/commits.js');
+const {getCommitsForRef, getCommitsForRefs} = await import(
+	'../lib/commits/commits.js'
+);
 const {deriveIssueStats} = await import('../lib/stats/issue-stats.js');
 const {getIssueStats, getRefsStats, resetIssueStatsCacheForTests} =
 	await import('../mcp/epiq-issue-stats.js');
 
 const derive = vi.mocked(deriveIssueStats);
 const commits = vi.mocked(getCommitsForRef);
+const refsCommits = vi.mocked(getCommitsForRefs);
 
 const REF = 'ABC1234';
 
@@ -65,14 +69,14 @@ describe('getIssueStats caching', () => {
 		expect(derive).toHaveBeenCalledTimes(1);
 	});
 
-	it('measures several tickets over their commits, each once', async () => {
-		commits.mockImplementation(async ({ref}) =>
-			succeeded(
-				'Matched',
-				ref === 'AAAAAAA'
-					? [commitNamed('shared'), commitNamed('only-a')]
-					: [commitNamed('shared')],
-			),
+	// Listing them, each once and in one order, is getCommitsForRefs' job,
+	// tested over real git in commit-ref-trailer.test.ts.
+	it('measures several tickets over the list their goal shows', async () => {
+		refsCommits.mockResolvedValue(
+			succeeded('Matched', [
+				{...commitNamed('shared'), tickets: ['AAAAAAA', 'BBBBBBB']},
+				{...commitNamed('only-a'), tickets: ['AAAAAAA']},
+			]),
 		);
 
 		await getRefsStats({
@@ -81,29 +85,13 @@ describe('getIssueStats caching', () => {
 			refs: ['AAAAAAA', 'BBBBBBB'],
 		});
 
-		expect(derive).toHaveBeenCalledTimes(1);
-		expect(
-			derive.mock.calls[0]![0].commits.map(commit => commit.sha).sort(),
-		).toEqual(['only-a', 'shared']);
-	});
-
-	it('reads the same commits in any ticket order as one set', async () => {
-		commits.mockImplementation(async ({ref}) =>
-			succeeded('Matched', [commitNamed(ref === 'AAAAAAA' ? 'a' : 'b')]),
+		expect(refsCommits).toHaveBeenCalledWith(
+			expect.objectContaining({refs: ['AAAAAAA', 'BBBBBBB']}),
 		);
-
-		await getRefsStats({
-			repoRoot: '/repo',
-			label: 'g',
-			refs: ['AAAAAAA', 'BBBBBBB'],
-		});
-		await getRefsStats({
-			repoRoot: '/repo',
-			label: 'g',
-			refs: ['BBBBBBB', 'AAAAAAA'],
-		});
-
-		expect(derive).toHaveBeenCalledTimes(1);
+		expect(derive.mock.calls[0]![0].commits.map(commit => commit.sha)).toEqual([
+			'shared',
+			'only-a',
+		]);
 	});
 
 	// The shas are the whole of what the answer depends on, so a new commit on

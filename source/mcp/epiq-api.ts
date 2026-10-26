@@ -37,7 +37,7 @@ export {
 	renameGoal,
 	setIssueGoal,
 } from './api/goals.js';
-export {getGoalStats, goalStats} from './api/goal-stats.js';
+export {getGoalCommits, getGoalStats, goalStats} from './api/goal-code.js';
 export {setSwimlaneRule} from './api/lane-rules.js';
 export {
 	addIssueTag,

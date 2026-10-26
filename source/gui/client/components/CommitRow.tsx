@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import React, {useState} from 'react';
 import {GuiComment, GuiRefCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {hasDiffToShow, isLargeDiff} from '../../../lib/utils/diff-size.js';
@@ -33,6 +33,7 @@ export const CommitRow = ({
 	onFileTicket,
 	comments,
 	focus,
+	lead,
 }: {
 	commit: GuiRefCommitEntry;
 	diff: CommitDiffState | undefined;
@@ -48,6 +49,8 @@ export const CommitRow = ({
 	comments: GuiComment[];
 	// Non-null only on the commit a permalink points at.
 	focus?: CommitFocus | null;
+	// Before the subject, as a goal's list names the ticket.
+	lead?: React.ReactNode;
 }) => {
 	const [hovered, setHovered] = useState(false);
 	// Also tracks focus (not just mouse hover): the copy button is a real
@@ -115,6 +118,7 @@ export const CommitRow = ({
 						<IconChevronRight size={12} />
 					)}
 				</span>
+				{lead}
 				<span
 					style={{
 						// Its own width, so the message button sits right after it; the

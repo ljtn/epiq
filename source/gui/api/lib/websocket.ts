@@ -65,7 +65,7 @@ import {
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
 import {getRefDiffTimeline} from '../../../mcp/api/ref-diff-stats.js';
 import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
-import {getGoalStats} from '../../../mcp/api/goal-stats.js';
+import {getGoalCommits, getGoalStats} from '../../../mcp/api/goal-code.js';
 import {getBoardOverview} from '../../../mcp/api/board-overview.js';
 import {
 	failed,
@@ -653,6 +653,23 @@ export const setupWebsocket = (
 							goalId,
 							key,
 							result: await getGoalStats({
+								repoRoot,
+								goal: goalId,
+								end: asOfTime,
+							}),
+						},
+					});
+				}
+
+				if (type === 'goal:commits:get') {
+					const {goalId, key, asOfTime} = message.payload;
+
+					return sendSocket(socket, {
+						type: 'goal:commits:result',
+						payload: {
+							goalId,
+							key,
+							result: await getGoalCommits({
 								repoRoot,
 								goal: goalId,
 								end: asOfTime,
