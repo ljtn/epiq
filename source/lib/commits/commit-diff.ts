@@ -59,7 +59,9 @@ const cleanBody = (body: string): string =>
 		)
 		.trim();
 
-const BODY_BATCH = 200;
+// On stdin, so a batch is bounded by what one vanished sha costs: git refuses
+// the whole list over it. A spawn per 200 was 3 s at 50,000 commits.
+const BODY_BATCH = 5000;
 
 const commitBody = async (repoRoot: string, sha: string): Promise<string> => {
 	const result = await execGit({
@@ -71,8 +73,8 @@ const commitBody = async (repoRoot: string, sha: string): Promise<string> => {
 };
 
 /**
- * A list of commits, each with its body where it has one: one `git log` per
- * repo, which is what a ticket's commits cost. The separators carry a nonce,
+ * A list of commits, each with its body where it has one: a `git log` per
+ * repo and batch. The separators carry a nonce,
  * since a hostile body could otherwise pass text off as another commit's.
  */
 export const withCommitBodies = async <T extends CommitEntry>(
@@ -96,10 +98,11 @@ export const withCommitBodies = async <T extends CommitEntry>(
 				'log',
 				'--no-walk=unsorted',
 				'--no-show-signature',
+				'--stdin',
 				`--format=${record}%H${field}%b`,
-				...batch,
 				'--',
 			],
+			input: `${batch.join('\n')}\n`,
 		});
 		if (isFail(log)) return;
 
@@ -118,7 +121,6 @@ export const withCommitBodies = async <T extends CommitEntry>(
 			.map(commit => commit.sha)
 			.filter(isPlausibleSha);
 
-		// In batches: Windows caps a command line near 32k characters.
 		for (let at = 0; at < shas.length; at += BODY_BATCH) {
 			await readBodies(source.cwd, shas.slice(at, at + BODY_BATCH));
 		}

@@ -41,7 +41,8 @@ const BUDGET_TIMELINE_WARM_MS = 300;
 // The board panel walks every ticket's log once, on opening.
 const BUDGET_BOARD_OVERVIEW_MS = 1000;
 // A goal's Stats and Code tabs read every commit of every ticket in it: the
-// biggest goal, against STRESS_COMMITS commits on its tickets.
+// biggest goal, against STRESS_COMMITS commits on its tickets. CI's 50,000
+// take 0.4 s on an M3; a read per ticket or a git spawn per 200 bodies took 3.5.
 const COMMITS = number('STRESS_COMMITS', 5000);
 const BUDGET_GOAL_TAB_MS = 2000;
 
