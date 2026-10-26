@@ -386,6 +386,8 @@ const DenseBody = ({
 					gap: DENSE_GAP,
 					fontSize: TEXT.label,
 					lineHeight: '12px',
+					// As tall as the goal's label, so a card with one is no taller.
+					minHeight: view.metrics.metaLineHeight,
 					minWidth: 0,
 				}}
 			>
