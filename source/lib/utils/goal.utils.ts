@@ -3,14 +3,20 @@
 // carries is never ambiguous; tags stay the way to say several things. This
 // module answers it for every door: the API, the GUI behind it, and the TUI.
 
+import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {isTicketNode, Ticket} from '../model/context.model.js';
-import {getState} from '../state/state.js';
+import {isFail} from '../model/result-types.js';
+import {getSafeState} from '../state/state.js';
 import {getMutedStringColor} from './color.js';
 import {NODE_REF_LENGTH, nodeRef} from './node-ref.js';
 import {sanitizeInlineText} from './string.utils.js';
 
-// A state with no nodes yet still answers: there are no goals.
-const nodesOrNone = () => getState().nodes ?? {};
+// No state, or one with no nodes yet, still answers: there are no goals.
+const stateOrNone = () => {
+	const state = getSafeState();
+	return isFail(state) ? null : state.value;
+};
+const nodesOrNone = () => stateOrNone()?.nodes ?? {};
 
 const liveTickets = (): Ticket[] =>
 	Object.values(nodesOrNone()).filter(
@@ -46,7 +52,8 @@ export const goalColor = (goal: Ticket): string =>
 const membersCache = new WeakMap<object, Map<string, Ticket[]>>();
 
 const membersByGoal = (): Map<string, Ticket[]> => {
-	const state = getState();
+	const state = stateOrNone();
+	if (!state) return new Map();
 	const cached = membersCache.get(state);
 	if (cached) return cached;
 
@@ -62,6 +69,25 @@ const membersByGoal = (): Map<string, Ticket[]> => {
 
 export const goalMembers = (goalId: string): Ticket[] =>
 	membersByGoal().get(goalId) ?? [];
+
+/**
+ * How far along a goal is, over every ticket in it, however long ago it was
+ * closed: done is closed, or standing in a lane called Done.
+ */
+export const goalProgress = (
+	goalId: string,
+): {done: number; total: number} | null => {
+	const members = goalMembers(goalId);
+	if (members.length === 0) return null;
+
+	// By name, not by place: lanes are in whatever order a team put them.
+	const isDone = (ticket: Ticket) =>
+		ticket.parentNodeId === CLOSED_SWIMLANE_ID ||
+		nodesOrNone()[ticket.parentNodeId ?? '']?.title.trim().toLowerCase() ===
+			'done';
+
+	return {done: members.filter(isDone).length, total: members.length};
+};
 
 /** Every live ticket some ticket belongs to. */
 export const existingGoals = (): Ticket[] =>

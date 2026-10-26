@@ -156,3 +156,43 @@ test('a new goal is named in the picker, and removing it takes its tickets out',
 
 	expect(pageErrors).toEqual([]);
 });
+
+test('a goal removed while the board shows only it gives the board back', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const goal = `Passing ${stamp}`;
+	const member = `Within ${stamp}`;
+	const other = `Without ${stamp}`;
+
+	await addTicket(page, other);
+	await addTicket(page, member);
+	await page.getByTestId('goal-current').click();
+	await page.getByTestId('goal-search').fill(goal);
+	await page.getByTestId('goal-create').click();
+	await expect(page.getByTestId('goal-current')).toHaveText(goal);
+
+	await card(page, member).getByTestId('ticket-goal').click();
+	await expect(card(page, other)).toHaveCount(0);
+
+	await page.getByTestId('goal-current').click();
+	await page.getByTestId('goal-manage').click();
+	const row = page.getByTestId('manage-goal-row').filter({hasText: goal});
+	await row.getByTestId('remove-goal').click();
+	await row.getByTestId('remove-goal').click();
+	await page
+		.getByTestId('manage-goals')
+		.getByRole('button', {name: 'Close', exact: true})
+		.click();
+
+	await expect(card(page, other)).toBeVisible();
+	await page.goto(page.url());
+	await expect(card(page, other)).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});

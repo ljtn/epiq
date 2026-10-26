@@ -91,7 +91,9 @@ export const GoalSection = ({
 		setQuery('');
 	};
 	// Offered unless a goal by that name is already listed to pick.
+	// A closed ticket has no open lane for a new goal to go in.
 	const canCreate =
+		!issue.isClosed &&
 		typed !== '' &&
 		!options.some(
 			option =>
@@ -184,7 +186,7 @@ export const GoalSection = ({
 							place={{kind: 'panel'}}
 							strong
 							color={asGoal.color}
-							label={`Goal · ${asGoal.done}/${asGoal.members.length} done`}
+							label={`Goal · ${asGoal.done}/${asGoal.total} done`}
 						/>
 					</ChipRow>
 					<div

@@ -410,10 +410,11 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 
 	'set.issue.goal': event => {
 		const {id, goal} = event.payload;
-		const result = nodeRepo.setGoal(
-			id,
-			typeof goal === 'string' && goal ? goal : undefined,
-		);
+		// Absent clears it; a goal this build cannot read leaves it as it is.
+		if (goal !== undefined && (typeof goal !== 'string' || !goal)) {
+			return materializeSkip('Unreadable goal', event);
+		}
+		const result = nodeRepo.setGoal(id, goal);
 
 		if (isFail(result)) {
 			return materializeSkip(result.message ?? 'Unable to set goal', event);

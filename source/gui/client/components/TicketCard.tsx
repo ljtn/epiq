@@ -605,7 +605,7 @@ export const TicketCard = ({
 			testId="ticket-goal-own"
 			strong
 			color={asGoal.color}
-			label={`Goal · ${asGoal.done}/${asGoal.members.length}`}
+			label={`Goal · ${asGoal.done}/${asGoal.total}`}
 			place={{kind: 'line', height: view.metrics.metaLineHeight}}
 			{...goalFilter}
 		/>

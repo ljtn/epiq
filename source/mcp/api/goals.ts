@@ -6,6 +6,7 @@
 import {ulid} from 'ulid';
 import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
+import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
 import {Ticket} from '../../lib/model/context.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
 import {
@@ -14,6 +15,7 @@ import {
 	findTicket,
 	getTicketGoal,
 	goalMembers,
+	goalProgress,
 } from '../../lib/utils/goal.utils.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
@@ -38,8 +40,12 @@ export const getIssueGoal = (ticket: Ticket): ApiGoalRef | undefined => {
 /** What a ticket carries about goals, for every projection of it. */
 export const goalFields = (ticket: Ticket) => {
 	const goal = getIssueGoal(ticket);
+	const progress = goalProgress(ticket.id);
 
-	return goal ? {goal} : {};
+	return {
+		...(goal ? {goal} : {}),
+		...(progress ? {asGoal: {color: goalColor(ticket), ...progress}} : {}),
+	};
 };
 
 type Ready = {actor: Actor; boot: {stateBranchRoot: string}};
@@ -116,7 +122,14 @@ export const createIssueGoal = async (
 	if (goalMembers(issue.id).length > 0) {
 		return failed(`${nodeRef(issue.id)} is a goal; it is in none itself`);
 	}
+	if (issue.parentNodeId === CLOSED_SWIMLANE_ID) {
+		return failed(
+			`${nodeRef(issue.id)} is closed; reopen it to start a goal from it`,
+		);
+	}
 
+	// Two writes, but every refusal the second could give is checked above,
+	// so only a failed disk write leaves the new ticket outside its goal.
 	const created = await createIssue({
 		repoRoot: input.repoRoot,
 		title: input.title,
@@ -143,8 +156,19 @@ export const dissolveGoal = async (input: ToolInput & {goalId: string}) => {
 	if (!goal) return failed('Goal ticket not found');
 
 	const members = goalMembers(goal.id).filter(member => !member.readonly);
+	const kept = goalMembers(goal.id).filter(member => member.readonly);
+	// Read-only tickets stay in it, so the goal does too; say which.
+	const keptNote =
+		kept.length > 0
+			? `; ${kept
+					.map(member => nodeRef(member.id))
+					.join(', ')} read-only, still in it`
+			: '';
 	if (members.length === 0) {
-		return succeeded('No changes made', {id: goal.id, ref: nodeRef(goal.id)});
+		return succeeded(`No changes made${keptNote}`, {
+			id: goal.id,
+			ref: nodeRef(goal.id),
+		});
 	}
 
 	const results = materializeAndPersistAll(
@@ -158,5 +182,5 @@ export const dissolveGoal = async (input: ToolInput & {goalId: string}) => {
 	);
 	if (isFail(results)) return failed(results.message);
 
-	return succeeded('Saved', {id: goal.id, ref: nodeRef(goal.id)});
+	return succeeded(`Saved${keptNote}`, {id: goal.id, ref: nodeRef(goal.id)});
 };

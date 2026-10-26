@@ -40,6 +40,8 @@ export type ApiIssue = {
 	assignees: ApiAssignee[];
 	/** Absent when it belongs to none, or its goal is gone. */
 	goal?: ApiGoalRef;
+	/** Present when tickets belong to it: how far along they are, all of them. */
+	asGoal?: ApiGoalProgress;
 	parentNodeId: string;
 	isClosed: boolean;
 	/**
@@ -50,6 +52,8 @@ export type ApiIssue = {
 	 */
 	boardIds: string[];
 };
+
+export type ApiGoalProgress = {color: string; done: number; total: number};
 
 /** The goal a ticket belongs to, resolved: it reads as the ticket does now. */
 export type ApiGoalRef = {

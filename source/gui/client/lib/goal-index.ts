@@ -1,15 +1,17 @@
 // Which tickets are goals, and how far along each is. A ticket is a goal
 // by having tickets that belong to it, so this is read off the board's state,
-// never stored: the members say so.
+// never stored: the server counts each goal's tickets, the state lists them.
 
 import {GuiIssue, GuiState} from './gui-state.model';
 
 export type GoalSummary = {
 	id: string;
 	color: string;
+	// The ones this state holds: closed tickets past its window are left out.
 	members: GuiIssue[];
-	// Closed, or standing in a lane called Done.
+	// Over every ticket in it, as the server counts them.
 	done: number;
+	total: number;
 };
 
 export type GoalIndex = ReadonlyMap<string, GoalSummary>;
@@ -21,41 +23,30 @@ export const allIssues = (state: GuiState): GuiIssue[] =>
 	state.boards.flatMap(board => board.swimlanes.flatMap(lane => lane.issues));
 
 export const buildGoalIndex = (state: GuiState): GoalIndex => {
-	// By name, not by place: lanes are in whatever order a team put them.
-	const doneLaneIds = new Set(
-		state.boards.flatMap(board =>
-			board.swimlanes
-				.filter(lane => lane.title.trim().toLowerCase() === 'done')
-				.map(lane => lane.id),
-		),
-	);
-	const laneOf = new Map(
-		state.boards.flatMap(board =>
-			board.swimlanes.flatMap(lane =>
-				lane.issues.map(issue => [issue.id, lane.id] as const),
-			),
-		),
-	);
-
 	const index = new Map<string, GoalSummary>();
-
-	for (const issue of allIssues(state)) {
-		const goal = issue.goal;
-		if (!goal) continue;
-
-		const summary = index.get(goal.id) ?? {
-			id: goal.id,
-			color: goal.color,
+	const entry = (id: string, color: string) => {
+		const summary = index.get(id) ?? {
+			id,
+			color,
 			members: [],
 			done: 0,
+			total: 0,
 		};
+		index.set(id, summary);
+		return summary;
+	};
 
-		summary.members.push(issue);
-		if (issue.isClosed || doneLaneIds.has(laneOf.get(issue.id) ?? '')) {
-			summary.done++;
-		}
+	for (const issue of allIssues(state)) {
+		if (issue.asGoal)
+			Object.assign(entry(issue.id, issue.asGoal.color), issue.asGoal);
+		if (issue.goal) entry(issue.goal.id, issue.goal.color).members.push(issue);
+	}
 
-		index.set(goal.id, summary);
+	// A goal whose own ticket this state left out counts what it holds.
+	for (const summary of index.values()) {
+		if (summary.total > 0) continue;
+		summary.total = summary.members.length;
+		summary.done = summary.members.filter(member => member.isClosed).length;
 	}
 
 	return index;

@@ -132,7 +132,7 @@ export const ManageGoalsModal = ({
 										{issue.title}
 									</span>
 									<span style={{fontSize: 10, color: GUI_THEME.dim}}>
-										{goal.done}/{goal.members.length}
+										{goal.done}/{goal.total}
 									</span>
 								</button>
 

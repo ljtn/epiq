@@ -779,7 +779,10 @@ export const App = () => {
 		});
 
 	// The board narrowed to one goal from its pill; pressing it again lets go.
-	const isolatedGoalId = selection.goal;
+	// Only while it is a goal: one dissolved or deleted would leave no label
+	// on the board to let go of it with.
+	const isolatedGoalId =
+		selection.goal && goalIndex.has(selection.goal) ? selection.goal : null;
 	const filterByGoal = (goalId: string) =>
 		changeSelection({goal: isolatedGoalId === goalId ? null : goalId});
 

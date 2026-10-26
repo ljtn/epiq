@@ -15,6 +15,7 @@ import {
 	setIssueGoal,
 	createIssueGoal,
 	dissolveGoal,
+	closeIssue,
 } from '../mcp/epiq-api.js';
 import {deriveGuiState} from '../mcp/api/state.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
@@ -206,6 +207,49 @@ describe('replaying goal events', () => {
 		expect(isFail(own as Result)).toBe(true);
 		expect(issueOf(part).goal).toBeUndefined();
 	});
+
+	it('leaves the goal as it is for one it cannot read', async () => {
+		const {repoRoot, file, actor} = await seed();
+		const epic = await file('Epic');
+		const part = await file('Part');
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: epic}));
+
+		const [odd] = materializeAll([
+			{
+				id: '01M5Z00000000000000000000B',
+				...actor,
+				action: 'set.issue.goal',
+				payload: {id: part, goal: {ref: 'later'}},
+			},
+		] as unknown as AppEvent[]);
+
+		expect(isFail(odd as Result)).toBe(true);
+		expect(issueOf(part).goal!.id).toBe(epic);
+	});
+
+	it('draws one level of a loop two machines made at once', async () => {
+		const {file, actor} = await seed();
+		const a = await file('A');
+		const b = await file('B');
+
+		materializeAll([
+			{
+				id: '01M5Z00000000000000000000C',
+				...actor,
+				action: 'set.issue.goal',
+				payload: {id: a, goal: b},
+			},
+			{
+				id: '01M5Z00000000000000000000D',
+				...actor,
+				action: 'set.issue.goal',
+				payload: {id: b, goal: a},
+			},
+		] as AppEvent[]);
+
+		expect(issueOf(a).goal!.id).toBe(b);
+		expect(issueOf(b).goal!.id).toBe(a);
+	});
 });
 
 describe('making and removing goals', () => {
@@ -228,6 +272,28 @@ describe('making and removing goals', () => {
 
 		const result = await createIssueGoal({repoRoot, issueId: epic, title: 'X'});
 		expect(isFail(result) && result.message).toMatch(/is a goal/);
+	});
+
+	it('counts every ticket in a goal, closed ones too', async () => {
+		const {repoRoot, file} = await seed();
+		const epic = await file('Epic');
+		const one = await file('One');
+		const two = await file('Two');
+		unwrap(await setIssueGoal({repoRoot, issueId: one, goal: epic}));
+		unwrap(await setIssueGoal({repoRoot, issueId: two, goal: epic}));
+		unwrap(await closeIssue({repoRoot, issueId: one}));
+
+		expect(issueOf(epic).asGoal).toMatchObject({done: 1, total: 2});
+		expect(issueOf(one).asGoal).toBeUndefined();
+	});
+
+	it('refuses a new goal for a closed ticket', async () => {
+		const {repoRoot, file} = await seed();
+		const part = await file('Part');
+		unwrap(await closeIssue({repoRoot, issueId: part}));
+
+		const result = await createIssueGoal({repoRoot, issueId: part, title: 'X'});
+		expect(isFail(result) && result.message).toMatch(/is closed/);
 	});
 
 	it('takes every ticket out of a goal and leaves its ticket', async () => {
