@@ -41,6 +41,8 @@ export type BoardSelection = {
 	// The window is derived while this is on rather than written into `zoom`,
 	// so turning it off hands the scope buttons back what they had.
 	ticketOnly: boolean;
+	// Narrows the board to one goal's tickets.
+	goal: string | null;
 };
 
 export const DEFAULT_SELECTION: BoardSelection = {
@@ -51,6 +53,7 @@ export const DEFAULT_SELECTION: BoardSelection = {
 	only: {},
 	windowOnly: false,
 	ticketOnly: false,
+	goal: null,
 };
 
 const PARAM_KEYS = [
@@ -63,6 +66,7 @@ const PARAM_KEYS = [
 	'only',
 	'window',
 	'ticket',
+	'goal',
 ] as const;
 
 const STORAGE_KEY = 'epiq.board.selection';
@@ -184,7 +188,8 @@ export const isDefaultSelection = (selection: BoardSelection): boolean =>
 	selection.layout === DEFAULT_SELECTION.layout &&
 	!isNarrowed(selection.only) &&
 	selection.windowOnly === DEFAULT_SELECTION.windowOnly &&
-	selection.ticketOnly === DEFAULT_SELECTION.ticketOnly;
+	selection.ticketOnly === DEFAULT_SELECTION.ticketOnly &&
+	selection.goal === DEFAULT_SELECTION.goal;
 
 // A change to one field, with what it implies for the others: a new scope
 // starts at its most recent period. A new view implies nothing for the
@@ -232,10 +237,10 @@ export const applySelectionPatch = (
 // opening a ticket rebuilds the query from scratch, and none of a board
 // narrowed to a window, a stretch dragged out of the chart, or a window paged
 // back off the present must come undone under the reader who clicked one of
-// the cards it left showing.
+// the cards it left showing. Nor must the goal a board is narrowed to.
 export type CarriedSelection = Pick<
 	BoardSelection,
-	'offset' | 'zoom' | 'windowOnly' | 'ticketOnly'
+	'offset' | 'zoom' | 'windowOnly' | 'ticketOnly' | 'goal'
 >;
 
 // The carried values together with the query they were read out of. The query
@@ -251,6 +256,7 @@ const carriedFrom = (selection: BoardSelection): CarriedSelection => ({
 	zoom: selection.zoom,
 	windowOnly: selection.windowOnly,
 	ticketOnly: selection.ticketOnly,
+	goal: selection.goal,
 });
 
 export const DEFAULT_CARRY: SelectionCarry = {
@@ -360,6 +366,7 @@ export const readSelectionParams = (
 		only: readNarrowing(params.get('only'), legacyView),
 		windowOnly: params.get('window') === '1',
 		ticketOnly: params.get('ticket') === '1',
+		goal: params.get('goal') || null,
 	});
 };
 
@@ -388,6 +395,7 @@ export const writeSelectionParams = (
 	put('only', writeNarrowing(next.only));
 	put('window', next.windowOnly ? '1' : null);
 	put('ticket', next.ticketOnly ? '1' : null);
+	put('goal', next.goal);
 };
 
 // ------------------------------------------------------------------- storage
@@ -421,7 +429,8 @@ const readStoredNarrowing = (
 // moment, not a preference, and reopening the board a week later on it would be
 // a surprise. Nor is windowOnly: it hides tickets outright, which is too much
 // to restore silently days later — it travels in the URL and nowhere else. Nor
-// is ticketOnly, which names a ticket that need not even be open next time.
+// is ticketOnly, which names a ticket that need not even be open next time,
+// nor the goal, which hides tickets as windowOnly does.
 export const readStoredSelection = (): BoardSelection => {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
@@ -445,6 +454,7 @@ export const readStoredSelection = (): BoardSelection => {
 			only: readStoredNarrowing(only, legacyView),
 			windowOnly: DEFAULT_SELECTION.windowOnly,
 			ticketOnly: DEFAULT_SELECTION.ticketOnly,
+			goal: DEFAULT_SELECTION.goal,
 		});
 	} catch {
 		return DEFAULT_SELECTION;

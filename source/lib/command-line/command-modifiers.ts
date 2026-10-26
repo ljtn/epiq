@@ -23,6 +23,7 @@ import {
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
+import {boardGoals, getTicketGoal, projectGoals} from '../utils/goal.utils.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE', 'COMMENT'];
@@ -135,6 +136,8 @@ const EDIT_COMMANDS = [
 const TICKET_COMMANDS = [
 	CmdKeywords.TAG,
 	CmdKeywords.UNTAG,
+	CmdKeywords.GOAL,
+	CmdKeywords.UNGOAL,
 	CmdKeywords.ASSIGN,
 	CmdKeywords.UNASSIGN,
 	CmdKeywords.CLOSE_ISSUE,
@@ -176,6 +179,19 @@ export const ticketInScope = ({
 	[...breadCrumb, selectedNode].find(
 		(node): node is Ticket => node != null && isTicketNode(node),
 	);
+
+/** The project's goals by name, the board in scope's first. */
+export const goalNamesInScope = (): string[] => {
+	const {breadCrumb = [], selectedNode} = getState();
+	const board = [...breadCrumb, selectedNode].find(
+		node => node?.context === 'BOARD',
+	);
+	const shown = board ? boardGoals(board.id) : [];
+	return [
+		...shown,
+		...projectGoals().filter(goal => !shown.includes(goal)),
+	].map(goal => goal.name);
+};
 
 const isTicketClosed = (ticket: Ticket): boolean =>
 	ticket.parentNodeId === CLOSED_SWIMLANE_ID;
@@ -298,6 +314,10 @@ const getAvailableBaseCommands = ({
 			return Boolean(ticket && getTicketTags(ticket).length > 0);
 		}
 
+		if (command === CmdKeywords.UNGOAL) {
+			return Boolean(ticket && getTicketGoal(ticket));
+		}
+
 		if (command === CmdKeywords.UNASSIGN) {
 			return Boolean(ticket && getTicketAssignees(ticket).length > 0);
 		}
@@ -374,6 +394,7 @@ export const getCmdModifiers = (
 
 		[CmdKeywords.FILTER]: [
 			'tag',
+			'goal',
 			'assignee',
 			'actor',
 			'description',
@@ -389,6 +410,8 @@ export const getCmdModifiers = (
 		[CmdKeywords.UNTAG]: [
 			...(ticketTagsFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
+
+		[CmdKeywords.GOAL]: goalNamesInScope(),
 
 		[CmdKeywords.UNASSIGN]: [
 			...(ticketAssigneesFromBreadCrumb()?.value?.map(({name}) => name) ?? []),

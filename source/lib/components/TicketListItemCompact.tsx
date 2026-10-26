@@ -6,6 +6,7 @@ import {Ticket} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {theme} from '../theme/themes.js';
 import {getStringColor, stringToHslHexColor} from '../utils/color.js';
+import {goalMark} from '../utils/goal.utils.js';
 import {CursorUI} from './Cursor.js';
 import {useFlashColor} from './useFlashColor.js';
 
@@ -49,7 +50,9 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 		.filter((s): s is Contributor => Boolean(s));
 
 	const paddingRight = 1;
-	const tagsWidth = tags.length * (1 + paddingRight);
+	const goal = goalMark(ticket, 0);
+	const goalWidth = goal ? 1 + paddingRight : 0;
+	const tagsWidth = tags.length * (1 + paddingRight) + goalWidth;
 	const assigneesWidth = assignees.length * (2 + paddingRight);
 
 	const tagsRendered = tags.map(tag => (
@@ -111,6 +114,11 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 			</Box>
 
 			<Box>
+				{goal && (
+					<Box paddingRight={paddingRight}>
+						<Text color={goal.color}>◆</Text>
+					</Box>
+				)}
 				{tagsRendered}
 				{assigneesRendered}
 				{commentsRendered}

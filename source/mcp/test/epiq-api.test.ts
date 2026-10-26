@@ -499,6 +499,7 @@ describe('mcp tools', () => {
 					title: 'Default',
 					parentId: 'workspace-1',
 					readonly: false,
+					goals: [],
 				},
 				{
 					id: 'board-2',
@@ -506,6 +507,7 @@ describe('mcp tools', () => {
 					title: 'Other board',
 					parentId: 'workspace-1',
 					readonly: false,
+					goals: [],
 				},
 			]);
 		}

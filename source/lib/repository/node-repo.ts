@@ -2,6 +2,7 @@ import {
 	AttachmentState,
 	CommentState,
 	Contributor,
+	Goal,
 	Tag,
 	REMOVED_CONTRIBUTOR_NAME,
 } from '../model/app-state.model.js';
@@ -749,6 +750,97 @@ export const nodeRepo = {
 		this.updateNode(updatedNode);
 
 		return succeeded('Tag removed', {tag: tagId});
+	},
+
+	addGoal(targetId: string, goalId: string): Result<{goal: string}> {
+		const target = this.getNode(targetId);
+		if (!target) return failed('Unable to add goal, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+		if (!this.getGoal(goalId)) return failed('Goal not found');
+
+		const goals = target.props.goals ?? [];
+		if (goals.includes(goalId)) return failed('Already in that goal');
+
+		this.updateNode({
+			...target,
+			props: {...target.props, goals: [...goals, goalId]},
+		});
+
+		return succeeded('Added to goal', {goal: goalId});
+	},
+
+	// A goal since tombstoned may still be left.
+	removeGoal(targetId: string, goalId: string): Result<{goal: string}> {
+		const target = this.getNode(targetId);
+		if (!target) return failed('Unable to remove goal, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+
+		const goals = target.props.goals ?? [];
+		if (!goals.includes(goalId))
+			return succeeded('Not in that goal', {goal: goalId});
+
+		const {goals: _goals, ...props} = target.props;
+		const left = goals.filter(id => id !== goalId);
+		this.updateNode({
+			...target,
+			props: left.length > 0 ? {...props, goals: left} : props,
+		});
+
+		return succeeded('Removed from goal', {goal: goalId});
+	},
+
+	createGoal(goal: Goal): Result<Goal> {
+		if (getState().goals[goal.id]) return failed('Goal already exists');
+
+		const result = updateState(s => ({
+			...s,
+			goals: {...s.goals, [goal.id]: goal},
+		}));
+
+		if (isFail(result)) return failed('Could not create goal');
+		return succeeded('Goal created', goal);
+	},
+
+	renameGoal(goalId: string, name: string): Result<Goal> {
+		const goal = this.getGoal(goalId);
+		if (!goal) return failed('Goal not found');
+
+		const renamed: Goal = {...goal, name};
+		const result = updateState(s => ({
+			...s,
+			goals: {...s.goals, [goalId]: renamed},
+		}));
+
+		if (isFail(result)) return failed('Unable to rename goal');
+		return succeeded('Renamed goal', renamed);
+	},
+
+	tombstoneGoal(goalId: string): Result<Goal> {
+		const goal = getState().goals[goalId];
+		if (!goal) return failed('Goal not found');
+
+		const tombstoned: Goal = {...goal, tombstoned: true};
+		const result = updateState(s => ({
+			...s,
+			goals: {...s.goals, [goalId]: tombstoned},
+		}));
+
+		if (isFail(result)) return failed('Unable to remove goal');
+		return succeeded('Tombstoned goal', tombstoned);
+	},
+
+	// A tombstoned goal reads as absent.
+	getGoal(id: string): Goal | undefined {
+		const goal = getState().goals[id];
+		return goal?.tombstoned ? undefined : goal;
 	},
 
 	tombstoneTag(tagId: string): Result<Tag> {

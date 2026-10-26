@@ -31,6 +31,14 @@ export {
 	editSwimlaneDescription,
 } from './api/descriptions.js';
 export {
+	createGoal,
+	listGoals,
+	removeGoal,
+	renameGoal,
+	setIssueGoal,
+} from './api/goals.js';
+export {getGoalStats, goalStats} from './api/goal-stats.js';
+export {
 	addIssueTag,
 	tombstoneTag,
 	restoreTag,

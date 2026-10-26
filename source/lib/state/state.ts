@@ -141,6 +141,7 @@ export function initWorkspaceState(workspace: Workspace) {
 		readOnly: false,
 		filters: [],
 		tags: {},
+		goals: {},
 		contributors: {},
 		emailLinks: {},
 		repos: emptyRepoRegistry(),

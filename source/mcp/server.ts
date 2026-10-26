@@ -24,6 +24,12 @@ import {
 	restoreTag,
 	addIssueComment,
 	addIssueTag,
+	setIssueGoal,
+	createGoal,
+	listGoals,
+	goalStats,
+	renameGoal,
+	removeGoal,
 	assumeActor,
 	closeIssue,
 	createBoard,
@@ -364,6 +370,85 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(addIssueTag),
+	);
+
+	server.registerTool(
+		'epiq_issue_goal_set',
+		{
+			description:
+				"Put an Epiq issue in a goal (a group of tickets serving one outcome, on any board), by the goal's name or id, creating the goal if there is none of that name; null takes it out. One goal per ticket. epiq_goal_list lists every goal with its progress.",
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				goal: z.string().min(1).nullable(),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(setIssueGoal),
+	);
+
+	server.registerTool(
+		'epiq_goal_list',
+		{
+			description:
+				'List the goals in the project: each a group of tickets serving one outcome, with done/total (done is closed, or in a lane named Done) and the boards its tickets are on. Put a ticket in one with epiq_issue_goal_set; epiq_goal_stats gives its code stats.',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(listGoals),
+	);
+
+	server.registerTool(
+		'epiq_goal_stats',
+		{
+			description:
+				'Code stats for a goal, by its name or id: epiq_issue_stats over every commit of every ticket in it, each commit counted once. Its `ref` field holds the goal id, not a ticket ref.',
+			inputSchema: z.object({
+				goal: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(goalStats),
+	);
+
+	server.registerTool(
+		'epiq_goal_create',
+		{
+			description:
+				'Create a goal with no tickets yet. To create one and put a ticket in it at once, use epiq_issue_goal_set with the new name.',
+			inputSchema: z.object({
+				name: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(createGoal),
+	);
+
+	server.registerTool(
+		'epiq_goal_rename',
+		{
+			description:
+				'Rename a goal; its colour and tickets stay. Ids are in epiq_goal_list.',
+			inputSchema: z.object({
+				goalId: z.string().min(1),
+				name: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(renameGoal),
+	);
+
+	server.registerTool(
+		'epiq_goal_remove',
+		{
+			description:
+				'Remove a goal; its tickets stay where they are, in no goal. Ids are in epiq_goal_list.',
+			inputSchema: z.object({
+				goalId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(removeGoal),
 	);
 
 	server.registerTool(

@@ -40,6 +40,8 @@ export const SwimlaneColumn = ({
 	onSelectIssue,
 	isolatedTagId,
 	onFilterByTag,
+	isolatedGoalId = null,
+	onFilterByGoal,
 	isolatedAssigneeId,
 	onFilterByAssignee,
 	pickedIssueIds,
@@ -71,6 +73,8 @@ export const SwimlaneColumn = ({
 	onSelectIssue: (issueId: string, options: {toggle: boolean}) => void;
 	isolatedTagId: string | null;
 	onFilterByTag: (tagId: string) => void;
+	isolatedGoalId?: string | null;
+	onFilterByGoal?: (goalId: string) => void;
 	isolatedAssigneeId: string | null;
 	onFilterByAssignee: (assigneeId: string) => void;
 	pickedIssueIds: readonly string[];
@@ -386,6 +390,8 @@ export const SwimlaneColumn = ({
 									diff={diffStats[ticket.ref] ?? null}
 									isolatedTagId={isolatedTagId}
 									onFilterByTag={onFilterByTag}
+									isolatedGoalId={isolatedGoalId}
+									onFilterByGoal={onFilterByGoal}
 									isolatedAssigneeId={isolatedAssigneeId}
 									onFilterByAssignee={onFilterByAssignee}
 									commentCount={commentsByIssueId[ticket.id]?.length ?? 0}

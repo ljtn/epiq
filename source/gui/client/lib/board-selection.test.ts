@@ -64,6 +64,7 @@ describe('selection in the URL', () => {
 			only: {tag: ['bug', 'docs'], assignee: ['jola']},
 			windowOnly: true,
 			ticketOnly: false,
+			goal: 'G1',
 		};
 
 		expect(readSelectionParams(params(written(selection)))).toEqual(selection);
@@ -162,6 +163,7 @@ describe('applySelectionPatch', () => {
 		only: {tag: ['bug']},
 		windowOnly: false,
 		ticketOnly: false,
+		goal: null,
 	};
 
 	it('starts a new scope at its most recent period', () => {
@@ -189,6 +191,12 @@ describe('applySelectionPatch', () => {
 			),
 		).toBe(true);
 		expect(isDefaultSelection(narrowed)).toBe(false);
+	});
+
+	// Or a goal carried onto a bare ticket URL is never written back, and so
+	// can never be switched off there.
+	it('is not the default while narrowed to a goal', () => {
+		expect(isDefaultSelection({...DEFAULT_SELECTION, goal: 'G1'})).toBe(false);
 	});
 
 	describe('zoom', () => {
@@ -317,7 +325,7 @@ describe('stored selection', () => {
 		expect(readStoredSelection()).toEqual(DEFAULT_SELECTION);
 	});
 
-	it('keeps everything but the moment in time, and the ticket filter', () => {
+	it('keeps everything but the moment in time, the ticket filter and the goal', () => {
 		storeSelection({
 			scope: 'month',
 			offset: 4,
@@ -326,6 +334,7 @@ describe('stored selection', () => {
 			only: {tag: ['bug'], assignee: 'all'},
 			windowOnly: true,
 			ticketOnly: false,
+			goal: 'G1',
 		});
 
 		expect(readStoredSelection()).toEqual({
@@ -338,6 +347,7 @@ describe('stored selection', () => {
 			// back to days later.
 			windowOnly: false,
 			ticketOnly: false,
+			goal: null,
 		});
 	});
 
@@ -381,7 +391,7 @@ describe('carried selection', () => {
 		return {carry: carryRender(carry, query, selection), selection};
 	};
 
-	it('picks the four up from a query that names them', () => {
+	it('picks them up from a query that names them', () => {
 		const {carry} = render(DEFAULT_CARRY, 'ticket=1&scope=week&offset=2');
 		expect(carry.values.ticketOnly).toBe(true);
 		expect(carry.values.offset).toBe(2);
@@ -391,6 +401,11 @@ describe('carried selection', () => {
 		const {carry} = render(DEFAULT_CARRY, 'ticket=1');
 		const opened = render(carry, '');
 		expect(opened.selection.ticketOnly).toBe(true);
+	});
+
+	it('keeps the board narrowed to a goal across opening a ticket', () => {
+		const {carry} = render(DEFAULT_CARRY, 'goal=G1');
+		expect(render(carry, '').selection.goal).toBe('G1');
 	});
 
 	// The bug: a change is two steps — the carried values, then the URL a

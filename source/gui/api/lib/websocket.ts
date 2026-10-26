@@ -7,6 +7,10 @@ import {
 	tombstoneTag,
 	addIssueComment,
 	addIssueTag,
+	setIssueGoal,
+	createGoal,
+	renameGoal,
+	removeGoal,
 	closeIssue,
 	createBoard,
 	editBoardTitle,
@@ -60,6 +64,7 @@ import {
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
 import {getRefDiffTimeline} from '../../../mcp/api/ref-diff-stats.js';
 import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
+import {getGoalStats} from '../../../mcp/api/goal-stats.js';
 import {getBoardOverview} from '../../../mcp/api/board-overview.js';
 import {
 	failed,
@@ -636,6 +641,25 @@ export const setupWebsocket = (
 					});
 				}
 
+				if (type === 'goal:stats:get') {
+					const {goalId, key, asOfTime} = message.payload;
+
+					// The client's key comes back, so an answer to an older ask is
+					// told from the latest.
+					return sendSocket(socket, {
+						type: 'goal:stats:result',
+						payload: {
+							goalId,
+							key,
+							result: await getGoalStats({
+								repoRoot,
+								goal: goalId,
+								end: asOfTime,
+							}),
+						},
+					});
+				}
+
 				if (type === 'board:overview:get') {
 					const {boardId} = message.payload;
 
@@ -805,6 +829,46 @@ export const setupWebsocket = (
 						onStateChanged,
 						'issue:tag:add:result',
 						result,
+					);
+				}
+
+				if (type === 'issue:goal:set') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:goal:set:result',
+						await setIssueGoal({repoRoot, ...message.payload}),
+					);
+				}
+
+				if (type === 'goal:create') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'goal:create:result',
+						await createGoal({repoRoot, ...message.payload}),
+					);
+				}
+
+				if (type === 'goal:rename') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'goal:rename:result',
+						await renameGoal({repoRoot, ...message.payload}),
+					);
+				}
+
+				if (type === 'goal:remove') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'goal:remove:result',
+						await removeGoal({repoRoot, ...message.payload}),
 					);
 				}
 

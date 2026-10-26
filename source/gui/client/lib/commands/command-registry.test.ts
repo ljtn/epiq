@@ -11,6 +11,8 @@ const handlers = (): CommandHandlers => ({
 	reopenIssue: vi.fn(),
 	addIssueTag: vi.fn(),
 	removeIssueTag: vi.fn(),
+	setIssueGoal: vi.fn(),
+	manageGoals: vi.fn(),
 	addIssueAssignee: vi.fn(),
 	removeIssueAssignee: vi.fn(),
 	commentOnIssue: vi.fn(),
@@ -50,6 +52,7 @@ const context = (overrides: Partial<CommandContext> = {}): CommandContext => ({
 	issue: issue(),
 	board: {id: 'board-1', title: 'Default', readonly: false},
 	tags: [],
+	goals: [],
 	tickets: [],
 	contributors: [],
 	handlers: handlers(),
@@ -226,6 +229,44 @@ describe('the GUI command registry', () => {
 					.getArguments?.(withOne)
 					.map(one => one.title),
 			).toEqual(['bug']);
+		});
+
+		it('offers the goals the ticket is not in, and makes one by name', () => {
+			const goals = [
+				{id: 'goal-1', name: 'Launch', color: '#f00', done: 1, total: 2},
+				{id: 'goal-2', name: 'Polish', color: '#0f0', done: 0, total: 0},
+			];
+			const inOne = context({
+				goals,
+				issue: issue({goal: {id: 'goal-1', name: 'Launch', color: '#f00'}}),
+			});
+			const goal = find(CmdKeywords.GOAL);
+
+			expect(goal.getArguments?.(inOne).map(one => one.title)).toEqual([
+				'Polish',
+			]);
+
+			goal.run(inOne, {id: 'goal-2', title: 'Polish'});
+			goal.run(inOne, goal.freeTextArgument!('  Onboarding ')!);
+			expect(inOne.handlers.setIssueGoal).toHaveBeenNthCalledWith(
+				1,
+				'issue-1',
+				'goal-2',
+			);
+			expect(inOne.handlers.setIssueGoal).toHaveBeenNthCalledWith(
+				2,
+				'issue-1',
+				'Onboarding',
+			);
+
+			find(CmdKeywords.UNGOAL).run(inOne);
+			expect(inOne.handlers.setIssueGoal).toHaveBeenLastCalledWith(
+				'issue-1',
+				null,
+			);
+			expect(find(CmdKeywords.UNGOAL).unavailable(context())).toBe(
+				'This ticket is in no goal',
+			);
 		});
 
 		it('says so rather than opening an empty list', () => {

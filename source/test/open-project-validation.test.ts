@@ -4,16 +4,18 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {failed, succeeded} from '../lib/model/result-types.js';
 
-vi.mock('../lib/state/state.js', () => ({
-	getState: () => ({
+vi.mock('../lib/state/state.js', async () => {
+	const {succeeded} = await import('../lib/model/result-types.js');
+	const state = {
 		contextNode: {id: 'ws', title: 'Workspace', context: 'WORKSPACE'},
 		selectedNode: undefined,
 		contributors: {},
 		tags: {},
 		breadCrumb: [],
 		readOnly: false,
-	}),
-}));
+	};
+	return {getState: () => state, getSafeState: () => succeeded('', state)};
+});
 
 // A machine that has answered every setup step, including the claiming one —
 // otherwise `getAvailableBaseCommands` returns from its unfinished-setup branch

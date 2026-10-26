@@ -173,6 +173,53 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		},
 	},
 	{
+		id: CmdKeywords.GOAL,
+		title: 'Put in a goal',
+		group: 'Ticket',
+		keywords: ['outcome', 'epic', 'milestone', 'group'],
+		unavailable: needsWritableTicket,
+		getArguments: context =>
+			context.goals
+				.filter(goal => goal.id !== context.issue?.goal?.id)
+				.map(goal => ({
+					id: goal.id,
+					title: goal.name,
+					color: goal.color,
+					hint: `${goal.done}/${goal.total}`,
+				})),
+		// Sent as a name, which the server finds or makes a goal of, as `:goal`
+		// does in the terminal.
+		freeTextArgument: query =>
+			query.trim() ? {id: `new:${query.trim()}`, title: query.trim()} : null,
+		run: (context, argument) => {
+			if (!context.issue || !argument) return;
+			context.handlers.setIssueGoal(
+				context.issue.id,
+				argument.id.startsWith('new:') ? argument.title : argument.id,
+			);
+		},
+	},
+	{
+		id: CmdKeywords.UNGOAL,
+		title: 'Take out of its goal',
+		group: 'Ticket',
+		keywords: ['outcome', 'epic', 'milestone'],
+		unavailable: context =>
+			needsWritableTicket(context) ??
+			(context.issue?.goal ? null : 'This ticket is in no goal'),
+		run: context => {
+			if (context.issue) context.handlers.setIssueGoal(context.issue.id, null);
+		},
+	},
+	{
+		id: 'gui:goals',
+		title: 'Manage goals',
+		group: 'Board',
+		keywords: ['goal', 'rename', 'remove', 'add', 'outcome', 'epic'],
+		unavailable: needsWrite,
+		run: context => context.handlers.manageGoals(),
+	},
+	{
 		id: CmdKeywords.ASSIGN,
 		title: 'Assign someone',
 		group: 'Ticket',

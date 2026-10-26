@@ -122,8 +122,12 @@ import {
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useNeedleUrl} from './lib/needle-url';
+import {GoalDetails, GoalDetailsTab} from './components/GoalDetails';
+import {GoalStrip} from './components/GoalStrip';
+import {ManageGoalsModal} from './components/ManageGoalsModal';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
+import {goalStatsSignature, useGoalStats} from './lib/use-goal-stats';
 import {useBoardOverview} from './lib/use-board-overview';
 import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
@@ -461,6 +465,10 @@ export const App = () => {
 	const [statsSwimlaneId, setStatsSwimlaneId] = useState<string | null>(null);
 	// The board on screen's own panel, for the same reason.
 	const [boardDetailsOpen, setBoardDetailsOpen] = useState(false);
+	// The narrowed-to goal's panel, opened with its pill and with a link to it.
+	const [goalDetailsOpen, setGoalDetailsOpen] = useState(() =>
+		Boolean(selection.goal),
+	);
 
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
 
@@ -497,6 +505,8 @@ export const App = () => {
 					: null,
 			sendRaw,
 		});
+
+	const [managingGoals, setManagingGoals] = useState(false);
 
 	// The bar beside a card's ref. Repository-wide and asked for once, not per
 	// card and not on the board's own state: a commit is not an event the log
@@ -765,6 +775,49 @@ export const App = () => {
 			),
 		});
 
+	// The board narrowed to one goal from its pill; pressing it again lets go.
+	// Only while it is one of this board's goals: a removed one, or another
+	// board's, would leave no pill to let go of it with.
+	const isolatedGoalId =
+		selection.goal &&
+		selectedBoard?.goals.some(goal => goal.id === selection.goal)
+			? selection.goal
+			: null;
+	// Narrowing to a goal opens its panel over whatever the inspector held.
+	const filterByGoal = (goalId: string) => {
+		const narrowing = isolatedGoalId !== goalId;
+		setGoalDetailsOpen(narrowing);
+		if (narrowing) {
+			setCommitDiff(null);
+			setStatsSwimlaneId(null);
+			setBoardDetailsOpen(false);
+			clearPicked();
+		}
+		changeSelection({goal: narrowing ? goalId : null});
+	};
+	const detailedGoal =
+		goalDetailsOpen && isolatedGoalId
+			? state?.goals.find(goal => goal.id === isolatedGoalId) ?? null
+			: null;
+	const [goalTab, setGoalTab] = useState<GoalDetailsTab>('overview');
+	// Walks every ticket, so only while the tab is open.
+	const statsGoalId =
+		detailedGoal && goalTab === 'stats' ? detailedGoal.id : null;
+	const goalSignature = useMemo(
+		() =>
+			statsGoalId && state
+				? goalStatsSignature(statsGoalId, state.boards, refDiffStats)
+				: '',
+		[statsGoalId, state?.boards, refDiffStats],
+	);
+	const {stats: goalStats, onMessage: onGoalStatsMessage} = useGoalStats({
+		goalId: statsGoalId,
+		signature: goalSignature,
+		socketEpoch,
+		asOfTime: scrubCut(state?.timeTravel),
+		sendRaw,
+	});
+
 	// The same for the assignee axis, from a dense card's name: the board
 	// narrowed to one person's tickets, and pressing the name again lets go.
 	const assigneeOnly = narrowedIds(selection.only.assignee);
@@ -873,7 +926,8 @@ export const App = () => {
 			boardFilter.length === 0 &&
 			!query &&
 			windowIds === null &&
-			!isolatedIssueId
+			!isolatedIssueId &&
+			!isolatedGoalId
 		)
 			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
 
@@ -897,7 +951,8 @@ export const App = () => {
 					) &&
 					issueMatchesText(issue, query) &&
 					(windowIds === null || windowIds.has(issue.id)) &&
-					(!isolatedIssueId || issue.id === isolatedIssueId),
+					(!isolatedIssueId || issue.id === isolatedIssueId) &&
+					(!isolatedGoalId || issue.goal?.id === isolatedGoalId),
 			);
 
 			hidden += swimlane.issues.length - issues.length;
@@ -914,6 +969,7 @@ export const App = () => {
 		eventActorIds,
 		windowIds,
 		isolatedIssueId,
+		isolatedGoalId,
 	]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 
@@ -925,6 +981,7 @@ export const App = () => {
 		// scrubber's own commit dot opens.
 		onIssueDetailMessage(message);
 		onSwimlaneStatsMessage(message);
+		onGoalStatsMessage(message);
 		onBoardOverviewMessage(message);
 		onRefDiffStatsMessage(message);
 		onTicketPreviewMessage(message);
@@ -1201,6 +1258,7 @@ export const App = () => {
 		// would hide the ticket just asked for the same way.
 		setStatsSwimlaneId(null);
 		setBoardDetailsOpen(false);
+		setGoalDetailsOpen(false);
 
 		// A plain click both opens the ticket and makes it the selection, so a
 		// following modifier-click extends from it instead of starting over.
@@ -1222,6 +1280,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setBoardDetailsOpen(false);
+		setGoalDetailsOpen(false);
 		setStatsSwimlaneId(current => (current === swimlaneId ? null : swimlaneId));
 	};
 
@@ -1230,6 +1289,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setStatsSwimlaneId(null);
+		setGoalDetailsOpen(false);
 		setBoardDetailsOpen(open => !open);
 	};
 
@@ -1278,6 +1338,7 @@ export const App = () => {
 		if (!board) return;
 
 		setCommitDiff(null);
+		setGoalDetailsOpen(false);
 
 		const params = new URLSearchParams({tab});
 		if (diffView) writeDiffViewParam(params, diffView === 'flat');
@@ -1393,6 +1454,10 @@ export const App = () => {
 		editIssueDescription,
 		addIssueTag,
 		removeIssueTag,
+		setIssueGoal,
+		createGoal,
+		renameGoal,
+		removeGoal,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,
@@ -1807,6 +1872,7 @@ export const App = () => {
 			  }
 			: null,
 		tags: state?.tags ?? [],
+		goals: state?.goals ?? [],
 		tickets: searchableTickets,
 		contributors,
 		handlers: {
@@ -1830,6 +1896,8 @@ export const App = () => {
 			reopenIssue,
 			addIssueTag,
 			removeIssueTag,
+			setIssueGoal,
+			manageGoals: () => setManagingGoals(true),
 			addIssueAssignee,
 			removeIssueAssignee,
 			// Opens the thread rather than posting: what to say is the point, and
@@ -2209,6 +2277,27 @@ export const App = () => {
 										overflow: 'hidden',
 									}}
 								>
+									{selectedBoard && selectedBoard.goals.length > 0 && (
+										<GoalStrip
+											goals={selectedBoard.goals}
+											isolatedGoalId={isolatedGoalId}
+											onFilterByGoal={filterByGoal}
+											onManage={
+												selectedBoard.readonly
+													? undefined
+													: () => setManagingGoals(true)
+											}
+										/>
+									)}
+									{managingGoals && (
+										<ManageGoalsModal
+											goals={state?.goals ?? []}
+											onCreate={name => createGoal(name)}
+											onRename={renameGoal}
+											onRemove={removeGoal}
+											onClose={() => setManagingGoals(false)}
+										/>
+									)}
 									{/* Scrolling sideways is this row's job; scrolling down is each
 					    column's. Both on one element gives a page-level vertical bar
 					    alongside each column's own. */}
@@ -2257,6 +2346,8 @@ export const App = () => {
 												onSelectIssueCode={selectIssueCode}
 												isolatedTagId={isolatedTagId}
 												onFilterByTag={filterByTag}
+												isolatedGoalId={isolatedGoalId}
+												onFilterByGoal={filterByGoal}
 												isolatedAssigneeId={isolatedAssigneeId}
 												onFilterByAssignee={filterByAssignee}
 												onCreateIssue={openCreateIssueModal}
@@ -2410,6 +2501,30 @@ export const App = () => {
 								!commitDiff &&
 								!statsSwimlane &&
 								!boardDetailsOpen &&
+								detailedGoal &&
+								selectedBoard &&
+								state && (
+									<GoalDetails
+										dock={asideDock}
+										goal={detailedGoal}
+										boards={state.boards}
+										boardId={selectedBoard.id}
+										tab={goalTab}
+										onChangeTab={setGoalTab}
+										stats={goalStats}
+										onOpenIssue={(id, boardRef) => {
+											setPickedIssueIds([id]);
+											openIssueTab(id, 'overview', boardRef);
+										}}
+										onClose={() => setGoalDetailsOpen(false)}
+									/>
+								)}
+
+							{!theatre &&
+								!commitDiff &&
+								!statsSwimlane &&
+								!boardDetailsOpen &&
+								!detailedGoal &&
 								pickedIssues.length > 1 && (
 									<BulkDetails
 										dock={asideDock}
@@ -2455,6 +2570,7 @@ export const App = () => {
 								!commitDiff &&
 								!statsSwimlane &&
 								!boardDetailsOpen &&
+								!detailedGoal &&
 								pickedIssues.length <= 1 &&
 								selectedIssue &&
 								state?.user && (
@@ -2494,6 +2610,14 @@ export const App = () => {
 										onEditDescription={editIssueDescription}
 										onAddTag={addIssueTag}
 										onRemoveTag={removeIssueTag}
+										goals={state?.goals ?? []}
+										onSetGoal={setIssueGoal}
+										{...(selectedIssue &&
+											!selectedIssue.readonly && {
+												onCreateGoal: (name: string) =>
+													createGoal(name, selectedIssue.id),
+												onManageGoals: () => setManagingGoals(true),
+											})}
 										onAddAssignee={addIssueAssignee}
 										onAddExternalAssignee={addExternalIssueAssignee}
 										onRemoveContributor={removeContributor}

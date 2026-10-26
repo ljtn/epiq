@@ -6,7 +6,7 @@
 //   npm run stress                      # in a container, the default
 //   npx tsx source/test/stress/run.ts  # on this machine, if you insist
 //
-// Env: STRESS_EVENTS, STRESS_ACTORS, STRESS_YEARS, STRESS_SERVE, STRESS_DIR,
+// Env: STRESS_EVENTS, STRESS_ACTORS, STRESS_YEARS, STRESS_GOALS, STRESS_SERVE, STRESS_DIR,
 // STRESS_CHECK (fail over the budgets below; what CI runs).
 
 import fs from 'node:fs';
@@ -183,6 +183,11 @@ const generated = await step('generate the log', () =>
 		// is how a slow handler is found: time one kind at two sizes.
 		shape: process.env['STRESS_SHAPE']?.split(','),
 		openTickets: Number(process.env['STRESS_OPEN'] ?? '') || undefined,
+		// About one a month. STRESS_GOALS=off leaves them out.
+		goals:
+			process.env['STRESS_GOALS'] === 'off'
+				? 0
+				: number('STRESS_GOALS', YEARS * 12),
 	}),
 );
 

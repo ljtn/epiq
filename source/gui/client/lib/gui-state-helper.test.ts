@@ -25,6 +25,7 @@ const state: GuiState = {
 			ref: '5JZCS5M',
 			title: 'Default',
 			readonly: false,
+			goals: [],
 			swimlanes: [
 				{
 					id: 'lane-1',
@@ -44,8 +45,10 @@ const state: GuiState = {
 			title: 'Closed',
 			readonly: true,
 			swimlanes: [],
+			goals: [],
 		},
 	],
+	goals: [],
 	tags: [],
 	contributors: [],
 	user: {id: 'u', name: 'u', color: ''},

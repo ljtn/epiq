@@ -33,6 +33,7 @@ import {
 	resolveRepoRoot,
 } from './boot.js';
 import {descriptionOf} from './descriptions.js';
+import {apiBoardGoals} from './goals.js';
 import {findWritableBoard, findWritableSwimlane} from './node-targets.js';
 
 type CreateBoardInput = ToolInput & {
@@ -84,6 +85,7 @@ export const listBoards = async (input: ToolInput = {}) => {
 			parentId: n.parentNodeId,
 			readonly: Boolean(n.readonly),
 			...descriptionOf(n.id),
+			goals: apiBoardGoals(n.id),
 		}));
 
 	return succeeded('Listed boards', boards);
