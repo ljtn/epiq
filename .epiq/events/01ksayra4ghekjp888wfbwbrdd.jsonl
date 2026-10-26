@@ -82,3 +82,4 @@
 {"v":1,"id":["01M5WZ1JAH2E9QH8S01YQJC2W2","01M5WZ1J6XDXT3WDPAXNFMGCRV"],"add.issue":{"id":"01M5WZ1JAH8FRDGEN3650AQRVZ","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","name":"A ticket in no goal reads \"None\" under its Goal heading","rank":"ffffbfffffffffffffffffff"}}
 {"v":1,"id":["01M5WZ1JAJ382CF1405C39RACZ","01M5WZ1JAH2E9QH8S01YQJC2W2"],"edit.description":{"id":"01M5WZ1JAH8FRDGEN3650AQRVZ","md":"jola: \"No goal\" under the GOAL heading reads oddly. The ticket panel's Goal dropdown shows \"None\" as its current value, and as the option that takes a ticket out of its goal."}}
 {"v":1,"id":["01M5WZ1JAKSRF1N4CK9GH43MET","01M5WZ1JAJ382CF1405C39RACZ"],"add.issue.tag":{"id":"01M5WZ1JAH8FRDGEN3650AQRVZ","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
+{"v":1,"id":["01M5WZ1XD68HZVGDJ556VE29RK","01M5WZ1JAKSRF1N4CK9GH43MET"],"remove.issue.assignee":{"id":"01M0K2P6DKCYQDCR0C84XNJ551","assignee":"SM58B810Y2CMRKX2WZCHD9DRXJ"}}
