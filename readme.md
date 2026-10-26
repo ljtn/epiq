@@ -49,6 +49,16 @@ A board reads at most 20 repos; one connected past that is listed but not fetche
 
 Since anyone on the board can connect a repo, URLs are read with care: only `https`, `http`, `ssh`, `git` and `user@host:path` URLs are accepted, never one carrying a password or a user before an http host, and git runs in the clones with none of your hooks, attribute drivers or command-running transports.
 
+## Goals
+
+A goal groups the tickets that serve one outcome. The goal is a ticket of its own, and a ticket can be in one goal.
+
+- **GUI:** pick a goal in a ticket's Goal dropdown, or type a new name there to create one. **Manage goals…** lists them and removes one. Click a goal's label on a card to show only its tickets.
+- **TUI:** `:goal <ref>` puts the selected ticket in a goal; `:ungoal` takes it out.
+- **MCP:** `epiq_issue_goal_set`, with the goal's ref, or `null` to take the ticket out.
+
+Removing a goal takes every ticket out of it; the goal's own ticket stays on the board.
+
 ## Terminal + Browser
 
 Epiq originated from the command line and offers a first-class terminal experience, but also features a browser interface powered by the same Git-backed event engine.
