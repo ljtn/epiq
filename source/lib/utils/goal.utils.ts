@@ -10,6 +10,7 @@ import {isFail} from '../model/result-types.js';
 import {getSafeState} from '../state/state.js';
 import {getMutedStringColor} from './color.js';
 import {sanitizeInlineText} from './string.utils.js';
+import {boardsEverOnOf} from './ticket-boards.js';
 
 // No state, or one with no nodes yet, still answers: there are no goals.
 const stateOrNone = () => {
@@ -31,24 +32,77 @@ export const boardGoals = (boardId: string): Goal[] =>
 		.filter(goal => goal.board === boardId && !goal.tombstoned)
 		.sort((a, b) => a.id.localeCompare(b.id));
 
+/** A goal's name as stored, so a lookup and a write compare alike. */
+export const goalName = (name: string): string =>
+	sanitizeInlineText(name).trim();
+
 /** One of a board's goals, by id or by name in any case. */
 export const findGoal = (
 	boardId: string,
 	idOrName: string,
 ): Goal | undefined => {
-	const wanted = idOrName.trim();
+	const wanted = goalName(idOrName);
 	if (!wanted) return undefined;
 
 	const byId = getGoal(wanted);
 	if (byId?.board === boardId) return byId;
 
+	// The oldest of a name, should two machines have made one each.
 	const name = wanted.toLowerCase();
 	return boardGoals(boardId).find(goal => goal.name.toLowerCase() === name);
 };
 
-/** The goal a ticket belongs to, while it has not been removed. */
-export const getTicketGoal = (ticket: Ticket): Goal | undefined =>
-	ticket.props?.goal ? getGoal(ticket.props.goal) : undefined;
+const isClosed = (ticket: Ticket) => ticket.parentNodeId === CLOSED_SWIMLANE_ID;
+
+/**
+ * The boards whose goals a ticket can be in: the one it stands on, or, once
+ * closed, every one it stood on, so closing keeps it counted as done.
+ */
+export const ticketGoalBoards = (ticket: Ticket): string[] => {
+	if (isClosed(ticket)) return boardsEverOnOf(ticket);
+	const board = ticketBoardId(ticket);
+	return board ? [board] : [];
+};
+
+/** One of the goals a ticket can be in, by id or name. */
+export const findTicketGoal = (
+	ticket: Ticket,
+	idOrName: string,
+): Goal | undefined =>
+	ticketGoalBoards(ticket)
+		.map(board => findGoal(board, idOrName))
+		.find(goal => goal !== undefined);
+
+/**
+ * The goal a ticket belongs to, while it has not been removed and the ticket
+ * stands on its board: moved to another board, it draws none there and
+ * counts for none here, and moving back restores it.
+ */
+export const getTicketGoal = (ticket: Ticket): Goal | undefined => {
+	const goal = ticket.props?.goal ? getGoal(ticket.props.goal) : undefined;
+	return goal && ticketGoalBoards(ticket).includes(goal.board)
+		? goal
+		: undefined;
+};
+
+/** Why a ticket may not start a new goal by name, or null when it may. */
+export const newGoalRefusal = (ticket: Ticket, name: string): string | null => {
+	if (isClosed(ticket))
+		return 'A closed ticket starts no goal; reopen it first';
+	const board = ticketBoardId(ticket);
+	return goalBoardRefusal(board) ?? goalNameRefusal(board ?? '', name);
+};
+
+/** Why a board may not take a new goal, or a change to one, or null. */
+export const goalBoardRefusal = (
+	boardId: string | undefined,
+): string | null => {
+	const board = boardId ? nodesOrNone()[boardId] : undefined;
+	if (!board || board.isDeleted || board.context !== 'BOARD') {
+		return 'Board not found';
+	}
+	return board.readonly ? 'Board is readonly' : null;
+};
 
 /** Muted, and from the id, so renaming a goal keeps its colour. */
 export const goalColor = (goal: Goal): string => getMutedStringColor(goal.id);
@@ -76,7 +130,7 @@ const membersByGoal = (): Map<string, Ticket[]> => {
 	const members = new Map<string, Ticket[]>();
 	for (const node of Object.values(nodesOrNone())) {
 		if (!isTicketNode(node) || node.isDeleted) continue;
-		const goal = node.props?.goal;
+		const goal = getTicketGoal(node)?.id;
 		if (goal) members.set(goal, [...(members.get(goal) ?? []), node]);
 	}
 
@@ -109,7 +163,7 @@ export const goalNameRefusal = (
 	name: string,
 	exceptId?: string,
 ): string | null => {
-	if (!name.trim()) return 'A goal needs a name';
+	if (!goalName(name)) return 'A goal needs a name';
 
 	const taken = findGoal(boardId, name);
 	return taken && taken.id !== exceptId

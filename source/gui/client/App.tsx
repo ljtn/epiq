@@ -510,6 +510,13 @@ export const App = () => {
 				),
 			)) ||
 		null;
+	// The goals the open ticket can be in: its board's, or, once closed, those
+	// of every board it stood on.
+	const issueGoals = selectedIssue?.isClosed
+		? (state?.boards ?? [])
+				.filter(board => selectedIssue.boardIds.includes(board.id))
+				.flatMap(board => board.goals)
+		: issueBoard?.goals ?? [];
 	// The board whose goals Manage goals is open on.
 	const [managingGoalsOf, setManagingGoalsOf] = useState<string | null>(null);
 	const managedBoard =
@@ -2552,7 +2559,7 @@ export const App = () => {
 										onEditDescription={editIssueDescription}
 										onAddTag={addIssueTag}
 										onRemoveTag={removeIssueTag}
-										goals={issueBoard?.goals ?? []}
+										goals={issueGoals}
 										onSetGoal={setIssueGoal}
 										{...(issueBoard &&
 											!issueBoard.readonly &&

@@ -33,11 +33,8 @@ import {
 	getStateResult,
 	resolveRepoRoot,
 } from './boot.js';
-import {
-	boardsEverOnOf,
-	getIssueTags,
-	getIssueAssignees,
-} from './issue-projection.js';
+import {getIssueTags, getIssueAssignees} from './issue-projection.js';
+import {boardsEverOnOf} from '../../lib/utils/ticket-boards.js';
 import {apiBoardGoals, goalFields} from './goals.js';
 import {getAttachmentMaxKb} from './attachments.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';

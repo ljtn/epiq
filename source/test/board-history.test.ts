@@ -15,7 +15,7 @@ import {
 	moveIssue,
 	moveSwimlane,
 } from '../mcp/epiq-api.js';
-import {boardsEverOnOf} from '../mcp/api/issue-projection.js';
+import {boardsEverOnOf} from '../lib/utils/ticket-boards.js';
 import {deriveGuiState} from '../mcp/api/state.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
 import {Ticket} from '../lib/model/context.model.js';

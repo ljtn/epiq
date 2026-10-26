@@ -55,11 +55,11 @@ import {
 	resolveRepoRoot,
 } from './boot.js';
 import {
-	boardsEverOnOf,
 	getIssueTags,
 	getIssueComments,
 	getIssueAssignees,
 } from './issue-projection.js';
+import {boardsEverOnOf} from '../../lib/utils/ticket-boards.js';
 import {
 	IssueTargets,
 	IssueRef,

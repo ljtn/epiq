@@ -9,8 +9,11 @@ import {Ticket} from '../../lib/model/context.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
 import {
 	boardGoals,
-	findGoal,
+	findTicketGoal,
 	getGoal,
+	goalBoardRefusal,
+	goalName,
+	newGoalRefusal,
 	getTicketGoal,
 	goalColor,
 	goalNameRefusal,
@@ -21,7 +24,7 @@ import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiGoal, ApiGoalRef} from '../api-state.model.js';
 import {bootedWithActorAndState, ToolInput} from './boot.js';
-import {findWritableBoard, findWritableIssue} from './node-targets.js';
+import {findWritableIssue} from './node-targets.js';
 
 const goalRef = (goal: Goal): ApiGoalRef => ({
 	id: goal.id,
@@ -70,21 +73,24 @@ export const setIssueGoal = async (
 
 	let goalId: string | undefined;
 	if (input.goal !== null) {
-		const boardId = ticketBoardId(issue);
-		if (!boardId) return failed(`${nodeRef(issue.id)} is on no board`);
-
-		const goal = findGoal(boardId, input.goal);
+		const goal = findTicketGoal(issue, input.goal);
 		if (!goal && getGoal(input.goal)) {
 			return failed('That goal is on another board');
 		}
 		if (!goal) {
+			const refusal = newGoalRefusal(issue, input.goal);
+			if (refusal) return failed(refusal);
+
 			const created = await createGoal({
 				repoRoot: input.repoRoot,
-				boardId,
+				boardId: ticketBoardId(issue) ?? '',
 				name: input.goal,
 				issueId: issue.id,
 			});
-			return isFail(created) ? created : succeeded('Saved', saved);
+			// Said, so a mistyped name is seen to have made a goal.
+			return isFail(created)
+				? created
+				: succeeded(`Created goal "${created.value.name}"`, saved);
 		}
 		goalId = goal.id;
 	}
@@ -114,26 +120,30 @@ export const createGoal = async (
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
-	const boardResult = findWritableBoard(input.boardId);
-	if (isFail(boardResult)) return boardResult;
-	const board = boardResult.value;
+	const boardRefusal = goalBoardRefusal(input.boardId);
+	if (boardRefusal) return failed(boardRefusal);
 
-	const name = sanitizeInlineText(input.name).trim();
-	const refusal = goalNameRefusal(board.id, name);
+	const name = goalName(input.name);
+	const refusal = goalNameRefusal(input.boardId, name);
 	if (refusal) return failed(refusal);
 
 	const actor = actorOf(ready.value.actor);
 	const id = ulid();
 	const events: AppEvent[] = [
-		{id, ...actor, action: 'create.goal', payload: {id, name, board: board.id}},
+		{
+			id,
+			...actor,
+			action: 'create.goal',
+			payload: {id, name, board: input.boardId},
+		},
 	];
 
 	if (input.issueId) {
 		const issueResult = findWritableIssue(input.issueId);
 		if (isFail(issueResult)) return issueResult;
 		const issue = issueResult.value;
-		if (ticketBoardId(issue) !== board.id) {
-			return failed(`${nodeRef(issue.id)} is on another board`);
+		if (ticketBoardId(issue) !== input.boardId) {
+			return failed(`${nodeRef(issue.id)} is not on that board`);
 		}
 
 		events.push({
@@ -156,10 +166,10 @@ export const renameGoal = async (
 	const goal = getGoal(input.goalId);
 	if (!goal) return failed('Goal not found');
 
-	const boardResult = findWritableBoard(goal.board);
-	if (isFail(boardResult)) return boardResult;
+	const boardRefusal = goalBoardRefusal(goal.board);
+	if (boardRefusal) return failed(boardRefusal);
 
-	const name = sanitizeInlineText(input.name).trim();
+	const name = goalName(input.name);
 	if (name === goal.name) {
 		return succeeded('No changes made', {id: goal.id, name});
 	}
@@ -189,8 +199,8 @@ export const removeGoal = async (input: ToolInput & {goalId: string}) => {
 	const goal = getGoal(input.goalId);
 	if (!goal) return failed('Goal not found');
 
-	const boardResult = findWritableBoard(goal.board);
-	if (isFail(boardResult)) return boardResult;
+	const boardRefusal = goalBoardRefusal(goal.board);
+	if (boardRefusal) return failed(boardRefusal);
 
 	return persist(
 		ready.value.boot.stateBranchRoot,

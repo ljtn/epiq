@@ -27,6 +27,7 @@ import {
 	setStateEntry,
 	updateState,
 } from '../state/state.js';
+import {CLOSED_BOARD_ID} from '../board/static-ids.js';
 import {getOrderedChildren} from './rank.js';
 
 /**
@@ -775,9 +776,16 @@ export const nodeRepo = {
 		return succeeded('Goal set', goalId ? {goal: goalId} : {});
 	},
 
+	// Once per id; and never on the Closed board, whose goals nobody would see.
 	createGoal(goal: Goal): Result<Goal> {
+		if (getState().goals[goal.id]) return failed('Goal already exists');
+
 		const board = this.getNode(goal.board);
-		if (!board || board.context !== 'BOARD') return failed('Board not found');
+		if (!board || board.isDeleted || board.context !== 'BOARD') {
+			return failed('Board not found');
+		}
+		if (board.id === CLOSED_BOARD_ID)
+			return failed('The Closed board has no goals');
 
 		const result = updateState(s => ({
 			...s,

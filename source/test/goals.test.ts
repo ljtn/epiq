@@ -18,6 +18,7 @@ import {
 	removeGoal,
 	closeIssue,
 	createBoard,
+	createSwimlane,
 	moveIssue,
 } from '../mcp/epiq-api.js';
 import {deriveGuiState} from '../mcp/api/state.js';
@@ -25,6 +26,7 @@ import {nodeRepo} from '../lib/repository/node-repo.js';
 import {goalMark} from '../lib/utils/goal.utils.js';
 import {Ticket} from '../lib/model/context.model.js';
 import {getState} from '../lib/state/state.js';
+import {CLOSED_BOARD_ID} from '../lib/board/static-ids.js';
 import {setupRepo, useTempHome} from './helpers/git-repo.js';
 
 useTempHome();
@@ -193,6 +195,63 @@ describe('a ticket in a goal', () => {
 	});
 });
 
+describe("a ticket off its goal's board", () => {
+	it('draws and counts no goal once moved away, and both again once back', async () => {
+		const {repoRoot, boardId, file} = await seed();
+		const part = await file('Traveller');
+		const {id} = unwrap(
+			await createGoal({repoRoot, boardId, name: 'Home', issueId: part}),
+		);
+		const away = unwrap(await createBoard({repoRoot, title: 'Away'}));
+		const awayLane = unwrap(
+			await createSwimlane({repoRoot, boardId: away.id, title: 'Lane'}),
+		);
+		const homeLane = issueOf(part).parentNodeId;
+
+		unwrap(await moveIssue({repoRoot, issueId: part, parentId: awayLane.id}));
+		expect(issueOf(part).goal).toBeUndefined();
+		expect(goalsOf(boardId)[0]).toMatchObject({total: 0});
+
+		unwrap(await moveIssue({repoRoot, issueId: part, parentId: homeLane}));
+		expect(issueOf(part).goal!.id).toBe(id);
+		expect(goalsOf(boardId)[0]).toMatchObject({total: 1});
+	});
+
+	it('stays in its goal once closed, can leave it, and starts no new one', async () => {
+		const {repoRoot, boardId, file} = await seed();
+		const part = await file('Finished');
+		unwrap(await createGoal({repoRoot, boardId, name: 'Kept', issueId: part}));
+		unwrap(await createGoal({repoRoot, boardId, name: 'Other'}));
+		unwrap(await closeIssue({repoRoot, issueId: part}));
+
+		expect(issueOf(part).goal!.name).toBe('Kept');
+		expect(goalsOf(boardId)[0]).toMatchObject({done: 1, total: 1});
+
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'other'}));
+		expect(issueOf(part).goal!.name).toBe('Other');
+
+		const fresh = await setIssueGoal({repoRoot, issueId: part, goal: 'New'});
+		expect(isFail(fresh) && fresh.message).toMatch(/closed ticket/);
+
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: null}));
+		expect(issueOf(part).goal).toBeUndefined();
+	});
+
+	it('finds a goal whatever spacing its name was typed with', async () => {
+		const {repoRoot, boardId, file} = await seed();
+		const part = await file('Part');
+		unwrap(await createGoal({repoRoot, boardId, name: 'Dense cards'}));
+
+		const result = unwrap(
+			await setIssueGoal({repoRoot, issueId: part, goal: '  Dense\tcards '}),
+		);
+
+		expect(result).toBeDefined();
+		expect(goalsOf(boardId)).toHaveLength(1);
+		expect(issueOf(part).goal!.name).toBe('Dense cards');
+	});
+});
+
 describe('replaying goal events', () => {
 	const setGoal = (
 		actor: {userId: string},
@@ -251,6 +310,58 @@ describe('replaying goal events', () => {
 
 		expect(isFail(result as Result)).toBe(true);
 		expect(issueOf(part).goal!.id).toBe(id);
+	});
+
+	it('keeps both goals two machines named alike, and finds the older', async () => {
+		const {repoRoot, boardId, file, actor} = await seed();
+		const make = (id: string) => ({
+			id,
+			...actor,
+			action: 'create.goal',
+			payload: {id, name: 'Launch', board: boardId},
+		});
+		materializeAll([
+			make('01M5Z00000000000000000000E'),
+			make('01M5Z00000000000000000000F'),
+		] as AppEvent[]);
+		const part = await file('Part');
+
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'Launch'}));
+
+		expect(goalsOf(boardId).map(goal => goal.name)).toEqual([
+			'Launch',
+			'Launch',
+		]);
+		expect(issueOf(part).goal!.id).toBe('01M5Z00000000000000000000E');
+	});
+
+	it('makes a goal once per id, and never on the Closed board', async () => {
+		const {repoRoot, boardId, actor} = await seed();
+		const {id} = unwrap(await createGoal({repoRoot, boardId, name: 'First'}));
+		unwrap(await removeGoal({repoRoot, goalId: id}));
+
+		const [again, closed] = materializeAll([
+			{
+				id: '01M5Z00000000000000000000G',
+				...actor,
+				action: 'create.goal',
+				payload: {id, name: 'Revived', board: boardId},
+			},
+			{
+				id: '01M5Z00000000000000000000H',
+				...actor,
+				action: 'create.goal',
+				payload: {
+					id: '01M5Z00000000000000000000H',
+					name: 'Hidden',
+					board: CLOSED_BOARD_ID,
+				},
+			},
+		] as AppEvent[]);
+
+		expect(isFail(again as Result)).toBe(true);
+		expect(isFail(closed as Result)).toBe(true);
+		expect(goalsOf(boardId)).toEqual([]);
 	});
 
 	it('skips a goal made on a board it never saw', async () => {
