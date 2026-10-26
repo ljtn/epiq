@@ -51,6 +51,9 @@ export const formatLogAction = (action: string): string => {
 		'create.tag': 'Created tag',
 		'tombstone.tag': 'Deleted tag',
 		'restore.tag': 'Restored tag',
+		'create.goal': 'Created goal',
+		'rename.goal': 'Renamed goal',
+		'tombstone.goal': 'Removed goal',
 		'create.contributor': 'Added contributor',
 		'rename.contributor': 'Renamed contributor',
 		'link.contributor.user': 'Linked contributor',
@@ -114,10 +117,9 @@ const formatAttachmentKb = (bytes: number): string =>
 const getDeletedAttachmentName = (attachmentId: string): string =>
 	nodeRepo.getAttachment(attachmentId)?.name ?? '';
 
-// The goal's title as it reads now, or nothing: a cleared goal, or one
-// this board no longer has.
-const goalTitle = (goalId: string | undefined): string =>
-	(goalId && nodeRepo.getNode(goalId)?.title) || '';
+// The goal's name as it reads now, removed or not, or nothing for a cleared one.
+const goalName = (goalId: string | undefined): string =>
+	(goalId && getState().goals[goalId]?.name) || '';
 
 const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
@@ -141,7 +143,10 @@ const formatEventDetails = (event: AppEvent): string => {
 		}
 
 		case 'set.issue.goal':
-			return goalTitle(event.payload.goal) || 'none';
+			return goalName(event.payload.goal) || 'none';
+
+		case 'tombstone.goal':
+			return `"${goalName(event.payload.id)}"`;
 
 		case 'add.issue.assignee': {
 			const contributor = getState().contributors[event.payload.assignee];
@@ -163,6 +168,8 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'add.field':
 		case 'create.tag':
 		case 'restore.tag':
+		case 'create.goal':
+		case 'rename.goal':
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'edit.title': {
@@ -241,7 +248,10 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		}
 
 		case 'set.issue.goal':
-			return goalTitle(event.payload.goal);
+			return goalName(event.payload.goal);
+
+		case 'tombstone.goal':
+			return `"${goalName(event.payload.id)}"`;
 
 		case 'tombstone.tag': {
 			const tag = getState().tags[event.payload.id];
@@ -254,6 +264,8 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		case 'add.field':
 		case 'create.tag':
 		case 'restore.tag':
+		case 'create.goal':
+		case 'rename.goal':
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'edit.title':

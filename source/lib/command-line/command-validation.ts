@@ -46,8 +46,6 @@ import {
 } from './build-command-hint.js';
 import {getOfferedEmails} from '../state/email-offers.state.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
-import {nodeRef} from '../utils/node-ref.js';
-import {existingGoals} from '../utils/goal.utils.js';
 import {CmdValidity, cmdValidity} from './cmd-validity.js';
 import {
 	ATTACHMENT_MAX_KB_HINTS,
@@ -57,6 +55,7 @@ import {
 	EditModifiers,
 	getCmdModifiers,
 	getOpenProjectModifiers,
+	goalNamesInScope,
 	REPLAY_DURATION_HINTS,
 } from './command-modifiers.js';
 import {
@@ -928,14 +927,12 @@ const validators: Record<CmdKeyword, Validator> = {
 	},
 
 	[CmdKeywords.GOAL]: args => {
-		const goals = existingGoals()
-			.slice(0, 10)
-			.map(goal => chip(nodeRef(goal.id)));
+		const goals = goalNamesInScope().slice(0, 10).map(chip);
 
 		return requireModifierOrInputStr({
 			hint: goals.length
-				? hintDefault('goal ref:') + goals.join('') + hintDefault('')
-				: hintDefault('ref of the issue standing for the goal ...'),
+				? hintDefault('goal:') + goals.join('') + hintDefault('')
+				: hintDefault('name a new goal ...'),
 		})(args);
 	},
 	[CmdKeywords.UNGOAL]: args => requireExact(args),

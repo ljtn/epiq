@@ -3,6 +3,7 @@ import {SANS_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
 	GuiContributor,
 	GuiUser,
+	GuiGoal,
 	GuiIssue,
 	GuiTag,
 	GuiComment,
@@ -44,7 +45,6 @@ import {
 import {parseDiffCommentMeta} from '../../../lib/utils/diff-comment.js';
 import {DescriptionField} from './DescriptionField';
 import {GoalSection} from './GoalSection';
-import {EMPTY_GOALS, GoalIndex} from '../lib/goal-index';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
@@ -300,12 +300,10 @@ export const IssueDetails = ({
 	attachmentUploadStatus,
 	onUploadAttachments,
 	onDeleteAttachment,
-	goals = EMPTY_GOALS,
-	goalCandidates = [],
+	goals = [],
 	onSetGoal,
 	onCreateGoal,
-	onRemoveGoal,
-	onOpenIssue,
+	onManageGoals,
 	commits,
 	commitsLoading,
 	commitsError,
@@ -391,14 +389,12 @@ export const IssueDetails = ({
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
 	onOpenAssigneePicker: () => void;
-	// The Goal row's: which tickets are goals, what may be picked, and
-	// where its tickets open. Without the handlers the row is not drawn.
-	goals?: GoalIndex;
-	goalCandidates?: GuiIssue[];
+	// The Goal row's: the goals of the ticket's board. Without onSetGoal the
+	// row is not drawn.
+	goals?: GuiGoal[];
 	onSetGoal?: (issueId: string, goal: string | null) => void;
-	onCreateGoal?: (issueId: string, title: string) => void;
-	onRemoveGoal?: (goalId: string) => void;
-	onOpenIssue?: (issueId: string) => void;
+	onCreateGoal?: (name: string) => void;
+	onManageGoals?: () => void;
 }) => {
 	// Unsent, so in the ticket's drafts.
 	const titleEdit = useEditDraft(issue?.id ?? '', 'title', issue?.title ?? '');
@@ -752,16 +748,13 @@ export const IssueDetails = ({
 							)}
 						</Section>
 
-						{onSetGoal && onCreateGoal && onRemoveGoal && onOpenIssue && (
+						{onSetGoal && (
 							<GoalSection
 								issue={issue}
-								asGoal={goals.get(issue.id) ?? null}
 								goals={goals}
-								candidates={goalCandidates}
 								onSetGoal={onSetGoal}
 								onCreateGoal={onCreateGoal}
-								onRemoveGoal={onRemoveGoal}
-								onOpenIssue={onOpenIssue}
+								onManageGoals={onManageGoals}
 							/>
 						)}
 

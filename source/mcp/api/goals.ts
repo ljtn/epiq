@@ -1,66 +1,62 @@
-// A goal is a ticket standing for a bigger thing other tickets belong to:
-// it has its own description, comments and status, and its title names it.
-// A ticket belongs to one goal at most, one level deep, so the mark it
-// carries is never ambiguous; tags stay the way to say several things.
+// A goal is a name on a board that tickets belong to, one goal per ticket.
+// It sits in no lane: how far along it is comes from its tickets.
 
 import {ulid} from 'ulid';
 import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
-import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
+import {Goal} from '../../lib/model/app-state.model.js';
 import {Ticket} from '../../lib/model/context.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
 import {
-	goalColor,
-	goalRefusal,
-	findTicket,
+	boardGoals,
+	findGoal,
+	getGoal,
 	getTicketGoal,
-	goalMembers,
+	goalColor,
+	goalNameRefusal,
 	goalProgress,
+	ticketBoardId,
 } from '../../lib/utils/goal.utils.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
-import {ApiGoalRef} from '../api-state.model.js';
-import {Actor, bootedWithActorAndState, ToolInput} from './boot.js';
-import {findWritableIssue} from './node-targets.js';
-import {createIssue} from './issues.js';
+import {ApiGoal, ApiGoalRef} from '../api-state.model.js';
+import {bootedWithActorAndState, ToolInput} from './boot.js';
+import {findWritableBoard, findWritableIssue} from './node-targets.js';
 
-/** The goal a ticket belongs to, as it reads now, or none. */
-export const getIssueGoal = (ticket: Ticket): ApiGoalRef | undefined => {
-	const goal = getTicketGoal(ticket);
-	if (!goal) return undefined;
+const goalRef = (goal: Goal): ApiGoalRef => ({
+	id: goal.id,
+	name: sanitizeInlineText(goal.name),
+	color: goalColor(goal),
+});
 
-	return {
-		id: goal.id,
-		ref: nodeRef(goal.id),
-		title: sanitizeInlineText(goal.title),
-		color: goalColor(goal),
-	};
-};
-
-/** What a ticket carries about goals, for every projection of it. */
+/** What a ticket carries about its goal, for every projection of it. */
 export const goalFields = (ticket: Ticket) => {
-	const goal = getIssueGoal(ticket);
-	const progress = goalProgress(ticket.id);
-
-	return {
-		...(goal ? {goal} : {}),
-		...(progress ? {asGoal: {color: goalColor(ticket), ...progress}} : {}),
-	};
+	const goal = getTicketGoal(ticket);
+	return goal ? {goal: goalRef(goal)} : {};
 };
 
-type Ready = {actor: Actor; boot: {stateBranchRoot: string}};
+/** A board's goals, each with how far along its tickets are. */
+export const apiBoardGoals = (boardId: string): ApiGoal[] =>
+	boardGoals(boardId).map(goal => ({
+		...goalRef(goal),
+		...goalProgress(goal.id),
+	}));
 
 const persist = (
-	ready: Ready,
-	issueId: string,
-	event: AppEvent<'set.issue.goal'>,
+	stateBranchRoot: string,
+	events: AppEvent[],
+	saved: {id: string; name: string},
 ) => {
-	const results = materializeAndPersistAll([event], ready.boot.stateBranchRoot);
+	const results = materializeAndPersistAll(events, stateBranchRoot);
 	if (isFail(results)) return failed(results.message);
 
-	return succeeded('Saved', {id: issueId, ref: nodeRef(issueId)});
+	return succeeded('Saved', saved);
 };
 
+/**
+ * Puts a ticket in one of its board's goals, by id or name, making a goal of
+ * that name when there is none; null takes it out.
+ */
 export const setIssueGoal = async (
 	input: ToolInput & {issueId: string; goal: string | null},
 ) => {
@@ -70,117 +66,142 @@ export const setIssueGoal = async (
 	const issueResult = findWritableIssue(input.issueId);
 	if (isFail(issueResult)) return issueResult;
 	const issue = issueResult.value;
+	const saved = {id: issue.id, ref: nodeRef(issue.id)};
 
-	if (input.goal === null) {
-		if (!issue.props.goal) {
-			return succeeded('No changes made', {
-				id: issue.id,
-				ref: nodeRef(issue.id),
-			});
+	let goalId: string | undefined;
+	if (input.goal !== null) {
+		const boardId = ticketBoardId(issue);
+		if (!boardId) return failed(`${nodeRef(issue.id)} is on no board`);
+
+		const goal = findGoal(boardId, input.goal);
+		if (!goal && getGoal(input.goal)) {
+			return failed('That goal is on another board');
 		}
-
-		return persist(ready.value, issue.id, {
-			id: ulid(),
-			...actorOf(ready.value.actor),
-			action: 'set.issue.goal',
-			payload: {id: issue.id},
-		});
+		if (!goal) {
+			const created = await createGoal({
+				repoRoot: input.repoRoot,
+				boardId,
+				name: input.goal,
+				issueId: issue.id,
+			});
+			return isFail(created) ? created : succeeded('Saved', saved);
+		}
+		goalId = goal.id;
 	}
 
-	const goal = findTicket(input.goal);
-	if (!goal) return failed('Goal ticket not found');
-
-	const refusal = goalRefusal(issue, goal);
-	if (refusal) return failed(refusal);
-
-	if (issue.props.goal === goal.id) {
-		return succeeded('No changes made', {id: issue.id, ref: nodeRef(issue.id)});
-	}
-
-	return persist(ready.value, issue.id, {
-		id: ulid(),
-		...actorOf(ready.value.actor),
-		action: 'set.issue.goal',
-		payload: {id: issue.id, goal: goal.id},
-	});
-};
-
-/**
- * A new goal for a ticket: a ticket of its own, filed in the same lane, that
- * the ticket then belongs to.
- */
-export const createIssueGoal = async (
-	input: ToolInput & {issueId: string; title: string},
-) => {
-	const ready = await bootedWithActorAndState(input.repoRoot);
-	if (isFail(ready)) return ready;
-
-	const issueResult = findWritableIssue(input.issueId);
-	if (isFail(issueResult)) return issueResult;
-	const issue = issueResult.value;
-
-	if (goalMembers(issue.id).length > 0) {
-		return failed(`${nodeRef(issue.id)} is a goal; it is in none itself`);
-	}
-	if (issue.parentNodeId === CLOSED_SWIMLANE_ID) {
-		return failed(
-			`${nodeRef(issue.id)} is closed; reopen it to start a goal from it`,
-		);
-	}
-
-	// Two writes, but every refusal the second could give is checked above,
-	// so only a failed disk write leaves the new ticket outside its goal.
-	const created = await createIssue({
-		repoRoot: input.repoRoot,
-		title: input.title,
-		parentId: issue.parentNodeId!,
-	});
-	if (isFail(created)) return created;
-
-	return setIssueGoal({
-		repoRoot: input.repoRoot,
-		issueId: issue.id,
-		goal: created.value.id,
-	});
-};
-
-/**
- * Takes every ticket out of a goal, in one write. The goal's own ticket
- * stays where it is: it was a ticket before anything belonged to it.
- */
-export const dissolveGoal = async (input: ToolInput & {goalId: string}) => {
-	const ready = await bootedWithActorAndState(input.repoRoot);
-	if (isFail(ready)) return ready;
-
-	const goal = findTicket(input.goalId);
-	if (!goal) return failed('Goal ticket not found');
-
-	const members = goalMembers(goal.id).filter(member => !member.readonly);
-	const kept = goalMembers(goal.id).filter(member => member.readonly);
-	// Read-only tickets stay in it, so the goal does too; say which.
-	const keptNote =
-		kept.length > 0
-			? `; ${kept
-					.map(member => nodeRef(member.id))
-					.join(', ')} read-only, still in it`
-			: '';
-	if (members.length === 0) {
-		return succeeded(`No changes made${keptNote}`, {
-			id: goal.id,
-			ref: nodeRef(goal.id),
-		});
-	}
+	if (issue.props.goal === goalId) return succeeded('No changes made', saved);
 
 	const results = materializeAndPersistAll(
-		members.map(member => ({
-			id: ulid(),
-			...actorOf(ready.value.actor),
-			action: 'set.issue.goal' as const,
-			payload: {id: member.id},
-		})),
+		[
+			{
+				id: ulid(),
+				...actorOf(ready.value.actor),
+				action: 'set.issue.goal',
+				payload: goalId ? {id: issue.id, goal: goalId} : {id: issue.id},
+			},
+		],
 		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(results)) return failed(results.message);
 
-	return succeeded(`Saved${keptNote}`, {id: goal.id, ref: nodeRef(goal.id)});
+	return succeeded('Saved', saved);
+};
+
+/** A new goal on a board, and the ticket named, if any, put in it at once. */
+export const createGoal = async (
+	input: ToolInput & {boardId: string; name: string; issueId?: string},
+) => {
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+
+	const boardResult = findWritableBoard(input.boardId);
+	if (isFail(boardResult)) return boardResult;
+	const board = boardResult.value;
+
+	const name = sanitizeInlineText(input.name).trim();
+	const refusal = goalNameRefusal(board.id, name);
+	if (refusal) return failed(refusal);
+
+	const actor = actorOf(ready.value.actor);
+	const id = ulid();
+	const events: AppEvent[] = [
+		{id, ...actor, action: 'create.goal', payload: {id, name, board: board.id}},
+	];
+
+	if (input.issueId) {
+		const issueResult = findWritableIssue(input.issueId);
+		if (isFail(issueResult)) return issueResult;
+		const issue = issueResult.value;
+		if (ticketBoardId(issue) !== board.id) {
+			return failed(`${nodeRef(issue.id)} is on another board`);
+		}
+
+		events.push({
+			id: ulid(),
+			...actor,
+			action: 'set.issue.goal',
+			payload: {id: issue.id, goal: id},
+		});
+	}
+
+	return persist(ready.value.boot.stateBranchRoot, events, {id, name});
+};
+
+export const renameGoal = async (
+	input: ToolInput & {goalId: string; name: string},
+) => {
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+
+	const goal = getGoal(input.goalId);
+	if (!goal) return failed('Goal not found');
+
+	const boardResult = findWritableBoard(goal.board);
+	if (isFail(boardResult)) return boardResult;
+
+	const name = sanitizeInlineText(input.name).trim();
+	if (name === goal.name) {
+		return succeeded('No changes made', {id: goal.id, name});
+	}
+
+	const refusal = goalNameRefusal(goal.board, name, goal.id);
+	if (refusal) return failed(refusal);
+
+	return persist(
+		ready.value.boot.stateBranchRoot,
+		[
+			{
+				id: ulid(),
+				...actorOf(ready.value.actor),
+				action: 'rename.goal',
+				payload: {id: goal.id, name},
+			},
+		],
+		{id: goal.id, name},
+	);
+};
+
+/** Removes a goal; its tickets stay where they are, in no goal. */
+export const removeGoal = async (input: ToolInput & {goalId: string}) => {
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+
+	const goal = getGoal(input.goalId);
+	if (!goal) return failed('Goal not found');
+
+	const boardResult = findWritableBoard(goal.board);
+	if (isFail(boardResult)) return boardResult;
+
+	return persist(
+		ready.value.boot.stateBranchRoot,
+		[
+			{
+				id: ulid(),
+				...actorOf(ready.value.actor),
+				action: 'tombstone.goal',
+				payload: {id: goal.id},
+			},
+		],
+		{id: goal.id, name: goal.name},
+	);
 };

@@ -2,6 +2,7 @@ import {
 	AttachmentState,
 	CommentState,
 	Contributor,
+	Goal,
 	Tag,
 	REMOVED_CONTRIBUTOR_NAME,
 } from '../model/app-state.model.js';
@@ -751,8 +752,7 @@ export const nodeRepo = {
 		return succeeded('Tag removed', {tag: tagId});
 	},
 
-	// Whatever the goal has become since, the link stands: a ticket whose
-	// goal is gone draws none, and draws it again if it comes back.
+	// A link to a goal since tombstoned stands, and draws nothing.
 	setGoal(
 		targetId: string,
 		goalId: string | undefined,
@@ -764,7 +764,7 @@ export const nodeRepo = {
 		if (readonlyFail) return readonlyFail;
 
 		if (!isTicketNode(target)) return failed('Target is not an issue');
-		if (goalId === targetId) return failed('A ticket is not its own goal');
+		if (goalId && !this.getGoal(goalId)) return failed('Goal not found');
 
 		const {goal: _previous, ...props} = target.props;
 		this.updateNode({
@@ -773,6 +773,53 @@ export const nodeRepo = {
 		});
 
 		return succeeded('Goal set', goalId ? {goal: goalId} : {});
+	},
+
+	createGoal(goal: Goal): Result<Goal> {
+		const board = this.getNode(goal.board);
+		if (!board || board.context !== 'BOARD') return failed('Board not found');
+
+		const result = updateState(s => ({
+			...s,
+			goals: {...s.goals, [goal.id]: goal},
+		}));
+
+		if (isFail(result)) return failed('Could not create goal');
+		return succeeded('Goal created', goal);
+	},
+
+	renameGoal(goalId: string, name: string): Result<Goal> {
+		const goal = this.getGoal(goalId);
+		if (!goal) return failed('Goal not found');
+
+		const renamed: Goal = {...goal, name};
+		const result = updateState(s => ({
+			...s,
+			goals: {...s.goals, [goalId]: renamed},
+		}));
+
+		if (isFail(result)) return failed('Unable to rename goal');
+		return succeeded('Renamed goal', renamed);
+	},
+
+	tombstoneGoal(goalId: string): Result<Goal> {
+		const goal = getState().goals[goalId];
+		if (!goal) return failed('Goal not found');
+
+		const tombstoned: Goal = {...goal, tombstoned: true};
+		const result = updateState(s => ({
+			...s,
+			goals: {...s.goals, [goalId]: tombstoned},
+		}));
+
+		if (isFail(result)) return failed('Unable to remove goal');
+		return succeeded('Tombstoned goal', tombstoned);
+	},
+
+	// A tombstoned goal reads as absent.
+	getGoal(id: string): Goal | undefined {
+		const goal = getState().goals[id];
+		return goal?.tombstoned ? undefined : goal;
 	},
 
 	tombstoneTag(tagId: string): Result<Tag> {

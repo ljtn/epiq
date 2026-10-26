@@ -1,3 +1,4 @@
+import {apiBoardGoals} from './goals.js';
 import {ulid} from 'ulid';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
@@ -84,6 +85,7 @@ export const listBoards = async (input: ToolInput = {}) => {
 			parentId: n.parentNodeId,
 			readonly: Boolean(n.readonly),
 			...descriptionOf(n.id),
+			goals: apiBoardGoals(n.id),
 		}));
 
 	return succeeded('Listed boards', boards);

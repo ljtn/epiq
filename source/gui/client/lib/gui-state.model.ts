@@ -45,20 +45,16 @@ export type GuiIssue = {
 	readonly: boolean;
 	tags: GuiTag[];
 	assignees: GuiUser[];
-	/** The goal it belongs to, as that ticket reads now. */
+	/** The goal it belongs to, as it reads now. */
 	goal?: GuiGoalRef;
-	/** On a goal: its colour, and how far along all its tickets are. */
-	asGoal?: {color: string; done: number; total: number};
 	/** Every board it has lived on, this one included. */
 	boardIds: string[];
 };
 
-export type GuiGoalRef = {
-	id: string;
-	ref: string;
-	title: string;
-	color: string;
-};
+export type GuiGoalRef = {id: string; name: string; color: string};
+
+/** A board's goal, and how far along all its tickets are. */
+export type GuiGoal = GuiGoalRef & {done: number; total: number};
 
 export type GuiSwimlane = {
 	id: string;
@@ -76,6 +72,7 @@ export type GuiBoard = {
 	// The Closed board, and every board while the timeline is scrubbed.
 	readonly: boolean;
 	swimlanes: GuiSwimlane[];
+	goals: GuiGoal[];
 	// The board's conventions, as markdown; absent when it has none.
 	description?: string;
 };

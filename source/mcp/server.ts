@@ -25,6 +25,8 @@ import {
 	addIssueComment,
 	addIssueTag,
 	setIssueGoal,
+	renameGoal,
+	removeGoal,
 	assumeActor,
 	closeIssue,
 	createBoard,
@@ -371,7 +373,7 @@ export const createMcpServer = () => {
 		'epiq_issue_goal_set',
 		{
 			description:
-				'Put an Epiq issue in a goal: another ticket standing for the bigger thing it belongs to (full id or ref), or null to take it out. One goal per ticket, one level deep.',
+				"Put an Epiq issue in a goal on its board, by the goal's name or id, creating the goal if the board has none of that name; null takes it out. One goal per ticket. A board's goals and their progress are listed by epiq_board_list.",
 			inputSchema: z.object({
 				issueId: z.string().min(1),
 				goal: z.string().min(1).nullable(),
@@ -379,6 +381,32 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(setIssueGoal),
+	);
+
+	server.registerTool(
+		'epiq_goal_rename',
+		{
+			description: 'Rename a goal',
+			inputSchema: z.object({
+				goalId: z.string().min(1),
+				name: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(renameGoal),
+	);
+
+	server.registerTool(
+		'epiq_goal_remove',
+		{
+			description:
+				'Remove a goal from its board; its tickets stay where they are, in no goal',
+			inputSchema: z.object({
+				goalId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(removeGoal),
 	);
 
 	server.registerTool(

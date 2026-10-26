@@ -9,7 +9,7 @@ export type TicketProps = {
 	description?: string;
 	assignees?: string[];
 	tags?: string[];
-	// The ticket standing for the goal this one belongs to.
+	// The goal this ticket belongs to.
 	goal?: string;
 };
 

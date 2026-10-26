@@ -5,7 +5,12 @@ import {
 	MaterializeResult as MaterializeResultOf,
 	StoredEvent,
 } from '../event/event.model.js';
-import {AttachmentExt, Contributor, Tag} from '../model/app-state.model.js';
+import {
+	AttachmentExt,
+	Contributor,
+	Goal,
+	Tag,
+} from '../model/app-state.model.js';
 import {EmailLink} from '../model/email-link.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -99,6 +104,26 @@ export type AppEventMap = {
 		result: Tag;
 	};
 
+	/**
+	 * A goal on a board: a name tickets can belong to, its progress read off
+	 * them. Never a ticket itself, so it sits in no lane.
+	 */
+	'create.goal': {
+		payload: PayloadBase & {name: string; board: string};
+		result: Goal;
+	};
+
+	'rename.goal': {
+		payload: PayloadBase & {name: string};
+		result: Goal;
+	};
+
+	/** Hides a goal, keeping its id and every ticket's link to it. */
+	'tombstone.goal': {
+		payload: PayloadBase;
+		result: Goal;
+	};
+
 	'create.contributor': {
 		payload: PayloadBase & {name: string};
 		result: Contributor;
@@ -171,10 +196,7 @@ export type AppEventMap = {
 		};
 	};
 
-	/**
-	 * Puts a ticket in a goal: another ticket, standing for the bigger thing
-	 * several tickets belong to. One goal at most; no `goal` takes it out.
-	 */
+	/** Puts a ticket in a goal, by its id. One at most; no `goal` takes it out. */
 	'set.issue.goal': {
 		payload: PayloadBase & {goal?: string};
 		result: {goal?: string};
@@ -376,6 +398,9 @@ export const EVENT_ACTIONS = [
 	'create.tag',
 	'tombstone.tag',
 	'restore.tag',
+	'create.goal',
+	'rename.goal',
+	'tombstone.goal',
 	'create.contributor',
 	'rename.contributor',
 	'tombstone.contributor',

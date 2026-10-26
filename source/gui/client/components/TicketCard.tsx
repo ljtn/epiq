@@ -23,7 +23,6 @@ import {
 } from '../lib/card-density';
 import {Button} from './Button';
 import {GoalLabel, GoalStripe} from './GoalLabel';
-import {GoalSummary} from '../lib/goal-index';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
 import {formatDuration} from '../lib/gui-format.helper';
@@ -499,13 +498,10 @@ export const TicketCard = ({
 	dwell,
 	diff,
 	activity = null,
-	asGoal = null,
 	isolatedGoalId = null,
 	onFilterByGoal,
 }: {
 	ticket: GuiIssue;
-	// The tickets that belong to this one, when it is a goal.
-	asGoal?: GoalSummary | null;
 	// The goal the board is narrowed to, and narrowing to one from its pill.
 	isolatedGoalId?: string | null;
 	onFilterByGoal?: (goalId: string) => void;
@@ -587,35 +583,21 @@ export const TicketCard = ({
 		index + (isAfterMiddle ? 1 : 0);
 
 	// One mark per card: its goal's, or, on a goal, its own.
-	const goalId = asGoal?.id ?? ticket.goal?.id ?? null;
-	const goalColor = asGoal?.color ?? ticket.goal?.color ?? null;
-	const goalIsolated = goalId !== null && goalId === isolatedGoalId;
-	const goalFilter =
-		goalId !== null && onFilterByGoal
-			? {
-					pressed: goalIsolated,
-					onPress: () => onFilterByGoal(goalId),
-					pressTitle: goalIsolated
-						? 'Show every ticket again'
-						: 'Show only this goal',
-			  }
-			: {};
-	const goalLabel = asGoal ? (
-		<GoalLabel
-			testId="ticket-goal-own"
-			strong
-			color={asGoal.color}
-			label={`Goal · ${asGoal.done}/${asGoal.total}`}
-			place={{kind: 'line', height: view.metrics.metaLineHeight}}
-			{...goalFilter}
-		/>
-	) : ticket.goal ? (
+	const goal = ticket.goal;
+	const goalIsolated = goal !== undefined && goal.id === isolatedGoalId;
+	const goalLabel = goal ? (
 		<GoalLabel
 			testId="ticket-goal"
-			color={ticket.goal.color}
-			label={ticket.goal.title}
-			place={{kind: 'line', height: view.metrics.metaLineHeight}}
-			{...goalFilter}
+			color={goal.color}
+			label={goal.name}
+			height={view.metrics.metaLineHeight}
+			{...(onFilterByGoal && {
+				pressed: goalIsolated,
+				onPress: () => onFilterByGoal(goal.id),
+				pressTitle: goalIsolated
+					? 'Show every ticket again'
+					: 'Show only this goal',
+			})}
 		/>
 	) : null;
 
@@ -701,9 +683,7 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
-			{goalColor && (
-				<GoalStripe color={goalColor} inset={view.metrics.radius} />
-			)}
+			{goal && <GoalStripe color={goal.color} inset={view.metrics.radius} />}
 			{dense ? (
 				<DenseBody
 					goal={goalLabel}

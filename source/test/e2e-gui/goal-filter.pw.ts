@@ -5,20 +5,36 @@ import {addTicket} from './ticket.js';
 const card = (page: Page, title: string) =>
 	page.locator('[draggable="true"]').filter({hasText: title});
 
-const putOpenTicketInGoal = async (page: Page, goal: string) => {
+const pill = (page: Page, goal: string) =>
+	page.getByTestId('goal-pill').filter({hasText: goal});
+
+// Names a new goal from the open ticket's Goal dropdown, which puts the
+// ticket in it.
+const startGoal = async (page: Page, goal: string) => {
+	await page.getByTestId('goal-current').click();
+	await page.getByTestId('goal-search').fill(goal);
+	await page.getByTestId('goal-create').click();
+	await expect(page.getByTestId('goal-current')).toHaveText(goal);
+};
+
+const joinGoal = async (page: Page, goal: string) => {
 	await page.getByTestId('goal-current').click();
 	await page.getByTestId('goal-search').fill(goal);
 	await page.getByTestId('goal-option').filter({hasText: goal}).click();
 	await expect(page.getByTestId('goal-current')).toHaveText(goal);
 };
 
-test("clicking a goal's pill narrows the board to the goal, and the URL carries it", async ({
+const openBoard = async (page: Page, appUrl: string) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+};
+
+test('a goal is a pill above the lanes that narrows the board to it, and the URL carries it', async ({
 	page,
 	appUrl,
 	pageErrors,
 }) => {
-	await page.goto(appUrl);
-	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await openBoard(page, appUrl);
 	const boardUrl = page.url();
 
 	const stamp = Date.now();
@@ -26,15 +42,18 @@ test("clicking a goal's pill narrows the board to the goal, and the URL carries 
 	const member = `Member ${stamp}`;
 	const other = `Other ${stamp}`;
 
-	await addTicket(page, goal);
 	await addTicket(page, other);
 	await addTicket(page, member);
-	await putOpenTicketInGoal(page, goal);
+	await startGoal(page, goal);
+
+	// No card stands for the goal: its name is only on its ticket's label.
+	await expect(
+		page.getByTestId('ticket-title').filter({hasText: goal}),
+	).toHaveCount(0);
+	await expect(pill(page, goal)).toContainText('0/1');
 
 	await page.goto(boardUrl);
 	await expect(card(page, other)).toBeVisible();
-
-	// A card in a goal carries its colour down its edge; one in none does not.
 	await expect(
 		card(page, member).getByTestId('ticket-goal-stripe'),
 	).toHaveCount(1);
@@ -54,46 +73,39 @@ test("clicking a goal's pill narrows the board to the goal, and the URL carries 
 	expect(await height(member)).toBe(await height(other));
 	await page.getByTestId('card-density-wide').click();
 
-	const pill = card(page, member).getByTestId('ticket-goal');
-	await pill.click();
-
-	// The goal and its ticket stay, the rest goes, and the click selects nothing.
+	await pill(page, goal).click();
 	await expect(card(page, other)).toHaveCount(0);
 	await expect(card(page, member)).toBeVisible();
-	await expect(page.getByTestId('ticket-goal-own')).toHaveCount(1);
-	await expect(pill).toHaveAttribute('aria-pressed', 'true');
-	await expect(page).not.toHaveURL(/\/issue\//);
+	await expect(pill(page, goal)).toHaveAttribute('aria-pressed', 'true');
 	await expect(page).toHaveURL(/goal=/);
 
 	await page.goto(page.url());
 	await expect(card(page, other)).toHaveCount(0);
-	await expect(card(page, member)).toBeVisible();
 
-	// The goal's own pill lets go as well as a member's does.
-	await page.getByTestId('ticket-goal-own').click();
+	// The card's own label lets go as well as the pill does.
+	await card(page, member).getByTestId('ticket-goal').click();
 	await expect(card(page, other)).toBeVisible();
 	await expect(page).not.toHaveURL(/goal=/);
 
 	expect(pageErrors).toEqual([]);
 });
 
-test('clicking the goal a ticket is in opens the picker, which can take it out of the goal', async ({
+test('the Goal dropdown picks, leaves, and closes on a press outside it', async ({
 	page,
 	appUrl,
 	pageErrors,
 }) => {
-	await page.goto(appUrl);
-	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await openBoard(page, appUrl);
 
 	const stamp = Date.now();
 	const goal = `Larger ${stamp}`;
-	const member = `Part ${stamp}`;
 
-	await addTicket(page, goal);
-	await addTicket(page, member);
-	await putOpenTicketInGoal(page, goal);
+	await addTicket(page, `Starter ${stamp}`);
+	await startGoal(page, goal);
+	await addTicket(page, `Part ${stamp}`);
+	await joinGoal(page, goal);
+	await expect(pill(page, goal)).toContainText('0/2');
 
-	// Not a tag: a click asks what to change it to, and takes nothing away.
 	// The box it opens to stands where the folded one stood.
 	const folded = await page.getByTestId('goal-current').boundingBox();
 	await page.getByTestId('goal-current').click();
@@ -109,90 +121,89 @@ test('clicking the goal a ticket is in opens the picker, which can take it out o
 	const search = await page.getByTestId('goal-search').boundingBox();
 	await page.mouse.click(search!.x + 20, search!.y - 6);
 	await expect(page.getByTestId('goal-search')).toHaveCount(0);
-	await page.getByTestId('goal-current').click();
 
+	await page.getByTestId('goal-current').click();
 	await page.getByTestId('goal-leave').click();
 	await expect(page.getByTestId('goal-current')).toHaveText('No goal');
-	await expect(page.getByTestId('goal-search')).toHaveCount(0);
+	await expect(pill(page, goal)).toContainText('0/1');
 
 	expect(pageErrors).toEqual([]);
 });
 
-test('a new goal is named in the picker, and removing it takes its tickets out', async ({
+test('Manage goals renames and removes, and a removed goal gives the board back', async ({
 	page,
 	appUrl,
 	pageErrors,
 }) => {
-	await page.goto(appUrl);
-	await expect(page.getByTestId('board-switcher')).toContainText('Default');
-
-	const stamp = Date.now();
-	const goal = `Fresh ${stamp}`;
-	const member = `Joiner ${stamp}`;
-
-	await addTicket(page, member);
-	await page.getByTestId('goal-current').click();
-	await page.getByTestId('goal-search').fill(goal);
-	await page.getByTestId('goal-create').click();
-	await expect(page.getByTestId('goal-current')).toHaveText(goal);
-
-	// The goal is a ticket of its own, in the same lane.
-	await expect(card(page, goal)).toHaveCount(2);
-
-	await page.getByTestId('goal-current').click();
-	await page.getByTestId('goal-manage').click();
-	const row = page.getByTestId('manage-goal-row').filter({hasText: goal});
-	await row.getByTestId('remove-goal').click();
-	await row.getByTestId('remove-goal').click();
-	await expect(
-		page.getByTestId('manage-goal-row').filter({hasText: goal}),
-	).toHaveCount(0);
-	await page
-		.getByTestId('manage-goals')
-		.getByRole('button', {name: 'Close', exact: true})
-		.click();
-
-	await expect(page.getByTestId('goal-current')).toHaveText('No goal');
-
-	expect(pageErrors).toEqual([]);
-});
-
-test('a goal removed while the board shows only it gives the board back', async ({
-	page,
-	appUrl,
-	pageErrors,
-}) => {
-	await page.goto(appUrl);
-	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await openBoard(page, appUrl);
 
 	const stamp = Date.now();
 	const goal = `Passing ${stamp}`;
+	const renamed = `Renamed ${stamp}`;
 	const member = `Within ${stamp}`;
 	const other = `Without ${stamp}`;
 
 	await addTicket(page, other);
 	await addTicket(page, member);
-	await page.getByTestId('goal-current').click();
-	await page.getByTestId('goal-search').fill(goal);
-	await page.getByTestId('goal-create').click();
-	await expect(page.getByTestId('goal-current')).toHaveText(goal);
+	await startGoal(page, goal);
 
-	await card(page, member).getByTestId('ticket-goal').click();
+	await pill(page, goal).click();
 	await expect(card(page, other)).toHaveCount(0);
 
-	await page.getByTestId('goal-current').click();
-	await page.getByTestId('goal-manage').click();
-	const row = page.getByTestId('manage-goal-row').filter({hasText: goal});
-	await row.getByTestId('remove-goal').click();
-	await row.getByTestId('remove-goal').click();
+	await page.getByTestId('goal-strip-manage').click();
+	const dialog = page.getByTestId('manage-goals');
+	const row = dialog.getByTestId('manage-goal-row').filter({hasText: goal});
+	await row.getByTestId('rename-goal').click();
+	await dialog.getByTestId('rename-goal-input').fill(renamed);
+	await dialog.getByTestId('rename-goal-input').press('Enter');
+	await expect(pill(page, renamed)).toBeVisible();
+	await expect(card(page, member).getByTestId('ticket-goal')).toHaveText(
+		renamed,
+	);
+
+	const renamedRow = dialog
+		.getByTestId('manage-goal-row')
+		.filter({hasText: renamed});
+	await renamedRow.getByTestId('remove-goal').click();
+	await renamedRow.getByTestId('remove-goal').click();
+	await expect(renamedRow).toHaveCount(0);
+	await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+
+	await expect(pill(page, renamed)).toHaveCount(0);
+	await expect(card(page, member).getByTestId('ticket-goal')).toHaveCount(0);
+	await expect(card(page, other)).toBeVisible();
+	await page.goto(page.url());
+	await expect(card(page, other)).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('Manage goals adds a goal the board can then be put in', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const first = `First ${stamp}`;
+	const second = `Second ${stamp}`;
+
+	await addTicket(page, `Seed ${stamp}`);
+	await startGoal(page, first);
+
+	await page.getByTestId('goal-strip-manage').click();
+	await page.getByTestId('new-goal-name').fill(second);
+	await page.getByTestId('add-goal').click();
+	await expect(pill(page, second)).toContainText('0/0');
 	await page
 		.getByTestId('manage-goals')
 		.getByRole('button', {name: 'Close', exact: true})
 		.click();
 
-	await expect(card(page, other)).toBeVisible();
-	await page.goto(page.url());
-	await expect(card(page, other)).toBeVisible();
+	await joinGoal(page, second);
+	await expect(pill(page, second)).toContainText('0/1');
+	await expect(pill(page, first)).toContainText('0/0');
 
 	expect(pageErrors).toEqual([]);
 });

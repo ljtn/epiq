@@ -38,7 +38,7 @@ import {
 	getIssueTags,
 	getIssueAssignees,
 } from './issue-projection.js';
-import {goalFields} from './goals.js';
+import {apiBoardGoals, goalFields} from './goals.js';
 import {getAttachmentMaxKb} from './attachments.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {getPersistFileName} from '../../lib/board/board-log.js';
@@ -222,6 +222,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 				title: b.title,
 				readonly: Boolean(b.readonly) || forceReadonly,
 				...descriptionOf(b.id),
+				goals: apiBoardGoals(b.id),
 				swimlanes: (swimlanesByBoardId.get(b.id) ?? [])
 					.sort((a, b) => a.rank.localeCompare(b.rank))
 					.map(

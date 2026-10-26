@@ -1,14 +1,14 @@
-// A goal is a ticket standing for a bigger thing other tickets belong to.
-// A ticket belongs to one goal at most, one level deep, so the mark it
-// carries is never ambiguous; tags stay the way to say several things. This
-// module answers it for every door: the API, the GUI behind it, and the TUI.
+// A goal is a name on a board that tickets belong to, one goal per ticket;
+// how far along it is comes from those tickets, never from the goal itself.
+// Tags stay the way to say several things. This module answers it for every
+// door: the API, the GUI behind it, and the TUI.
 
 import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
+import {Goal} from '../model/app-state.model.js';
 import {isTicketNode, Ticket} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
 import {getSafeState} from '../state/state.js';
 import {getMutedStringColor} from './color.js';
-import {NODE_REF_LENGTH, nodeRef} from './node-ref.js';
 import {sanitizeInlineText} from './string.utils.js';
 
 // No state, or one with no nodes yet, still answers: there are no goals.
@@ -17,33 +17,49 @@ const stateOrNone = () => {
 	return isFail(state) ? null : state.value;
 };
 const nodesOrNone = () => stateOrNone()?.nodes ?? {};
+const goalsOrNone = () => stateOrNone()?.goals ?? {};
 
-const liveTickets = (): Ticket[] =>
-	Object.values(nodesOrNone()).filter(
-		(node): node is Ticket => isTicketNode(node) && !node.isDeleted,
-	);
-
-/** A live ticket by full id or by ref. */
-export const findTicket = (idOrRef: string): Ticket | undefined => {
-	const raw = idOrRef.trim();
-	if (!raw) return undefined;
-
-	if (raw.length > NODE_REF_LENGTH) {
-		const node = nodesOrNone()[raw];
-		return node && !node.isDeleted && isTicketNode(node) ? node : undefined;
-	}
-
-	const ref = raw.toUpperCase();
-	return liveTickets().find(ticket => nodeRef(ticket.id) === ref);
+/** A goal that has not been removed. */
+export const getGoal = (id: string): Goal | undefined => {
+	const goal = goalsOrNone()[id];
+	return goal?.tombstoned ? undefined : goal;
 };
 
-/** The goal a ticket belongs to, while that ticket still exists. */
-export const getTicketGoal = (ticket: Ticket): Ticket | undefined =>
-	ticket.props?.goal ? findTicket(ticket.props.goal) : undefined;
+/** A board's goals, oldest first. */
+export const boardGoals = (boardId: string): Goal[] =>
+	Object.values(goalsOrNone())
+		.filter(goal => goal.board === boardId && !goal.tombstoned)
+		.sort((a, b) => a.id.localeCompare(b.id));
 
-/** The colour its title derives, muted: it marks every ticket in the goal. */
-export const goalColor = (goal: Ticket): string =>
-	getMutedStringColor(sanitizeInlineText(goal.title));
+/** One of a board's goals, by id or by name in any case. */
+export const findGoal = (
+	boardId: string,
+	idOrName: string,
+): Goal | undefined => {
+	const wanted = idOrName.trim();
+	if (!wanted) return undefined;
+
+	const byId = getGoal(wanted);
+	if (byId?.board === boardId) return byId;
+
+	const name = wanted.toLowerCase();
+	return boardGoals(boardId).find(goal => goal.name.toLowerCase() === name);
+};
+
+/** The goal a ticket belongs to, while it has not been removed. */
+export const getTicketGoal = (ticket: Ticket): Goal | undefined =>
+	ticket.props?.goal ? getGoal(ticket.props.goal) : undefined;
+
+/** Muted, and from the id, so renaming a goal keeps its colour. */
+export const goalColor = (goal: Goal): string => getMutedStringColor(goal.id);
+
+/** The board a ticket stands on: its lane's parent. */
+export const ticketBoardId = (ticket: Ticket): string | undefined => {
+	const lane = ticket.parentNodeId
+		? nodesOrNone()[ticket.parentNodeId]
+		: undefined;
+	return lane?.parentNodeId ?? undefined;
+};
 
 // Who belongs to which goal, worked out once per state: a terminal row asks
 // for every ticket on screen, on every key press. Keyed by the state object,
@@ -58,9 +74,10 @@ const membersByGoal = (): Map<string, Ticket[]> => {
 	if (cached) return cached;
 
 	const members = new Map<string, Ticket[]>();
-	for (const ticket of liveTickets()) {
-		const goal = ticket.props?.goal;
-		if (goal) members.set(goal, [...(members.get(goal) ?? []), ticket]);
+	for (const node of Object.values(nodesOrNone())) {
+		if (!isTicketNode(node) || node.isDeleted) continue;
+		const goal = node.props?.goal;
+		if (goal) members.set(goal, [...(members.get(goal) ?? []), node]);
 	}
 
 	membersCache.set(state, members);
@@ -74,11 +91,8 @@ export const goalMembers = (goalId: string): Ticket[] =>
  * How far along a goal is, over every ticket in it, however long ago it was
  * closed: done is closed, or standing in a lane called Done.
  */
-export const goalProgress = (
-	goalId: string,
-): {done: number; total: number} | null => {
+export const goalProgress = (goalId: string): {done: number; total: number} => {
 	const members = goalMembers(goalId);
-	if (members.length === 0) return null;
 
 	// By name, not by place: lanes are in whatever order a team put them.
 	const isDone = (ticket: Ticket) =>
@@ -89,54 +103,35 @@ export const goalProgress = (
 	return {done: members.filter(isDone).length, total: members.length};
 };
 
-/** Every live ticket some ticket belongs to. */
-export const existingGoals = (): Ticket[] =>
-	[...membersByGoal().keys()].flatMap(id => findTicket(id) ?? []);
+/** Why a goal may not be named so on its board, or null when it may. */
+export const goalNameRefusal = (
+	boardId: string,
+	name: string,
+	exceptId?: string,
+): string | null => {
+	if (!name.trim()) return 'A goal needs a name';
 
-/** Why `ticket` may not be put in `goal`, or null when it may. */
-export const goalRefusal = (ticket: Ticket, goal: Ticket): string | null => {
-	if (goal.id === ticket.id) return 'A ticket is not its own goal';
-
-	// Its goal as it stands now: a link to one since deleted is no goal.
-	if (getTicketGoal(goal)) {
-		return `${nodeRef(goal.id)} is itself in a goal; pick that goal instead`;
-	}
-
-	if (goalMembers(ticket.id).length > 0) {
-		return `${nodeRef(ticket.id)} is a goal; it is in none itself`;
-	}
-
-	return null;
+	const taken = findGoal(boardId, name);
+	return taken && taken.id !== exceptId
+		? `This board already has a goal called "${taken.name}"`
+		: null;
 };
 
 /**
- * What a terminal row says of a ticket's goal: the one it belongs to, or,
- * on a goal, how many belong to it. `width` bounds the text; 0 asks only
- * whether there is a mark and its colour.
+ * What a terminal row says of a ticket's goal. `width` bounds the text; 0
+ * asks only whether there is a mark and its colour.
  */
 export const goalMark = (
 	ticket: Ticket,
 	width: number,
-): {text: string; color: string; isGoal: boolean} | null => {
+): {text: string; color: string} | null => {
 	const goal = getTicketGoal(ticket);
-	if (goal) {
-		const text = `◆ ${sanitizeInlineText(goal.title)}`;
-		return {
-			text:
-				text.length > width
-					? `${text.slice(0, Math.max(1, width - 1))}…`
-					: text,
-			color: goalColor(goal),
-			isGoal: false,
-		};
-	}
+	if (!goal) return null;
 
-	const members = goalMembers(ticket.id).length;
-	if (members === 0) return null;
-
+	const text = `◆ ${sanitizeInlineText(goal.name)}`;
 	return {
-		text: `◆ goal (${members})`,
-		color: goalColor(ticket),
-		isGoal: true,
+		text:
+			text.length > width ? `${text.slice(0, Math.max(1, width - 1))}…` : text,
+		color: goalColor(goal),
 	};
 };

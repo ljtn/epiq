@@ -8,8 +8,9 @@ import {
 	addIssueComment,
 	addIssueTag,
 	setIssueGoal,
-	createIssueGoal,
-	dissolveGoal,
+	createGoal,
+	renameGoal,
+	removeGoal,
 	closeIssue,
 	createBoard,
 	editBoardTitle,
@@ -821,23 +822,33 @@ export const setupWebsocket = (
 					);
 				}
 
-				if (type === 'issue:goal:create') {
+				if (type === 'goal:create') {
 					return sendMutationResult(
 						socket,
 						repoRoot,
 						onStateChanged,
-						'issue:goal:create:result',
-						await createIssueGoal({repoRoot, ...message.payload}),
+						'goal:create:result',
+						await createGoal({repoRoot, ...message.payload}),
 					);
 				}
 
-				if (type === 'goal:dissolve') {
+				if (type === 'goal:rename') {
 					return sendMutationResult(
 						socket,
 						repoRoot,
 						onStateChanged,
-						'goal:dissolve:result',
-						await dissolveGoal({repoRoot, ...message.payload}),
+						'goal:rename:result',
+						await renameGoal({repoRoot, ...message.payload}),
+					);
+				}
+
+				if (type === 'goal:remove') {
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'goal:remove:result',
+						await removeGoal({repoRoot, ...message.payload}),
 					);
 				}
 

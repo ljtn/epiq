@@ -1,16 +1,12 @@
-// The ticket panel's Goal row. A ticket in a goal names it and can leave
-// it; a goal lists its tickets; any other ticket can be
-// put in one, picked from the goals there are or from any ticket by title.
+// The ticket panel's Goal row: a dropdown naming the ticket's goal, or No
+// goal, that picks another of its board's goals, names a new one, or opens
+// Manage goals.
 
-import React, {useState} from 'react';
+import {useState} from 'react';
 import {useAddRow} from '../lib/use-add-row';
 import {GUI_THEME} from '../lib/gui-theme';
-import {GuiIssue} from '../lib/gui-state.model';
-import {GoalIndex, GoalSummary} from '../lib/goal-index';
-import {Button} from './Button';
-import {AddRow, ChipRow, Input} from './FormPrimitives';
-import {GoalLabel} from './GoalLabel';
-import {ManageGoalsModal} from './ManageGoalsModal';
+import {GuiGoal, GuiIssue} from '../lib/gui-state.model';
+import {AddRow, Input} from './FormPrimitives';
 import {MenuItem} from './Menu';
 import {Section} from './Section';
 import {popoverStyle, selectLabelStyle} from '../lib/select-style';
@@ -18,88 +14,57 @@ import {IconChevronDown} from './IconChevronDown';
 
 const PICK_LIMIT = 8;
 
-const label = (issue: GuiIssue) => `${issue.ref} ${issue.title}`;
+const ColourBar = ({color, height}: {color: string; height: number}) => (
+	<span
+		aria-hidden
+		style={{width: 3, height, flexShrink: 0, background: color}}
+	/>
+);
 
 export const GoalSection = ({
 	issue,
-	asGoal,
 	goals,
-	candidates,
 	onSetGoal,
 	onCreateGoal,
-	onRemoveGoal,
-	onOpenIssue,
+	onManageGoals,
 }: {
 	issue: GuiIssue;
-	asGoal: GoalSummary | null;
-	goals: GoalIndex;
-	// Every ticket there is, for the picker.
-	candidates: GuiIssue[];
+	// The goals of the ticket's board.
+	goals: GuiGoal[];
 	onSetGoal: (issueId: string, goal: string | null) => void;
-	onCreateGoal: (issueId: string, title: string) => void;
-	onRemoveGoal: (goalId: string) => void;
-	onOpenIssue: (issueId: string) => void;
+	// Absent where the ticket's board takes no new goals.
+	onCreateGoal?: (name: string) => void;
+	onManageGoals?: () => void;
 }) => {
 	const row = useAddRow();
 	const [query, setQuery] = useState('');
 	const [lit, setLit] = useState(0);
-	const [managing, setManaging] = useState(false);
 	const disabled = issue.readonly;
 
-	// A goal is in none itself; any other ticket opens to the picker.
-	const picking = row.open && !asGoal;
-
-	const needle = query.trim().toLowerCase();
-	const matches = (candidate: GuiIssue) =>
-		!needle || label(candidate).toLowerCase().includes(needle);
-
-	const existing = candidates.filter(
-		candidate =>
-			goals.has(candidate.id) &&
-			candidate.id !== issue.id &&
-			candidate.id !== issue.goal?.id &&
-			matches(candidate),
-	);
-	const others = needle
-		? candidates.filter(
-				candidate =>
-					!goals.has(candidate.id) &&
-					!candidate.goal &&
-					!candidate.isClosed &&
-					candidate.id !== issue.id &&
-					matches(candidate),
-		  )
-		: [];
-	const options = [...existing, ...others].slice(0, PICK_LIMIT);
-
-	const pick = (goalId: string) => {
-		onSetGoal(issue.id, goalId);
-		row.close();
-		setQuery('');
-	};
-
-	const leave = () => {
-		onSetGoal(issue.id, null);
-		row.close();
-		setQuery('');
-	};
-
 	const typed = query.trim();
-	const create = () => {
-		onCreateGoal(issue.id, typed);
+	const needle = typed.toLowerCase();
+	const options = goals
+		.filter(
+			goal =>
+				goal.id !== issue.goal?.id &&
+				(!needle || goal.name.toLowerCase().includes(needle)),
+		)
+		.slice(0, PICK_LIMIT);
+
+	const done = () => {
 		row.close();
 		setQuery('');
 	};
-	// Offered unless a goal by that name is already listed to pick.
-	// A closed ticket has no open lane for a new goal to go in.
-	const canCreate =
-		!issue.isClosed &&
+
+	const create =
+		onCreateGoal &&
 		typed !== '' &&
-		!options.some(
-			option =>
-				goals.has(option.id) &&
-				option.title.toLowerCase() === typed.toLowerCase(),
-		);
+		!goals.some(goal => goal.name.toLowerCase() === needle)
+			? () => {
+					onCreateGoal(typed);
+					done();
+			  }
+			: null;
 
 	// The rows the dropdown lists, the lit one picked by Enter.
 	const choices = [
@@ -109,34 +74,32 @@ export const GoalSection = ({
 					{
 						key: 'none',
 						testId: 'goal-leave',
-						choose: leave,
+						choose: () => {
+							onSetGoal(issue.id, null);
+							done();
+						},
 						content: <span style={{color: GUI_THEME.dim}}>No goal</span>,
 					},
 			  ]
 			: []),
-		...options.map(option => ({
-			key: option.id,
+		...options.map(goal => ({
+			key: goal.id,
 			testId: 'goal-option',
-			choose: () => pick(option.id),
+			choose: () => {
+				onSetGoal(issue.id, goal.id);
+				done();
+			},
 			content: (
 				<span
 					style={{
 						display: 'flex',
-						alignItems: 'baseline',
+						alignItems: 'center',
 						gap: 8,
 						minWidth: 0,
 						flex: 1,
 					}}
 				>
-					<span
-						aria-hidden
-						style={{
-							width: 2,
-							alignSelf: 'stretch',
-							flexShrink: 0,
-							background: goals.get(option.id)?.color ?? 'transparent',
-						}}
-					/>
+					<ColourBar color={goal.color} height={12} />
 					<span
 						style={{
 							overflow: 'hidden',
@@ -144,12 +107,12 @@ export const GoalSection = ({
 							whiteSpace: 'nowrap',
 						}}
 					>
-						{option.title}
+						{goal.name}
 					</span>
 				</span>
 			),
 		})),
-		...(canCreate
+		...(create
 			? [
 					{
 						key: 'create',
@@ -159,14 +122,14 @@ export const GoalSection = ({
 					},
 			  ]
 			: []),
-		...(!needle
+		...(onManageGoals && !needle
 			? [
 					{
 						key: 'manage',
 						testId: 'goal-manage',
 						choose: () => {
-							row.close();
-							setManaging(true);
+							done();
+							onManageGoals();
 						},
 						content: <span style={{color: GUI_THEME.dim}}>Manage goals…</span>,
 					},
@@ -178,62 +141,7 @@ export const GoalSection = ({
 
 	return (
 		<Section title="Goal">
-			{asGoal ? (
-				<>
-					<ChipRow testId="goal-own-row">
-						<GoalLabel
-							testId="goal-own"
-							place={{kind: 'panel'}}
-							strong
-							color={asGoal.color}
-							label={`Goal · ${asGoal.done}/${asGoal.total} done`}
-						/>
-					</ChipRow>
-					<div
-						data-testid="goal-members"
-						style={{display: 'flex', flexDirection: 'column', gap: 2}}
-					>
-						{asGoal.members.map(member => (
-							<button
-								key={member.id}
-								type="button"
-								data-testid="goal-member"
-								onClick={() => onOpenIssue(member.id)}
-								style={{
-									display: 'flex',
-									gap: 8,
-									alignItems: 'baseline',
-									padding: '3px 0',
-									borderWidth: 0,
-									background: 'transparent',
-									textAlign: 'left',
-									cursor: 'pointer',
-									fontFamily: 'inherit',
-									fontSize: 12,
-									color: member.isClosed
-										? GUI_THEME.dim
-										: GUI_THEME.primarySoft,
-								}}
-							>
-								<span
-									style={{color: GUI_THEME.dim, fontSize: 10, flexShrink: 0}}
-								>
-									{member.ref}
-								</span>
-								<span
-									style={{
-										overflow: 'hidden',
-										textOverflow: 'ellipsis',
-										whiteSpace: 'nowrap',
-									}}
-								>
-									{member.title}
-								</span>
-							</button>
-						))}
-					</div>
-				</>
-			) : picking ? null : (
+			{!row.open && (
 				<button
 					type="button"
 					data-testid="goal-current"
@@ -267,24 +175,14 @@ export const GoalSection = ({
 							gap: 8,
 						}}
 					>
-						{issue.goal && (
-							<span
-								aria-hidden
-								style={{
-									width: 3,
-									height: 14,
-									flexShrink: 0,
-									background: issue.goal.color,
-								}}
-							/>
-						)}
-						{issue.goal?.title ?? 'No goal'}
+						{issue.goal && <ColourBar color={issue.goal.color} height={14} />}
+						{issue.goal?.name ?? 'No goal'}
 					</span>
 					<IconChevronDown size={12} />
 				</button>
 			)}
 
-			{picking && (
+			{row.open && (
 				// A dropdown: a press anywhere outside it, even in the section, closes it.
 				<div {...row.sectionProps} style={{position: 'relative'}}>
 					<AddRow>
@@ -292,7 +190,9 @@ export const GoalSection = ({
 							ref={row.inputRef}
 							data-testid="goal-search"
 							value={query}
-							placeholder="Find a goal, or name a new one"
+							placeholder={
+								onCreateGoal ? 'Find a goal, or name a new one' : 'Find a goal'
+							}
 							onChange={event => {
 								setQuery(event.target.value);
 								setLit(0);
@@ -307,7 +207,7 @@ export const GoalSection = ({
 									setLit(at => (at + step + choices.length) % choices.length);
 								}
 								if (event.key === 'Enter') choices[litAt]?.choose();
-								if (event.key === 'Escape') row.close();
+								if (event.key === 'Escape') done();
 							}}
 						/>
 					</AddRow>
@@ -319,7 +219,7 @@ export const GoalSection = ({
 						{choices.length === 0 ? (
 							<MenuItem>
 								<span style={{color: GUI_THEME.dim}}>
-									{needle ? 'No ticket matches' : 'Type to find a ticket'}
+									{needle ? 'No goal matches' : 'This board has no goals'}
 								</span>
 							</MenuItem>
 						) : (
@@ -337,18 +237,6 @@ export const GoalSection = ({
 						)}
 					</div>
 				</div>
-			)}
-			{managing && (
-				<ManageGoalsModal
-					goals={goals}
-					issues={candidates}
-					onOpen={goalId => {
-						setManaging(false);
-						onOpenIssue(goalId);
-					}}
-					onRemove={onRemoveGoal}
-					onClose={() => setManaging(false)}
-				/>
 			)}
 		</Section>
 	);

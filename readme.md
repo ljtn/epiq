@@ -51,13 +51,13 @@ Since anyone on the board can connect a repo, URLs are read with care: only `htt
 
 ## Goals
 
-A goal groups the tickets that serve one outcome. The goal is a ticket of its own, and a ticket can be in one goal.
+A goal groups the tickets on a board that serve one outcome. A ticket can be in one goal. Goals are not tickets: they sit in a strip above the lanes, each pill filled as far as its tickets are done (closed, or in a lane named Done).
 
-- **GUI:** pick a goal in a ticket's Goal dropdown, or type a new name there to create one. **Manage goals…** lists them and removes one. Click a goal's label on a card to show only its tickets.
-- **TUI:** `:goal <ref>` puts the selected ticket in a goal; `:ungoal` takes it out.
-- **MCP:** `epiq_issue_goal_set`, with the goal's ref, or `null` to take the ticket out.
+- **GUI:** pick a goal in a ticket's Goal dropdown, or type a new name there to create one. Click a pill to show only that goal's tickets. **Manage goals** adds, renames and removes them.
+- **TUI:** `:goal <name>` puts the selected ticket in that goal, creating it if needed; `:ungoal` takes it out.
+- **MCP:** `epiq_issue_goal_set` with a goal's name (created if needed) or `null`; `epiq_board_list` lists each board's goals and progress; `epiq_goal_rename`, `epiq_goal_remove`.
 
-Removing a goal takes every ticket out of it; the goal's own ticket stays on the board.
+Removing a goal leaves its tickets where they are, in no goal.
 
 ## Terminal + Browser
 

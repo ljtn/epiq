@@ -122,7 +122,8 @@ import {
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useNeedleUrl} from './lib/needle-url';
-import {allIssues, buildGoalIndex, EMPTY_GOALS} from './lib/goal-index';
+import {GoalStrip} from './components/GoalStrip';
+import {ManageGoalsModal} from './components/ManageGoalsModal';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useBoardOverview} from './lib/use-board-overview';
@@ -499,17 +500,20 @@ export const App = () => {
 			sendRaw,
 		});
 
-	// Read off the board's state, never stored: a ticket is a goal by having
-	// tickets that belong to it.
-	const goalIndex = useMemo(
-		() => (state ? buildGoalIndex(state) : EMPTY_GOALS),
-		[state],
-	);
-
-	const goalCandidates = useMemo(
-		() => (state ? allIssues(state) : []),
-		[state],
-	);
+	// The board the open ticket stands on, whose goals its Goal row offers:
+	// not always the one in view.
+	const issueBoard =
+		(selectedIssue &&
+			state?.boards.find(board =>
+				board.swimlanes.some(lane =>
+					lane.issues.some(issue => issue.id === selectedIssue.id),
+				),
+			)) ||
+		null;
+	// The board whose goals Manage goals is open on.
+	const [managingGoalsOf, setManagingGoalsOf] = useState<string | null>(null);
+	const managedBoard =
+		state?.boards.find(board => board.id === managingGoalsOf) ?? null;
 
 	// The bar beside a card's ref. Repository-wide and asked for once, not per
 	// card and not on the board's own state: a commit is not an event the log
@@ -779,10 +783,13 @@ export const App = () => {
 		});
 
 	// The board narrowed to one goal from its pill; pressing it again lets go.
-	// Only while it is a goal: one dissolved or deleted would leave no label
-	// on the board to let go of it with.
+	// Only while it is one of this board's goals: a removed one, or another
+	// board's, would leave no pill to let go of it with.
 	const isolatedGoalId =
-		selection.goal && goalIndex.has(selection.goal) ? selection.goal : null;
+		selection.goal &&
+		selectedBoard?.goals.some(goal => goal.id === selection.goal)
+			? selection.goal
+			: null;
 	const filterByGoal = (goalId: string) =>
 		changeSelection({goal: isolatedGoalId === goalId ? null : goalId});
 
@@ -920,9 +927,7 @@ export const App = () => {
 					issueMatchesText(issue, query) &&
 					(windowIds === null || windowIds.has(issue.id)) &&
 					(!isolatedIssueId || issue.id === isolatedIssueId) &&
-					(!isolatedGoalId ||
-						issue.id === isolatedGoalId ||
-						issue.goal?.id === isolatedGoalId),
+					(!isolatedGoalId || issue.goal?.id === isolatedGoalId),
 			);
 
 			hidden += swimlane.issues.length - issues.length;
@@ -1420,8 +1425,9 @@ export const App = () => {
 		addIssueTag,
 		removeIssueTag,
 		setIssueGoal,
-		createIssueGoal,
-		dissolveGoal,
+		createGoal,
+		renameGoal,
+		removeGoal,
 		addIssueAssignee,
 		removeContributor,
 		removeTag,
@@ -2238,6 +2244,27 @@ export const App = () => {
 										overflow: 'hidden',
 									}}
 								>
+									{selectedBoard && selectedBoard.goals.length > 0 && (
+										<GoalStrip
+											goals={selectedBoard.goals}
+											isolatedGoalId={isolatedGoalId}
+											onFilterByGoal={filterByGoal}
+											onManage={
+												selectedBoard.readonly
+													? undefined
+													: () => setManagingGoalsOf(selectedBoard.id)
+											}
+										/>
+									)}
+									{managedBoard && (
+										<ManageGoalsModal
+											goals={managedBoard.goals}
+											onCreate={name => createGoal(managedBoard.id, name)}
+											onRename={renameGoal}
+											onRemove={removeGoal}
+											onClose={() => setManagingGoalsOf(null)}
+										/>
+									)}
 									{/* Scrolling sideways is this row's job; scrolling down is each
 					    column's. Both on one element gives a page-level vertical bar
 					    alongside each column's own. */}
@@ -2270,7 +2297,6 @@ export const App = () => {
 												}
 												live={state?.timeTravel?.mode !== 'scrub'}
 												diffStats={refDiffStats}
-												goals={goalIndex}
 												statsOpen={statsSwimlaneId === swimlane.id}
 												onOpenStats={openSwimlaneStats}
 												selected={false}
@@ -2526,12 +2552,15 @@ export const App = () => {
 										onEditDescription={editIssueDescription}
 										onAddTag={addIssueTag}
 										onRemoveTag={removeIssueTag}
-										goals={goalIndex}
-										goalCandidates={goalCandidates}
+										goals={issueBoard?.goals ?? []}
 										onSetGoal={setIssueGoal}
-										onCreateGoal={createIssueGoal}
-										onRemoveGoal={dissolveGoal}
-										onOpenIssue={id => openIssueTab(id, 'overview')}
+										{...(issueBoard &&
+											!issueBoard.readonly &&
+											selectedIssue && {
+												onCreateGoal: (name: string) =>
+													createGoal(issueBoard.id, name, selectedIssue.id),
+												onManageGoals: () => setManagingGoalsOf(issueBoard.id),
+											})}
 										onAddAssignee={addIssueAssignee}
 										onAddExternalAssignee={addExternalIssueAssignee}
 										onRemoveContributor={removeContributor}

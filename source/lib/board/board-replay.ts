@@ -101,6 +101,9 @@ export const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'create.tag':
 		case 'tombstone.tag':
 		case 'restore.tag':
+		case 'create.goal':
+		case 'rename.goal':
+		case 'tombstone.goal':
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'link.contributor.user':

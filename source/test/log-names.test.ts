@@ -35,6 +35,7 @@ const ALICE = '01J00000000000000000ALICE';
 const BOB = '01J0000000000000000000BOB';
 const CAROL = '01J00000000000000000CAROL';
 const TAG = '01J0000000000000000000TAG';
+const GOAL = '01J000000000000000000GOAL';
 const NAMELESS = '01J00000000000000NAMELESS';
 // Named by an event that creates nothing, which both sides have to refuse — or
 // the projection knows somebody the board does not.
@@ -135,8 +136,12 @@ const log = (): AppEvent[] => [
 	at('remove.issue.assignee', {id: ISSUE, assignee: ALICE}),
 	at('add.issue.tag', {id: ISSUE, tag: TAG}),
 	at('remove.issue.tag', {id: ISSUE, tag: TAG}),
-	// Neither names anybody; both are a field on a ticket.
+	// A goal names nobody: a record on the board, and a field on a ticket.
+	at('create.goal', {id: GOAL, name: 'Ship it', board: BOARD}),
+	at('rename.goal', {id: GOAL, name: 'Ship it soon'}),
+	at('set.issue.goal', {id: ISSUE, goal: GOAL}),
 	at('set.issue.goal', {id: ISSUE}),
+	at('tombstone.goal', {id: GOAL}),
 
 	at('add.issue.comment', {
 		id: COMMENT,

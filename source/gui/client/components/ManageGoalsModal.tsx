@@ -1,24 +1,24 @@
 import {useState} from 'react';
-import {GoalIndex} from '../lib/goal-index';
-import {GuiIssue} from '../lib/gui-state.model';
+import {GuiGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {manageRowStyle} from '../lib/manage-row.style';
 import {Button} from './Button';
+import {Input} from './FormPrimitives';
 import {IconTrash} from './IconTrash';
 
 type Props = {
-	goals: GoalIndex;
-	// Every ticket there is, for the goals' titles.
-	issues: GuiIssue[];
-	onOpen: (goalId: string) => void;
+	// The board's goals.
+	goals: GuiGoal[];
+	onCreate: (name: string) => void;
+	onRename: (goalId: string, name: string) => void;
 	onRemove: (goalId: string) => void;
 	onClose: () => void;
 };
 
 export const ManageGoalsModal = ({
 	goals,
-	issues,
-	onOpen,
+	onCreate,
+	onRename,
 	onRemove,
 	onClose,
 }: Props) => {
@@ -26,14 +26,30 @@ export const ManageGoalsModal = ({
 	// second commits it.
 	const [armedId, setArmedId] = useState<string | null>(null);
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
+	const [editing, setEditing] = useState<{id: string; name: string} | null>(
+		null,
+	);
+	const [draft, setDraft] = useState('');
 
-	const byId = new Map(issues.map(issue => [issue.id, issue]));
-	const rows = [...goals.values()]
-		.flatMap(goal => {
-			const issue = byId.get(goal.id);
-			return issue ? [{goal, issue}] : [];
-		})
-		.sort((a, b) => a.issue.title.localeCompare(b.issue.title));
+	const taken = (name: string, exceptId?: string) =>
+		goals.some(
+			goal =>
+				goal.id !== exceptId &&
+				goal.name.toLowerCase() === name.trim().toLowerCase(),
+		);
+	const canAdd = draft.trim() !== '' && !taken(draft);
+	const add = () => {
+		if (!canAdd) return;
+		onCreate(draft.trim());
+		setDraft('');
+	};
+
+	const commitRename = () => {
+		if (!editing) return;
+		const name = editing.name.trim();
+		if (name && !taken(name, editing.id)) onRename(editing.id, name);
+		setEditing(null);
+	};
 
 	return (
 		<div
@@ -52,6 +68,7 @@ export const ManageGoalsModal = ({
 			<div
 				data-testid="manage-goals"
 				onMouseDown={event => event.stopPropagation()}
+				onClick={event => event.stopPropagation()}
 				style={{
 					marginTop: '-100px',
 					width: 460,
@@ -76,8 +93,22 @@ export const ManageGoalsModal = ({
 				</div>
 
 				<div style={{fontSize: 12, color: GUI_THEME.secondary}}>
-					Removing a goal takes every ticket out of it. The goal's own ticket
-					stays on the board.
+					Removing a goal leaves its tickets where they are, in no goal.
+				</div>
+
+				<div style={{display: 'flex', gap: 8}}>
+					<Input
+						data-testid="new-goal-name"
+						value={draft}
+						placeholder="New goal"
+						onChange={event => setDraft(event.target.value)}
+						onKeyDown={event => {
+							if (event.key === 'Enter') add();
+						}}
+					/>
+					<Button testId="add-goal" disabled={!canAdd} onClick={add}>
+						Add
+					</Button>
 				</div>
 
 				<div
@@ -89,10 +120,10 @@ export const ManageGoalsModal = ({
 						overflowY: 'auto',
 					}}
 				>
-					{rows.length === 0 && (
+					{goals.length === 0 && (
 						<span style={{fontSize: 12, color: GUI_THEME.dim}}>No goals</span>
 					)}
-					{rows.map(({goal, issue}) => {
+					{goals.map(goal => {
 						const armed = armedId === goal.id;
 						const hovered = hoveredId === goal.id;
 
@@ -109,40 +140,58 @@ export const ManageGoalsModal = ({
 								}
 								style={manageRowStyle({armed, hovered})}
 							>
-								<button
-									type="button"
-									data-testid="manage-goal-open"
-									onClick={() => onOpen(goal.id)}
-									style={{
-										display: 'flex',
-										alignItems: 'baseline',
-										gap: 8,
-										minWidth: 0,
-										padding: '0 0 0 8px',
-										borderWidth: '0 0 0 2px',
-										borderStyle: 'solid',
-										borderColor: goal.color,
-										background: 'transparent',
-										fontFamily: 'inherit',
-										cursor: 'pointer',
-										textAlign: 'left',
-									}}
-								>
-									<span style={{fontSize: 12, color: goal.color}}>
-										{issue.title}
-									</span>
-									<span style={{fontSize: 10, color: GUI_THEME.dim}}>
-										{goal.done}/{goal.total}
-									</span>
-								</button>
+								{editing?.id === goal.id ? (
+									<Input
+										autoFocus
+										data-testid="rename-goal-input"
+										value={editing.name}
+										onChange={event =>
+											setEditing({id: goal.id, name: event.target.value})
+										}
+										onBlur={commitRename}
+										onKeyDown={event => {
+											if (event.key === 'Enter') commitRename();
+											if (event.key === 'Escape') setEditing(null);
+										}}
+										style={{padding: '4px 8px'}}
+									/>
+								) : (
+									<button
+										type="button"
+										data-testid="rename-goal"
+										title="Rename"
+										onClick={() => setEditing({id: goal.id, name: goal.name})}
+										style={{
+											display: 'flex',
+											alignItems: 'baseline',
+											gap: 8,
+											minWidth: 0,
+											padding: '0 0 0 8px',
+											borderWidth: '0 0 0 3px',
+											borderStyle: 'solid',
+											borderColor: goal.color,
+											background: 'transparent',
+											fontFamily: 'inherit',
+											cursor: 'text',
+											textAlign: 'left',
+										}}
+									>
+										<span style={{fontSize: 12, color: goal.color}}>
+											{goal.name}
+										</span>
+										<span style={{fontSize: 10, color: GUI_THEME.dim}}>
+											{goal.done}/{goal.total}
+										</span>
+									</button>
+								)}
 
 								<Button
 									variant="ghost"
 									testId="remove-goal"
 									title={
 										armed
-											? `Click again to take every ticket out of "${issue.title}"`
-											: `Remove "${issue.title}"`
+											? `Click again to remove "${goal.name}"`
+											: `Remove "${goal.name}"`
 									}
 									onClick={() => {
 										if (!armed) return setArmedId(goal.id);

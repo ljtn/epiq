@@ -159,9 +159,7 @@ export const TicketListItemUI: React.FC<{
 				<Box flexDirection="row">
 					{goal && (
 						<Box paddingRight={1}>
-							<Text color={goal.color} bold={goal.isGoal}>
-								{goal.text}
-							</Text>
+							<Text color={goal.color}>{goal.text}</Text>
 						</Box>
 					)}
 					{shown.map(badge => (

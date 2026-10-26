@@ -40,8 +40,6 @@ export type ApiIssue = {
 	assignees: ApiAssignee[];
 	/** Absent when it belongs to none, or its goal is gone. */
 	goal?: ApiGoalRef;
-	/** Present when tickets belong to it: how far along they are, all of them. */
-	asGoal?: ApiGoalProgress;
 	parentNodeId: string;
 	isClosed: boolean;
 	/**
@@ -53,16 +51,16 @@ export type ApiIssue = {
 	boardIds: string[];
 };
 
-export type ApiGoalProgress = {color: string; done: number; total: number};
-
-/** The goal a ticket belongs to, resolved: it reads as the ticket does now. */
+/** The goal a ticket belongs to, as it reads now. */
 export type ApiGoalRef = {
 	id: string;
-	ref: string;
-	title: string;
-	// Its own colour, or the one its title derives.
+	name: string;
+	// From its id, muted.
 	color: string;
 };
+
+/** A board's goal, and how far along its tickets are, all of them. */
+export type ApiGoal = ApiGoalRef & {done: number; total: number};
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};
 
@@ -119,6 +117,7 @@ export type ApiBoard = {
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
 	swimlanes: ApiSwimlane[];
+	goals: ApiGoal[];
 	// The board's conventions, as markdown; absent when it has none.
 	description?: string;
 };

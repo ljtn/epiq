@@ -62,6 +62,9 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'create.tag': z.looseObject({id, name}),
 	'tombstone.tag': withId,
 	'restore.tag': z.looseObject({id, name}),
+	'create.goal': z.looseObject({id, name, board: id}),
+	'rename.goal': z.looseObject({id, name}),
+	'tombstone.goal': withId,
 
 	'create.contributor': z.looseObject({id, name}),
 	'rename.contributor': z.looseObject({id, name}),

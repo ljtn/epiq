@@ -23,8 +23,7 @@ import {
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
-import {existingGoals} from '../utils/goal.utils.js';
-import {nodeRef} from '../utils/node-ref.js';
+import {boardGoals} from '../utils/goal.utils.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE', 'COMMENT'];
@@ -180,6 +179,15 @@ export const ticketInScope = ({
 	[...breadCrumb, selectedNode].find(
 		(node): node is Ticket => node != null && isTicketNode(node),
 	);
+
+/** The goals of the board in scope, by name. */
+export const goalNamesInScope = (): string[] => {
+	const {breadCrumb = [], selectedNode} = getState();
+	const board = [...breadCrumb, selectedNode].find(
+		node => node?.context === 'BOARD',
+	);
+	return board ? boardGoals(board.id).map(goal => goal.name) : [];
+};
 
 const isTicketClosed = (ticket: Ticket): boolean =>
 	ticket.parentNodeId === CLOSED_SWIMLANE_ID;
@@ -398,7 +406,7 @@ export const getCmdModifiers = (
 			...(ticketTagsFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
 
-		[CmdKeywords.GOAL]: existingGoals().map(goal => nodeRef(goal.id)),
+		[CmdKeywords.GOAL]: goalNamesInScope(),
 
 		[CmdKeywords.UNASSIGN]: [
 			...(ticketAssigneesFromBreadCrumb()?.value?.map(({name}) => name) ?? []),

@@ -159,7 +159,7 @@ export const commands: CommandLineActionEntry[] = [
 	},
 	{
 		intent: CmdIntent.GoalTicket,
-		description: 'Put the selected issue in a goal, named by its ref',
+		description: 'Put the selected issue in a goal, or name a new one',
 		mode: Mode.COMMAND_LINE,
 		action: goalTicketCommand,
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),

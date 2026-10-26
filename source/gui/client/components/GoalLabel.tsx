@@ -1,40 +1,15 @@
-// A goal, named in its colour in the goal dropdown's dark frame, so it never
-// reads as a tag and looks the same on a card as in the ticket panel. A card
-// in a goal also carries its colour down its left edge.
+// A card's goal, named in its colour in the goal dropdown's dark frame, so
+// it never reads as a tag. A card in a goal also carries its colour down its
+// left edge.
 
 import React from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 
-type Place = {kind: 'line'; height: number} | {kind: 'panel'};
-
-const placeStyle = (place: Place): React.CSSProperties => {
-	if (place.kind === 'line') {
-		return {
-			maxWidth: '45%',
-			flexShrink: 0,
-			height: place.height,
-			padding: '0 7px',
-			borderRadius: 4,
-			fontSize: 11,
-		};
-	}
-
-	// Bigger, as the panel's text is.
-	return {
-		alignSelf: 'flex-start',
-		maxWidth: '100%',
-		padding: '5px 10px',
-		borderRadius: 8,
-		fontSize: 12,
-	};
-};
-
 export const GoalLabel = ({
 	color,
 	label,
-	place,
+	height,
 	testId,
-	strong = false,
 	pressed = false,
 	disabled = false,
 	onPress,
@@ -42,10 +17,9 @@ export const GoalLabel = ({
 }: {
 	color: string;
 	label: string;
-	place: Place;
+	// The line it leads, which it stands as tall as.
+	height: number;
 	testId: string;
-	// The goal's own ticket: bold, as the thing the others point at.
-	strong?: boolean;
 	// Held on, as a narrowed tag chip is.
 	pressed?: boolean;
 	disabled?: boolean;
@@ -53,14 +27,18 @@ export const GoalLabel = ({
 	pressTitle?: string;
 }) => {
 	const style: React.CSSProperties = {
-		...placeStyle(place),
+		maxWidth: '45%',
+		flexShrink: 0,
+		height,
+		padding: '0 7px',
+		borderRadius: 4,
+		fontSize: 11,
 		display: 'inline-flex',
 		alignItems: 'center',
 		boxSizing: 'border-box',
 		minWidth: 0,
 		lineHeight: 1,
 		fontFamily: 'inherit',
-		fontWeight: strong ? 600 : 400,
 		// Its colour carries the name, so a lane's goals tell apart at a glance.
 		color,
 		background: GUI_THEME.well,
