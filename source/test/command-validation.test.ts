@@ -361,6 +361,28 @@ describe('cmdValidation', () => {
 		});
 	});
 
+	describe('UNGOAL', () => {
+		it('runs bare, with no confirm', () => {
+			const result = cmdValidation[CmdKeywords.UNGOAL].validate(
+				CmdKeywords.UNGOAL,
+				'',
+				'',
+			);
+
+			expect(result.validity).toBe(cmdValidity.Valid);
+		});
+
+		it('refuses anything typed after it', () => {
+			const result = cmdValidation[CmdKeywords.UNGOAL].validate(
+				CmdKeywords.UNGOAL,
+				'whatever',
+				'',
+			);
+
+			expect(result.validity).toBe(cmdValidity.Invalid);
+		});
+	});
+
 	describe('TAG', () => {
 		it('accepts a non-empty inputString even when it is not in the completion list', () => {
 			const result = cmdValidation[CmdKeywords.TAG].validate(

@@ -112,8 +112,8 @@ export const ticketMatchesFilter = (
 			return tagNames.some(tag => tag.includes(query));
 		}
 
-		// The goal's name, so `:filter goal launch` narrows the board as the
-		// GUI's pill does.
+		// Part of the goal's name, as `tag` matches part of a tag's: `launch`
+		// also finds "Launch mobile", where the GUI's pill names one goal.
 		case 'goal': {
 			const goal = getTicketGoal(ticket);
 			return goal ? normalizeText(goal.name).includes(query) : false;

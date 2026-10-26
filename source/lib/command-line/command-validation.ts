@@ -937,7 +937,14 @@ const validators: Record<CmdKeyword, Validator> = {
 				: hintDefault('name a new goal ...'),
 		})(args);
 	},
-	[CmdKeywords.UNGOAL]: () => valid(CONFIRM_MSG),
+	// Undone by `:goal` again, so no confirm; but nothing typed after it either.
+	[CmdKeywords.UNGOAL]: args =>
+		args.modifier || args.inputString.trim()
+			? invalid({
+					message: hintAlert('Takes no argument'),
+					completionWordList: [],
+			  })
+			: valid(CONFIRM_MSG),
 
 	[CmdKeywords.CLOSE_ISSUE]: args => requireExact(args),
 	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),
