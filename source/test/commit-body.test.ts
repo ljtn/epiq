@@ -113,6 +113,32 @@ describe('a list of commits', () => {
 
 		expect(listed[1]!.body).toBeUndefined();
 	});
+
+	// git refuses a whole list over one name that is not a commit there.
+	it('keeps the others’ bodies when one sha is gone and one is not a commit', async () => {
+		const first = commit('first', 'Why first.');
+		const second = commit('second', 'Why second.');
+		const tree = git('rev-parse', 'HEAD^{tree}');
+
+		const listed = value(
+			await withCommitBodies(
+				dir,
+				succeeded('Listed', [
+					entryOf(first),
+					entryOf('1234567890123456789012345678901234567890'),
+					entryOf(tree),
+					entryOf(second),
+				]),
+			),
+		);
+
+		expect(listed.map(entry => entry.body)).toEqual([
+			'Why first.',
+			undefined,
+			undefined,
+			'Why second.',
+		]);
+	});
 });
 
 function entryOf(sha: string) {

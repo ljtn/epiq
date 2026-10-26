@@ -98,6 +98,25 @@ describe('git-utils', () => {
 		expect(() => fs.accessSync(GIT_BIN, fs.constants.X_OK)).not.toThrow();
 	});
 
+	// hash-object hashes what arrives on stdin, so the hash says what git read.
+	it('execGit hands git its input on stdin, and an empty one without', async () => {
+		const repoRoot = makeTempDir();
+		const hash = async (input?: string) => {
+			const result = await execGit({
+				args: ['hash-object', '--stdin'],
+				cwd: repoRoot,
+				...(input === undefined ? {} : {input}),
+			});
+			if (isFail(result)) throw new Error(result.message);
+			return result.value.stdout.trim();
+		};
+
+		expect(await hash('hello\n')).toBe(
+			'ce013625030ba8dba906f756967f9e9ca394464a',
+		);
+		expect(await hash()).toBe('e69de29bb2d1d6434b8b29ae775ad8c2e48c5391');
+	});
+
 	it('execGit fails when cwd does not exist', async () => {
 		const result = await execGit({
 			args: ['status'],

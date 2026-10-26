@@ -405,8 +405,10 @@ const runGit = ({
 			detached: clone && OWN_GROUP,
 		});
 		if (clone) trackCloneChild(child);
-		// Ended at once without input, as an ignored stdin would be. A git that
-		// exits before reading it all answers through 'close'.
+		// Ended at once without input, as an ignored stdin would be. Every stdin
+		// error is dropped: the one expected is EPIPE from a git that exits before
+		// reading it all, which answers through 'close'. Safe only while callers
+		// pass input to commands that read to EOF, as `log --stdin` does.
 		child.stdin.on('error', () => {});
 		child.stdin.end(input ?? '');
 		const kill = (signal: NodeJS.Signals) =>

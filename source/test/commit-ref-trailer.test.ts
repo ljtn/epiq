@@ -120,4 +120,44 @@ describe("the board's own repo", () => {
 			{subject: 'W1TCS14 bump the floor', tickets: ['B8PYTCM', 'W1TCS14']},
 		]);
 	});
+
+	// One pass over the history answers what a pass per ticket did.
+	it("lists several tickets as the union of each one's list", async () => {
+		commit(board, 'Ada', ['b8pytcm lowercase subject']);
+		commit(board, 'Ada', ['B8PYTCM next to it']);
+		commit(board, 'Bea', ['QQQQQQQ someone else']);
+		commit(board, 'Erik', ['two at once', 'Epiq-Ref: W1TCS14, B8PYTCM']);
+		commit(board, 'Erik', ['W1TCS14 after it']);
+		commit(board, 'Erik', ['ZZZZZZZ no goal ticket']);
+
+		const refs = ['B8PYTCM', 'W1TCS14'];
+		const union = new Map<
+			string,
+			{sha: string; precedingSha: string | null; tickets: string[]}
+		>();
+		for (const ref of refs) {
+			for (const entry of value(
+				await getCommitsForRef({repoRoot: board, ref}),
+			)) {
+				const seen = union.get(entry.sha);
+				union.set(entry.sha, {
+					sha: entry.sha,
+					precedingSha: seen?.precedingSha ?? entry.precedingSha,
+					tickets: [...(seen?.tickets ?? []), ref].sort(),
+				});
+			}
+		}
+
+		const listed = value(await getCommitsForRefs({repoRoot: board, refs}));
+		expect(listed).toHaveLength(4);
+		// Adjacent commits of the goal chain; not every link is null.
+		expect(listed.filter(entry => entry.precedingSha).length).toBe(2);
+		expect(
+			listed.map(({sha, precedingSha, tickets}) => ({
+				sha,
+				precedingSha,
+				tickets,
+			})),
+		).toEqual(listed.map(({sha}) => union.get(sha)));
+	});
 });
