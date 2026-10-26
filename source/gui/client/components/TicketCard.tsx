@@ -36,6 +36,9 @@ import {IconComment} from './IconComment';
 // gap after it. Fixed, so a longer number never moves the title.
 const CARD_INDEX_WIDTH = 22;
 const CARD_INDEX_GAP = 8;
+// The ref line runs under the index, starting as near the card's edge as a
+// dense card's does, so a goal's label sits by the stripe.
+const CARD_META_INSET = 11;
 
 /** How long this ticket has sat in its lane, and how that reads beside its peers. */
 export type CardDwell = {ms: number; level: DwellLevel};
@@ -852,6 +855,8 @@ export const TicketCard = ({
 									columnGap: CARD_DIFF_GAP,
 									rowGap: 6,
 									minHeight: view.metrics.metaLineHeight,
+									marginLeft:
+										CARD_META_INSET - CARD_INDEX_WIDTH - CARD_INDEX_GAP,
 									color: GUI_THEME.dim2,
 									fontSize: 10,
 								}}
