@@ -100,7 +100,7 @@ const deleteLane = async (page: Page, name: string) => {
 		.filter({hasText: name})
 		.getByTestId('swimlane-menu')
 		.click();
-	await page.getByTestId('swimlane-menu-delete').click();
+	await page.getByTestId('swimlane-delete').click();
 	await page
 		.getByTestId('confirm-modal')
 		.getByRole('button', {name: 'delete'})

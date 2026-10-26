@@ -7,6 +7,8 @@ import {laneDwell} from '../lib/lane-dwell';
 import {ROW, seriesColor, statGrid} from '../lib/issue-stats.style';
 import {SwimlaneStatsState} from '../lib/use-swimlane-stats';
 import {Aside} from './Aside';
+import {Button} from './Button';
+import {Checkbox} from './Checkbox';
 import {Empty} from './FormPrimitives';
 import {DiffStat} from './DiffStat';
 import {Breakdown} from './StatBars';
@@ -14,12 +16,14 @@ import {Stat} from './StatRow';
 import {StayTrend} from './StayTrend';
 import {DetailsHeader} from './NodeDetails';
 import {Section} from './Section';
+import {Tabs} from './Tabs';
 import {DescriptionField} from './DescriptionField';
 import {useEditDraft} from '../lib/ticket-drafts';
 import {descriptionLimitOf} from '../../../lib/utils/text.limits.js';
 
-// What a column says about itself: the conventions for work in it, how long
-// things sit in it, what feeds it, where they go afterwards, and what the code
+// What a column says about itself. Its Overview: its name, the conventions for
+// work in it, its rules and what can be done to it. Its Stats: how long things
+// sit in it, what feeds it, where they go afterwards, and what the code
 // standing in it comes to.
 //
 // The two flow lists are the point. A lane in isolation is a number; a lane
@@ -58,24 +62,37 @@ const FlowList = ({
 	);
 };
 
-export const SwimlaneStats = ({
+export type SwimlaneDetailsTab = 'overview' | 'stats';
+
+export const SwimlaneDetails = ({
 	dock,
 	swimlane,
+	tab,
+	onChangeTab,
 	state,
 	live,
+	onRename,
 	onSaveDescription,
+	onSetRule,
+	onDelete,
 	onClose,
 }: {
 	dock: AsideDock;
 	swimlane: GuiSwimlane;
+	tab: SwimlaneDetailsTab;
+	onChangeTab: (tab: SwimlaneDetailsTab) => void;
 	state: SwimlaneStatsState | null;
 	// The board is showing the present. Replayed, the lane reads as it was
-	// then: its description, read-only, and none of the figures measured
-	// against now.
+	// then: read-only, and none of the figures measured against now.
 	live: boolean;
+	onRename: (title: string) => void;
 	onSaveDescription: (description: string) => void;
+	onSetRule: (rule: 'done', on: boolean) => void;
+	onDelete: () => void;
 	onClose: () => void;
 }) => {
+	const writable = !swimlane.readonly && live;
+	const marksDone = swimlane.rules?.includes('done') ?? false;
 	const descriptionEdit = useEditDraft(
 		swimlane.id,
 		'description',
@@ -92,21 +109,66 @@ export const SwimlaneStats = ({
 				testId="swimlane-stats"
 				kind="Swimlane"
 				title={swimlane.title}
+				{...(writable && {onRename})}
 				onClose={onClose}
 			/>
 
-			<DescriptionField
-				draft={descriptionEdit}
-				current={swimlane.description ?? ''}
-				readonly={swimlane.readonly || !live}
-				maxLength={descriptionLimitOf('swimlane')}
-				onSave={onSaveDescription}
-				collapseKey={swimlane.id}
-				testId="swimlane-description"
-				placeholder="Conventions for this lane, in markdown"
+			<Tabs
+				tabs={[
+					{id: 'overview', label: 'Overview'},
+					{id: 'stats', label: 'Stats'},
+				]}
+				activeTab={tab}
+				onChange={onChangeTab}
 			/>
 
-			{live && (
+			{tab === 'overview' && (
+				<>
+					<DescriptionField
+						draft={descriptionEdit}
+						current={swimlane.description ?? ''}
+						readonly={!writable}
+						maxLength={descriptionLimitOf('swimlane')}
+						onSave={onSaveDescription}
+						collapseKey={swimlane.id}
+						testId="swimlane-description"
+						placeholder="Conventions for this lane, in markdown"
+					/>
+
+					<Section title="Rules">
+						<div style={{marginTop: 10}}>
+							<Checkbox
+								testId="swimlane-rule-done"
+								label="Tickets here count as done"
+								checked={marksDone}
+								disabled={!writable}
+								onChange={on => onSetRule('done', on)}
+							/>
+						</div>
+					</Section>
+
+					{writable && (
+						<Section
+							title="Actions"
+							action={
+								<Button testId="swimlane-delete" onClick={onDelete}>
+									Delete swimlane
+								</Button>
+							}
+						>
+							{''}
+						</Section>
+					)}
+				</>
+			)}
+
+			{tab === 'stats' && !live && (
+				<Empty>
+					Figures are measured against now; return to the present to read them
+				</Empty>
+			)}
+
+			{tab === 'stats' && live && (
 				<>
 					<Section title="Time in this lane">
 						{dwell ? (

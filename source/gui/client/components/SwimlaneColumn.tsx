@@ -12,13 +12,13 @@ import {
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
 import {IconCheck} from './IconCheck';
+import {SwimlaneDetailsTab} from './SwimlaneDetails';
 import {IconLaneStats} from './IconLaneStats';
 import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
 import {IconButton, ICON_SIZE} from './IconButton';
 import {IconPlus} from './IconPlus';
-import {KebabMenu} from './KebabMenu';
 import {SWIMLANE_DRAG_TYPE, isSwimlaneDrag} from '../lib/gui-move-swimlane';
 import {scrollGutter} from '../lib/scroll-gutter.style';
 
@@ -26,7 +26,8 @@ import {scrollGutter} from '../lib/scroll-gutter.style';
 // than blue, so this is desaturated toward the panel chrome's blue-grey.
 const COLUMN_GLOW_COLOR = 'rgb(140, 176, 232)';
 
-const COLUMN_PADDING = 12;
+// A lane's inset from its edge, which the goal strip above the lanes keeps too.
+export const COLUMN_PADDING = 12;
 
 export const SwimlaneColumn = ({
 	swimlane,
@@ -47,9 +48,6 @@ export const SwimlaneColumn = ({
 	onFilterByAssignee,
 	pickedIssueIds,
 	onCreateIssue,
-	onRenameSwimlane,
-	onDeleteSwimlane,
-	onSetSwimlaneRule,
 	dropSide,
 	onSwimlaneDragOver,
 	onSwimlaneDragEnd,
@@ -60,8 +58,8 @@ export const SwimlaneColumn = ({
 	onDragLeave,
 	theatre,
 	live,
-	statsOpen,
-	onOpenStats,
+	openTab,
+	onOpenDetails,
 	diffStats,
 }: {
 	swimlane: GuiSwimlane;
@@ -81,9 +79,6 @@ export const SwimlaneColumn = ({
 	onFilterByAssignee: (assigneeId: string) => void;
 	pickedIssueIds: readonly string[];
 	onCreateIssue: (swimlaneId: string) => void;
-	onRenameSwimlane: (swimlaneId: string) => void;
-	onDeleteSwimlane: (swimlaneId: string) => void;
-	onSetSwimlaneRule: (swimlaneId: string, rule: 'done', on: boolean) => void;
 	// Null unless the history player is up. `flashIssueId` is the ticket the
 	// event that just landed happened to, and `flashKey` that event's id, which
 	// is what restarts the flash when two of them in a row touch one ticket.
@@ -104,9 +99,9 @@ export const SwimlaneColumn = ({
 	// The board is showing the present. A dwell is time elapsed until now, which
 	// says nothing about a board being replayed at some other moment.
 	live: boolean;
-	// This lane's stats are the ones the inspector is showing.
-	statsOpen: boolean;
-	onOpenStats: (swimlaneId: string) => void;
+	// The tab of this lane's panel on screen, if its panel is.
+	openTab: SwimlaneDetailsTab | null;
+	onOpenDetails: (swimlaneId: string, tab: SwimlaneDetailsTab) => void;
 	// Every ref the repository has commits for, keyed by ref, counting commits
 	// up to the moment on screen. Handed down whole rather than per card: it is
 	// one answer about the whole history, and the refs in it mostly belong to
@@ -309,17 +304,16 @@ export const SwimlaneColumn = ({
 						</span>
 					)}
 
-					{/* The lane's one panel: its description, and its figures while
-					    the board is live. */}
+					{/* The lane's panel, on its figures; the menu opens it on the rest. */}
 					<IconButton
 						testId="swimlane-stats-open"
-						title="Swimlane details"
-						pressed={statsOpen}
+						title="Swimlane stats"
+						pressed={openTab === 'stats'}
 						onClick={event => {
 							// Stopped here, or the header's own click would take the
 							// selection with it.
 							event.stopPropagation();
-							onOpenStats(swimlane.id);
+							onOpenDetails(swimlane.id, 'stats');
 						}}
 					>
 						<IconLaneStats size={ICON_SIZE} />
@@ -349,34 +343,17 @@ export const SwimlaneColumn = ({
 						<IconPlus size={ICON_SIZE} />
 					</IconButton>
 
-					{/* Absent rather than disabled on a readonly swimlane: every entry
-					    behind it is a write, so the menu would open onto nothing. */}
-					{!swimlane.readonly && (
-						<KebabMenu
-							testId="swimlane-menu"
-							title="Swimlane actions"
-							items={[
-								{
-									id: 'rename',
-									label: 'Rename',
-									onSelect: () => onRenameSwimlane(swimlane.id),
-								},
-								{
-									id: 'rule-done',
-									label: 'Marks tickets done',
-									checked: marksDone,
-									onSelect: () =>
-										onSetSwimlaneRule(swimlane.id, 'done', !marksDone),
-								},
-								{
-									id: 'delete',
-									label: 'Delete',
-									danger: true,
-									onSelect: () => onDeleteSwimlane(swimlane.id),
-								},
-							]}
-						/>
-					)}
+					<IconButton
+						testId="swimlane-menu"
+						title="Swimlane details"
+						pressed={openTab === 'overview'}
+						onClick={event => {
+							event.stopPropagation();
+							onOpenDetails(swimlane.id, 'overview');
+						}}
+					>
+						⋮
+					</IconButton>
 				</div>
 			</header>
 

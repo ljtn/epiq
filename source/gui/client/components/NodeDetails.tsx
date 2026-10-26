@@ -1,3 +1,4 @@
+import {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
 import {FormHeader} from './FormHeader';
@@ -6,54 +7,102 @@ import {FormHeader} from './FormHeader';
 // it. Kin to a ticket's panel, and named for what it belongs to so it is not
 // read as one.
 
+const TITLE_STYLE = {
+	fontSize: 13,
+	fontWeight: 600,
+	color: GUI_THEME.primary,
+	minWidth: 0,
+} as const;
+
 export const DetailsHeader = ({
 	testId,
 	kind,
 	title,
+	onRename,
 	onClose,
 }: {
 	testId: string;
 	kind: 'Board' | 'Swimlane' | 'Goal';
 	title: string;
+	// Given, the title is edited in place, as a ticket's is: Enter or leaving
+	// it saves, Escape keeps the old one.
+	onRename?: (title: string) => void;
 	onClose: () => void;
-}) => (
-	<FormHeader testId={testId}>
-		<div
-			style={{
-				display: 'flex',
-				alignItems: 'baseline',
-				gap: 8,
-				minWidth: 0,
-			}}
-		>
-			<span
-				style={{
-					color: GUI_THEME.accent,
-					fontSize: 10,
-					letterSpacing: 1,
-					textTransform: 'uppercase',
-					flexShrink: 0,
-				}}
-			>
-				{kind}
-			</span>
-			<span
-				style={{
-					fontSize: 13,
-					fontWeight: 600,
-					color: GUI_THEME.primary,
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap',
-					minWidth: 0,
-				}}
-			>
-				{title}
-			</span>
-		</div>
+}) => {
+	const [draft, setDraft] = useState<string | null>(null);
 
-		<Button variant="ghost" onClick={onClose} title="Close">
-			×
-		</Button>
-	</FormHeader>
-);
+	const save = () => {
+		const next = draft?.trim();
+		setDraft(null);
+		if (next && next !== title) onRename?.(next);
+	};
+
+	return (
+		<FormHeader testId={testId}>
+			<div
+				style={{
+					display: 'flex',
+					alignItems: 'baseline',
+					gap: 8,
+					minWidth: 0,
+					flex: 1,
+				}}
+			>
+				<span
+					style={{
+						color: GUI_THEME.accent,
+						fontSize: 10,
+						letterSpacing: 1,
+						textTransform: 'uppercase',
+						flexShrink: 0,
+					}}
+				>
+					{kind}
+				</span>
+				{draft !== null ? (
+					<input
+						data-testid={`${testId}-title-input`}
+						value={draft}
+						autoFocus
+						onChange={event => setDraft(event.target.value)}
+						onKeyDown={event => {
+							if (event.key === 'Enter') event.currentTarget.blur();
+							if (event.key === 'Escape') setDraft(null);
+						}}
+						onBlur={save}
+						style={{
+							...TITLE_STYLE,
+							flex: 1,
+							font: 'inherit',
+							fontSize: TITLE_STYLE.fontSize,
+							fontWeight: TITLE_STYLE.fontWeight,
+							background: GUI_THEME.well,
+							border: `1px solid ${GUI_THEME.line}`,
+							borderRadius: 6,
+							padding: '2px 6px',
+							outline: 'none',
+						}}
+					/>
+				) : (
+					<span
+						data-testid={`${testId}-title`}
+						onClick={onRename ? () => setDraft(title) : undefined}
+						style={{
+							...TITLE_STYLE,
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+							cursor: onRename ? 'text' : 'default',
+						}}
+					>
+						{title}
+					</span>
+				)}
+			</div>
+
+			<Button variant="ghost" onClick={onClose} title="Close">
+				×
+			</Button>
+		</FormHeader>
+	);
+};

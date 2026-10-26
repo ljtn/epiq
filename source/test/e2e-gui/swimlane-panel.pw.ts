@@ -10,33 +10,78 @@ const addLane = async (page: Page, name: string) => {
 	await expect(page.getByText(name)).toBeVisible();
 };
 
-const laneMenu = (page: Page, name: string) =>
-	page.locator('section').filter({hasText: name}).getByTestId('swimlane-menu');
+const lane = (page: Page, name: string) =>
+	page.locator('section').filter({hasText: name});
+
+// The lane's Overview, unless it is already the panel on screen: its menu
+// button, pressed again, would close it.
+const openOverview = async (page: Page, name: string) => {
+	const title = page.getByTestId('swimlane-stats-title');
+	if ((await title.count()) > 0 && (await title.textContent()) === name) return;
+	await lane(page, name).getByTestId('swimlane-menu').click();
+	await expect(title).toHaveText(name);
+};
+
+const rename = async (page: Page, from: string, to: string) => {
+	await openOverview(page, from);
+	await page.getByTestId('swimlane-stats-title').click();
+	const field = page.getByTestId('swimlane-stats-title-input');
+	// Prefilled with the current title rather than blank.
+	await expect(field).toHaveValue(from);
+	await field.fill(to);
+	await field.press('Enter');
+};
+
+const remove = async (page: Page, name: string) => {
+	await openOverview(page, name);
+	await page.getByTestId('swimlane-delete').click();
+	await page
+		.getByTestId('confirm-modal')
+		.getByRole('button', {name: 'delete'})
+		.click();
+	await expect(page.getByText(name)).toHaveCount(0);
+};
 
 test.beforeEach(async ({page, appUrl}) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 });
 
-test('renames a swimlane from the kebab menu', async ({page, pageErrors}) => {
+test('the menu opens a lane on its Overview, the chart on its Stats, and either again closes it', async ({
+	page,
+	pageErrors,
+}) => {
+	const name = `Tabs ${Date.now()}`;
+	await addLane(page, name);
+
+	await lane(page, name).getByTestId('swimlane-stats-open').click();
+	await expect(page.getByText('Time in this lane')).toBeVisible();
+	await expect(page.getByTestId('swimlane-rule-done')).toHaveCount(0);
+
+	await lane(page, name).getByTestId('swimlane-menu').click();
+	await expect(page.getByTestId('swimlane-rule-done')).toBeVisible();
+
+	await lane(page, name).getByTestId('swimlane-menu').click();
+	await expect(page.getByTestId('swimlane-stats')).toHaveCount(0);
+
+	await remove(page, name);
+	expect(pageErrors).toEqual([]);
+});
+
+test('renames a swimlane from its title in the panel', async ({
+	page,
+	pageErrors,
+}) => {
 	const before = `Rename me ${Date.now()}`;
 	const after = `${before} renamed`;
 
 	await addLane(page, before);
+	await rename(page, before, after);
 
-	await laneMenu(page, before).click();
-	await page.getByTestId('swimlane-menu-rename').click();
-
-	// Prefilled with the current title rather than blank.
-	const field = page.getByPlaceholder('swimlane name');
-	await expect(field).toHaveValue(before);
-
-	await field.fill(after);
-	await field.press('Enter');
-
-	await expect(page.getByText(after)).toBeVisible();
+	await expect(lane(page, after)).toHaveCount(1);
 	await expect(page.getByText(before, {exact: true})).toHaveCount(0);
 
+	await remove(page, after);
 	expect(pageErrors).toEqual([]);
 });
 
@@ -48,8 +93,8 @@ test('deletes an empty swimlane after confirming', async ({
 
 	await addLane(page, name);
 
-	await laneMenu(page, name).click();
-	await page.getByTestId('swimlane-menu-delete').click();
+	await openOverview(page, name);
+	await page.getByTestId('swimlane-delete').click();
 
 	const confirm = page.getByTestId('confirm-modal');
 	await expect(confirm).toContainText(name);
@@ -69,21 +114,20 @@ test('warns that the tickets go too, and cancelling keeps everything', async ({
 
 	await addLane(page, name);
 
-	const lane = page.locator('section').filter({hasText: name});
-	await lane.getByTestId('add-issue').click();
+	await lane(page, name).getByTestId('add-issue').click();
 	await page.getByPlaceholder('ticket name').fill('Doomed ticket');
 	await page.getByPlaceholder('ticket name').press('Enter');
 	await expect(page.getByText('Doomed ticket').first()).toBeVisible();
 
-	await laneMenu(page, name).click();
-	await page.getByTestId('swimlane-menu-delete').click();
+	await openOverview(page, name);
+	await page.getByTestId('swimlane-delete').click();
 
 	const confirm = page.getByTestId('confirm-modal');
 	await expect(confirm).toContainText('1 ticket');
 
 	await confirm.getByRole('button', {name: 'cancel'}).click();
 
-	await expect(page.getByText(name)).toBeVisible();
+	await expect(lane(page, name)).toHaveCount(1);
 	await expect(page.getByText('Doomed ticket').first()).toBeVisible();
 });
 
@@ -102,23 +146,23 @@ test('the board updates before the server answers', async ({page}) => {
 		WebSocket.prototype.send = function () {};
 	`);
 
-	await laneMenu(page, name).click();
-	await page.getByTestId('swimlane-menu-rename').click();
-
 	const renamed = `${name} renamed`;
-	const field = page.getByPlaceholder('swimlane name');
-	await field.fill(renamed);
-	await field.press('Enter');
+	await rename(page, name, renamed);
+	await expect(lane(page, renamed)).toHaveCount(1, {timeout: 2000});
 
-	await expect(page.getByText(renamed)).toBeVisible({timeout: 2000});
+	await page
+		.getByTestId('swimlane-rule-done')
+		.locator('input')
+		.check({timeout: 2000});
+	await expect(
+		lane(page, renamed).getByTestId('swimlane-marks-done'),
+	).toBeVisible();
 
-	await laneMenu(page, renamed).click();
-	await page.getByTestId('swimlane-menu-delete').click();
+	await page.getByTestId('swimlane-delete').click();
 	await page
 		.getByTestId('confirm-modal')
 		.getByRole('button', {name: 'delete'})
 		.click();
-
 	await expect(page.getByText(renamed)).toHaveCount(0);
 
 	// Undo the patch so the lane is really removed and the next test starts clean.
@@ -128,18 +172,10 @@ test('the board updates before the server answers', async ({page}) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await expect(page.getByText(name)).toBeVisible();
 
-	await laneMenu(page, name).click();
-	await page.getByTestId('swimlane-menu-delete').click();
-	await page
-		.getByTestId('confirm-modal')
-		.getByRole('button', {name: 'delete'})
-		.click();
-	await expect(page.getByText(name)).toHaveCount(0);
+	await remove(page, name);
 });
 
-test('no kebab on a readonly board', async ({page}) => {
-	await expect(page.getByTestId('swimlane-menu').first()).toBeVisible();
-
+test('a readonly board opens its lanes read-only', async ({page}) => {
 	await page.getByTestId('board-switcher').click();
 	await page
 		.getByTestId('board-switcher-option')
@@ -147,5 +183,13 @@ test('no kebab on a readonly board', async ({page}) => {
 		.click();
 	await expect(page.getByTestId('board-switcher')).toContainText('Closed');
 
-	await expect(page.getByTestId('swimlane-menu')).toHaveCount(0);
+	await page.getByTestId('swimlane-menu').first().click();
+	await expect(page.getByTestId('swimlane-stats')).toBeVisible();
+	await expect(page.getByTestId('swimlane-delete')).toHaveCount(0);
+	await expect(
+		page.getByTestId('swimlane-rule-done').locator('input'),
+	).toBeDisabled();
+
+	await page.getByTestId('swimlane-stats-title').click();
+	await expect(page.getByTestId('swimlane-stats-title-input')).toHaveCount(0);
 });

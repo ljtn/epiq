@@ -112,14 +112,18 @@ test('a scrubbed lane opens its panel without figures', async ({
 		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeEnabled();
 
-	await (await laneWithTickets(page))
-		.getByTestId('swimlane-stats-open')
-		.click();
+	await (await laneWithTickets(page)).getByTestId('swimlane-menu').click();
 
 	const panel = page.getByTestId('swimlane-stats');
 	await expect(panel).toBeVisible();
 	await expect(page.getByText('Description', {exact: true})).toBeVisible();
 	await expect(page.getByTestId('swimlane-description-edit')).toHaveCount(0);
+	await expect(page.getByTestId('swimlane-delete')).toHaveCount(0);
+
+	await page
+		.locator('aside')
+		.getByRole('button', {name: 'Stats', exact: true})
+		.click();
 	await expect(page.getByText('Median stay', {exact: true})).toHaveCount(0);
 	await expect(page.getByText('Usually arrives from')).toHaveCount(0);
 
@@ -146,7 +150,7 @@ test('an empty lane still opens its panel', async ({
 	await expect(header).toContainText('(0)');
 
 	const stats = header.getByTestId('swimlane-stats-open');
-	await expect(stats).toHaveAttribute('title', 'Swimlane details');
+	await expect(stats).toHaveAttribute('title', 'Swimlane stats');
 
 	await stats.click();
 	await expect(page.getByTestId('swimlane-stats')).toBeVisible();

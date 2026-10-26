@@ -1,6 +1,6 @@
-// The column editors: create, rename and delete, each a modal whose state is
-// held here and whose confirm applies to the board on screen before the
-// server answers; and a lane's rules, switched from its menu.
+// The column editors: create and delete, each a modal whose state is held here
+// and whose confirm applies to the board on screen before the server answers;
+// and a lane's title and rules, set from its panel.
 
 import {Dispatch, SetStateAction, useState} from 'react';
 import {updateSwimlaneInGuiState} from './gui-state-helper';
@@ -22,10 +22,6 @@ export const useSwimlaneEditing = ({
 	const [createSwimlaneTitle, setCreateSwimlaneTitle] = useState<string | null>(
 		null,
 	);
-	const [renameSwimlane, setRenameSwimlane] = useState<{
-		swimlaneId: string;
-		title: string;
-	} | null>(null);
 	const [deleteSwimlaneId, setDeleteSwimlaneId] = useState<string | null>(null);
 
 	const createSwimlane = () => {
@@ -37,8 +33,8 @@ export const useSwimlaneEditing = ({
 		setCreateSwimlaneTitle(null);
 
 		// Placeholder id: the real one arrives with the state that follows. Marked
-		// readonly until then, which hides the kebab and disables `+` — both would
-		// otherwise send this id, and the server has never heard of it.
+		// readonly until then, which disables `+` and every write in its panel —
+		// each would otherwise send this id, and the server has never heard of it.
 		setState(prev =>
 			prev
 				? {
@@ -66,20 +62,8 @@ export const useSwimlaneEditing = ({
 		send('swimlane:create', {title, boardId});
 	};
 
-	const openRenameSwimlane = (swimlaneId: string) => {
-		const swimlane = visibleSwimlanes.find(x => x.id === swimlaneId);
-		if (!swimlane) return;
-
-		setRenameSwimlane({swimlaneId, title: swimlane.title});
-	};
-
-	const submitRenameSwimlane = () => {
-		if (!renameSwimlane) return;
-
-		const {swimlaneId} = renameSwimlane;
-		const title = renameSwimlane.title.trim();
-
-		setRenameSwimlane(null);
+	const renameSwimlane = (swimlaneId: string, given: string) => {
+		const title = given.trim();
 
 		// An empty title is refused by the server, and blanking a column is never
 		// what the reader meant by it, so treat it as a cancel.
@@ -117,6 +101,17 @@ export const useSwimlaneEditing = ({
 	};
 
 	const setSwimlaneRule = (swimlaneId: string, rule: 'done', on: boolean) => {
+		setState(prev =>
+			prev
+				? updateSwimlaneInGuiState(prev, swimlaneId, swimlane => {
+						const rules = (swimlane.rules ?? []).filter(kept => kept !== rule);
+						const next = on ? [...rules, rule] : rules;
+						const {rules: _rules, ...rest} = swimlane;
+						return next.length > 0 ? {...rest, rules: next} : rest;
+				  })
+				: prev,
+		);
+
 		send('swimlane:rule:set', {swimlaneId, rule, on});
 	};
 
@@ -124,12 +119,9 @@ export const useSwimlaneEditing = ({
 		createSwimlaneTitle,
 		setCreateSwimlaneTitle,
 		renameSwimlane,
-		setRenameSwimlane,
 		setDeleteSwimlaneId,
 		deletingSwimlane,
 		createSwimlane,
-		openRenameSwimlane,
-		submitRenameSwimlane,
 		confirmDeleteSwimlane,
 		setSwimlaneRule,
 	};

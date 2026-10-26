@@ -27,7 +27,7 @@ test('creates a swimlane from the ghost column at the end of the board', async (
 		.filter({hasText: name})
 		.getByTestId('swimlane-menu')
 		.click();
-	await page.getByTestId('swimlane-menu-delete').click();
+	await page.getByTestId('swimlane-delete').click();
 	await page
 		.getByTestId('confirm-modal')
 		.getByRole('button', {name: 'delete'})
