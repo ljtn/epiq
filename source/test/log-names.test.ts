@@ -139,8 +139,8 @@ const log = (): AppEvent[] => [
 	// A goal names nobody: a record in the project, and a field on a ticket.
 	at('create.goal', {id: GOAL, name: 'Ship it'}),
 	at('rename.goal', {id: GOAL, name: 'Ship it soon'}),
-	at('set.issue.goal', {id: ISSUE, goal: GOAL}),
-	at('set.issue.goal', {id: ISSUE}),
+	at('add.issue.goal', {id: ISSUE, goal: GOAL}),
+	at('remove.issue.goal', {id: ISSUE, goal: GOAL}),
 	at('tombstone.goal', {id: GOAL}),
 
 	at('add.issue.comment', {

@@ -239,7 +239,7 @@ export const generateLog = async (
 			if (goalCount > 0 && Math.floor(i / shape.length) % 2 === 0) {
 				const goal = goalIds[Math.floor((i / input.events) * goalCount)]!;
 				write(
-					'set.issue.goal',
+					'add.issue.goal',
 					{id: ticket.id, goal},
 					ulid(start + i * step + Math.floor(step / 2)),
 					edge,

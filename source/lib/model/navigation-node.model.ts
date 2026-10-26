@@ -9,8 +9,8 @@ export type TicketProps = {
 	description?: string;
 	assignees?: string[];
 	tags?: string[];
-	// The goal this ticket belongs to.
-	goal?: string;
+	// The goals this ticket belongs to, as joined.
+	goals?: string[];
 };
 
 export type BoardProps = {

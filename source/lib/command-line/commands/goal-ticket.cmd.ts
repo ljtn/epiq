@@ -16,6 +16,7 @@ import {
 	getTicketGoal,
 	goalName,
 	goalNameRefusal,
+	oneGoalChanges,
 } from '../../utils/goal.utils.js';
 
 const selectedTicket = (): Result<Ticket> => {
@@ -40,16 +41,16 @@ const write = async (events: AppEvent[]) => {
 
 type Actor = Parameters<typeof actorOf>[0];
 
-const setGoalEvent = (
+const oneGoalEvents = (
 	actor: Actor,
 	ticket: Ticket,
 	goal?: string,
-): AppEvent => ({
-	id: ulid(),
-	action: 'set.issue.goal',
-	payload: goal ? {id: ticket.id, goal} : {id: ticket.id},
-	...actorOf(actor),
-});
+): AppEvent[] =>
+	oneGoalChanges(ticket, goal).map(change => ({
+		id: ulid(),
+		...change,
+		...actorOf(actor),
+	}));
 
 /**
  * `:goal <name>` puts the selected issue in the goal of that name, making the
@@ -70,8 +71,9 @@ export const goalTicketCommand = async () => {
 
 	const goal = findGoal(name);
 	if (goal) {
-		if (ticket.props.goal === goal.id) return failed('Already in that goal');
-		return write([setGoalEvent(actor, ticket, goal.id)]);
+		const events = oneGoalEvents(actor, ticket, goal.id);
+		if (events.length === 0) return failed('Already in that goal');
+		return write(events);
 	}
 
 	const refusal = goalNameRefusal(name);
@@ -85,7 +87,7 @@ export const goalTicketCommand = async () => {
 			payload: {id: goalId, name},
 			...actorOf(actor),
 		},
-		setGoalEvent(actor, ticket, goalId),
+		...oneGoalEvents(actor, ticket, goalId),
 	]);
 };
 
@@ -100,5 +102,5 @@ export const ungoalTicketCommand = async () => {
 	const userRes = resolveActorId();
 	if (isFail(userRes)) return failed('Unable to resolve user ID');
 
-	return write([setGoalEvent(userRes.value, ticket)]);
+	return write(oneGoalEvents(userRes.value, ticket));
 };

@@ -196,10 +196,14 @@ export type AppEventMap = {
 		};
 	};
 
-	/** Puts a ticket in a goal, by its id. One at most; no `goal` takes it out. */
-	'set.issue.goal': {
-		payload: PayloadBase & {goal?: string};
-		result: {goal?: string};
+	'add.issue.goal': {
+		payload: PayloadBase & {goal: string};
+		result: {goal: string};
+	};
+
+	'remove.issue.goal': {
+		payload: PayloadBase & {goal: string};
+		result: {goal: string};
 	};
 
 	'move.node': {
@@ -409,7 +413,8 @@ export const EVENT_ACTIONS = [
 	'remove.issue.assignee',
 	'add.issue.tag',
 	'remove.issue.tag',
-	'set.issue.goal',
+	'add.issue.goal',
+	'remove.issue.goal',
 	'move.node',
 	'edit.description',
 	'add.issue.comment',

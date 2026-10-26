@@ -449,19 +449,29 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 		});
 	},
 
-	'set.issue.goal': event => {
+	'add.issue.goal': event => {
 		const {id, goal} = event.payload;
-		// Absent clears it; a goal this build cannot read leaves it as it is.
-		if (goal !== undefined && (typeof goal !== 'string' || !goal)) {
-			return materializeSkip('Unreadable goal', event);
-		}
-		const result = nodeRepo.setGoal(id, goal);
+		const result = nodeRepo.addGoal(id, goal);
 
 		if (isFail(result)) {
-			return materializeSkip(result.message ?? 'Unable to set goal', event);
+			return materializeSkip(result.message ?? 'Unable to add goal', event);
 		}
 
-		return succeeded('Goal set', {
+		return succeeded('Added to goal', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'remove.issue.goal': event => {
+		const {id, goal} = event.payload;
+		const result = nodeRepo.removeGoal(id, goal);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to remove goal', event);
+		}
+
+		return succeeded('Removed from goal', {
 			action: event.action,
 			result: result.value,
 		});

@@ -327,11 +327,12 @@ describe('replaying goal events', () => {
 		id: string,
 		goal: unknown,
 		at: string,
+		action = 'add.issue.goal',
 	) =>
 		({
 			id: at,
 			...actor,
-			action: 'set.issue.goal',
+			action,
 			payload: {id, goal},
 		} as unknown as AppEvent);
 
@@ -363,7 +364,7 @@ describe('replaying goal events', () => {
 		]);
 
 		expect(isFail(result as Result)).toBe(true);
-		expect(nodeRepo.getNode(part)?.props).not.toHaveProperty('goal');
+		expect(nodeRepo.getNode(part)?.props).not.toHaveProperty('goals');
 	});
 
 	it('leaves the goal as it is for one it cannot read', async () => {
@@ -379,6 +380,44 @@ describe('replaying goal events', () => {
 
 		expect(isFail(result as Result)).toBe(true);
 		expect(issueOf(part).goal!.id).toBe(id);
+	});
+
+	it('reads one goal of two machines put a ticket in, the first, until one is set', async () => {
+		const {repoRoot, boardId, file, actor} = await seed();
+		const part = await file('Part');
+		const first = unwrap(await createGoal({repoRoot, name: 'First'})).id;
+		const second = unwrap(await createGoal({repoRoot, name: 'Second'})).id;
+
+		// Each machine added its own goal, not having seen the other's.
+		materializeAll([
+			setGoal(actor, part, first, '01M5Z00000000000000000000G'),
+			setGoal(actor, part, second, '01M5Z00000000000000000000H'),
+		]);
+
+		expect((nodeRepo.getNode(part) as Ticket).props.goals).toEqual([
+			first,
+			second,
+		]);
+		expect(issueOf(part).goal!.id).toBe(first);
+		expect(goalsOf(boardId).map(goal => goal.name)).toEqual(['First']);
+
+		// Setting one goal takes the ticket out of the other.
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: second}));
+		expect((nodeRepo.getNode(part) as Ticket).props.goals).toEqual([second]);
+		expect(goalsOf(boardId).map(goal => goal.name)).toEqual(['Second']);
+	});
+
+	it('takes a ticket out of a goal removed since', async () => {
+		const {repoRoot, file} = await seed();
+		const part = await file('Part');
+		const {id} = unwrap(
+			await createGoal({repoRoot, name: 'Gone', issueId: part}),
+		);
+		unwrap(await removeGoal({repoRoot, goalId: id}));
+		const kept = unwrap(await createGoal({repoRoot, name: 'Kept'})).id;
+
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: kept}));
+		expect((nodeRepo.getNode(part) as Ticket).props.goals).toEqual([kept]);
 	});
 
 	it('keeps both goals two machines named alike, and finds the older', async () => {

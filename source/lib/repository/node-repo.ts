@@ -752,27 +752,49 @@ export const nodeRepo = {
 		return succeeded('Tag removed', {tag: tagId});
 	},
 
-	// A link to a goal since tombstoned stands, and draws nothing.
-	setGoal(
-		targetId: string,
-		goalId: string | undefined,
-	): Result<{goal?: string}> {
+	addGoal(targetId: string, goalId: string): Result<{goal: string}> {
 		const target = this.getNode(targetId);
-		if (!target) return failed('Unable to set goal, missing target');
+		if (!target) return failed('Unable to add goal, missing target');
 
 		const readonlyFail = failIfReadonly(target, 'edit');
 		if (readonlyFail) return readonlyFail;
 
 		if (!isTicketNode(target)) return failed('Target is not an issue');
-		if (goalId && !this.getGoal(goalId)) return failed('Goal not found');
+		if (!this.getGoal(goalId)) return failed('Goal not found');
 
-		const {goal: _previous, ...props} = target.props;
+		const goals = target.props.goals ?? [];
+		if (goals.includes(goalId)) return failed('Already in that goal');
+
 		this.updateNode({
 			...target,
-			props: goalId ? {...props, goal: goalId} : props,
+			props: {...target.props, goals: [...goals, goalId]},
 		});
 
-		return succeeded('Goal set', goalId ? {goal: goalId} : {});
+		return succeeded('Added to goal', {goal: goalId});
+	},
+
+	// A goal since tombstoned may still be left.
+	removeGoal(targetId: string, goalId: string): Result<{goal: string}> {
+		const target = this.getNode(targetId);
+		if (!target) return failed('Unable to remove goal, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+
+		const goals = target.props.goals ?? [];
+		if (!goals.includes(goalId))
+			return succeeded('Not in that goal', {goal: goalId});
+
+		const {goals: _goals, ...props} = target.props;
+		const left = goals.filter(id => id !== goalId);
+		this.updateNode({
+			...target,
+			props: left.length > 0 ? {...props, goals: left} : props,
+		});
+
+		return succeeded('Removed from goal', {goal: goalId});
 	},
 
 	createGoal(goal: Goal): Result<Goal> {

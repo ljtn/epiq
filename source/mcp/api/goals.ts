@@ -1,5 +1,5 @@
-// A goal is a name in the project that tickets belong to, one goal per ticket;
-// how far along it is comes from its tickets.
+// A goal is a name in the project that tickets belong to, one goal each as
+// set here; how far along it is comes from its tickets.
 
 import {ulid} from 'ulid';
 import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
@@ -13,6 +13,7 @@ import {
 	getGoal,
 	goalName,
 	getTicketGoal,
+	oneGoalChanges,
 	goalColor,
 	goalBoards,
 	goalMembersOn,
@@ -110,18 +111,13 @@ export const setIssueGoal = async (
 		goalId = goal.id;
 	}
 
-	if (issue.props.goal === goalId) return succeeded('No changes made', saved);
+	const changes = oneGoalChanges(issue, goalId);
+	if (changes.length === 0) return succeeded('No changes made', saved);
 
+	const actor = actorOf(ready.value.actor);
 	return persist(
 		ready.value.boot.stateBranchRoot,
-		[
-			{
-				id: ulid(),
-				...actorOf(ready.value.actor),
-				action: 'set.issue.goal',
-				payload: goalId ? {id: issue.id, goal: goalId} : {id: issue.id},
-			},
-		],
+		changes.map(change => ({id: ulid(), ...actor, ...change})),
 		saved,
 	);
 };
@@ -153,12 +149,9 @@ export const createGoal = async (
 		if (isFail(issueResult)) return issueResult;
 		const issue = issueResult.value;
 
-		events.push({
-			id: ulid(),
-			...actor,
-			action: 'set.issue.goal',
-			payload: {id: issue.id, goal: id},
-		});
+		for (const change of oneGoalChanges(issue, id)) {
+			events.push({id: ulid(), ...actor, ...change});
+		}
 	}
 
 	return persist(ready.value.boot.stateBranchRoot, events, {id, name});

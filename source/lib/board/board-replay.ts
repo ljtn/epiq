@@ -90,7 +90,8 @@ export const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'reopen.issue':
 		case 'add.issue.tag':
 		case 'remove.issue.tag':
-		case 'set.issue.goal':
+		case 'add.issue.goal':
+		case 'remove.issue.goal':
 		case 'add.issue.assignee':
 		case 'remove.issue.assignee':
 			return [event.payload.id];

@@ -32,7 +32,8 @@ export const formatLogAction = (action: string): string => {
 		'reopen.issue': 'Reopened',
 		'add.issue.tag': 'Tagged with',
 		'remove.issue.tag': 'Removed tag',
-		'set.issue.goal': 'Set goal',
+		'add.issue.goal': 'Added to goal',
+		'remove.issue.goal': 'Removed from goal',
 		'lock.node': 'Locked node',
 		'move.node': 'Moved issue',
 		'add.issue.comment': 'Commented',
@@ -117,9 +118,9 @@ const formatAttachmentKb = (bytes: number): string =>
 const getDeletedAttachmentName = (attachmentId: string): string =>
 	nodeRepo.getAttachment(attachmentId)?.name ?? '';
 
-// The goal's name as it reads now, removed or not, or nothing for a cleared one.
-const loggedGoalName = (goalId: string | undefined): string =>
-	(goalId && getState().goals[goalId]?.name) || '';
+// The goal's name as it reads now, removed or not.
+const loggedGoalName = (goalId: string): string =>
+	getState().goals[goalId]?.name ?? '';
 
 const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
@@ -142,8 +143,9 @@ const formatEventDetails = (event: AppEvent): string => {
 			return tag ? `"${tag.name}"` : '';
 		}
 
-		case 'set.issue.goal':
-			return loggedGoalName(event.payload.goal) || 'none';
+		case 'add.issue.goal':
+		case 'remove.issue.goal':
+			return loggedGoalName(event.payload.goal);
 
 		case 'tombstone.goal':
 			return `"${loggedGoalName(event.payload.id)}"`;
@@ -247,7 +249,8 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 			return contributor ? contributor.name : '';
 		}
 
-		case 'set.issue.goal':
+		case 'add.issue.goal':
+		case 'remove.issue.goal':
 			return loggedGoalName(event.payload.goal);
 
 		case 'tombstone.goal':

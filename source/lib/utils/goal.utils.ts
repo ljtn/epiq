@@ -1,7 +1,8 @@
-// A goal is a name in the project that tickets belong to, one goal per ticket,
-// on whichever board they stand; how far along it is comes from those tickets,
-// never from the goal itself. Tags stay the way to say several things. This
-// module answers it for every door: the API, the GUI behind it, and the TUI.
+// A goal is a name in the project that tickets belong to, on whichever board
+// they stand; how far along it is comes from those tickets, never from the
+// goal itself. The log can hold several goals for a ticket; for now every door
+// reads and sets one, the goal it shows. This module answers it for every door:
+// the API, the GUI behind it, and the TUI.
 
 import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {Goal} from '../model/app-state.model.js';
@@ -48,9 +49,47 @@ export const findGoal = (idOrName: string): Goal | undefined => {
 	return projectGoals().find(goal => goal.name.toLowerCase() === name);
 };
 
-/** The goal a ticket belongs to, while it has not been removed. */
-export const getTicketGoal = (ticket: Ticket): Goal | undefined =>
-	ticket.props?.goal ? getGoal(ticket.props.goal) : undefined;
+/**
+ * The goal a ticket belongs to: the first it joined that has not been
+ * removed. Two machines setting one at once can leave it in more.
+ */
+export const getTicketGoal = (ticket: Ticket): Goal | undefined => {
+	for (const id of ticket.props?.goals ?? []) {
+		const goal = getGoal(id);
+		if (goal) return goal;
+	}
+	return undefined;
+};
+
+/**
+ * The events that leave a ticket in just the goal named, or in none: every
+ * door sets one goal, whatever the log holds.
+ */
+export const oneGoalChanges = (
+	ticket: Ticket,
+	goalId: string | undefined,
+): Array<{
+	action: 'add.issue.goal' | 'remove.issue.goal';
+	payload: {id: string; goal: string};
+}> => {
+	const goals = ticket.props?.goals ?? [];
+	return [
+		...goals
+			.filter(goal => goal !== goalId)
+			.map(goal => ({
+				action: 'remove.issue.goal' as const,
+				payload: {id: ticket.id, goal},
+			})),
+		...(goalId && !goals.includes(goalId)
+			? [
+					{
+						action: 'add.issue.goal' as const,
+						payload: {id: ticket.id, goal: goalId},
+					},
+			  ]
+			: []),
+	];
+};
 
 /** Muted, and from the id, so renaming a goal keeps its colour. */
 export const goalColor = (goal: Goal): string => getMutedStringColor(goal.id);
