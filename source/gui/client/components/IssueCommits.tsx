@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {GuiComment, GuiRefCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {pathsOpenByDefault} from '../../../lib/utils/diff-size.js';
@@ -13,12 +13,12 @@ import {CommitDiffState} from '../lib/use-issue-detail';
 // Case-insensitive like the server's own match (getCommitsForRef) — a subject
 // that doesn't actually carry the prefix (shouldn't happen, but the match
 // isn't a hard guarantee client-side) is returned unchanged rather than mangled.
-const stripRefPrefix = (subject: string, ref: string): string => {
-	const prefix = `${ref} `;
+const stripRefPrefix = (subject: string, refs: string[]): string => {
+	const prefix = refs
+		.map(ref => `${ref} `)
+		.find(prefix => subject.toUpperCase().startsWith(prefix.toUpperCase()));
 
-	return subject.toUpperCase().startsWith(prefix.toUpperCase())
-		? subject.slice(prefix.length)
-		: subject;
+	return prefix ? subject.slice(prefix.length) : subject;
 };
 
 // The tree this renders:
@@ -35,6 +35,7 @@ const stripRefPrefix = (subject: string, ref: string): string => {
 // as GitHub's "Commits" tab vs. its squashed "Files changed" tab.
 export const IssueCommits = ({
 	issueRef,
+	empty,
 	commits,
 	loading,
 	error,
@@ -46,7 +47,10 @@ export const IssueCommits = ({
 	comments,
 	focus,
 }: {
-	issueRef: string;
+	// A ticket's list; a goal's has none, as each commit names its tickets.
+	issueRef?: string;
+	// What it says with no commits, where it is not a ticket's.
+	empty?: React.ReactNode;
 	commits: GuiRefCommitEntry[];
 	loading: boolean;
 	error: string | null;
@@ -227,21 +231,28 @@ export const IssueCommits = ({
 	if (commits.length === 0) {
 		return (
 			<Empty>
-				No linked commits. Add Epiq-Ref: <CopyRef refValue={issueRef} /> to a
-				commit body.
+				{empty ?? (
+					<>
+						No linked commits. Add Epiq-Ref:{' '}
+						<CopyRef refValue={issueRef ?? ''} /> to a commit body.
+					</>
+				)}
 			</Empty>
 		);
 	}
 
 	// Oldest first, reading top-to-bottom as the story unfolded — the log
 	// itself comes back newest-first. The ref prefix is stripped from the
-	// displayed subject too: every commit in this list already matches
-	// issueRef by definition, so repeating it on every row is pure noise.
+	// displayed subject too: a ticket's commits all carry its ref, and a
+	// goal's name theirs at the row's head, so repeating it is pure noise.
 	const ordered = [...commits]
 		.sort((a, b) => a.time - b.time)
 		.map(commit => ({
 			...commit,
-			subject: stripRefPrefix(commit.subject, issueRef),
+			subject: stripRefPrefix(
+				commit.subject,
+				commit.tickets ?? (issueRef ? [issueRef] : []),
+			),
 		}));
 
 	return (
@@ -324,6 +335,20 @@ export const IssueCommits = ({
 							onFileTicket={onFileTicket}
 							comments={comments}
 							focus={focus?.sha === commit.sha ? focus : null}
+							lead={
+								commit.tickets && (
+									<span
+										data-testid="commit-tickets"
+										style={{
+											flexShrink: 0,
+											fontSize: 10,
+											color: GUI_THEME.dim,
+										}}
+									>
+										{commit.tickets.join(' ')}
+									</span>
+								)
+							}
 						/>
 					</div>
 				</div>

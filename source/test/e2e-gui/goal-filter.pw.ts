@@ -1,6 +1,7 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {addTicket} from './ticket.js';
+import {addTicket, addTicketForRef} from './ticket.js';
+import {commitLinkedFile, linkedFileName} from './linked-commit.js';
 
 const card = (page: Page, title: string) =>
 	page.locator('[draggable="true"]').filter({hasText: title});
@@ -106,6 +107,56 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	await card(page, member).getByTestId('ticket-goal').click();
 	await expect(card(page, other)).toBeVisible();
 	await expect(page).not.toHaveURL(/goal=/);
+
+	expect(pageErrors).toEqual([]);
+});
+
+test("a goal's Code tab lists every commit on its tickets, each naming its ticket", async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	const stamp = Date.now();
+	const goal = `Shipped ${stamp}`;
+
+	const first = await addTicketForRef(page, `First ${stamp}`);
+	await startGoal(page, goal);
+	const second = await addTicketForRef(page, `Second ${stamp}`);
+	await joinGoal(page, goal);
+	const outside = await addTicketForRef(page, `Outside ${stamp}`);
+
+	commitLinkedFile(repoRoot, first, `first work ${stamp}`);
+	commitLinkedFile(repoRoot, second, `second work ${stamp}`);
+	commitLinkedFile(repoRoot, outside, `outside work ${stamp}`);
+
+	await page.goto(boardUrl);
+	await pill(page, goal).click();
+	const aside = page.locator('aside');
+	await aside.getByRole('button', {name: /^Code/}).click();
+
+	const cards = aside.getByTestId('commit-card');
+	await expect(cards).toHaveCount(2);
+	await expect(aside).not.toContainText(`outside work ${stamp}`);
+
+	// The ref leads the row once, not again in the subject.
+	const firstCard = cards.filter({hasText: `first work ${stamp}`});
+	await expect(firstCard.getByTestId('commit-tickets')).toHaveText(first);
+	await expect(firstCard).not.toContainText(`${first} first work`);
+	await expect(
+		cards
+			.filter({hasText: `second work ${stamp}`})
+			.getByTestId('commit-tickets'),
+	).toHaveText(second);
+
+	// It opens into the diff as a ticket's Code tab does.
+	await firstCard.getByText(`first work ${stamp}`).click();
+	await expect(firstCard.getByTestId('file-row')).toContainText(
+		linkedFileName(first),
+	);
 
 	expect(pageErrors).toEqual([]);
 });

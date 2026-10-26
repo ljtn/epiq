@@ -80,6 +80,7 @@ import {
 	GuiContributor,
 	GuiEventIdentity,
 	GuiEventTimeline,
+	GuiRefCommitEntry,
 	GuiState,
 	GuiSwimlane,
 	GuiUser,
@@ -127,7 +128,8 @@ import {GoalStrip} from './components/GoalStrip';
 import {ManageGoalsModal} from './components/ManageGoalsModal';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
-import {goalStatsSignature, useGoalStats} from './lib/use-goal-stats';
+import {goalCodeSignature, useGoalAnswer} from './lib/use-goal-code';
+import {IssueStats as IssueStatsValue} from '../../lib/stats/issue-stats.model.js';
 import {useBoardOverview} from './lib/use-board-overview';
 import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
@@ -800,22 +802,34 @@ export const App = () => {
 			? state?.goals.find(goal => goal.id === isolatedGoalId) ?? null
 			: null;
 	const [goalTab, setGoalTab] = useState<GoalDetailsTab>('overview');
-	// Walks every ticket, so only while the tab is open.
-	const statsGoalId =
-		detailedGoal && goalTab === 'stats' ? detailedGoal.id : null;
+	// Walks every ticket, so only while a tab that needs it is open.
+	const codeGoalId =
+		detailedGoal && goalTab !== 'overview' ? detailedGoal.id : null;
 	const goalSignature = useMemo(
 		() =>
-			statsGoalId && state
-				? goalStatsSignature(statsGoalId, state.boards, refDiffStats)
+			codeGoalId && state
+				? goalCodeSignature(codeGoalId, state.boards, refDiffStats)
 				: '',
-		[statsGoalId, state?.boards, refDiffStats],
+		[codeGoalId, state?.boards, refDiffStats],
 	);
-	const {stats: goalStats, onMessage: onGoalStatsMessage} = useGoalStats({
-		goalId: statsGoalId,
+	const goalAsk = {
 		signature: goalSignature,
 		socketEpoch,
 		asOfTime: scrubCut(state?.timeTravel),
 		sendRaw,
+	};
+	const {answer: goalStats, onMessage: onGoalStatsMessage} =
+		useGoalAnswer<IssueStatsValue>({
+			...goalAsk,
+			ask: 'stats',
+			goalId: goalTab === 'stats' ? codeGoalId : null,
+		});
+	const {answer: goalCommits, onMessage: onGoalCommitsMessage} = useGoalAnswer<
+		GuiRefCommitEntry[]
+	>({
+		...goalAsk,
+		ask: 'commits',
+		goalId: goalTab === 'code' ? codeGoalId : null,
 	});
 
 	// The same for the assignee axis, from a dense card's name: the board
@@ -982,6 +996,7 @@ export const App = () => {
 		onIssueDetailMessage(message);
 		onSwimlaneStatsMessage(message);
 		onGoalStatsMessage(message);
+		onGoalCommitsMessage(message);
 		onBoardOverviewMessage(message);
 		onRefDiffStatsMessage(message);
 		onTicketPreviewMessage(message);
@@ -2511,6 +2526,9 @@ export const App = () => {
 										boardId={selectedBoard.id}
 										tab={goalTab}
 										onChangeTab={setGoalTab}
+										commits={goalCommits}
+										commitDiffsBySha={issueCommitDiffs}
+										onLoadCommitDiff={loadIssueCommitDiff}
 										stats={goalStats}
 										onOpenIssue={(id, boardRef) => {
 											setPickedIssueIds([id]);

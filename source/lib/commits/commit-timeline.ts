@@ -471,3 +471,46 @@ export const getCommitsForRef = async (
 		mergeNewestFirst(withoutShared(bySource.value)),
 	);
 };
+
+/** A commit of several tickets', with the refs of those it carries. */
+export type RefsCommitEntry = RefCommitEntry & {tickets: string[]};
+
+/**
+ * Every commit of several tickets, each once, newest first. One order for one
+ * set, whatever order the refs come in: whole seconds tie often.
+ */
+export const getCommitsForRefs = async (
+	input: RepoInput & {refs: string[]; end?: number},
+): Promise<Result<RefsCommitEntry[]>> => {
+	const commits = new Map<string, RefsCommitEntry>();
+
+	for (const ref of input.refs) {
+		const owned = await getCommitsForRef({...input, ref});
+		if (isFail(owned)) return failed(owned.message);
+
+		for (const commit of owned.value) {
+			const key = `${commit.repo ?? ''}:${commit.sha}`;
+			const seen = commits.get(key);
+			commits.set(
+				key,
+				seen
+					? {
+							...seen,
+							precedingSha: seen.precedingSha ?? commit.precedingSha,
+							tickets: [...seen.tickets, ref],
+					  }
+					: {...commit, tickets: [ref]},
+			);
+		}
+	}
+
+	return succeeded(
+		'Matched commits by refs',
+		[...commits.values()].sort(
+			(a, b) =>
+				b.time - a.time ||
+				(a.repo ?? '').localeCompare(b.repo ?? '') ||
+				a.sha.localeCompare(b.sha),
+		),
+	);
+};

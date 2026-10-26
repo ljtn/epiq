@@ -1,10 +1,9 @@
-// A goal's Stats tab: a ticket's code stats over every ticket in the goal.
-// Asked for when the tab opens, and again when the goal's tickets, their
-// commits or the cut change.
+// A goal's Code and Stats tabs: a ticket's commits and code stats, over every
+// ticket in the goal. Each asked for when its tab opens, and again when the
+// goal's tickets, their commits or the cut change.
 
 import {useCallback, useEffect, useRef, useState} from 'react';
 // Types only, from modules that declare nothing but types.
-import {IssueStats} from '../../../lib/stats/issue-stats.model.js';
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {GuiBoard} from './gui-state.model';
 import {getResultValue} from './gui-state-helper';
@@ -19,7 +18,7 @@ const hashOf = (text: string): string => {
 };
 
 /** Which tickets a goal holds, and what each one's commits add up to. */
-export const goalStatsSignature = (
+export const goalCodeSignature = (
 	goalId: string,
 	boards: GuiBoard[],
 	diffStats: RefDiffStats,
@@ -45,35 +44,40 @@ export const goalStatsSignature = (
 		.join(',');
 };
 
-export type GoalStatsState = {
+export type GoalAnswer<T> = {
 	goalId: string;
 	loading: boolean;
 	error: string | null;
-	stats: IssueStats | null;
+	value: T | null;
 };
 
-export const useGoalStats = ({
+// `goal:<kind>:get`, answered by `goal:<kind>:result`.
+type GoalAsk = 'stats' | 'commits';
+
+export const useGoalAnswer = <T>({
+	ask,
 	goalId,
 	signature,
 	asOfTime,
 	socketEpoch,
 	sendRaw,
 }: {
+	ask: GoalAsk;
 	// Null while the tab is closed.
 	goalId: string | null;
-	// From goalStatsSignature.
+	// From goalCodeSignature.
 	signature: string;
 	asOfTime: number | null;
 	// A reconnect asks again: an answer on the old socket never arrives.
 	socketEpoch: number;
 	sendRaw: (message: unknown) => void;
 }) => {
-	const [stats, setStats] = useState<GoalStatsState | null>(null);
+	const [answer, setAnswer] = useState<GoalAnswer<T> | null>(null);
 	const asked = useRef<string | null>(null);
 
 	useEffect(() => {
 		if (!goalId) {
-			setStats(null);
+			setAnswer(null);
 			asked.current = null;
 			return;
 		}
@@ -85,38 +89,43 @@ export const useGoalStats = ({
 		if (asked.current === key) return;
 		asked.current = key;
 
-		// The last figures stay up while new ones are on their way.
-		setStats(prev => ({
+		// The last answer stays up while a new one is on its way.
+		setAnswer(prev => ({
 			goalId,
 			loading: true,
 			error: null,
-			stats: prev?.goalId === goalId ? prev.stats : null,
+			value: prev?.goalId === goalId ? prev.value : null,
 		}));
 		sendRaw({
-			type: 'goal:stats:get',
+			type: `goal:${ask}:get`,
 			payload: asOfTime === null ? {goalId, key} : {goalId, key, asOfTime},
 		});
-	}, [goalId, signature, asOfTime, socketEpoch, sendRaw]);
+	}, [ask, goalId, signature, asOfTime, socketEpoch, sendRaw]);
 
-	const onMessage = useCallback((message: any) => {
-		if (message.type !== 'goal:stats:result') return;
+	const onMessage = useCallback(
+		(message: any) => {
+			if (message.type !== `goal:${ask}:result`) return;
 
-		const {key, result} = message.payload as {
-			key: string;
-			result: {status: string; message: string; value?: IssueStats};
-		};
-		// An answer to anything but the latest ask is already out of date.
-		if (key !== asked.current) return;
+			const {key, result} = message.payload as {
+				key: string;
+				result: {status: string; message: string; value?: T};
+			};
+			// An answer to anything but the latest ask is already out of date.
+			if (key !== asked.current) return;
 
-		setStats(prev => {
-			if (!prev) return prev;
-			if (result?.status === 'fail') {
-				return {...prev, loading: false, error: result.message};
-			}
-			const next = getResultValue<IssueStats>(result);
-			return next ? {...prev, loading: false, error: null, stats: next} : prev;
-		});
-	}, []);
+			setAnswer(prev => {
+				if (!prev) return prev;
+				if (result?.status === 'fail') {
+					return {...prev, loading: false, error: result.message};
+				}
+				const next = getResultValue<T>(result);
+				return next
+					? {...prev, loading: false, error: null, value: next}
+					: prev;
+			});
+		},
+		[ask],
+	);
 
-	return {stats, onMessage};
+	return {answer, onMessage};
 };

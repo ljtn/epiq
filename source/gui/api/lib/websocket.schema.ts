@@ -200,6 +200,14 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 			asOfTime: epochMs.optional(),
 		}),
 	),
+	message(
+		'goal:commits:get',
+		z.object({
+			goalId: id,
+			key: z.string().max(200),
+			asOfTime: epochMs.optional(),
+		}),
+	),
 	message('board:overview:get', z.object({boardId: id})),
 	bare('me:stats:get'),
 	bare('settings:get'),

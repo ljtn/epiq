@@ -202,6 +202,8 @@ export type GuiRefCommitEntry = GuiCommitEntry & {
 	precedingSha: string | null;
 	/** The message below the subject, where there is one. */
 	body?: string;
+	/** On a goal's list: the refs of its tickets this commit carries. */
+	tickets?: string[];
 };
 
 export type GuiCommitDiffFile = {
