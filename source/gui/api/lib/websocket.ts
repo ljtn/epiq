@@ -642,12 +642,15 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'goal:stats:get') {
-					const {goalId, asOfTime} = message.payload;
+					const {goalId, key, asOfTime} = message.payload;
 
+					// The client's key comes back, so an answer to an older ask is
+					// told from the latest.
 					return sendSocket(socket, {
 						type: 'goal:stats:result',
 						payload: {
 							goalId,
+							key,
 							result: await getGoalStats({
 								repoRoot,
 								goal: goalId,

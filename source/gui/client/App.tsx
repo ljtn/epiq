@@ -127,7 +127,7 @@ import {GoalStrip} from './components/GoalStrip';
 import {ManageGoalsModal} from './components/ManageGoalsModal';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
-import {useGoalStats} from './lib/use-goal-stats';
+import {goalStatsSignature, useGoalStats} from './lib/use-goal-stats';
 import {useBoardOverview} from './lib/use-board-overview';
 import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
@@ -802,7 +802,10 @@ export const App = () => {
 	const [goalTab, setGoalTab] = useState<GoalDetailsTab>('overview');
 	const {stats: goalStats, onMessage: onGoalStatsMessage} = useGoalStats({
 		goalId: detailedGoal && goalTab === 'stats' ? detailedGoal.id : null,
-		signature: detailedGoal ? `${detailedGoal.done}/${detailedGoal.total}` : '',
+		signature:
+			detailedGoal && state
+				? goalStatsSignature(detailedGoal.id, state.boards, refDiffStats)
+				: '',
 		asOfTime: scrubCut(state?.timeTravel),
 		sendRaw,
 	});

@@ -402,7 +402,7 @@ export const createMcpServer = () => {
 		'epiq_goal_stats',
 		{
 			description:
-				'Code stats for a goal, by its name or id: epiq_issue_stats over every commit of every ticket in it, each commit counted once.',
+				'Code stats for a goal, by its name or id: epiq_issue_stats over every commit of every ticket in it, each commit counted once. Its `ref` field holds the goal id, not a ticket ref.',
 			inputSchema: z.object({
 				goal: z.string().min(1),
 				repoRoot: z.string().optional(),

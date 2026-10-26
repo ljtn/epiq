@@ -135,6 +135,12 @@ export const getRefsStats = async (input: {
 	return statsOver(
 		repoRoot.value,
 		input.label,
-		[...commits.values()].sort((a, b) => b.time - a.time),
+		// Whole seconds tie often; the key wants one order for one set.
+		[...commits.values()].sort(
+			(a, b) =>
+				b.time - a.time ||
+				(a.repo ?? '').localeCompare(b.repo ?? '') ||
+				a.sha.localeCompare(b.sha),
+		),
 	);
 };

@@ -14,7 +14,7 @@ import {IconChevronDown} from './IconChevronDown';
 
 const PICK_LIMIT = 8;
 
-const ColourBar = ({color, height}: {color: string; height: number}) => (
+const ColorBar = ({color, height}: {color: string; height: number}) => (
 	<span
 		aria-hidden
 		style={{width: 3, height, flexShrink: 0, background: color}}
@@ -99,7 +99,7 @@ export const GoalSection = ({
 						flex: 1,
 					}}
 				>
-					<ColourBar color={goal.color} height={12} />
+					<ColorBar color={goal.color} height={12} />
 					<span
 						style={{
 							overflow: 'hidden',
@@ -175,7 +175,7 @@ export const GoalSection = ({
 							gap: 8,
 						}}
 					>
-						{issue.goal && <ColourBar color={issue.goal.color} height={14} />}
+						{issue.goal && <ColorBar color={issue.goal.color} height={14} />}
 						{issue.goal?.name ?? 'No goal'}
 					</span>
 					<IconChevronDown size={12} />

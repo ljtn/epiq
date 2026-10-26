@@ -1,11 +1,40 @@
 // A goal's Stats tab: a ticket's code stats over every ticket in the goal.
-// Asked for when the tab opens, and again when the goal's tickets or the cut
-// change.
+// Asked for when the tab opens, and again when the goal's tickets, their
+// commits or the cut change.
 
 import {useCallback, useEffect, useRef, useState} from 'react';
-// Types only, from a module that declares nothing but types.
+// Types only, from modules that declare nothing but types.
 import {IssueStats} from '../../../lib/stats/issue-stats.model.js';
+import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
+import {GuiBoard} from './gui-state.model';
 import {getResultValue} from './gui-state-helper';
+
+/** Which tickets a goal holds, and what each one's commits add up to. */
+export const goalStatsSignature = (
+	goalId: string,
+	boards: GuiBoard[],
+	diffStats: RefDiffStats,
+): string => {
+	const members = new Set(
+		boards.flatMap(
+			board =>
+				board.goals
+					.find(goal => goal.id === goalId)
+					?.members.map(member => member.id) ?? [],
+		),
+	);
+	return boards
+		.flatMap(board => board.swimlanes.flatMap(lane => lane.issues))
+		.filter(issue => members.has(issue.id))
+		.map(issue => {
+			const diff = diffStats[issue.ref];
+			return `${issue.id}:${diff?.commits ?? 0}:${diff?.insertions ?? 0}:${
+				diff?.deletions ?? 0
+			}`;
+		})
+		.sort()
+		.join(',');
+};
 
 export type GoalStatsState = {
 	goalId: string;
@@ -22,7 +51,7 @@ export const useGoalStats = ({
 }: {
 	// Null while the tab is closed.
 	goalId: string | null;
-	// Changes when the goal's tickets do.
+	// From goalStatsSignature.
 	signature: string;
 	asOfTime: number | null;
 	sendRaw: (message: unknown) => void;
@@ -50,20 +79,22 @@ export const useGoalStats = ({
 		}));
 		sendRaw({
 			type: 'goal:stats:get',
-			payload: asOfTime === null ? {goalId} : {goalId, asOfTime},
+			payload: asOfTime === null ? {goalId, key} : {goalId, key, asOfTime},
 		});
 	}, [goalId, signature, asOfTime, sendRaw]);
 
 	const onMessage = useCallback((message: any) => {
 		if (message.type !== 'goal:stats:result') return;
 
-		const {goalId: forGoal, result} = message.payload as {
-			goalId: string;
+		const {key, result} = message.payload as {
+			key: string;
 			result: {status: string; message: string; value?: IssueStats};
 		};
+		// An answer to anything but the latest ask is already out of date.
+		if (key !== asked.current) return;
 
 		setStats(prev => {
-			if (!prev || prev.goalId !== forGoal) return prev;
+			if (!prev) return prev;
 			if (result?.status === 'fail') {
 				return {...prev, loading: false, error: result.message};
 			}

@@ -87,6 +87,25 @@ describe('getIssueStats caching', () => {
 		).toEqual(['only-a', 'shared']);
 	});
 
+	it('reads the same commits in any ticket order as one set', async () => {
+		commits.mockImplementation(async ({ref}) =>
+			succeeded('Matched', [commitNamed(ref === 'AAAAAAA' ? 'a' : 'b')]),
+		);
+
+		await getRefsStats({
+			repoRoot: '/repo',
+			label: 'g',
+			refs: ['AAAAAAA', 'BBBBBBB'],
+		});
+		await getRefsStats({
+			repoRoot: '/repo',
+			label: 'g',
+			refs: ['BBBBBBB', 'AAAAAAA'],
+		});
+
+		expect(derive).toHaveBeenCalledTimes(1);
+	});
+
 	// The shas are the whole of what the answer depends on, so a new commit on
 	// the ticket has to be a new key — nothing else here would notice.
 	it('scans again when the ticket gains a commit', async () => {

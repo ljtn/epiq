@@ -71,10 +71,13 @@ const groupsOf = (
 const MemberRow = ({
 	member,
 	color,
+	showLane,
 	onOpen,
 }: {
 	member: Member;
 	color: string;
+	// Not in Closed, where every ticket's lane is the same.
+	showLane: boolean;
 	onOpen: () => void;
 }) => {
 	const [hovered, setHovered] = useState(false);
@@ -155,19 +158,21 @@ const MemberRow = ({
 				>
 					{member.issue.title}
 				</span>
-				<span
-					style={{
-						flexShrink: 0,
-						padding: '1px 7px',
-						borderRadius: 999,
-						fontSize: 10,
-						color: GUI_THEME.secondary,
-						background: GUI_THEME.hover,
-						border: `1px solid ${GUI_THEME.line}`,
-					}}
-				>
-					{member.lane}
-				</span>
+				{showLane && (
+					<span
+						style={{
+							flexShrink: 0,
+							padding: '1px 7px',
+							borderRadius: 999,
+							fontSize: 10,
+							color: GUI_THEME.secondary,
+							background: GUI_THEME.hover,
+							border: `1px solid ${GUI_THEME.line}`,
+						}}
+					>
+						{member.lane}
+					</span>
+				)}
 				<span
 					style={{
 						display: 'flex',
@@ -219,6 +224,7 @@ export const GoalDetails = ({
 				key={member.issue.id}
 				member={member}
 				color={goal.color}
+				showLane={board.id !== CLOSED_BOARD_ID}
 				onOpen={() => onOpenIssue(member.issue.id, board.ref)}
 			/>
 		);
@@ -253,17 +259,12 @@ export const GoalDetails = ({
 			) : (
 				<>
 					<Section title="Progress" first>
-						<div style={statGrid(3, 3)}>
+						<div style={statGrid(2, 2)}>
 							<Stat
 								size="compact"
 								value={`${goal.done}/${goal.total}`}
 								label="Done"
 								testId="goal-details-done"
-							/>
-							<Stat
-								size="compact"
-								value={`${Math.round(share * 100)}%`}
-								label="Of the goal"
 							/>
 							<Stat
 								size="compact"
