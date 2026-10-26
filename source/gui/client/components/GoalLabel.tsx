@@ -1,6 +1,6 @@
-// A goal, named in its colour beside a bar of it in the goal dropdown's dark
-// frame, so it never reads as a tag and looks the same on a card as in the
-// ticket panel.
+// A goal, named in its colour in the goal dropdown's dark frame, so it never
+// reads as a tag and looks the same on a card as in the ticket panel. A card
+// in a goal also carries its colour down its left edge.
 
 import React from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -13,8 +13,7 @@ const placeStyle = (place: Place): React.CSSProperties => {
 			maxWidth: '45%',
 			flexShrink: 0,
 			height: place.height,
-			gap: 6,
-			padding: '0 7px 0 5px',
+			padding: '0 7px',
 			borderRadius: 4,
 			fontSize: 11,
 		};
@@ -24,7 +23,6 @@ const placeStyle = (place: Place): React.CSSProperties => {
 	return {
 		alignSelf: 'flex-start',
 		maxWidth: '100%',
-		gap: 8,
 		padding: '5px 10px',
 		borderRadius: 8,
 		fontSize: 12,
@@ -70,26 +68,15 @@ export const GoalLabel = ({
 		border: `1px solid ${pressed ? color : GUI_THEME.line}`,
 	};
 	const content = (
-		<>
-			<span
-				aria-hidden
-				style={{
-					width: place.kind === 'panel' ? 3 : 2,
-					height: place.kind === 'panel' ? 14 : '60%',
-					flexShrink: 0,
-					background: color,
-				}}
-			/>
-			<span
-				style={{
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap',
-				}}
-			>
-				{label}
-			</span>
-		</>
+		<span
+			style={{
+				overflow: 'hidden',
+				textOverflow: 'ellipsis',
+				whiteSpace: 'nowrap',
+			}}
+		>
+			{label}
+		</span>
 	);
 
 	if (!onPress) {
@@ -118,3 +105,21 @@ export const GoalLabel = ({
 		</button>
 	);
 };
+
+// A straight bar inside the card's left edge, clear of its rounded corners.
+export const GoalStripe = ({color, inset}: {color: string; inset: number}) => (
+	<span
+		data-testid="ticket-goal-stripe"
+		aria-hidden
+		style={{
+			position: 'absolute',
+			left: 4,
+			top: inset,
+			bottom: inset,
+			width: 2,
+			borderRadius: 1,
+			background: color,
+			pointerEvents: 'none',
+		}}
+	/>
+);

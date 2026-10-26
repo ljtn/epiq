@@ -34,6 +34,14 @@ test("clicking a goal's pill narrows the board to the goal, and the URL carries 
 	await page.goto(boardUrl);
 	await expect(card(page, other)).toBeVisible();
 
+	// A card in a goal carries its colour down its edge; one in none does not.
+	await expect(
+		card(page, member).getByTestId('ticket-goal-stripe'),
+	).toHaveCount(1);
+	await expect(card(page, other).getByTestId('ticket-goal-stripe')).toHaveCount(
+		0,
+	);
+
 	// The label sits in room the card already has.
 	const height = async (title: string) =>
 		(await card(page, title).boundingBox())?.height;

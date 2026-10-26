@@ -22,7 +22,7 @@ import {
 	useCardDensityView,
 } from '../lib/card-density';
 import {Button} from './Button';
-import {GoalLabel} from './GoalLabel';
+import {GoalLabel, GoalStripe} from './GoalLabel';
 import {GoalSummary} from '../lib/goal-index';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
@@ -593,6 +593,7 @@ export const TicketCard = ({
 
 	// One mark per card: its goal's, or, on a goal, its own.
 	const goalId = asGoal?.id ?? ticket.goal?.id ?? null;
+	const goalColor = asGoal?.color ?? ticket.goal?.color ?? null;
 	const goalIsolated = goalId !== null && goalId === isolatedGoalId;
 	const goalFilter =
 		goalId !== null && onFilterByGoal
@@ -686,7 +687,7 @@ export const TicketCard = ({
 				background:
 					isSelected || isPicked
 						? 'rgba(185, 192, 255, 0.1)'
-						: 'rgba(185, 192, 255, 0.055)',
+						: 'rgba(185, 192, 255, 0.065)',
 				// Roomier than a list row: a card is read, not scanned, and the
 				// air around its title is what keeps a column of them from
 				// running together.
@@ -706,6 +707,9 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
+			{goalColor && (
+				<GoalStripe color={goalColor} inset={view.metrics.radius} />
+			)}
 			{dense ? (
 				<DenseBody
 					goal={goalLabel}
