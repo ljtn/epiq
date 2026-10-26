@@ -1,5 +1,5 @@
 import {CmdKeyword} from '../../../../lib/command-line/cmd-keywords.js';
-import {GuiContributor, GuiIssue, GuiTag} from '../gui-state.model';
+import {GuiContributor, GuiGoal, GuiIssue, GuiTag} from '../gui-state.model';
 
 // Either one of the TUI's keywords — both surfaces name the same thing the same
 // way — or `gui:`-prefixed for what only a browser can do. A test holds the
@@ -48,6 +48,7 @@ export type CommandContext = {
 	// The board on screen, which is the one a board command acts on.
 	board: {id: string; title: string; readonly: boolean} | null;
 	tags: GuiTag[];
+	goals: GuiGoal[];
 	// Every ticket in every board, for the project-wide search.
 	tickets: SearchableTicket[];
 	contributors: GuiContributor[];
@@ -61,6 +62,9 @@ export type CommandHandlers = {
 	reopenIssue: (issueId: string) => void;
 	addIssueTag: (issueId: string, tagName: string) => void;
 	removeIssueTag: (issueId: string, tagId: string) => void;
+	// A goal's id, or the name of one to find or make; null takes it out.
+	setIssueGoal: (issueId: string, goal: string | null) => void;
+	manageGoals: () => void;
 	addIssueAssignee: (issueId: string, assigneeId: string) => void;
 	removeIssueAssignee: (issueId: string, assigneeId: string) => void;
 	commentOnIssue: (issueId: string) => void;

@@ -1,15 +1,17 @@
 // A goal's panel, opened from its pill: how far along it is, and every
 // ticket in it, on whichever board, each a way to that ticket.
 
+import {useState} from 'react';
 import {CLOSED_BOARD_ID} from '../../../lib/board/static-ids.js';
 import {AsideDock} from '../lib/aside-dock';
 import {GuiBoard, GuiGoal, GuiIssue} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {statGrid} from '../lib/issue-stats.style';
+import {menuRowHoverBackground} from '../lib/select-style';
 import {Aside} from './Aside';
 import {Empty} from './FormPrimitives';
 import {GoalProgressLine} from './GoalLabel';
-import {MenuItem} from './Menu';
+import {CopyRef} from './CopyRef';
 import {DetailsHeader} from './NodeDetails';
 import {Section} from './Section';
 import {Stat} from './StatRow';
@@ -58,6 +60,65 @@ const groupsOf = (
 		.filter(group => group.members.length > 0);
 };
 
+// The ref copies, as a ticket panel's does; the rest of the row opens the
+// ticket. Two buttons side by side, as one cannot hold the other.
+const MemberRow = ({member, onOpen}: {member: Member; onOpen: () => void}) => {
+	const [hovered, setHovered] = useState(false);
+
+	return (
+		<div
+			data-testid="goal-member"
+			onMouseEnter={() => setHovered(true)}
+			onMouseLeave={() => setHovered(false)}
+			style={{
+				display: 'flex',
+				alignItems: 'baseline',
+				gap: 8,
+				borderRadius: 6,
+				padding: '6px 8px',
+				fontSize: 11,
+				background: hovered ? menuRowHoverBackground : 'transparent',
+			}}
+		>
+			<span style={{flexShrink: 0}}>
+				<CopyRef refValue={member.issue.ref} />
+			</span>
+			<button
+				type="button"
+				data-testid="goal-member-open"
+				onClick={onOpen}
+				style={{
+					display: 'flex',
+					alignItems: 'baseline',
+					justifyContent: 'space-between',
+					gap: 10,
+					flex: 1,
+					minWidth: 0,
+					padding: 0,
+					border: 'none',
+					background: 'transparent',
+					font: 'inherit',
+					textAlign: 'left',
+					cursor: 'pointer',
+				}}
+			>
+				<span
+					style={{
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+						color: member.done ? GUI_THEME.dim : GUI_THEME.primarySoft,
+						textDecoration: member.issue.isClosed ? 'line-through' : undefined,
+					}}
+				>
+					{member.issue.title}
+				</span>
+				<span style={{color: GUI_THEME.dim, flexShrink: 0}}>{member.lane}</span>
+			</button>
+		</div>
+	);
+};
+
 export const GoalDetails = ({
 	dock,
 	goal,
@@ -83,41 +144,11 @@ export const GoalDetails = ({
 
 	const row = (board: GuiBoard) => (member: Member) =>
 		(
-			<MenuItem
+			<MemberRow
 				key={member.issue.id}
-				testId="goal-member"
-				onSelect={() => onOpenIssue(member.issue.id, board.ref)}
-			>
-				<span
-					style={{
-						display: 'flex',
-						alignItems: 'baseline',
-						gap: 8,
-						minWidth: 0,
-						flex: 1,
-					}}
-				>
-					<span style={{fontSize: 11, color: GUI_THEME.dim, flexShrink: 0}}>
-						{member.issue.ref}
-					</span>
-					<span
-						style={{
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-							whiteSpace: 'nowrap',
-							color: member.done ? GUI_THEME.dim : GUI_THEME.primarySoft,
-							textDecoration: member.issue.isClosed
-								? 'line-through'
-								: undefined,
-						}}
-					>
-						{member.issue.title}
-					</span>
-				</span>
-				<span style={{fontSize: 11, color: GUI_THEME.dim, flexShrink: 0}}>
-					{member.lane}
-				</span>
-			</MenuItem>
+				member={member}
+				onOpen={() => onOpenIssue(member.issue.id, board.ref)}
+			/>
 		);
 
 	return (

@@ -48,7 +48,14 @@ export type Contributor = {
 };
 
 export type Filter = {
-	target: 'tag' | 'assignee' | 'actor' | 'description' | 'title' | 'ref';
+	target:
+		| 'tag'
+		| 'goal'
+		| 'assignee'
+		| 'actor'
+		| 'description'
+		| 'title'
+		| 'ref';
 	operator: '=' | '!=';
 	value: string;
 };

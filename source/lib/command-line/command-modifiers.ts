@@ -394,6 +394,7 @@ export const getCmdModifiers = (
 
 		[CmdKeywords.FILTER]: [
 			'tag',
+			'goal',
 			'assignee',
 			'actor',
 			'description',

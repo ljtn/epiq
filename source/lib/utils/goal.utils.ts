@@ -99,10 +99,15 @@ const membership = (): Membership => {
 		const goal = getTicketGoal(node)?.id;
 		if (!goal) continue;
 
-		members.set(goal, [...(members.get(goal) ?? []), node]);
+		const inGoal = members.get(goal) ?? [];
+		inGoal.push(node);
+		members.set(goal, inGoal);
+
 		const boards = onBoard.get(goal) ?? new Map<string, Ticket[]>();
 		for (const board of ticketBoards(node)) {
-			boards.set(board, [...(boards.get(board) ?? []), node]);
+			const onIt = boards.get(board) ?? [];
+			onIt.push(node);
+			boards.set(board, onIt);
 		}
 		onBoard.set(goal, boards);
 	}
@@ -114,6 +119,11 @@ const membership = (): Membership => {
 
 export const goalMembers = (goalId: string): Ticket[] =>
 	membership().members.get(goalId) ?? [];
+
+/** The boards that show a goal's tickets. */
+export const goalBoards = (goalId: string): string[] => [
+	...(membership().onBoard.get(goalId)?.keys() ?? []),
+];
 
 /** The tickets of a goal a board shows. */
 export const goalMembersOn = (goalId: string, boardId: string): Ticket[] =>

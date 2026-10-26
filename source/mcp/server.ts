@@ -25,6 +25,8 @@ import {
 	addIssueComment,
 	addIssueTag,
 	setIssueGoal,
+	createGoal,
+	listGoals,
 	renameGoal,
 	removeGoal,
 	assumeActor,
@@ -373,7 +375,7 @@ export const createMcpServer = () => {
 		'epiq_issue_goal_set',
 		{
 			description:
-				"Put an Epiq issue in a goal, by the goal's name or id, creating the goal if there is none of that name; null takes it out. One goal per ticket, on any board. Goals and their progress are listed by epiq_board_list, per board.",
+				"Put an Epiq issue in a goal (a group of tickets serving one outcome, on any board), by the goal's name or id, creating the goal if there is none of that name; null takes it out. One goal per ticket. epiq_goal_list lists every goal with its progress.",
 			inputSchema: z.object({
 				issueId: z.string().min(1),
 				goal: z.string().min(1).nullable(),
@@ -384,9 +386,35 @@ export const createMcpServer = () => {
 	);
 
 	server.registerTool(
+		'epiq_goal_list',
+		{
+			description:
+				'List the goals in the project: each a group of tickets serving one outcome, with done/total (done is closed, or in a lane named Done) and the boards its tickets are on. Put a ticket in one with epiq_issue_goal_set.',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(listGoals),
+	);
+
+	server.registerTool(
+		'epiq_goal_create',
+		{
+			description:
+				'Create a goal with no tickets yet. To create one and put a ticket in it at once, use epiq_issue_goal_set with the new name.',
+			inputSchema: z.object({
+				name: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(createGoal),
+	);
+
+	server.registerTool(
 		'epiq_goal_rename',
 		{
-			description: 'Rename a goal',
+			description:
+				'Rename a goal; its colour and tickets stay. Ids are in epiq_goal_list.',
 			inputSchema: z.object({
 				goalId: z.string().min(1),
 				name: z.string().min(1),
@@ -399,7 +427,8 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_goal_remove',
 		{
-			description: 'Remove a goal; its tickets stay where they are, in no goal',
+			description:
+				'Remove a goal; its tickets stay where they are, in no goal. Ids are in epiq_goal_list.',
 			inputSchema: z.object({
 				goalId: z.string().min(1),
 				repoRoot: z.string().optional(),

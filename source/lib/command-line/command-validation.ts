@@ -833,6 +833,8 @@ const validators: Record<CmdKeyword, Validator> = {
 		const wordList =
 			args.modifier === 'tag'
 				? tags
+				: args.modifier === 'goal'
+				? goalNamesInScope()
 				: args.modifier === 'assignee'
 				? contributors
 				: [];
@@ -935,7 +937,7 @@ const validators: Record<CmdKeyword, Validator> = {
 				: hintDefault('name a new goal ...'),
 		})(args);
 	},
-	[CmdKeywords.UNGOAL]: args => requireExact(args),
+	[CmdKeywords.UNGOAL]: () => valid(CONFIRM_MSG),
 
 	[CmdKeywords.CLOSE_ISSUE]: args => requireExact(args),
 	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),

@@ -1852,6 +1852,7 @@ export const App = () => {
 			  }
 			: null,
 		tags: state?.tags ?? [],
+		goals: state?.goals ?? [],
 		tickets: searchableTickets,
 		contributors,
 		handlers: {
@@ -1875,6 +1876,8 @@ export const App = () => {
 			reopenIssue,
 			addIssueTag,
 			removeIssueTag,
+			setIssueGoal,
+			manageGoals: () => setManagingGoals(true),
 			addIssueAssignee,
 			removeIssueAssignee,
 			// Opens the thread rather than posting: what to say is the point, and

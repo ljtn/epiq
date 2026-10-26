@@ -2,6 +2,7 @@ import {AppEvent} from '../board/board-events.model.js';
 import {Filter, Tag} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
+import {getTicketGoal} from './goal.utils.js';
 import {nodeRefMatches} from './node-ref.js';
 import {normalizeText, textIncludes} from './text-match.js';
 
@@ -10,6 +11,7 @@ export type FilterField =
 	| 'title'
 	| 'description'
 	| 'tag'
+	| 'goal'
 	| 'assignee'
 	| 'actor'
 	| 'ref';
@@ -108,6 +110,13 @@ export const ticketMatchesFilter = (
 		case 'tag': {
 			const tagNames = getTagNames(ticket).map(normalizeText);
 			return tagNames.some(tag => tag.includes(query));
+		}
+
+		// The goal's name, so `:filter goal launch` narrows the board as the
+		// GUI's pill does.
+		case 'goal': {
+			const goal = getTicketGoal(ticket);
+			return goal ? normalizeText(goal.name).includes(query) : false;
 		}
 
 		case 'assignee': {

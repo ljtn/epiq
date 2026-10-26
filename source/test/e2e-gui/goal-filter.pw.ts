@@ -86,7 +86,14 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	const details = page.getByTestId('goal-details');
 	await expect(details).toContainText(goal);
 	await expect(page.getByTestId('goal-details-done')).toContainText('0/1');
-	await page.getByTestId('goal-member').filter({hasText: member}).click();
+
+	// The ref copies and leaves the panel where it is.
+	const memberRow = page.getByTestId('goal-member').filter({hasText: member});
+	await memberRow.getByTestId('copy-ref').click();
+	await expect(details).toBeVisible();
+	await expect(page).not.toHaveURL(/\/issue\//);
+
+	await memberRow.getByTestId('goal-member-open').click();
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 	await expect(page.locator('aside')).toContainText(member);
 	await expect(card(page, other)).toHaveCount(0);
@@ -130,6 +137,42 @@ test("a goal's panel counts a closed ticket on the board it was closed from, as 
 	await expect(page.getByTestId('goal-group')).toHaveCount(1);
 	await expect(page.getByTestId('goal-member').first()).toContainText(open);
 	await expect(page.getByTestId('goal-member')).toHaveCount(2);
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('the palette puts the open ticket in a goal by name, and takes it out', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const goal = `Typed ${stamp}`;
+	await addTicket(page, `Keyed ${stamp}`);
+
+	const palette = page.getByTestId('command-palette');
+	const rows = palette.getByRole('option');
+
+	await page.keyboard.press('Control+k');
+	await expect(palette).toBeVisible();
+	await page.keyboard.type('put in a goal');
+	await expect(rows.first()).toContainText('Put in a goal');
+	await page.keyboard.press('Enter');
+	await page.keyboard.type(goal);
+	await expect(rows.filter({hasText: goal})).toHaveCount(1);
+	await page.keyboard.press('Enter');
+
+	await expect(palette).toBeHidden();
+	await expect(page.getByTestId('goal-current')).toHaveText(goal);
+	await expect(pill(page, goal)).toContainText('0/1');
+
+	await page.keyboard.press('Control+k');
+	await page.keyboard.type('take out of its goal');
+	await expect(rows.first()).toContainText('Take out of its goal');
+	await page.keyboard.press('Enter');
+	await expect(page.getByTestId('goal-current')).toHaveText('No goal');
 
 	expect(pageErrors).toEqual([]);
 });

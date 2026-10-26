@@ -21,6 +21,7 @@ import {
 	createSwimlane,
 	moveIssue,
 	deleteSwimlane,
+	listGoals,
 } from '../mcp/epiq-api.js';
 import {deriveGuiState} from '../mcp/api/state.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
@@ -84,6 +85,20 @@ describe('a goal', () => {
 				total: 0,
 				members: [],
 			},
+		]);
+	});
+
+	it('is listed with its progress and the boards its tickets are on', async () => {
+		const {repoRoot, boardId, file} = await seed();
+		const part = await file('Part');
+		const {id} = unwrap(
+			await createGoal({repoRoot, name: 'Listed', issueId: part}),
+		);
+		const empty = unwrap(await createGoal({repoRoot, name: 'Empty'}));
+
+		expect(unwrap(await listGoals({repoRoot}))).toMatchObject([
+			{id, name: 'Listed', done: 0, total: 1, boards: [{id: boardId}]},
+			{id: empty.id, name: 'Empty', total: 0, boards: []},
 		]);
 	});
 

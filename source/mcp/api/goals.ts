@@ -14,6 +14,7 @@ import {
 	goalName,
 	getTicketGoal,
 	goalColor,
+	goalBoards,
 	goalMembersOn,
 	isGoalTicketDone,
 	goalNameRefusal,
@@ -23,7 +24,7 @@ import {
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiBoardGoal, ApiGoal, ApiGoalRef} from '../api-state.model.js';
-import {bootedWithActorAndState, ToolInput} from './boot.js';
+import {bootedWithActorAndState, bootLocal, ToolInput} from './boot.js';
 import {findWritableIssue} from './node-targets.js';
 
 const goalRef = (goal: Goal): ApiGoalRef => ({
@@ -45,6 +46,20 @@ const apiGoal = (goal: Goal): ApiGoal => ({
 
 /** The project's goals, each with how far along its tickets are. */
 export const apiGoals = (): ApiGoal[] => projectGoals().map(apiGoal);
+
+/** Every goal in the project, and the boards its tickets are on. */
+export const listGoals = async (input: ToolInput = {}) => {
+	const booted = await bootLocal(input.repoRoot);
+	if (isFail(booted)) return booted;
+
+	return succeeded(
+		'Listed goals',
+		projectGoals().map(goal => ({
+			...apiGoal(goal),
+			boards: goalBoards(goal.id).map(id => ({id, ref: nodeRef(id)})),
+		})),
+	);
+};
 
 /** The goals a board shows, and which of each one's tickets it shows. */
 export const apiBoardGoals = (boardId: string): ApiBoardGoal[] =>
