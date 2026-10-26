@@ -215,7 +215,7 @@ export const IssueStats = ({
 			<BoardSection boardStats={boardStats} across={across} first />
 			{activity}
 
-			<Section title="Code">
+			<Section title="Code" first={!boardStats && !activity}>
 				<div style={statGrid(4, across)}>
 					<Stat
 						value={String(shape.files)}

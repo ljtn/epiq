@@ -7,8 +7,8 @@ import {AsideDock} from '../lib/aside-dock';
 import {GuiBoard, GuiGoal, GuiIssue} from '../lib/gui-state.model';
 import {GoalStatsState} from '../lib/use-goal-stats';
 import {GUI_THEME} from '../lib/gui-theme';
-import {statGrid} from '../lib/issue-stats.style';
-import {Aside} from './Aside';
+import {statGrid, statsAcross} from '../lib/issue-stats.style';
+import {Aside, ASIDE_PADDING, readStoredAsideWidth} from './Aside';
 import {Empty} from './FormPrimitives';
 import {GoalProgressLine} from './GoalLabel';
 import {IconCheck} from './IconCheck';
@@ -205,6 +205,7 @@ export const GoalDetails = ({
 	onOpenIssue: (issueId: string, boardRef: string) => void;
 	onClose: () => void;
 }) => {
+	const [panelWidth, setPanelWidth] = useState(readStoredAsideWidth);
 	const groups = groupsOf(goal.id, boards, boardId);
 	const share = goal.total > 0 ? goal.done / goal.total : 0;
 	const here =
@@ -223,7 +224,7 @@ export const GoalDetails = ({
 		);
 
 	return (
-		<Aside dock={dock}>
+		<Aside dock={dock} onWidthChange={setPanelWidth}>
 			<DetailsHeader
 				testId="goal-details"
 				kind="Goal"
@@ -247,10 +248,11 @@ export const GoalDetails = ({
 					loading={stats?.loading ?? true}
 					error={stats?.error ?? null}
 					boardStats={null}
+					across={statsAcross(panelWidth - 2 * ASIDE_PADDING)}
 				/>
 			) : (
 				<>
-					<Section title="Progress">
+					<Section title="Progress" first>
 						<div style={statGrid(3, 3)}>
 							<Stat
 								size="compact"
