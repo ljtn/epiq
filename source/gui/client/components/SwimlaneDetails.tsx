@@ -143,16 +143,11 @@ export const SwimlaneDetails = ({
 								label="Tickets here count as done"
 								checked={marksDone || swimlane.doneByName}
 								disabled={!writable || swimlane.doneByName}
+								{...(swimlane.doneByName && {
+									title: 'A lane called Done always counts',
+								})}
 								onChange={on => onSetRule('done', on)}
 							/>
-							{swimlane.doneByName && (
-								<div
-									data-testid="swimlane-done-by-name"
-									style={{marginTop: 8, fontSize: 11, color: GUI_THEME.dim}}
-								>
-									A lane called Done always counts
-								</div>
-							)}
 						</div>
 					</Section>
 

@@ -77,5 +77,4 @@ test('the lane named Done is marked done, and cannot be unmarked', async ({
 	const rule = page.getByTestId('swimlane-rule-done').locator('input');
 	await expect(rule).toBeChecked();
 	await expect(rule).toBeDisabled();
-	await expect(page.getByTestId('swimlane-done-by-name')).toBeVisible();
 });
