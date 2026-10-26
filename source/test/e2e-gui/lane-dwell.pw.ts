@@ -51,7 +51,7 @@ test('a lane opens its own stats, and says how long its tickets have sat there',
 	const lane = await laneWithTickets(page);
 	await lane.getByTestId('swimlane-stats-open').click();
 
-	const panel = page.getByTestId('swimlane-stats');
+	const panel = page.getByTestId('swimlane-details');
 	await expect(panel).toBeVisible();
 
 	// The lane's own figures, not another lane's: the panel names the column it
@@ -79,13 +79,13 @@ test('a click on the board closes the lane panel', async ({
 
 	const lane = await laneWithTickets(page);
 	await lane.getByTestId('swimlane-stats-open').click();
-	await expect(page.getByTestId('swimlane-stats')).toBeVisible();
+	await expect(page.getByTestId('swimlane-details')).toBeVisible();
 
 	// The empty ground below the columns: a click that was never about a
 	// ticket, a lane header, or the panel.
 	await page.getByRole('main').click({position: {x: 40, y: 40}});
 
-	await expect(page.getByTestId('swimlane-stats')).toHaveCount(0);
+	await expect(page.getByTestId('swimlane-details')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });
@@ -112,9 +112,11 @@ test('a scrubbed lane opens its panel without figures', async ({
 		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeEnabled();
 
-	await (await laneWithTickets(page)).getByTestId('swimlane-menu').click();
+	await (await laneWithTickets(page))
+		.getByTestId('swimlane-details-open')
+		.click();
 
-	const panel = page.getByTestId('swimlane-stats');
+	const panel = page.getByTestId('swimlane-details');
 	await expect(panel).toBeVisible();
 	await expect(page.getByText('Description', {exact: true})).toBeVisible();
 	await expect(page.getByTestId('swimlane-description-edit')).toHaveCount(0);
@@ -153,7 +155,7 @@ test('an empty lane still opens its panel', async ({
 	await expect(stats).toHaveAttribute('title', 'Swimlane stats');
 
 	await stats.click();
-	await expect(page.getByTestId('swimlane-stats')).toBeVisible();
+	await expect(page.getByTestId('swimlane-details')).toBeVisible();
 
 	// Left as it was found: the suite shares one board across files.
 	await filter.fill('');

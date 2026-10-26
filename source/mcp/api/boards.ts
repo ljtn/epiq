@@ -34,6 +34,7 @@ import {
 } from './boot.js';
 import {descriptionOf} from './descriptions.js';
 import {rulesOf} from './lane-rules.js';
+import {isDoneLane} from '../../lib/utils/lane-rules.js';
 import {apiBoardGoals} from './goals.js';
 import {findWritableBoard, findWritableSwimlane} from './node-targets.js';
 
@@ -222,6 +223,7 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 			readonly: Boolean(n.readonly),
 			...descriptionOf(n.id),
 			...(isSwimlaneNode(n) ? rulesOf(n) : {}),
+			countsDone: isDoneLane(n.id),
 		}));
 
 	return succeeded('Listed swimlanes', swimlanes);

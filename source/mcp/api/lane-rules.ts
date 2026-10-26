@@ -1,11 +1,12 @@
 // A lane's rules, set one at a time by name.
 
 import {ulid} from 'ulid';
-import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
+import {actorOf} from '../../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {Swimlane} from '../../lib/model/context.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
-import {isLaneRule, LaneRule, laneRules} from '../../lib/utils/lane-rules.js';
+import {LaneRule} from '../../lib/model/lane-rule.model.js';
+import {laneRuleChange, laneRules} from '../../lib/utils/lane-rules.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {bootedWithActorAndState, ToolInput} from './boot.js';
 import {findWritableSwimlane} from './node-targets.js';
@@ -23,25 +24,18 @@ export const setSwimlaneRule = async (
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
-	if (!isLaneRule(input.rule)) return failed(`No lane rule "${input.rule}"`);
-
 	const laneResult = findWritableSwimlane(input.swimlaneId);
 	if (isFail(laneResult)) return laneResult;
 	const lane = laneResult.value;
 
-	const saved = {id: lane.id, ref: nodeRef(lane.id), rule: input.rule};
-	const has = (lane.props.rules ?? []).includes(input.rule);
-	if (has === input.on) return succeeded('No changes made', saved);
+	const change = laneRuleChange(lane, input.rule, input.on);
+	if (isFail(change)) return change;
 
-	const event: AppEvent = {
-		id: ulid(),
-		...actorOf(ready.value.actor),
-		action: input.on ? 'add.swimlane.rule' : 'remove.swimlane.rule',
-		payload: {id: lane.id, rule: input.rule},
-	};
+	const saved = {id: lane.id, ref: nodeRef(lane.id), rule: input.rule};
+	if (!change.value) return succeeded(change.message, saved);
 
 	const results = materializeAndPersistAll(
-		[event],
+		[{id: ulid(), ...actorOf(ready.value.actor), ...change.value}],
 		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(results)) return failed(results.message);

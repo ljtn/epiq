@@ -1,3 +1,5 @@
+import type {LaneRule} from '../../../lib/model/lane-rule.model.js';
+
 export type GuiTag = {id: string; name: string; color: string};
 export type GuiUser = {id: string; name: string; color: string};
 
@@ -67,7 +69,10 @@ export type GuiSwimlane = {
 	// The lane's conventions, as markdown; absent when it has none.
 	description?: string;
 	// What standing in the lane means for its tickets; absent when it has none.
-	rules?: 'done'[];
+	rules?: LaneRule[];
+	// Whether its open tickets count as done: by its rule, or by its name on a
+	// board where no lane has the rule.
+	countsDone: boolean;
 };
 
 export type GuiBoard = {

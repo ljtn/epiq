@@ -16,16 +16,16 @@ const lane = (page: Page, name: string) =>
 // The lane's Overview, unless it is already the panel on screen: its menu
 // button, pressed again, would close it.
 const openOverview = async (page: Page, name: string) => {
-	const title = page.getByTestId('swimlane-stats-title');
+	const title = page.getByTestId('swimlane-details-title');
 	if ((await title.count()) > 0 && (await title.textContent()) === name) return;
-	await lane(page, name).getByTestId('swimlane-menu').click();
+	await lane(page, name).getByTestId('swimlane-details-open').click();
 	await expect(title).toHaveText(name);
 };
 
 const rename = async (page: Page, from: string, to: string) => {
 	await openOverview(page, from);
-	await page.getByTestId('swimlane-stats-title').click();
-	const field = page.getByTestId('swimlane-stats-title-input');
+	await page.getByTestId('swimlane-details-title').click();
+	const field = page.getByTestId('swimlane-details-title-input');
 	// Prefilled with the current title rather than blank.
 	await expect(field).toHaveValue(from);
 	await field.fill(to);
@@ -58,11 +58,11 @@ test('the menu opens a lane on its Overview, the chart on its Stats, and either 
 	await expect(page.getByText('Time in this lane')).toBeVisible();
 	await expect(page.getByTestId('swimlane-rule-done')).toHaveCount(0);
 
-	await lane(page, name).getByTestId('swimlane-menu').click();
+	await lane(page, name).getByTestId('swimlane-details-open').click();
 	await expect(page.getByTestId('swimlane-rule-done')).toBeVisible();
 
-	await lane(page, name).getByTestId('swimlane-menu').click();
-	await expect(page.getByTestId('swimlane-stats')).toHaveCount(0);
+	await lane(page, name).getByTestId('swimlane-details-open').click();
+	await expect(page.getByTestId('swimlane-details')).toHaveCount(0);
 
 	await remove(page, name);
 	expect(pageErrors).toEqual([]);
@@ -82,6 +82,24 @@ test('renames a swimlane from its title in the panel', async ({
 	await expect(page.getByText(before, {exact: true})).toHaveCount(0);
 
 	await remove(page, after);
+	expect(pageErrors).toEqual([]);
+});
+
+test('Escape keeps the old title', async ({page, pageErrors}) => {
+	const name = `Kept ${Date.now()}`;
+	await addLane(page, name);
+
+	await openOverview(page, name);
+	await page.getByTestId('swimlane-details-title').click();
+	const field = page.getByTestId('swimlane-details-title-input');
+	await field.fill(`${name} typed`);
+	await field.press('Escape');
+
+	await expect(field).toHaveCount(0);
+	await expect(page.getByTestId('swimlane-details-title')).toHaveText(name);
+	await expect(page.getByText(`${name} typed`)).toHaveCount(0);
+
+	await remove(page, name);
 	expect(pageErrors).toEqual([]);
 });
 
@@ -183,13 +201,13 @@ test('a readonly board opens its lanes read-only', async ({page}) => {
 		.click();
 	await expect(page.getByTestId('board-switcher')).toContainText('Closed');
 
-	await page.getByTestId('swimlane-menu').first().click();
-	await expect(page.getByTestId('swimlane-stats')).toBeVisible();
+	await page.getByTestId('swimlane-details-open').first().click();
+	await expect(page.getByTestId('swimlane-details')).toBeVisible();
 	await expect(page.getByTestId('swimlane-delete')).toHaveCount(0);
 	await expect(
 		page.getByTestId('swimlane-rule-done').locator('input'),
 	).toBeDisabled();
 
-	await page.getByTestId('swimlane-stats-title').click();
-	await expect(page.getByTestId('swimlane-stats-title-input')).toHaveCount(0);
+	await page.getByTestId('swimlane-details-title').click();
+	await expect(page.getByTestId('swimlane-details-title-input')).toHaveCount(0);
 });

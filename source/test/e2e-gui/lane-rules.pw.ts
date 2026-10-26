@@ -1,50 +1,81 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {addTicket} from './ticket.js';
 
 const pill = (page: Page, goal: string) =>
 	page.getByTestId('goal-pill').filter({hasText: goal});
 
-test.beforeEach(async ({page, appUrl}) => {
-	await page.goto(appUrl);
-	await expect(page.getByTestId('board-switcher')).toContainText('Default');
-});
+const lane = (page: Page, name: string) =>
+	page.locator('section').filter({hasText: name});
 
-test('a lane marked done in its panel counts its tickets done for their goal', async ({
+// The seeded board's lane called Done, by its header.
+const doneHeader = (page: Page) =>
+	page.getByTestId('swimlane-handle').filter({hasText: /^\W*Done\b/});
+
+test('a lane marked done in its panel counts its tickets done, and the lane named Done stops', async ({
 	page,
+	appUrl,
 	pageErrors,
 }) => {
-	const goal = `Rules ${Date.now()}`;
-	await addTicket(page, `Waiting ${goal}`);
-	await page.getByTestId('goal-current').click();
-	await page.getByTestId('goal-search').fill(goal);
-	await page.getByTestId('goal-create').click();
-	await expect(pill(page, goal)).toContainText('0/1');
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	// `add-issue` files into the first lane. The worker's board is shared, so
-	// the lane and the goal strip are put back however this ends.
+	// Its own lane, deleted at the end with its ticket: the worker's board is
+	// shared.
+	const name = `Released ${Date.now()}`;
+	await page.getByTestId('add-swimlane').click();
+	await page.getByPlaceholder('swimlane name').fill(name);
+	await page.getByPlaceholder('swimlane name').press('Enter');
+	await expect(lane(page, name)).toHaveCount(1);
+
+	await lane(page, name).getByTestId('add-issue').click();
+	await page.getByPlaceholder('ticket name').fill(`Waiting ${name}`);
+	await page.getByPlaceholder('ticket name').press('Enter');
+	await expect(page.locator('aside')).toContainText(`Waiting ${name}`);
+	await page.getByTestId('goal-current').click();
+	await page.getByTestId('goal-search').fill(name);
+	await page.getByTestId('goal-create').click();
+	await expect(pill(page, name)).toContainText('0/1');
+
+	// Unmarked, the board counts its lane called Done by name, and says so.
+	const doneMark = doneHeader(page).getByTestId('swimlane-marks-done');
+	await expect(doneMark).toHaveCount(1);
+
+	await lane(page, name).getByTestId('swimlane-details-open').click();
 	const rule = page.getByTestId('swimlane-rule-done').locator('input');
 	try {
-		await page.getByTestId('swimlane-menu').first().click();
 		await rule.check();
-		await expect(pill(page, goal)).toContainText('1/1');
-		await expect(page.getByTestId('swimlane-marks-done')).toHaveCount(1);
+		await expect(pill(page, name)).toContainText('1/1');
+		await expect(
+			lane(page, name).getByTestId('swimlane-marks-done'),
+		).toBeVisible();
+		await expect(doneMark).toHaveCount(0);
 
 		await rule.uncheck();
-		await expect(pill(page, goal)).toContainText('0/1');
-		await expect(page.getByTestId('swimlane-marks-done')).toHaveCount(0);
+		await expect(pill(page, name)).toContainText('0/1');
+		await expect(doneMark).toHaveCount(1);
 	} finally {
-		if ((await page.getByTestId('swimlane-marks-done').count()) > 0) {
-			await rule.uncheck();
-		}
-		// Pressed again, the menu button closes the lane's panel.
-		await page.getByTestId('swimlane-menu').first().click();
-		await expect(page.getByTestId('swimlane-stats')).toHaveCount(0);
-		await page.getByText(`Waiting ${goal}`).click();
-		await page.getByTestId('goal-current').click();
-		await page.getByTestId('goal-leave').click();
-		await expect(pill(page, goal)).toHaveCount(0);
+		await page.getByTestId('swimlane-delete').click();
+		await page
+			.getByTestId('confirm-modal')
+			.getByRole('button', {name: 'delete'})
+			.click();
+		await expect(lane(page, name)).toHaveCount(0);
+		await expect(pill(page, name)).toHaveCount(0);
 	}
 
 	expect(pageErrors).toEqual([]);
+});
+
+test('the lane named Done says it counts by its name until a lane is marked', async ({
+	page,
+	appUrl,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await doneHeader(page).getByTestId('swimlane-details-open').click();
+	await expect(
+		page.getByTestId('swimlane-rule-done').locator('input'),
+	).not.toBeChecked();
+	await expect(page.getByTestId('swimlane-done-by-name')).toBeVisible();
 });

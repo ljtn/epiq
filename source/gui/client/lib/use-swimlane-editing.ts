@@ -4,6 +4,7 @@
 
 import {Dispatch, SetStateAction, useState} from 'react';
 import {updateSwimlaneInGuiState} from './gui-state-helper';
+import type {LaneRule} from '../../../lib/model/lane-rule.model.js';
 import {GuiState, GuiSwimlane} from './gui-state.model';
 import {BoardSocketActions} from './use-board-socket';
 
@@ -50,6 +51,7 @@ export const useSwimlaneEditing = ({
 												title,
 												readonly: true,
 												issues: [],
+												countsDone: false,
 											},
 										],
 								  }
@@ -100,14 +102,19 @@ export const useSwimlaneEditing = ({
 		setDeleteSwimlaneId(null);
 	};
 
-	const setSwimlaneRule = (swimlaneId: string, rule: 'done', on: boolean) => {
+	// The lane takes its rule at once; whether a lane called Done still counts
+	// beside it arrives with the server's state.
+	const setSwimlaneRule = (swimlaneId: string, rule: LaneRule, on: boolean) => {
 		setState(prev =>
 			prev
 				? updateSwimlaneInGuiState(prev, swimlaneId, swimlane => {
 						const rules = (swimlane.rules ?? []).filter(kept => kept !== rule);
 						const next = on ? [...rules, rule] : rules;
 						const {rules: _rules, ...rest} = swimlane;
-						return next.length > 0 ? {...rest, rules: next} : rest;
+						const countsDone = rule === 'done' ? on : swimlane.countsDone;
+						return next.length > 0
+							? {...rest, rules: next, countsDone}
+							: {...rest, countsDone};
 				  })
 				: prev,
 		);

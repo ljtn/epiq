@@ -1,8 +1,8 @@
-import {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
 import {FormHeader} from './FormHeader';
 import {Input} from './FormPrimitives';
+import {useEditDraft} from '../lib/ticket-drafts';
 
 // A board's or a lane's panel: its description, and what can be said about
 // it. Kin to a ticket's panel, and named for what it belongs to so it is not
@@ -19,23 +19,23 @@ export const DetailsHeader = ({
 	testId,
 	kind,
 	title,
-	onRename,
+	rename,
 	onClose,
 }: {
 	testId: string;
 	kind: 'Board' | 'Swimlane' | 'Goal';
 	title: string;
-	// Given, the title is edited in place, as a ticket's is: Enter or leaving
-	// it saves, Escape keeps the old one.
-	onRename?: (title: string) => void;
+	// Given, the title is edited in place, as a ticket's is, in a draft kept
+	// under the node's id: Enter or leaving it saves, Escape keeps the old one.
+	rename?: {nodeId: string; onSave: (title: string) => void};
 	onClose: () => void;
 }) => {
-	const [draft, setDraft] = useState<string | null>(null);
-
+	const edit = useEditDraft(rename?.nodeId ?? '', 'title', title);
 	const save = () => {
-		const next = draft?.trim();
-		setDraft(null);
-		if (next && next !== title) onRename?.(next);
+		const next = edit.text.trim();
+		const changed = edit.changed;
+		edit.stop();
+		if (changed && next && next !== title) rename?.onSave(next);
 	};
 
 	return (
@@ -60,29 +60,48 @@ export const DetailsHeader = ({
 				>
 					{kind}
 				</span>
-				{draft !== null ? (
+				{rename && edit.editing ? (
 					<Input
 						data-testid={`${testId}-title-input`}
-						value={draft}
+						value={edit.text}
 						autoFocus
-						onChange={event => setDraft(event.target.value)}
+						onChange={event => edit.setText(event.target.value)}
 						onKeyDown={event => {
 							if (event.key === 'Enter') event.currentTarget.blur();
-							if (event.key === 'Escape') setDraft(null);
+							if (event.key === 'Escape') edit.stop();
 						}}
 						onBlur={save}
 						style={{...TITLE_STYLE, flex: 1, padding: '2px 6px'}}
 					/>
-				) : (
-					<span
+				) : rename ? (
+					// A button, as Manage goals' names are, so a keyboard reaches it.
+					<button
+						type="button"
 						data-testid={`${testId}-title`}
-						onClick={onRename ? () => setDraft(title) : undefined}
+						onClick={edit.start}
 						style={{
 							...TITLE_STYLE,
 							overflow: 'hidden',
 							textOverflow: 'ellipsis',
 							whiteSpace: 'nowrap',
-							cursor: onRename ? 'text' : 'default',
+							padding: 0,
+							border: 'none',
+							background: 'transparent',
+							fontFamily: 'inherit',
+							textAlign: 'left',
+							cursor: 'text',
+						}}
+					>
+						{title}
+					</button>
+				) : (
+					<span
+						data-testid={`${testId}-title`}
+						style={{
+							...TITLE_STYLE,
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
 						}}
 					>
 						{title}

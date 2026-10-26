@@ -464,10 +464,12 @@ export const App = () => {
 		void navigate(`/board/${boardSlug}`);
 	};
 
-	// The lane whose stats the inspector is showing, if any. Not in the URL like
+	// The lane whose panel is open, if any, and on which tab. Not in the URL like
 	// the open ticket: it is a glance at a column rather than a place on the
 	// board worth linking somebody to.
-	const [statsSwimlaneId, setStatsSwimlaneId] = useState<string | null>(null);
+	const [detailsSwimlaneId, setDetailsSwimlaneId] = useState<string | null>(
+		null,
+	);
 	const [laneTab, setLaneTab] = useState<SwimlaneDetailsTab>('overview');
 	// The board on screen's own panel, for the same reason.
 	const [boardDetailsOpen, setBoardDetailsOpen] = useState(false);
@@ -503,7 +505,7 @@ export const App = () => {
 	});
 	const {stats: swimlaneStats, onMessage: onSwimlaneStatsMessage} =
 		useSwimlaneStats({
-			swimlaneId: laneTab === 'stats' ? statsSwimlaneId : null,
+			swimlaneId: laneTab === 'stats' ? detailsSwimlaneId : null,
 			sendRaw,
 		});
 	const {overview: boardOverview, onMessage: onBoardOverviewMessage} =
@@ -798,7 +800,7 @@ export const App = () => {
 		setGoalDetailsOpen(narrowing);
 		if (narrowing) {
 			setCommitDiff(null);
-			setStatsSwimlaneId(null);
+			setDetailsSwimlaneId(null);
 			setBoardDetailsOpen(false);
 			clearPicked();
 		}
@@ -1278,7 +1280,7 @@ export const App = () => {
 		setCommitDiff(null);
 		// One inspector, one subject: a lane's or the board's panel left open
 		// would hide the ticket just asked for the same way.
-		setStatsSwimlaneId(null);
+		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
 		setGoalDetailsOpen(false);
 
@@ -1303,8 +1305,8 @@ export const App = () => {
 		closeIssueDetails();
 		setBoardDetailsOpen(false);
 		setGoalDetailsOpen(false);
-		const open = statsSwimlaneId === swimlaneId && laneTab === tab;
-		setStatsSwimlaneId(open ? null : swimlaneId);
+		const open = detailsSwimlaneId === swimlaneId && laneTab === tab;
+		setDetailsSwimlaneId(open ? null : swimlaneId);
 		setLaneTab(tab);
 	};
 
@@ -1312,7 +1314,7 @@ export const App = () => {
 		setCommitDiff(null);
 		clearPicked();
 		closeIssueDetails();
-		setStatsSwimlaneId(null);
+		setDetailsSwimlaneId(null);
 		setGoalDetailsOpen(false);
 		setBoardDetailsOpen(open => !open);
 	};
@@ -1380,7 +1382,7 @@ export const App = () => {
 		tab: IssueDetailsTab,
 		diffView?: DiffViewName,
 	) => {
-		setStatsSwimlaneId(null);
+		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
 		setPickedIssueIds([nextIssueId]);
 		openIssueTab(nextIssueId, tab, boardSlug, diffView);
@@ -1958,8 +1960,8 @@ export const App = () => {
 	// The lane the panel is for, as the board currently has it — so the figures
 	// follow a ticket dropped into the lane while the panel is open, and a
 	// replayed board shows the lane as it was then.
-	const statsSwimlane =
-		shownSwimlanes.find(swimlane => swimlane.id === statsSwimlaneId) ?? null;
+	const detailsSwimlane =
+		shownSwimlanes.find(swimlane => swimlane.id === detailsSwimlaneId) ?? null;
 
 	// The dragged id comes off the drop event rather than being remembered from
 	// dragstart: a drag can begin in one window and end in this one, and the
@@ -2152,7 +2154,7 @@ export const App = () => {
 													selectBoard(id);
 													setCommitDiff(null);
 													clearPicked();
-													setStatsSwimlaneId(null);
+													setDetailsSwimlaneId(null);
 													setBoardDetailsOpen(true);
 												},
 											}}
@@ -2277,8 +2279,11 @@ export const App = () => {
 									// hide.
 									onClick={() => {
 										clearPicked();
-										if (!statsSwimlaneId || !hasTicketDrafts(statsSwimlaneId)) {
-											setStatsSwimlaneId(null);
+										if (
+											!detailsSwimlaneId ||
+											!hasTicketDrafts(detailsSwimlaneId)
+										) {
+											setDetailsSwimlaneId(null);
 										}
 										if (!selectedBoard || !hasTicketDrafts(selectedBoard.id)) {
 											setBoardDetailsOpen(false);
@@ -2353,7 +2358,7 @@ export const App = () => {
 												live={state?.timeTravel?.mode !== 'scrub'}
 												diffStats={refDiffStats}
 												openTab={
-													statsSwimlaneId === swimlane.id ? laneTab : null
+													detailsSwimlaneId === swimlane.id ? laneTab : null
 												}
 												onOpenDetails={openSwimlaneDetails}
 												selected={false}
@@ -2483,32 +2488,32 @@ export const App = () => {
 								</Aside>
 							)}
 
-							{!theatre && !commitDiff && statsSwimlane && (
+							{!theatre && !commitDiff && detailsSwimlane && (
 								<SwimlaneDetails
 									dock={asideDock}
-									swimlane={statsSwimlane}
+									swimlane={detailsSwimlane}
 									tab={laneTab}
 									onChangeTab={setLaneTab}
 									state={swimlaneStats}
 									live={state?.timeTravel?.mode !== 'scrub'}
-									onRename={title => renameSwimlane(statsSwimlane.id, title)}
+									onRename={title => renameSwimlane(detailsSwimlane.id, title)}
 									onSetRule={(rule, on) =>
-										setSwimlaneRule(statsSwimlane.id, rule, on)
+										setSwimlaneRule(detailsSwimlane.id, rule, on)
 									}
-									onDelete={() => setDeleteSwimlaneId(statsSwimlane.id)}
+									onDelete={() => setDeleteSwimlaneId(detailsSwimlane.id)}
 									onSaveDescription={text =>
 										saveNodeDescription(
-											{kind: 'swimlane', id: statsSwimlane.id},
+											{kind: 'swimlane', id: detailsSwimlane.id},
 											text,
 										)
 									}
-									onClose={() => setStatsSwimlaneId(null)}
+									onClose={() => setDetailsSwimlaneId(null)}
 								/>
 							)}
 
 							{!theatre &&
 								!commitDiff &&
-								!statsSwimlane &&
+								!detailsSwimlane &&
 								boardDetailsOpen &&
 								selectedBoard && (
 									<BoardDetails
@@ -2528,7 +2533,7 @@ export const App = () => {
 
 							{!theatre &&
 								!commitDiff &&
-								!statsSwimlane &&
+								!detailsSwimlane &&
 								!boardDetailsOpen &&
 								detailedGoal &&
 								selectedBoard &&
@@ -2554,7 +2559,7 @@ export const App = () => {
 
 							{!theatre &&
 								!commitDiff &&
-								!statsSwimlane &&
+								!detailsSwimlane &&
 								!boardDetailsOpen &&
 								!detailedGoal &&
 								pickedIssues.length > 1 && (
@@ -2600,7 +2605,7 @@ export const App = () => {
 
 							{!theatre &&
 								!commitDiff &&
-								!statsSwimlane &&
+								!detailsSwimlane &&
 								!boardDetailsOpen &&
 								!detailedGoal &&
 								pickedIssues.length <= 1 &&

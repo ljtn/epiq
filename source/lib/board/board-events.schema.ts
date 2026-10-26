@@ -31,6 +31,8 @@ const name = z.string();
 const rank = z.string();
 
 const withId = z.looseObject({id});
+// A lane rule's name; a newer build's is kept, so it is bounded, not listed.
+const rule = z.string().min(1).max(64);
 
 const positioned = z.looseObject({
 	id,
@@ -55,8 +57,8 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'lock.node': withId,
 	'move.node': z.looseObject({id, parent: id, rank}),
 	'edit.description': z.looseObject({id, md: z.string()}),
-	'add.swimlane.rule': z.looseObject({id, rule: id}),
-	'remove.swimlane.rule': z.looseObject({id, rule: id}),
+	'add.swimlane.rule': z.looseObject({id, rule}),
+	'remove.swimlane.rule': z.looseObject({id, rule}),
 
 	'close.issue': z.looseObject({id, parent: id, rank}),
 	'reopen.issue': z.looseObject({id, parent: id, rank}),

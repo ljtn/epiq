@@ -65,7 +65,8 @@ import {
 	parseReplayArgs,
 	parseReplayDuration,
 } from './validate-date.js';
-import {LANE_RULES, laneRules} from '../utils/lane-rules.js';
+import {LANE_RULES} from '../model/lane-rule.model.js';
+import {laneRules, rulesLacking} from '../utils/lane-rules.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
 const guardBoardSwimlaneTicketNodes = (): ValidationResult => {
@@ -967,7 +968,10 @@ const validators: Record<CmdKeyword, Validator> = {
 			  })
 			: valid(CONFIRM_MSG),
 
-	[CmdKeywords.RULE]: requireLaneRule(() => [...LANE_RULES]),
+	[CmdKeywords.RULE]: requireLaneRule(() => {
+		const lane = laneInScope();
+		return lane ? rulesLacking(lane) : [];
+	}),
 	[CmdKeywords.UNRULE]: requireLaneRule(() => {
 		const lane = laneInScope();
 		return lane ? laneRules(lane) : [];

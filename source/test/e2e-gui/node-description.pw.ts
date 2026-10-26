@@ -12,8 +12,8 @@ const lane = (page: Page, name: string) =>
 	page.locator('section').filter({hasText: name});
 
 const openLanePanel = async (page: Page, name: string) => {
-	await lane(page, name).getByTestId('swimlane-menu').click();
-	await expect(page.getByTestId('swimlane-stats')).toContainText(name);
+	await lane(page, name).getByTestId('swimlane-details-open').click();
+	await expect(page.getByTestId('swimlane-details')).toContainText(name);
 };
 
 // From the lane's Overview, which `openLanePanel` may have left open: its menu
@@ -51,7 +51,7 @@ test("a lane's description is written in its panel", async ({
 	const name = `Described ${Date.now()}`;
 	await addLane(page, name);
 	await openLanePanel(page, name);
-	await expect(page.getByTestId('swimlane-stats')).toContainText('Swimlane');
+	await expect(page.getByTestId('swimlane-details')).toContainText('Swimlane');
 	await expect(page.getByText('No description', {exact: true})).toBeVisible();
 	await page.getByTestId('swimlane-description-edit').click();
 	await page

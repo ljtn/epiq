@@ -1,5 +1,6 @@
 import {LaneFlow} from '../../../lib/stats/swimlane-stats.model.js';
 import {AsideDock} from '../lib/aside-dock';
+import type {LaneRule} from '../../../lib/model/lane-rule.model.js';
 import {GuiSwimlane} from '../lib/gui-state.model';
 import {formatAbsolute, formatDuration, plural} from '../lib/gui-format.helper';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -87,7 +88,7 @@ export const SwimlaneDetails = ({
 	live: boolean;
 	onRename: (title: string) => void;
 	onSaveDescription: (description: string) => void;
-	onSetRule: (rule: 'done', on: boolean) => void;
+	onSetRule: (rule: LaneRule, on: boolean) => void;
 	onDelete: () => void;
 	onClose: () => void;
 }) => {
@@ -106,10 +107,10 @@ export const SwimlaneDetails = ({
 	return (
 		<Aside dock={dock}>
 			<DetailsHeader
-				testId="swimlane-stats"
+				testId="swimlane-details"
 				kind="Swimlane"
 				title={swimlane.title}
-				{...(writable && {onRename})}
+				{...(writable && {rename: {nodeId: swimlane.id, onSave: onRename}})}
 				onClose={onClose}
 			/>
 
@@ -144,6 +145,15 @@ export const SwimlaneDetails = ({
 								disabled={!writable}
 								onChange={on => onSetRule('done', on)}
 							/>
+							{!marksDone && swimlane.countsDone && (
+								<div
+									data-testid="swimlane-done-by-name"
+									style={{marginTop: 8, fontSize: 11, color: GUI_THEME.dim}}
+								>
+									Counted as done by its name until a lane on this board is
+									marked
+								</div>
+							)}
 						</div>
 					</Section>
 

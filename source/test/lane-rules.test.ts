@@ -33,7 +33,8 @@ const unwrap = <T>(result: Result<T>): T => {
 	return result.value;
 };
 
-// A board with a goal of four tickets, one standing in each lane given.
+// A board and a goal: `file` puts a ticket of the goal in a lane, `mark`
+// turns a lane's done rule on or off.
 const seed = async () => {
 	const {repoRoot} = await setupRepo();
 	const assumed = unwrap(await assumeActor({repoRoot, name: 'claude/peter'}));
@@ -62,88 +63,65 @@ const seed = async () => {
 		return id;
 	};
 
+	const mark = async (swimlaneId: string, on = true) =>
+		unwrap(await setSwimlaneRule({repoRoot, swimlaneId, rule: 'done', on}));
+
+	const counting = async () =>
+		unwrap(await listSwimlanes({repoRoot, boardId: board.id}))
+			.filter(candidate => candidate.countsDone)
+			.map(candidate => candidate.title);
+
 	const progress = () =>
 		unwrap(deriveGuiState())
 			.boards.find(candidate => candidate.id === board.id)!
 			.goals.find(candidate => candidate.id === goal.id)!;
 
-	return {repoRoot, assumed, board, lanes, lane, first, file, progress};
+	return {repoRoot, assumed, lane, first, file, mark, counting, progress};
 };
 
 describe('a lane rule', () => {
-	it('counts a lane called Done while no lane on the board has the done rule', async () => {
-		const {lane, first, file, progress} = await seed();
+	it('counts a lane called Done while no lane on the board has the done rule, and says so', async () => {
+		const {lane, first, file, mark, counting, progress} = await seed();
 		await file('Waiting', first.id);
 		await file('Finished', lane('done').id);
 
 		expect(progress()).toMatchObject({done: 1, total: 2});
+		expect(await counting()).toEqual(['Done']);
+
+		await mark(first.id);
+		expect(await counting()).toEqual([first.title]);
 	});
 
 	it('counts only lanes with the done rule once one has it, however named', async () => {
-		const {repoRoot, lane, first, file, progress} = await seed();
+		const {lane, first, file, mark, progress} = await seed();
 		await file('Waiting', first.id);
 		await file('In Done', lane('done').id);
 		await file('Released', first.id);
 
-		unwrap(
-			await setSwimlaneRule({
-				repoRoot,
-				swimlaneId: first.id,
-				rule: 'done',
-				on: true,
-			}),
-		);
+		await mark(first.id);
 		// Every ticket in the first lane now counts; Done's no longer does.
 		expect(progress()).toMatchObject({done: 2, total: 3});
 
-		unwrap(
-			await setSwimlaneRule({
-				repoRoot,
-				swimlaneId: lane('done').id,
-				rule: 'done',
-				on: true,
-			}),
-		);
+		await mark(lane('done').id);
 		expect(progress()).toMatchObject({done: 3, total: 3});
 
-		unwrap(
-			await setSwimlaneRule({
-				repoRoot,
-				swimlaneId: first.id,
-				rule: 'done',
-				on: false,
-			}),
-		);
+		await mark(first.id, false);
 		expect(progress()).toMatchObject({done: 1, total: 3});
 	});
 
 	it('counts a closed ticket done whatever the lanes say', async () => {
-		const {repoRoot, lane, first, file, progress} = await seed();
+		const {repoRoot, lane, first, file, mark, progress} = await seed();
 		const closed = await file('Closed', first.id);
 		unwrap(await closeIssue({repoRoot, issueId: closed}));
-		unwrap(
-			await setSwimlaneRule({
-				repoRoot,
-				swimlaneId: lane('done').id,
-				rule: 'done',
-				on: true,
-			}),
-		);
+		await mark(lane('done').id);
 
 		expect(progress()).toMatchObject({done: 1, total: 1});
 	});
 
 	it('stays with its lane through a rename', async () => {
-		const {repoRoot, first, file, progress} = await seed();
+		const {repoRoot, first, file, mark, progress} = await seed();
 		await file('Shipped', first.id);
-		unwrap(
-			await setSwimlaneRule({
-				repoRoot,
-				swimlaneId: first.id,
-				rule: 'done',
-				on: true,
-			}),
-		);
+		await mark(first.id);
 		unwrap(
 			await editSwimlaneTitle({repoRoot, swimlaneId: first.id, title: 'Klart'}),
 		);
@@ -176,16 +154,8 @@ describe('a lane rule', () => {
 	});
 
 	it('writes nothing when the lane already is as asked', async () => {
-		const {repoRoot, first} = await seed();
-		const off = unwrap(
-			await setSwimlaneRule({
-				repoRoot,
-				swimlaneId: first.id,
-				rule: 'done',
-				on: false,
-			}),
-		);
-		expect(off).toMatchObject({rule: 'done'});
+		const {first, mark} = await seed();
+		expect(await mark(first.id, false)).toMatchObject({rule: 'done'});
 		expect((nodeRepo.getNode(first.id) as Swimlane).props).not.toHaveProperty(
 			'rules',
 		);

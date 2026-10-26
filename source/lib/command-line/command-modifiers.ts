@@ -27,7 +27,7 @@ import {
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
 import {boardGoals, getTicketGoal, projectGoals} from '../utils/goal.utils.js';
 import {generatePeekOffsetHints} from './validate-date.js';
-import {LANE_RULES, laneRules} from '../utils/lane-rules.js';
+import {laneRules, rulesLacking} from '../utils/lane-rules.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE', 'COMMENT'];
 
@@ -446,7 +446,10 @@ export const getCmdModifiers = (
 
 		[CmdKeywords.GOAL]: goalNamesInScope(),
 
-		[CmdKeywords.RULE]: [...LANE_RULES],
+		[CmdKeywords.RULE]: (() => {
+			const lane = laneInScope();
+			return lane ? rulesLacking(lane) : [];
+		})(),
 
 		[CmdKeywords.UNRULE]: (() => {
 			const lane = laneInScope();

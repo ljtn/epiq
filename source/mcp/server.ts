@@ -3,7 +3,7 @@ import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {z} from 'zod';
 import {MAX_URL_LENGTH} from '../lib/commits/repo-url.js';
 import {isFail, Result} from '../lib/model/result-types.js';
-import {LANE_RULES} from '../lib/utils/lane-rules.js';
+import {LANE_RULES} from '../lib/model/lane-rule.model.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
 	MAX_ASSIGNEES_PER_CREATE,

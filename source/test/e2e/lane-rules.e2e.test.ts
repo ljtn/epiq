@@ -39,15 +39,26 @@ describe('TUI lane rules e2e', () => {
 			try {
 				await commonSteps.init(tui);
 
+				// Done counts by its name while no lane is marked.
 				tui.input(ENTER);
-				await tui.waitFor('Todo (0)');
+				await tui.waitFor(
+					output =>
+						output.includes('Done (0) ✓') && !output.includes('Todo (0) ✓'),
+					4_000,
+				);
 
+				// Marked, Todo counts instead.
 				await run(tui, ':rule done', 'rule done');
-				await tui.waitFor('Todo (0) ✓', 4_000);
+				await tui.waitFor(
+					output =>
+						output.includes('Todo (0) ✓') && !output.includes('Done (0) ✓'),
+					4_000,
+				);
 
 				await run(tui, ':unrule done', 'unrule done');
 				await tui.waitFor(
-					output => output.includes('Todo (0)') && !output.includes('✓'),
+					output =>
+						output.includes('Done (0) ✓') && !output.includes('Todo (0) ✓'),
 					4_000,
 				);
 			} finally {

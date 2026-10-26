@@ -12,6 +12,7 @@ import {
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
 import {IconCheck} from './IconCheck';
+import {IconDots} from './IconDots';
 import {SwimlaneDetailsTab} from './SwimlaneDetails';
 import {IconLaneStats} from './IconLaneStats';
 import {IconLock} from './IconLock';
@@ -111,7 +112,6 @@ export const SwimlaneColumn = ({
 	// so where a ticket can be stuck.
 	middle?: boolean;
 }) => {
-	const marksDone = swimlane.rules?.includes('done') ?? false;
 	// One reading for the whole column, so the header's figures and the clocks on
 	// the cards under it are answers to the same question.
 	const now = Date.now();
@@ -294,7 +294,7 @@ export const SwimlaneColumn = ({
 
 					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
-					{marksDone && (
+					{swimlane.countsDone && (
 						<span
 							data-testid="swimlane-marks-done"
 							title="Tickets here count as done"
@@ -344,7 +344,7 @@ export const SwimlaneColumn = ({
 					</IconButton>
 
 					<IconButton
-						testId="swimlane-menu"
+						testId="swimlane-details-open"
 						title="Swimlane details"
 						pressed={openTab === 'overview'}
 						onClick={event => {
@@ -352,7 +352,7 @@ export const SwimlaneColumn = ({
 							onOpenDetails(swimlane.id, 'overview');
 						}}
 					>
-						⋮
+						<IconDots size={ICON_SIZE} />
 					</IconButton>
 				</div>
 			</header>
