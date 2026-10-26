@@ -9,8 +9,10 @@ import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {AppState} from '../model/app-state.model.js';
 import {
 	AnyContext,
+	isSwimlaneNode,
 	isTicketNode,
 	NavNodeCtx,
+	Swimlane,
 	Ticket,
 } from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
@@ -25,6 +27,7 @@ import {
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
 import {boardGoals, getTicketGoal, projectGoals} from '../utils/goal.utils.js';
 import {generatePeekOffsetHints} from './validate-date.js';
+import {LANE_RULES, laneRules} from '../utils/lane-rules.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE', 'COMMENT'];
 
@@ -146,6 +149,8 @@ const TICKET_COMMANDS = [
 	CmdKeywords.COMMENT,
 ];
 
+const LANE_COMMANDS = [CmdKeywords.RULE, CmdKeywords.UNRULE];
+
 const PRESENTATION_COMMANDS = [
 	CmdKeywords.FILTER,
 	CmdKeywords.PEEK,
@@ -154,8 +159,18 @@ const PRESENTATION_COMMANDS = [
 
 const COMMANDS_BY_CONTEXT: CommandMap = {
 	WORKSPACE: [...GLOBAL_COMMANDS, ...EDIT_COMMANDS],
-	BOARD: [...PRESENTATION_COMMANDS, ...GLOBAL_COMMANDS, ...EDIT_COMMANDS],
-	SWIMLANE: [...PRESENTATION_COMMANDS, ...GLOBAL_COMMANDS, ...EDIT_COMMANDS],
+	BOARD: [
+		...PRESENTATION_COMMANDS,
+		...GLOBAL_COMMANDS,
+		...EDIT_COMMANDS,
+		...LANE_COMMANDS,
+	],
+	SWIMLANE: [
+		...PRESENTATION_COMMANDS,
+		...GLOBAL_COMMANDS,
+		...EDIT_COMMANDS,
+		...LANE_COMMANDS,
+	],
 	TICKET: [...GLOBAL_COMMANDS, ...EDIT_COMMANDS, ...TICKET_COMMANDS],
 	FIELD: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
 	FIELD_LIST: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
@@ -179,6 +194,14 @@ export const ticketInScope = ({
 	[...breadCrumb, selectedNode].find(
 		(node): node is Ticket => node != null && isTicketNode(node),
 	);
+
+/** The lane selected, or the one the selection stands in. */
+export const laneInScope = (): Swimlane | undefined => {
+	const {breadCrumb = [], selectedNode} = getState();
+	return [selectedNode, ...[...breadCrumb].reverse()].find(
+		(node): node is Swimlane => node != null && isSwimlaneNode(node),
+	);
+};
 
 /** The project's goals by name, the board in scope's first. */
 export const goalNamesInScope = (): string[] => {
@@ -318,6 +341,16 @@ const getAvailableBaseCommands = ({
 			return Boolean(ticket && getTicketGoal(ticket));
 		}
 
+		if (command === CmdKeywords.RULE) {
+			const lane = laneInScope();
+			return Boolean(lane && !lane.readonly);
+		}
+
+		if (command === CmdKeywords.UNRULE) {
+			const lane = laneInScope();
+			return Boolean(lane && !lane.readonly && laneRules(lane).length > 0);
+		}
+
 		if (command === CmdKeywords.UNASSIGN) {
 			return Boolean(ticket && getTicketAssignees(ticket).length > 0);
 		}
@@ -412,6 +445,13 @@ export const getCmdModifiers = (
 		],
 
 		[CmdKeywords.GOAL]: goalNamesInScope(),
+
+		[CmdKeywords.RULE]: [...LANE_RULES],
+
+		[CmdKeywords.UNRULE]: (() => {
+			const lane = laneInScope();
+			return lane ? laneRules(lane) : [];
+		})(),
 
 		[CmdKeywords.UNASSIGN]: [
 			...(ticketAssigneesFromBreadCrumb()?.value?.map(({name}) => name) ?? []),

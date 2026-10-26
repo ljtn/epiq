@@ -63,6 +63,10 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 		'swimlane:edit:description',
 		z.object({swimlaneId: id, description: z.string()}),
 	),
+	message(
+		'swimlane:rule:set',
+		z.object({swimlaneId: id, rule: id, on: z.boolean()}),
+	),
 	message('swimlane:delete', z.object({swimlaneId: id})),
 	message(
 		'swimlane:move',

@@ -12,7 +12,11 @@ import {
 	emailLinkKey,
 	normalizeEmail,
 } from '../model/email-link.js';
-import {AnyContext, isTicketNode} from '../model/context.model.js';
+import {
+	AnyContext,
+	isSwimlaneNode,
+	isTicketNode,
+} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {
 	failed,
@@ -750,6 +754,43 @@ export const nodeRepo = {
 		this.updateNode(updatedNode);
 
 		return succeeded('Tag removed', {tag: tagId});
+	},
+
+	addLaneRule(laneId: string, rule: string): Result<{rule: string}> {
+		const lane = this.getNode(laneId);
+		if (!lane) return failed('Unable to add rule, missing lane');
+
+		const readonlyFail = failIfReadonly(lane, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isSwimlaneNode(lane)) return failed('Target is not a swimlane');
+
+		const rules = lane.props.rules ?? [];
+		if (rules.includes(rule)) return failed('Lane already has that rule');
+
+		this.updateNode({...lane, props: {...lane.props, rules: [...rules, rule]}});
+		return succeeded('Added lane rule', {rule});
+	},
+
+	removeLaneRule(laneId: string, rule: string): Result<{rule: string}> {
+		const lane = this.getNode(laneId);
+		if (!lane) return failed('Unable to remove rule, missing lane');
+
+		const readonlyFail = failIfReadonly(lane, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isSwimlaneNode(lane)) return failed('Target is not a swimlane');
+
+		const rules = lane.props.rules ?? [];
+		if (!rules.includes(rule)) return succeeded('Lane lacks that rule', {rule});
+
+		const {rules: _rules, ...props} = lane.props;
+		const left = rules.filter(kept => kept !== rule);
+		this.updateNode({
+			...lane,
+			props: left.length > 0 ? {...props, rules: left} : props,
+		});
+		return succeeded('Removed lane rule', {rule});
 	},
 
 	addGoal(targetId: string, goalId: string): Result<{goal: string}> {

@@ -38,6 +38,7 @@ export {
 	setIssueGoal,
 } from './api/goals.js';
 export {getGoalStats, goalStats} from './api/goal-stats.js';
+export {setSwimlaneRule} from './api/lane-rules.js';
 export {
 	addIssueTag,
 	tombstoneTag,

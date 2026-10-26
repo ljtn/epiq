@@ -9,7 +9,7 @@ import {
 	MovePosition,
 } from '../../lib/board/board-events.model.js';
 import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
-import {isBoardNode} from '../../lib/model/context.model.js';
+import {isBoardNode, isSwimlaneNode} from '../../lib/model/context.model.js';
 import {
 	failed,
 	isFail,
@@ -33,6 +33,7 @@ import {
 	resolveRepoRoot,
 } from './boot.js';
 import {descriptionOf} from './descriptions.js';
+import {rulesOf} from './lane-rules.js';
 import {apiBoardGoals} from './goals.js';
 import {findWritableBoard, findWritableSwimlane} from './node-targets.js';
 
@@ -220,6 +221,7 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 			isClosed: n.id === CLOSED_SWIMLANE_ID,
 			readonly: Boolean(n.readonly),
 			...descriptionOf(n.id),
+			...(isSwimlaneNode(n) ? rulesOf(n) : {}),
 		}));
 
 	return succeeded('Listed swimlanes', swimlanes);

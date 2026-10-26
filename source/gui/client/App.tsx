@@ -1821,6 +1821,7 @@ export const App = () => {
 		openRenameSwimlane,
 		submitRenameSwimlane,
 		confirmDeleteSwimlane,
+		setSwimlaneRule,
 	} = useSwimlaneEditing({send, setState, selectedBoard, visibleSwimlanes});
 
 	const {
@@ -2353,6 +2354,7 @@ export const App = () => {
 												onCreateIssue={openCreateIssueModal}
 												onRenameSwimlane={openRenameSwimlane}
 												onDeleteSwimlane={setDeleteSwimlaneId}
+												onSetSwimlaneRule={setSwimlaneRule}
 												dropSide={
 													swimlaneDropEdge?.swimlaneId === swimlane.id
 														? swimlaneDropEdge.side

@@ -56,6 +56,7 @@ import {
 	getCmdModifiers,
 	getOpenProjectModifiers,
 	goalNamesInScope,
+	laneInScope,
 	REPLAY_DURATION_HINTS,
 } from './command-modifiers.js';
 import {
@@ -64,6 +65,7 @@ import {
 	parseReplayArgs,
 	parseReplayDuration,
 } from './validate-date.js';
+import {LANE_RULES, laneRules} from '../utils/lane-rules.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
 const guardBoardSwimlaneTicketNodes = (): ValidationResult => {
@@ -239,6 +241,25 @@ const requireOneWithValueIn =
 		}
 
 		return valid();
+	};
+
+// One of a lane's rules, named and nothing after it.
+const requireLaneRule =
+	(rules: () => readonly string[]): Validator =>
+	({modifier, inputString}) => {
+		const list = rules();
+		if (!list.includes(modifier)) {
+			return invalid({
+				message: isBlank(modifier)
+					? hintDefault('rule:') + list.map(chip).join('') + hintDefault('')
+					: hintAlert(`Rules: ${LANE_RULES.join(', ')}`),
+				completionWordList: [...list],
+			});
+		}
+
+		return isBlank(inputString)
+			? valid(CONFIRM_MSG)
+			: invalid({message: hintAlert('Takes one rule'), completionWordList: []});
 	};
 
 const requireModifierOrInputStr =
@@ -945,6 +966,12 @@ const validators: Record<CmdKeyword, Validator> = {
 					completionWordList: [],
 			  })
 			: valid(CONFIRM_MSG),
+
+	[CmdKeywords.RULE]: requireLaneRule(() => [...LANE_RULES]),
+	[CmdKeywords.UNRULE]: requireLaneRule(() => {
+		const lane = laneInScope();
+		return lane ? laneRules(lane) : [];
+	}),
 
 	[CmdKeywords.CLOSE_ISSUE]: args => requireExact(args),
 	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),

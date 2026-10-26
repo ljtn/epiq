@@ -28,6 +28,7 @@ import {
 	goalTicketCommand,
 	ungoalTicketCommand,
 } from './commands/goal-ticket.cmd.js';
+import {ruleLaneCommand, unruleLaneCommand} from './commands/lane-rule.cmd.js';
 import {assignUserCommand} from './commands/assign-user.cmd.js';
 import {unassignUserCommand} from './commands/unassign-user.cmd.js';
 import {commentCommand} from './commands/comment.cmd.js';
@@ -169,6 +170,21 @@ export const commands: CommandLineActionEntry[] = [
 		description: 'Take the selected issue out of its goal',
 		mode: Mode.COMMAND_LINE,
 		action: ungoalTicketCommand,
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.RuleLane,
+		description:
+			'Give the selected swimlane a rule: done marks its tickets done',
+		mode: Mode.COMMAND_LINE,
+		action: ruleLaneCommand,
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.UnruleLane,
+		description: 'Take a rule off the selected swimlane',
+		mode: Mode.COMMAND_LINE,
+		action: unruleLaneCommand,
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{

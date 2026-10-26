@@ -66,6 +66,8 @@ export type GuiSwimlane = {
 	issues: GuiIssue[];
 	// The lane's conventions, as markdown; absent when it has none.
 	description?: string;
+	// What standing in the lane means for its tickets; absent when it has none.
+	rules?: 'done'[];
 };
 
 export type GuiBoard = {

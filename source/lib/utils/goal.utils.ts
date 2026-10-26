@@ -12,6 +12,7 @@ import {getSafeState} from '../state/state.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getMutedStringColor} from './color.js';
 import {sanitizeInlineText} from './string.utils.js';
+import {isDoneLane} from './lane-rules.js';
 import {boardsEverOnOf} from './ticket-boards.js';
 
 // No state, or one with no nodes yet, still answers: there are no goals.
@@ -173,19 +174,17 @@ export const boardGoals = (boardId: string): Goal[] =>
 
 /**
  * How far along a goal is, over every ticket in it on every board, however
- * long ago it was closed: done is closed, or standing in a lane called Done.
+ * long ago it was closed: done is closed, or standing in a done lane.
  */
 export const goalProgress = (goalId: string): {done: number; total: number} => {
 	const members = goalMembers(goalId);
 	return {done: members.filter(isGoalTicketDone).length, total: members.length};
 };
 
-/** Whether a ticket counts as done for its goal. */
-// By name, not by place: lanes are in whatever order a team put them.
+/** Whether a ticket counts as done for its goal: closed, or in a done lane. */
 export const isGoalTicketDone = (ticket: Ticket): boolean =>
 	ticket.parentNodeId === CLOSED_SWIMLANE_ID ||
-	nodesOrNone()[ticket.parentNodeId ?? '']?.title.trim().toLowerCase() ===
-		'done';
+	isDoneLane(ticket.parentNodeId ?? '');
 
 /** Why a goal may not be named so, or null when it may. */
 export const goalNameRefusal = (

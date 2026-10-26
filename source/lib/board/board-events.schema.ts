@@ -55,6 +55,8 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'lock.node': withId,
 	'move.node': z.looseObject({id, parent: id, rank}),
 	'edit.description': z.looseObject({id, md: z.string()}),
+	'add.swimlane.rule': z.looseObject({id, rule: id}),
+	'remove.swimlane.rule': z.looseObject({id, rule: id}),
 
 	'close.issue': z.looseObject({id, parent: id, rank}),
 	'reopen.issue': z.looseObject({id, parent: id, rank}),

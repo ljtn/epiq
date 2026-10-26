@@ -1,4 +1,6 @@
 import {Identity} from '../lib/model/identity.js';
+import {LaneRule} from '../lib/utils/lane-rules.js';
+
 export type ApiTag = {id: string; name: string; color: string};
 
 export type ApiAssignee = Identity;
@@ -94,6 +96,8 @@ export type ApiSwimlane = {
 	parentNodeId: string;
 	// The lane's conventions, as markdown; absent when it has none.
 	description?: string;
+	// The lane's rules this build knows; absent when it has none.
+	rules?: LaneRule[];
 };
 
 // One line of a ticket's own event log. `label` is the same phrasing the TUI

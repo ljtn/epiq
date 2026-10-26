@@ -1,6 +1,6 @@
 // The column editors: create, rename and delete, each a modal whose state is
 // held here and whose confirm applies to the board on screen before the
-// server answers.
+// server answers; and a lane's rules, switched from its menu.
 
 import {Dispatch, SetStateAction, useState} from 'react';
 import {updateSwimlaneInGuiState} from './gui-state-helper';
@@ -116,6 +116,10 @@ export const useSwimlaneEditing = ({
 		setDeleteSwimlaneId(null);
 	};
 
+	const setSwimlaneRule = (swimlaneId: string, rule: 'done', on: boolean) => {
+		send('swimlane:rule:set', {swimlaneId, rule, on});
+	};
+
 	return {
 		createSwimlaneTitle,
 		setCreateSwimlaneTitle,
@@ -127,5 +131,6 @@ export const useSwimlaneEditing = ({
 		openRenameSwimlane,
 		submitRenameSwimlane,
 		confirmDeleteSwimlane,
+		setSwimlaneRule,
 	};
 };

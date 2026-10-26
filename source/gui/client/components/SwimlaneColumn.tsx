@@ -11,6 +11,7 @@ import {
 } from '../lib/lane-dwell';
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
+import {IconCheck} from './IconCheck';
 import {IconLaneStats} from './IconLaneStats';
 import {IconLock} from './IconLock';
 import {Panel} from './Panel';
@@ -48,6 +49,7 @@ export const SwimlaneColumn = ({
 	onCreateIssue,
 	onRenameSwimlane,
 	onDeleteSwimlane,
+	onSetSwimlaneRule,
 	dropSide,
 	onSwimlaneDragOver,
 	onSwimlaneDragEnd,
@@ -81,6 +83,7 @@ export const SwimlaneColumn = ({
 	onCreateIssue: (swimlaneId: string) => void;
 	onRenameSwimlane: (swimlaneId: string) => void;
 	onDeleteSwimlane: (swimlaneId: string) => void;
+	onSetSwimlaneRule: (swimlaneId: string, rule: 'done', on: boolean) => void;
 	// Null unless the history player is up. `flashIssueId` is the ticket the
 	// event that just landed happened to, and `flashKey` that event's id, which
 	// is what restarts the flash when two of them in a row touch one ticket.
@@ -113,6 +116,7 @@ export const SwimlaneColumn = ({
 	// so where a ticket can be stuck.
 	middle?: boolean;
 }) => {
+	const marksDone = swimlane.rules?.includes('done') ?? false;
 	// One reading for the whole column, so the header's figures and the clocks on
 	// the cards under it are answers to the same question.
 	const now = Date.now();
@@ -295,6 +299,16 @@ export const SwimlaneColumn = ({
 
 					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
+					{marksDone && (
+						<span
+							data-testid="swimlane-marks-done"
+							title="Tickets here count as done"
+							style={{display: 'flex', color: GUI_THEME.dim}}
+						>
+							<IconCheck size={12} />
+						</span>
+					)}
+
 					{/* The lane's one panel: its description, and its figures while
 					    the board is live. */}
 					<IconButton
@@ -346,6 +360,13 @@ export const SwimlaneColumn = ({
 									id: 'rename',
 									label: 'Rename',
 									onSelect: () => onRenameSwimlane(swimlane.id),
+								},
+								{
+									id: 'rule-done',
+									label: 'Marks tickets done',
+									checked: marksDone,
+									onSelect: () =>
+										onSetSwimlaneRule(swimlane.id, 'done', !marksDone),
 								},
 								{
 									id: 'delete',

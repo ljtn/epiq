@@ -23,6 +23,8 @@ export type BoardProps = {
 export type SwimlaneProps = {
 	// The lane's conventions, as markdown
 	description?: string;
+	// What standing in the lane means for its tickets, as added
+	rules?: string[];
 };
 
 export type FieldProps = {

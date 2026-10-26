@@ -3,6 +3,7 @@ import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {z} from 'zod';
 import {MAX_URL_LENGTH} from '../lib/commits/repo-url.js';
 import {isFail, Result} from '../lib/model/result-types.js';
+import {LANE_RULES} from '../lib/utils/lane-rules.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
 	MAX_ASSIGNEES_PER_CREATE,
@@ -44,6 +45,7 @@ import {
 	editSwimlaneTitle,
 	editBoardDescription,
 	editSwimlaneDescription,
+	setSwimlaneRule,
 	getEpiqState,
 	getIssue,
 	listBoards,
@@ -255,6 +257,21 @@ export const createMcpServer = () => {
 	);
 
 	server.registerTool(
+		'epiq_swimlane_rule_set',
+		{
+			description:
+				'Turn a swimlane rule on or off. The one rule is `done`: an open ticket in a lane with it counts as done for its goal. A board with no done lane counts a lane named Done.',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				swimlaneId: z.string().min(1),
+				rule: z.enum(LANE_RULES),
+				on: z.boolean(),
+			}),
+		},
+		exclusiveTool(setSwimlaneRule),
+	);
+
+	server.registerTool(
 		'epiq_board_description_edit',
 		{
 			description:
@@ -390,7 +407,7 @@ export const createMcpServer = () => {
 		'epiq_goal_list',
 		{
 			description:
-				'List the goals in the project: each a group of tickets serving one outcome, with done/total (done is closed, or in a lane named Done) and the boards its tickets are on. Put a ticket in one with epiq_issue_goal_set; epiq_goal_stats gives its code stats.',
+				'List the goals in the project: each a group of tickets serving one outcome, with done/total (done is closed, or in a done lane: see epiq_swimlane_rule_set) and the boards its tickets are on. Put a ticket in one with epiq_issue_goal_set; epiq_goal_stats gives its code stats.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),

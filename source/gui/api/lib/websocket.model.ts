@@ -17,6 +17,10 @@ export type GuiMessage =
 			type: 'swimlane:edit:description';
 			payload: {swimlaneId: string; description: string};
 	  }
+	| {
+			type: 'swimlane:rule:set';
+			payload: {swimlaneId: string; rule: string; on: boolean};
+	  }
 	| {type: 'swimlane:delete'; payload: {swimlaneId: string}}
 	| {
 			type: 'swimlane:move';

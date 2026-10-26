@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import {GUI_THEME} from '../lib/gui-theme';
 import {IconButton} from './IconButton';
+import {IconCheck} from './IconCheck';
 import {usePortalAnchor} from './Menu';
 import {popoverStyle} from '../lib/select-style';
 
@@ -10,6 +11,8 @@ export type KebabMenuItem = {
 	label: string;
 	// Renders in red. For actions that destroy something.
 	danger?: boolean;
+	// A setting the item switches, ticked while on.
+	checked?: boolean;
 	onSelect: () => void;
 };
 
@@ -144,7 +147,8 @@ const MenuItem = ({
 	return (
 		<button
 			type="button"
-			role="menuitem"
+			role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+			aria-checked={item.checked}
 			data-testid={testId}
 			onClick={() => {
 				onDone();
@@ -163,9 +167,14 @@ const MenuItem = ({
 				padding: '8px 10px',
 				borderRadius: 6,
 				cursor: 'pointer',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'space-between',
+				gap: 12,
 			}}
 		>
 			{item.label}
+			{item.checked && <IconCheck size={12} />}
 		</button>
 	);
 };
