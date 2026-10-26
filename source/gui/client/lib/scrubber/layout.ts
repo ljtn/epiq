@@ -209,8 +209,8 @@ export const dotAppearAnimation = (key: string): string =>
 		key,
 	)}ms backwards`;
 
-// Its own keyframes, not the twinkle reversed: under `reverse` Chrome fills the
-// delay with the `from` frame, so every dot blinks out at once.
+// Forward keyframes filled `both`: full scale through the delay, zero after, so no
+// dot pops back before unmount. Under `reverse`, Chrome blinks every dot out at once.
 export const dotExitAnimation = (key: string): string =>
 	`epiqScrubberRetract ${DOT_APPEAR_MS}ms ease-in ${
 		DOT_APPEAR_SCATTER_MS - dotDelayMs(key)
@@ -250,6 +250,8 @@ export const FADE_IN_ANIMATION = 'epiqScrubberFadeIn 320ms ease-out';
 export const PAGE_ARROW_CLASS = 'epiq-scrubber-page';
 export const PAGED_TRACK_CLASS = 'epiq-scrubber-paged';
 
+// Stylesheets, the exception to inline styles: :hover, :focus-visible and
+// @keyframes have no React style-object form.
 export const SCRUBBER_PAGER_STYLES = `
 	.${PAGE_ARROW_CLASS} {
 		opacity: 0;

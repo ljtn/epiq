@@ -125,7 +125,8 @@ export const nextSetupCommand = (): string | null => {
 	if (!status.isSetAutoSync) return 'config autoSync ';
 	if (!isRepositoryInitialized()) return 'init';
 
-	// Seeded with git's `user.email` for this repository, known at boot.
+	// Seeded with the first scanned address, else git's `user.email`, since the
+	// scan may not have run yet.
 	if (!status.isSetEmails) {
 		const {gitEmail} = getSettingsState();
 		const suggestion = getOfferedEmails()[0] ?? gitEmail;

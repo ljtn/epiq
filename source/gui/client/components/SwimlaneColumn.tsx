@@ -241,7 +241,8 @@ export const SwimlaneColumn = ({
 					event.stopPropagation();
 					event.dataTransfer.effectAllowed = 'move';
 					event.dataTransfer.setData(SWIMLANE_DRAG_TYPE, swimlane.id);
-					// Firefox ignores a drag without text/plain; the id travels under its own type.
+					// Firefox ignores a drag without text/plain; left empty, since ticket drops
+					// read it as a ticket id.
 					event.dataTransfer.setData('text/plain', '');
 				}}
 				onDragEnd={onSwimlaneDragEnd}

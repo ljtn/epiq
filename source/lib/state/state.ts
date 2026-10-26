@@ -265,9 +265,8 @@ type StateMapKey = {
 }[keyof BaseState];
 
 /**
- * Writes one entry of a keyed collection: in place inside a replay batch, or
- * the copy per write makes replay quadratic; copied outside one, for readers
- * holding the previous state.
+ * Writes one entry of a keyed collection. In place inside a replay batch: nothing
+ * reads derived state mid-batch, and a copy per write is quadratic. Copied outside one.
  */
 export function setStateEntry<K extends StateMapKey>(
 	key: K,

@@ -63,8 +63,8 @@ const sendReadOnlyWhileTimeTravelingError = (res: http.ServerResponse) =>
 	});
 
 /**
- * The live check stays inside the lock (`runExclusive` is not re-entrant, so
- * `mutate` must not retake it). Read request bodies before calling this.
+ * The live check stays inside the lock, which isn't re-entrant. Read bodies first,
+ * or a slow upload holds this server-wide lock and stalls scrubbing.
  */
 const runMutation = <T>(res: http.ServerResponse, mutate: () => Promise<T>) =>
 	runExclusive(async () => {

@@ -112,7 +112,8 @@ export const buildCorpusVocabulary = (state: AppState): string[] => {
 	return [...corpusWords, ...fallback];
 };
 
-// Memoized per keystroke, keyed on eventLog.length; a fresh array re-indexes downstream.
+// Hit per keystroke, so memoized on eventLog.length (every text edit appends an
+// event); a fresh array re-indexes downstream.
 
 let _vocabulary: string[] = DEFAULT_WORDS;
 let _fingerprint = -1;

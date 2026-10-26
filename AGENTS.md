@@ -122,6 +122,6 @@ Five places; a missed one fails quietly:
 - **Work the board through the epiq MCP tools**, and keep it current: a ticket moves to Ongoing when work starts; a merged ticket moves to Done and stays open until the release closes it; a follow-up folded into a ticket takes it back to Ongoing.
 - **Review findings get their own tickets**, tagged `from-review`, naming the PR.
 - **A bug fix comes with a test** that fails without the fix.
-- **Comments are rare and short: a headline or a one-line hint, two lines at most.** Names, types and small functions carry the rest. Keep only what would stop a reader breaking the code (an ordering that matters, a platform quirk), and never its history.
+- **Comments are rare and short: a headline or a one-line hint, two lines at most.** Names, types and small functions carry the rest. Keep only what would stop a reader breaking the code (an ordering that matters, a platform quirk). Never narrate history.
 - **Errors are returned as a `Result`, never thrown.**
 - **No attribution to any model or tool** — not as a co-author, not in code or ticket comments, not in PR descriptions. Check `git log --format='%an%n%b'` before pushing: a template's trailer survives a rebase.

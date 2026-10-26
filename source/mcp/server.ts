@@ -84,7 +84,8 @@ export const resultJson = <T>(result: Result<T>) => ({
 });
 
 // Tools run one at a time: each is a boot-read-persist over the shared state
-// across awaits, and the SDK doesn't serialize. `runExclusive` isn't re-entrant.
+// across awaits, and the SDK doesn't serialize. `runExclusive` isn't re-entrant,
+// so nothing under epiq-api may take it.
 const exclusiveTool =
 	<I, R>(fn: (input: I) => Promise<Result<R>>) =>
 	(input: I) =>

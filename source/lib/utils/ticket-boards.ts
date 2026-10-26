@@ -56,8 +56,9 @@ const lanesEverIn = (ticket: Ticket): string[] => {
 };
 
 /**
- * Every board the ticket has lived on, so a board keeps work done on it after
- * a move or close. Read from ticket and lane logs, deleted lanes included.
+ * Every board the ticket has lived on: a flat set with no time, unlike `boardsForEvents`,
+ * as a commit has only a ref, so a moved ticket's commits count on both boards.
+ * Read from ticket and lane logs, deleted lanes included.
  */
 export const boardsEverOnOf = (ticket: Ticket): string[] => {
 	const boards = new Set<string>();

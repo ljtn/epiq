@@ -5,7 +5,6 @@ import path from 'node:path';
 // Links a commit to a ticket by leading its subject with the ref. The test
 // server caches no git scans (serve.ts).
 
-// Paths are keyed by a fresh ref: the worker's tests share one repo.
 // One identity and cwd for every commit these helpers make.
 const gitIn =
 	(repoRoot: string, date?: Date) =>
@@ -26,6 +25,7 @@ const gitIn =
 			},
 		);
 
+// Keyed by a fresh ref: the worker's tests share one repo.
 export const linkedFileName = (ref: string): string => `notes-${ref}.txt`;
 
 /** One commit carrying several files, keyed by name. */

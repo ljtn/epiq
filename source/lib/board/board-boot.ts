@@ -207,7 +207,8 @@ export function createDefaultEvents({
 	] as const satisfies readonly AppEvent[]);
 }
 
-// Booting resets `timeMode` and `readOnly`, so re-booting in the past would drop the checkout.
+// Booting resets `timeMode` to live and `readOnly` to false: re-booting in the
+// past would drop the checkout and allow writes.
 const isCheckedOutInThePast = (): boolean => {
 	const stateResult = getSafeState();
 	if (isFail(stateResult)) return false;

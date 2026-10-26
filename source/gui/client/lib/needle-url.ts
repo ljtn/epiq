@@ -1,5 +1,5 @@
-// A parked needle in the address bar, so a link or reload opens the same
-// moment. Live writes no key; history gains an entry per release, not per step.
+// A parked needle in the address bar; live leaves the key off. Its own key, not a
+// selection param: any of those makes the URL authoritative for all of them.
 
 import {useCallback, useEffect, useRef} from 'react';
 import {useNavigationType, useSearchParams} from 'react-router-dom';
@@ -60,14 +60,15 @@ export const useNeedleUrl = ({
 }): {settle: () => void} => {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const inUrl = readNeedleParam(searchParams);
-	// Only Back, Forward or the load itself say where the board should be.
+	// Only POP (Back, Forward, the load) moves the board: in-app navigation drops
+	// `at`, which is no ask for live.
 	const navigationType = useNavigationType();
 
 	// What this hook last put in the URL. Any other value got there by a link,
 	// a reload, or Back and Forward, and the board is taken to it.
 	const written = useRef<number | null | typeof UNREAD>(UNREAD);
-	// Set while heading to a moment the URL asked for, so the URL isn't
-	// overwritten mid-scrub.
+	// Set while heading to a moment the URL asked for: `from` is the cut it left,
+	// and the URL is left alone until the board moves off it.
 	const arriving = useRef<{from: number | null} | null>(null);
 	// When the needle was last let go of: the next moment written soon after is
 	// a new entry.

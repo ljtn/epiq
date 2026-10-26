@@ -48,7 +48,10 @@ const StepRow: React.FC<StepRowProps> = ({
 	);
 };
 
-/** The claimed addresses, fitted to the step row's width. */
+/**
+ * The claimed addresses, fitted to the step row's width. 34: the row spends about 28
+ * columns on its tick, verb and command, and the box has a border either side.
+ */
 export const claimedAddresses = (
 	emails: string[],
 	width: number,

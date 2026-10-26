@@ -1,8 +1,8 @@
 import {MUTATING_MESSAGE_TYPES} from './gui-mutations';
 
 /**
- * Holds broadcast state while one of this client's mutations is unanswered,
- * since an older state can land after the optimistic update.
+ * Holds broadcasts while a mutation of ours is unanswered: one sent before it
+ * applied can land after the optimistic update. Its reply precedes the fresh state.
  */
 export const createMutationGate = () => {
 	let pending = 0;

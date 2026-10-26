@@ -413,8 +413,8 @@ const runSync = async (
 		stateBranchRoot,
 	});
 
-	// Folds this actor's own pending file in before the commit. Not fatal: the
-	// lines stay on disk for the next sync.
+	// Folds only this actor's pending file before the commit; others' stay pending.
+	// Not fatal: the lines stay on disk.
 	const flushResult = trace(
 		'flushPendingLogs',
 		flushPendingLogs(stateBranchRoot, ownEventFileName),

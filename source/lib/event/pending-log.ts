@@ -6,8 +6,8 @@ import {getEventsDirPath} from '../storage/paths.js';
 
 /**
  * Appends go to an untracked file a sync folds in, as a rebase overwrites
- * uncommitted lines. The marker sits on the id segment, which never holds `.`
- * or `~`; the name still ends in `.jsonl` so readers see it.
+ * uncommitted lines. The marker sits on the id segment, which never holds `.` or `~`.
+ * Still `.jsonl`: mintEventId must see it, or an id sorts before its parent.
  */
 const PENDING_MARKER = '~pending';
 
@@ -165,7 +165,7 @@ const NEWLINE = 0x0a;
 
 /**
  * Appends the whole lines in `bytes` and returns the bytes covered. A trailing
- * fragment waits for the next pass, unless `final`.
+ * fragment waits for the next pass; `final` appends it as a line of its own.
  */
 const foldLines = (
 	trackedPath: string,
@@ -197,9 +197,9 @@ const foldLines = (
 };
 
 /**
- * Folds this actor's pending files into its log (holding the state worktree),
- * one step per pass: live → rotated → folded → gone. Deletion waits a pass,
- * since a writer may still hold a just-rotated file.
+ * Folds only this actor's pending files (others' would sit in no commit), one step a
+ * pass: live → rotated → folded → gone; deletion waits a pass for a late writer.
+ * Appends before renaming or deleting: a crash leaves a duplicate (deduped by id), never a loss.
  */
 export const flushPendingLogs = (
 	eventsRoot: string,

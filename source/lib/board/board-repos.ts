@@ -32,7 +32,10 @@ export type RepoEntry = {
 	seq: number;
 };
 
-/** Every repo a log has named, by id. Mutated in place by `applyRepoEvent`, so a fold is linear. */
+/**
+ * Every repo a log has named, by id. Mutated in place by `applyRepoEvent`, so a fold
+ * is linear and only its fold or the board state may hold it.
+ */
 export type RepoRegistry = {entries: Record<string, RepoEntry>; seq: number};
 
 export const emptyRepoRegistry = (): RepoRegistry => ({entries: {}, seq: 0});

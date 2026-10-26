@@ -5,7 +5,7 @@ import {execGit} from '../../git/git-utils.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 
 export type PatchLine = {
-	// The commit that added the line and its number in that commit's file.
+	// Its number in the commit that added it, not today's line; coverage anchors with blame.
 	sha: string;
 	line: number;
 	text: string;
@@ -89,10 +89,7 @@ const statusFor = (
 ): FileChangeStatus =>
 	oldPath === null ? 'added' : newPath === null ? 'deleted' : 'modified';
 
-/**
- * Folds the combined `git show` output of several commits, oldest first,
- * into one entry per path.
- */
+// A scan in progress, carried across `git show` batches so self-churn spans them.
 export type ScanState = {
 	byPath: Map<string, OpenFile>;
 	insertions: number;
@@ -272,7 +269,10 @@ export const parsePatchOutput = (stdout: string) => {
 	return scanResult(state);
 };
 
-/** `shas` in any order; scanned oldest first, as self-churn needs. */
+/**
+ * `shas` newest first, as getCommitsForRef returns them: the cap keeps the newest,
+ * and the scan runs oldest first for self-churn.
+ */
 export const scanTicketPatch = async ({
 	repoRoot,
 	shas,

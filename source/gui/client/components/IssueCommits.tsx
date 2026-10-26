@@ -59,7 +59,8 @@ export const IssueCommits = ({
 	const autoOpenedShas = useRef(new Set<string>());
 	const autoOpenedFiles = useRef(new Set<string>());
 
-	// A lone commit opens itself, once, so collapsing it sticks.
+	// A lone commit opens itself, once, so collapsing it sticks. No others do: the
+	// compacted view is where they are read whole.
 	const openCommitsOnArrival = commits.length === 1;
 
 	useEffect(() => {
@@ -222,8 +223,8 @@ export const IssueCommits = ({
 		<div>
 			{ordered.map((commit, index) => (
 				<div key={commit.sha} style={{display: 'flex', marginBottom: ROW_GAP}}>
-					{/* The rail: a dot per commit, joined to the next. Stretches with the row,
-					    so no measuring is needed. */}
+					{/* The rail: a dot per commit, joined solid to the next only when adjacent
+					    in history (precedingSha). Stretches with the row, so no measuring. */}
 					<div style={{width: RAIL_WIDTH, flexShrink: 0, position: 'relative'}}>
 						<div
 							style={{

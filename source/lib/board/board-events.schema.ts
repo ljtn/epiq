@@ -3,8 +3,9 @@ import {failed, Result, succeeded} from '../model/result-types.js';
 import {EventAction} from './board-events.model.js';
 
 /**
- * What a payload must look like before a materializer touches it. Loose, since
- * newer builds add fields; and requiring only what a handler dereferences.
+ * What a payload must look like before a materializer touches it. Loose, requiring only
+ * what a handler dereferences: narrower checks go in the handler as `materializeSkip`,
+ * or a newer build's value quarantines the event.
  */
 
 const id = z.string().min(1);

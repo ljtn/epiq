@@ -31,6 +31,7 @@ export const startGui = async (input: {
 	const envActor = resolveEnvActor({});
 	if (isFail(envActor)) return failed(envActor.message);
 
+	// This process has its own settings singleton; unloaded, it ignores the user's config.
 	const settings = loadSettingsFromConfig();
 	if (isSuccess(settings)) patchSettingsState(settings.value);
 

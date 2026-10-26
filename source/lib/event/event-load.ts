@@ -359,8 +359,8 @@ export const sortEvents = (
 		}
 	};
 
-	// Only genesis may be a root; any other `refId: null` event is anchored after
-	// history with the orphans. Exactly one action key.
+	// Only genesis may be a root: a forged `refId: null` would sort before history.
+	// Exactly one action key, or extra keys smuggle a payload past the check.
 	const roots = (childrenByRef.get(null) ?? []).filter(event => {
 		const keys = Object.keys(event).filter(key => !ENVELOPE_KEYS.has(key));
 		return keys.length === 1 && keys[0] === genesis;
@@ -784,8 +784,8 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	}
 
 	/**
-	 * Advances the cached edge to this actor's new `id` without rereading the log.
-	 * Dropped instead if any other file moved: the tail is then theirs to decide.
+	 * Advances the cached edge to `id` without rereading; sound only for an id minted
+	 * as a child of that edge. Dropped instead if any other file moved.
 	 */
 	function advanceEdgeRef(
 		rootDir: string,

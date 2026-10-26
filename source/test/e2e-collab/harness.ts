@@ -16,10 +16,6 @@ import type {ActorAction, ActorJob, ActorReport} from './protocol.js';
 const STATE_BRANCH = 'epiq/state';
 const ACTOR_ENTRY = fileURLToPath(new URL('./actor.ts', import.meta.url));
 
-/**
- * The actor, bundled once per worker for fast spawns, run with plain `node`.
- * Under `node_modules`, which resolves externals and is writable in the container.
- */
 /** Removes bundles named for a pid that no longer answers `kill(pid, 0)`. */
 const sweepDeadBundles = (dir: string): void => {
 	for (const name of fs.readdirSync(dir)) {
@@ -36,6 +32,10 @@ const sweepDeadBundles = (dir: string): void => {
 	}
 };
 
+/**
+ * The actor, bundled once per worker for fast spawns, run with plain `node`.
+ * Under `node_modules`, which resolves externals and is writable in the container.
+ */
 const buildActor = (): string => {
 	// One per module evaluation, since threads share a pid; the pid is kept for sweeping.
 	const out = fileURLToPath(
@@ -264,7 +264,6 @@ export const runActor = async (
 	return JSON.parse(fs.readFileSync(reportPath, 'utf8')) as ActorReport;
 };
 
-/** Starts an actor and kills it partway through, without waiting for a report. */
 /**
  * SIGKILLs an actor's process group a given delay after its sync starts
  * (`syncStartedPath`). `diedMidSync` reports whether the kill landed inside it.

@@ -323,6 +323,7 @@ export const App = () => {
 	const [hoveredLogEventId, setHoveredLogEventId] = useState<string | null>(
 		null,
 	);
+	// An edge, not an index, so each column draws its own drop line.
 	const [swimlaneDropEdge, setSwimlaneDropEdge] = useState<{
 		swimlaneId: string;
 		side: 'left' | 'right';
@@ -664,7 +665,7 @@ export const App = () => {
 	const zoomed = selection.zoom !== null;
 
 	// Tickets with an event in the scrubber's window, or null when not narrowed or
-	// the window is counts only. Same period test that greys the box.
+	// the window is counts only. The test that greys the box, so a greyed one hides nothing.
 	const windowIds = useMemo(
 		() =>
 			selection.windowOnly && isPeriodWindow(selection.scope, zoomed)
@@ -1399,8 +1400,8 @@ export const App = () => {
 		onSeek: scrubToTime,
 	});
 
-	// Bumped when the scrubber's window must be refetched. A counter, not state:
-	// passing null mid-movie would refetch a window anchored to now.
+	// A counter the scrubber refetches on. Handing it state would refetch at now
+	// mid-movie, dropping the lines the playhead narrates.
 	const [historyTick, setHistoryTick] = useState(0);
 
 	useEffect(() => {
@@ -1422,8 +1423,8 @@ export const App = () => {
 		return () => window.clearTimeout(timer);
 	}, [state, theatre, selection.windowOnly, logOpen]);
 
-	// A claim changes commit authorship, and the commit track comes from git, not
-	// board state, so refetch it.
+	// A claim changes commit authorship, and the commit track comes from git, so
+	// refetch it. Not gated on logOpen: the scrubber's dots show the names too.
 	useEffect(() => {
 		if (theatre) return;
 		if (contributorEmails.changed === 0) return;
@@ -2058,8 +2059,8 @@ export const App = () => {
 
 								{/* Vertical overflow hidden: the lanes scroll themselves. */}
 								<main
-									// A click past it closes the lane panel, unlike the ticket panel, and the
-									// board's unless its description is half-written.
+									// A click past it closes the lane and board panels unless their description
+									// is half-written; the ticket panel stays open (details-close.pw.ts).
 									onClick={() => {
 										clearPicked();
 										if (

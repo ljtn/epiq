@@ -46,8 +46,6 @@ export const logSignature = (stateBranchRoot: string): string => {
 	}
 };
 
-// The signature after this process's own append, or null when anything else
-// moved: only our own write is already applied.
 const entries = (signature: string): Map<string, string> =>
 	new Map(
 		signature
@@ -59,6 +57,8 @@ const entries = (signature: string): Map<string, string> =>
 			}),
 	);
 
+// The signature after this process's own append, or null when anything else
+// moved: only our own write is already applied.
 export const signatureAfterOwnAppend = (
 	stateBranchRoot: string,
 	previous: string,

@@ -126,6 +126,7 @@ export const commandLineShows =
 		);
 	};
 
+// No typed command: the bottom row is the shortcut bar.
 export const commandLineIsIdle = (frame: string): boolean => {
 	const content = commandLineContent(frame);
 	return content !== null && !isCommandInput(content);

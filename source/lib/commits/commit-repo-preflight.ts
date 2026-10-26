@@ -189,8 +189,9 @@ export const claimedBytesOf = (repoRoot: string): number => {
 };
 
 /**
- * `auto` applies option changes and previews new repos; `preview` writes
- * nothing; `confirm` connects only with a clone staged earlier.
+ * `auto` applies option changes and previews new repos; `preview` writes nothing.
+ * `confirm` connects only with a clone this process staged, never staging one:
+ * its caller holds a lock, and a clone can take minutes.
  */
 export type ConnectMode = 'auto' | 'preview' | 'confirm';
 

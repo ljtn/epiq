@@ -35,8 +35,8 @@ import {
 /** A transfer whose size nobody knows in advance; long, but not forever. */
 const TRANSFER_TIMEOUT_MS = 30 * 60 * 1000;
 
-// Left by a remove that found the clone in use; the fetch holding it deletes
-// it on exit.
+// Left by a remove: the fetch holding the clone deletes it, or it stays as a tombstone.
+// Only a remove deletes a clone, never a repo merely unlisted.
 const removalMark = (clonePath: string) => `${clonePath}.removed`;
 
 // Made, never written through: a link planted under the name is no mark, and
@@ -182,8 +182,8 @@ const git = (cwd: string, args: string[]) =>
 const SIZE_CHECK_MS = 1_000;
 
 /**
- * A transfer into `into`, held to this machine's size cap. Into an existing
- * clone, a transfer past the cap is undone.
+ * A transfer into `into`, held to this machine's size cap, and failed if it landed
+ * past the cap between checks. Into an existing clone, a transfer past the cap is undone.
  */
 const transfer = async (
 	cwd: string,
@@ -1089,6 +1089,7 @@ const fetchOne = async (
 		// Changed options refetch, unless the last attempt failed.
 		(previous.error !== null ||
 			(previous.branches === repo.branches && previous.since === since)) &&
+		// A clock set back must not hold every fetch off.
 		Date.now() >= previous.attemptedAt &&
 		Date.now() - previous.attemptedAt < minIntervalMs &&
 		!fs.existsSync(removalMark(clonePath))
@@ -1489,8 +1490,8 @@ export const removeRepoClone = (input: {
 		}
 
 		deleteClone(clonePath);
-		// A tombstone for a pass that read its list before this, cleared by the next
-		// clone after a re-add.
+		// A tombstone for a pass that read its list before this; never swept, as that
+		// pass may be another worktree's. The next clone after a re-add clears it.
 		placeRemovalMark(clonePath);
 		return succeeded('Removed clone', null);
 	} catch (error) {

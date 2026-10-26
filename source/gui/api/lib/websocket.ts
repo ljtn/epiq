@@ -228,7 +228,8 @@ export const setupWebsocket = (
 		path: '/ws',
 		// Bounds memory before the API's own size checks run; attachments go over HTTP.
 		maxPayload: MAX_SOCKET_FRAME_BYTES,
-		// A handshake is exempt from the same-origin policy.
+		// A handshake is exempt from the same-origin policy: without this, any open
+		// page could send every message here, sync included.
 		verifyClient: (info: {origin: string}) =>
 			!isForeignOrigin(info.origin, getPort()),
 	});

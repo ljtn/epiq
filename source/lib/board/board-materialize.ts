@@ -25,8 +25,8 @@ import {applyRepoEvent, RepoEntry} from './board-repos.js';
 // `materializeSkip`, so a replay converges over an event that lost a race.
 
 /**
- * Skips an `add.*` naming a live id (`createNode` would overwrite it) or a node
- * that is its own parent. First writer wins.
+ * Skips an `add.*` naming a live id (`createNode` overwrites by design, for the TUI's
+ * fixed-id nodes) or a node that is its own parent. First writer wins.
  */
 const refuseUncreatableNode = (
 	id: string,

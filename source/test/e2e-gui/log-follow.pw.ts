@@ -1,5 +1,5 @@
 // Following the log: a new line that leads somewhere opens itself. Remote
-// writes are `follow-log.test.ts`'s, as they arrive only via autosync.
+// writes are `follow-arrival.pw.ts`'s, as they arrive only via autosync.
 
 import {expect, test} from './fixtures.js';
 

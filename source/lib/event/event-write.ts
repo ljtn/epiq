@@ -25,8 +25,8 @@ export const createWriter = <M extends EventMap>(
 	persister: Persister<M>,
 ) => {
 	/**
-	 * Replaces the caller's placeholder id with one minted against the edge, before
-	 * materializing, so a failed precondition never leaves a line in the log.
+	 * Mints the real id before materializing, so state and log share it; a failed
+	 * precondition never reaches the log.
 	 */
 	function materializeAndPersist<A extends ActionOf<M>>(
 		event: Event<M, A>,

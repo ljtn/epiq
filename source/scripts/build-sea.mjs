@@ -45,8 +45,8 @@ await build({
 	outfile: 'dist/sea-inner.js',
 });
 
-// 2. Patch the ESM bundle: inject a `require` shim, and point import.meta.url
-//    at the executable so meow finds package.json.
+// 2. Patch the ESM bundle: inject a `require` shim, since esbuild's CJS shim throws
+//    without one in ESM, and point import.meta.url at the executable so meow finds package.json.
 console.log('\n[2/7] Patching bundle...');
 let inner = readFileSync(resolve(root, 'dist/sea-inner.js'), 'utf8');
 

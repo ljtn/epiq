@@ -1,5 +1,6 @@
-// A write from another socket moves a following board. A mutation's reply goes
-// only to its own socket, so this turns autosync on (restored in a `finally`).
+// A write from another socket moves a following board: the one case that fails with
+// following removed. A mutation's reply goes only to its own socket, so this turns autosync
+// on, restored in a `finally` as the config is shared; only a hard worker crash leaves it on.
 
 import fs from 'node:fs';
 import path from 'node:path';

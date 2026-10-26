@@ -143,7 +143,10 @@ const subcommandOf = (args: string[]): string | undefined =>
 const stableOutputFor = (args: string[]): string[] =>
 	PARSED_SUBCOMMANDS.has(subcommandOf(args) ?? '') ? STABLE_OUTPUT : [];
 
-/** Config for epiq's clones of other repos, whose contents are untrusted. */
+/**
+ * Config for epiq's clones of other repos, whose contents are untrusted:
+ * `attr.tree` stops their `.gitattributes` reaching the user's textconv.
+ */
 export const cloneGitConfig = (): string[] =>
 	[
 		'attr.tree=refs/epiq/no-attributes',
@@ -337,7 +340,8 @@ const runGit = ({
 			detached: clone && OWN_GROUP,
 		});
 		if (clone) trackCloneChild(child);
-		// Stdin errors are dropped: EPIPE from an early exit answers through 'close'.
+		// Stdin errors are dropped (EPIPE answers through 'close'); safe only for
+		// commands that read input to EOF.
 		child.stdin.on('error', () => {});
 		child.stdin.end(input ?? '');
 		const kill = (signal: NodeJS.Signals) =>
@@ -528,8 +532,8 @@ export const execGitAllowFail = ({
 }): Promise<GitExecResult> =>
 	runGit({args, cwd, allowFail: true}) as Promise<GitExecResult>;
 
-// Its own spawn: `--batch` reads stdin, and sizes are sliced off the raw Buffer
-// before decoding, or a multi-byte character shifts every later offset.
+// Its own spawn: sizes are sliced off the raw Buffer before decoding, or a
+// multi-byte character shifts every later offset.
 export const readGitBlobsBatch = (
 	hashes: string[],
 	cwd: string,
@@ -888,16 +892,16 @@ const rebaseInProgress = async (cwd: string): Promise<boolean> => {
 	);
 };
 
-/**
- * Retries a rebase that never started, which an unlocked concurrent append can
- * cause. One that started (its state directory remains) is never retried.
- */
 const REBASE_ATTEMPTS = 3;
 const REBASE_RETRY_DELAY_MS = 120;
 
 const delay = (ms: number): Promise<void> =>
 	new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * Retries a rebase that never started, which an unlocked concurrent append can
+ * cause. One that started (its state directory remains) is never retried.
+ */
 const rebaseWithRetry = async (
 	cwd: string,
 	ref: string,

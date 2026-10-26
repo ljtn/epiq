@@ -46,8 +46,8 @@ const eventsDirIn = (root: string): string =>
 	path.join(root, EPIQ_DIR_NAME, EVENTS_DIR_NAME);
 
 /**
- * Every event log line on disk, per file. Paired with `restoreDroppedEventLines`
- * around git's rewrites, since writers hold no lock: what was on disk stays.
+ * Every event log line on disk, per file. `restoreDroppedEventLines` puts back any
+ * line git's rewrites drop, since writers hold no lock.
  */
 export const snapshotEventLogs = (root: string): EventLogSnapshot => {
 	const dir = eventsDirIn(root);

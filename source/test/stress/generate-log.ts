@@ -124,7 +124,6 @@ export const generateLog = async (
 		written++;
 	};
 
-	// The log mints the tags and contributors it uses, before their first use.
 	// No room for a ticket's join at a millisecond a step.
 	const goalCount = step > 1 ? input.goals ?? 0 : 0;
 
@@ -135,6 +134,7 @@ export const generateLog = async (
 		ulid(start - input.tagNames.length + index),
 	);
 
+	// The log mints the tags and contributors it uses, before their first use.
 	for (const actor of input.actors) {
 		write(
 			'create.contributor',

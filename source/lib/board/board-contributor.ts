@@ -17,6 +17,7 @@ export const ensureContributorCurrent = (
 	}
 
 	// Only our own writes: our name on somebody else's event would rename them.
+	// Read raw, not via `resolveActorId`.
 	const {userId: configuredId, userName} = getSettingsState();
 	if (!userName || configuredId !== event.userId) {
 		return succeeded('Not this actor own write', undefined);

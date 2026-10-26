@@ -1,5 +1,5 @@
-// What every ticket's commits add up to, for the bar beside its ref. One ask
-// for the whole board, repeated on focus since commits announce nothing.
+// Every ticket's commit totals, for the bar beside its ref. Asked for whole, again
+// on focus (commits announce nothing), never per moment: a scrub sums them here.
 
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 // Types only, from a module that declares nothing but types and imports
@@ -12,7 +12,8 @@ import {diffStatsAt} from './ref-diff-at';
 // object rather than a fresh empty one on every render.
 const NONE: RefDiffTimeline = {};
 
-// Inside the server's cache TTL an ask costs nothing; just past it is worth it.
+// Matches the server's FULL_TIMELINE_CACHE_TTL_MS: an ask inside it is a cache
+// hit, one past it can see a new commit.
 const REFRESH_AFTER_MS = 5_000;
 
 export const useRefDiffStats = ({

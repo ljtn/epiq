@@ -190,8 +190,8 @@ export function CommitDiffUI({
 	const scrollHeight = Math.max(1, height - 4);
 
 	/**
-	 * Columns left for the line, counted exactly: an overflowing row wraps and
-	 * breaks `ScrollBoxUI`'s one-row-per-line window.
+	 * Columns left for the line, counted exactly: an overflowing row wraps and breaks
+	 * `ScrollBoxUI`'s window. 6 = pane right padding, row padding ×2, space + sign, scroll bar.
 	 */
 	const textWidth = Math.max(8, width - gutterWidth - 6);
 

@@ -2,8 +2,8 @@ import {ApiState} from '../../../mcp/api-state.model.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {plainExcerpt} from '../../../lib/utils/excerpt.js';
 
-// Drops descriptions and comment bodies, which the board never draws; the open
-// ticket fetches them. Read defensively: this is on the broadcast path.
+// Drops descriptions and comment text (the open ticket fetches them); comments keep
+// id, issue and author for counts and the author filter. Read defensively: broadcast path.
 export const slimStateForBoard = (state: ApiState): ApiState => ({
 	...state,
 	boards: (state.boards ?? []).map(board => ({

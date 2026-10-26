@@ -340,8 +340,8 @@ export const getCommitTimeline = async (
 	);
 };
 
-// Commits whose subject starts with the issue's ref, e.g. "5S52AC8 message".
-// Contiguous: git log's very next entry is also a match.
+// A commit carrying the ref in its subject or an Epiq-Ref line. `precedingSha`:
+// the next log entry, when it shares a ticket.
 export type RefCommitEntry = CommitEntry & {precedingSha: string | null};
 
 /** A commit of several tickets', with the refs of those it carries. */

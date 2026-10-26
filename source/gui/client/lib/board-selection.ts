@@ -189,7 +189,7 @@ export const applySelectionPatch = (
 	const scopeChanged =
 		patch.scope !== undefined && patch.scope !== current.scope;
 
-	// A scope button clears a zoom, even the one a zoom inferred.
+	// Any scope patch clears a zoom, even one naming the scope the zoom inferred.
 	const zoom =
 		patch.zoom !== undefined
 			? patch.zoom

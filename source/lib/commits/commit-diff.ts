@@ -143,12 +143,12 @@ export const withCommitBodies = async <T extends CommitEntry>(
 	);
 };
 
+const MAX_PATCH_CHARS = 8 * 1024 * 1024;
+
 /**
  * One commit as git's own unified patch, for the terminal. `--no-ext-diff`
  * keeps external drivers out; `--format=` drops the header.
  */
-const MAX_PATCH_CHARS = 8 * 1024 * 1024;
-
 export const getCommitPatch = async (
 	input: CommitInput,
 ): Promise<Result<string>> => {
@@ -551,6 +551,7 @@ const parentOf = async (
  * A ticket's commits as one diff. Endpoints are pinned to one line of history
  * (rebase copies live on stale branches), and the range is narrowed to the
  * ticket's own paths, with foreign overlaps named in `overlappingPaths`.
+ * Adjacency comes from the range walk, never `precedingSha`, which pairs rebase copies.
  */
 export const getSquashedDiffForRef = async (
 	input: RepoInput & {ref: string; end?: number},

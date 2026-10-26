@@ -9,7 +9,8 @@ import {logger} from '../logger.js';
 
 /**
  * An advisory cross-process lock over the state branch worktree, so one process
- * never aborts another's live rebase. A lock from another host is never broken on liveness.
+ * never aborts another's live rebase. Binds epiq processes only, and assumes a
+ * local filesystem; a lock from another host is never broken on liveness.
  */
 
 /** Shared by every build: never rename it, and sweeps must leave it alone. */

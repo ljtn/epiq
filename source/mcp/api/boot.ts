@@ -123,12 +123,13 @@ export const boot = async (
 		stateBranchRoot: stateBranchRootResult.value,
 	};
 
-	// Fills the settings store from config, so the actor matches this process.
-	// Above the skip below: a renamed user writes no event to move the signature.
+	// Fills the settings store from config, so the actor matches this process. Above the
+	// skip: a `:config user` rename writes no event, so a skipping boot must still re-read config.
 	const settings = loadSettingsFromConfig();
 	if (!isFail(settings)) patchSettingsState(settings.value);
 
-	// After the config load, which clears it; the write path compares it on every write.
+	// After the config load, which clears the git identity; the write path compares
+	// it on every write.
 	patchSettingsState({
 		gitEmail: await readGitEmail(repoRootResult.value),
 		gitName: await readGitName(repoRootResult.value),

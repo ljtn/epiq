@@ -14,7 +14,7 @@ const byRepo = new Map<string, Cached>();
 // Short enough that a fixed `user.email` takes effect without a restart.
 const CACHE_MS = 30_000;
 
-/** Name and email in one read, cached per repository: `boot()` runs per request. */
+/** Name and email in one read, cached per repository, since every request boots. */
 export const readGitIdentity = async (cwd: string): Promise<GitIdentity> => {
 	const cached = byRepo.get(cwd);
 	if (cached && Date.now() - cached.readAt < CACHE_MS) {

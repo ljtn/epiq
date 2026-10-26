@@ -285,7 +285,8 @@ export const reloadStateFromEventLog = (
 			eventCount: allLoadedEventsResult.value.events.length,
 		});
 
-		// A boot skipped for a historical checkout applied nothing.
+		// A boot skipped for a historical checkout applied nothing, so must not mark
+		// the log applied.
 		const liveState = getSafeState();
 		const materialisingLive =
 			!isFail(liveState) && liveState.value.timeMode === 'live';

@@ -120,7 +120,7 @@ const interpolateColor = (a: Rgb, b: Rgb, t: number): Rgb => mixRgb(a, b, t);
 // string-based single color
 // =========================
 
-// The full hue circle: quantising for separation recoloured every known name.
+// The full hue circle: quantising hues for separation would recolour every known name.
 export const stringToHslHexColor = (value: string): string => {
 	const hue = hashString(value) % 360;
 

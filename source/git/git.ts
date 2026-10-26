@@ -37,12 +37,12 @@ import {
 	normalizeExistingPath,
 } from './git-utils.js';
 
+export const INITIAL_COMMIT_MESSAGE = '[epiq:init-repo]';
+
 /**
  * Creates the first commit in a repo that has none, on `:init`. Fails closed
  * (only exit 1 with no output means unborn), and commits the empty tree, never the index.
  */
-export const INITIAL_COMMIT_MESSAGE = '[epiq:init-repo]';
-
 export const ensureInitialCommit = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {

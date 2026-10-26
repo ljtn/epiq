@@ -922,7 +922,8 @@ export const TimeScrubber = ({
 		const pressedIssue = pressedIssueRef.current;
 		pressedIssueRef.current = null;
 
-		// Clears the whole gesture first: a stray ref would hold the window back for good.
+		// Clears the whole gesture first: a second pointer can set both refs, and a
+		// stray one holds the window back for good.
 		const draggedTo = dragFractionRef.current;
 		const range = rangeDragRef.current;
 
@@ -1303,7 +1304,8 @@ export const TimeScrubber = ({
 
 						const fraction = fractionFromClientX(event.clientX);
 
-						// Off the needle, a press starts a range until it proves a click.
+						// Off the needle, a press starts a range until it proves a click; no
+						// scrub on the way, or every swept moment is checked out.
 						if (!grabbedNeedleRef.current) {
 							rangeDragRef.current = {from: fraction, to: fraction};
 							setRangeDrag({from: fraction, to: fraction});
