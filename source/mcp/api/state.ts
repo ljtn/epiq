@@ -36,6 +36,8 @@ import {
 import {getIssueTags, getIssueAssignees} from './issue-projection.js';
 import {boardsEverOnOf} from '../../lib/utils/ticket-boards.js';
 import {apiBoardGoals, apiGoals, goalFields} from './goals.js';
+import {rulesOf} from './lane-rules.js';
+import {isDoneLane, isNamedDone} from '../../lib/utils/lane-rules.js';
 import {getAttachmentMaxKb} from './attachments.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {getPersistFileName} from '../../lib/board/board-log.js';
@@ -254,6 +256,9 @@ export const deriveGuiState = (): Result<ApiState> => {
 									})),
 								parentNodeId: swimlane.parentNodeId!,
 								...descriptionOf(swimlane.id),
+								...rulesOf(swimlane),
+								countsDone: isDoneLane(swimlane.id),
+								doneByName: isNamedDone(swimlane),
 							} satisfies ApiSwimlane),
 					),
 			})),

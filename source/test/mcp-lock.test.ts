@@ -15,6 +15,7 @@ vi.mock('../mcp/epiq-api.js', () => ({
 	createGoal: vi.fn(),
 	listGoals: vi.fn(),
 	goalStats: vi.fn(),
+	setSwimlaneRule: vi.fn(),
 	renameGoal: vi.fn(),
 	removeGoal: vi.fn(),
 	assumeActor: vi.fn(),

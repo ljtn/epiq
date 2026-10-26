@@ -449,6 +449,34 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 		});
 	},
 
+	'add.swimlane.rule': event => {
+		const {id, rule} = event.payload;
+		const result = nodeRepo.addLaneRule(id, rule);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to add rule', event);
+		}
+
+		return succeeded('Added lane rule', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'remove.swimlane.rule': event => {
+		const {id, rule} = event.payload;
+		const result = nodeRepo.removeLaneRule(id, rule);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to remove rule', event);
+		}
+
+		return succeeded('Removed lane rule', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
 	'add.issue.goal': event => {
 		const {id, goal} = event.payload;
 		const result = nodeRepo.addGoal(id, goal);

@@ -4,11 +4,23 @@
 import {useState} from 'react';
 import {CLOSED_BOARD_ID} from '../../../lib/board/static-ids.js';
 import {AsideDock} from '../lib/aside-dock';
-import {GuiBoard, GuiGoal, GuiIssue} from '../lib/gui-state.model';
-import {GoalStatsState} from '../lib/use-goal-stats';
+import {
+	GuiBoard,
+	GuiGoal,
+	GuiIssue,
+	GuiRefCommitEntry,
+} from '../lib/gui-state.model';
+import {GoalAnswer} from '../lib/use-goal-code';
+import {CommitDiffState} from '../lib/use-issue-detail';
+import {IssueStats as IssueStatsValue} from '../../../lib/stats/issue-stats.model.js';
 import {GUI_THEME} from '../lib/gui-theme';
 import {statGrid, statsAcross} from '../lib/issue-stats.style';
-import {Aside, ASIDE_PADDING, readStoredAsideWidth} from './Aside';
+import {
+	Aside,
+	ASIDE_PADDING,
+	readStoredAsideWidth,
+	STACKED_DIFF_WIDTH,
+} from './Aside';
 import {Empty} from './FormPrimitives';
 import {GoalProgressLine} from './GoalMarks';
 import {IconCheck} from './IconCheck';
@@ -17,10 +29,11 @@ import {CopyRef} from './CopyRef';
 import {DetailsHeader} from './NodeDetails';
 import {Section} from './Section';
 import {Stat} from './StatRow';
+import {IssueCommits} from './IssueCommits';
 import {IssueStats} from './IssueStats';
 import {Tabs} from './Tabs';
 
-export type GoalDetailsTab = 'overview' | 'stats';
+export type GoalDetailsTab = 'overview' | 'code' | 'stats';
 
 type Member = {issue: GuiIssue; lane: string; done: boolean};
 type Group = {board: GuiBoard; members: Member[]};
@@ -195,6 +208,9 @@ export const GoalDetails = ({
 	boardId,
 	tab,
 	onChangeTab,
+	commits,
+	commitDiffsBySha,
+	onLoadCommitDiff,
 	stats,
 	onOpenIssue,
 	onClose,
@@ -206,7 +222,10 @@ export const GoalDetails = ({
 	boardId: string;
 	tab: GoalDetailsTab;
 	onChangeTab: (tab: GoalDetailsTab) => void;
-	stats: GoalStatsState | null;
+	commits: GoalAnswer<GuiRefCommitEntry[]> | null;
+	commitDiffsBySha: Record<string, CommitDiffState>;
+	onLoadCommitDiff: (sha: string, repo?: string) => void;
+	stats: GoalAnswer<IssueStatsValue> | null;
 	onOpenIssue: (issueId: string, boardRef: string) => void;
 	onClose: () => void;
 }) => {
@@ -241,16 +260,33 @@ export const GoalDetails = ({
 			<Tabs
 				tabs={[
 					{id: 'overview', label: 'Overview'},
+					{id: 'code', label: 'Code', count: commits?.value?.length},
 					{id: 'stats', label: 'Stats'},
 				]}
 				activeTab={tab}
 				onChange={onChangeTab}
 			/>
 
-			{tab === 'stats' ? (
+			{tab === 'code' ? (
+				<IssueCommits
+					commits={commits?.value ?? []}
+					loading={!commits?.value && (commits?.loading ?? true)}
+					error={commits?.error ?? null}
+					empty="No commit carries the ref of a ticket in this goal."
+					diffsBySha={commitDiffsBySha}
+					onLoadDiff={sha =>
+						onLoadCommitDiff(
+							sha,
+							commits?.value?.find(commit => commit.sha === sha)?.repo,
+						)
+					}
+					diffStyle={panelWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'}
+					comments={[]}
+				/>
+			) : tab === 'stats' ? (
 				<IssueStats
 					of="goal"
-					stats={stats?.stats ?? null}
+					stats={stats?.value ?? null}
 					loading={stats?.loading ?? true}
 					error={stats?.error ?? null}
 					boardStats={null}

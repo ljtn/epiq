@@ -11,19 +11,23 @@ const addLane = async (page: Page, name: string) => {
 const lane = (page: Page, name: string) =>
 	page.locator('section').filter({hasText: name});
 
+const openLanePanel = async (page: Page, name: string) => {
+	await lane(page, name).getByTestId('swimlane-details-open').click();
+	await expect(page.getByTestId('swimlane-details')).toContainText(name);
+};
+
+// From the lane's Overview, which `openLanePanel` may have left open: its menu
+// button would close it again.
 const deleteLane = async (page: Page, name: string) => {
-	await lane(page, name).getByTestId('swimlane-menu').click();
-	await page.getByTestId('swimlane-menu-delete').click();
+	if (!(await page.getByTestId('swimlane-delete').isVisible())) {
+		await openLanePanel(page, name);
+	}
+	await page.getByTestId('swimlane-delete').click();
 	await page
 		.getByTestId('confirm-modal')
 		.getByRole('button', {name: 'delete'})
 		.click();
 	await expect(page.getByText(name)).toHaveCount(0);
-};
-
-const openLanePanel = async (page: Page, name: string) => {
-	await lane(page, name).getByTestId('swimlane-stats-open').click();
-	await expect(page.getByTestId('swimlane-stats')).toContainText(name);
 };
 
 // A board's row in the open switcher, by name.
@@ -47,7 +51,7 @@ test("a lane's description is written in its panel", async ({
 	const name = `Described ${Date.now()}`;
 	await addLane(page, name);
 	await openLanePanel(page, name);
-	await expect(page.getByTestId('swimlane-stats')).toContainText('Swimlane');
+	await expect(page.getByTestId('swimlane-details')).toContainText('Swimlane');
 	await expect(page.getByText('No description', {exact: true})).toBeVisible();
 	await page.getByTestId('swimlane-description-edit').click();
 	await page

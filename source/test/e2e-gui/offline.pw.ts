@@ -26,7 +26,7 @@ test('the board stands down while the socket is gone, and comes back', async ({
 
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
-	await expect(page.getByTestId('swimlane-menu').first()).toBeVisible();
+	await expect(page.getByTestId('add-issue').first()).toBeEnabled();
 
 	// A drop it can recover from on its own. The retries are refused for as
 	// long as the assertions take, because "reconnecting" is otherwise a state
@@ -46,7 +46,7 @@ test('the board stands down while the socket is gone, and comes back', async ({
 	await expect(page.getByTestId('reconnecting')).toHaveCount(0, {
 		timeout: 20_000,
 	});
-	await expect(page.getByTestId('swimlane-menu').first()).toBeVisible();
+	await expect(page.getByTestId('add-issue').first()).toBeEnabled();
 
 	// Now one it cannot: every retry is refused. The schedule runs at a fifth
 	// of its length from here, so the button arrives without sitting through
@@ -57,7 +57,7 @@ test('the board stands down while the socket is gone, and comes back', async ({
 
 	// Readonly the way a scrub is readonly, so every existing guard stands down
 	// together rather than each control growing its own offline case.
-	await expect(page.getByTestId('swimlane-menu')).toHaveCount(0);
+	await expect(page.getByTestId('add-issue').first()).toBeDisabled();
 	await expect(page.getByTestId('add-swimlane')).toHaveCount(0);
 	await expect(
 		page.getByRole('button', {name: 'Week', exact: true}),
@@ -83,7 +83,7 @@ test('the board stands down while the socket is gone, and comes back', async ({
 	refuse = false;
 	await page.getByTestId('connection-lost').click();
 
-	await expect(page.getByTestId('swimlane-menu').first()).toBeVisible();
+	await expect(page.getByTestId('add-issue').first()).toBeEnabled();
 	await expect(page.getByTestId('connection-lost')).toHaveCount(0);
 	await expect(
 		page.getByRole('button', {name: 'Week', exact: true}),

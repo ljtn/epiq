@@ -201,13 +201,19 @@ test('the rows across the top of the window sit on one line', async ({
 	expect(Math.abs(logButton.y - close.y)).toBeLessThanOrEqual(1);
 	expect(Math.abs(logButton.height - close.height)).toBeLessThanOrEqual(1);
 
-	// And the board starts where the panes either side of it do.
+	// And the board starts where the panes either side of it do: with its goal
+	// strip, which the worker's shared board shows once a test has made a goal,
+	// or else with its lanes.
 	const pane = await page.getByTestId('event-log').boundingBox();
-	const lane = await page.getByTestId('swimlane-handle').first().boundingBox();
+	const strip = page.getByTestId('goal-strip');
+	const top = await ((await strip.count()) > 0
+		? strip
+		: page.getByTestId('swimlane-handle').first()
+	).boundingBox();
 
-	if (!pane || !lane) throw new Error('board rows not found');
+	if (!pane || !top) throw new Error('board rows not found');
 
-	expect(Math.abs(pane.y - lane.y)).toBeLessThanOrEqual(2);
+	expect(Math.abs(pane.y - top.y)).toBeLessThanOrEqual(2);
 
 	expect(pageErrors).toEqual([]);
 });

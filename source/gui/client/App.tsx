@@ -44,7 +44,10 @@ import {
 } from '../../lib/utils/diff-comment.js';
 import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
-import {SwimlaneStats} from './components/SwimlaneStats';
+import {
+	SwimlaneDetails,
+	SwimlaneDetailsTab,
+} from './components/SwimlaneDetails';
 import {GlobalStyles} from './components/GlobalStyles';
 import {TicketPreviewLayer} from './components/TicketPreviewLayer';
 import {TooltipLayer} from './components/TooltipLayer';
@@ -80,6 +83,7 @@ import {
 	GuiContributor,
 	GuiEventIdentity,
 	GuiEventTimeline,
+	GuiRefCommitEntry,
 	GuiState,
 	GuiSwimlane,
 	GuiUser,
@@ -127,7 +131,8 @@ import {GoalStrip} from './components/GoalStrip';
 import {ManageGoalsModal} from './components/ManageGoalsModal';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
-import {goalStatsSignature, useGoalStats} from './lib/use-goal-stats';
+import {goalCodeSignature, useGoalAnswer} from './lib/use-goal-code';
+import {IssueStats as IssueStatsValue} from '../../lib/stats/issue-stats.model.js';
 import {useBoardOverview} from './lib/use-board-overview';
 import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
@@ -459,10 +464,13 @@ export const App = () => {
 		void navigate(`/board/${boardSlug}`);
 	};
 
-	// The lane whose stats the inspector is showing, if any. Not in the URL like
+	// The lane whose panel is open, if any, and on which tab. Not in the URL like
 	// the open ticket: it is a glance at a column rather than a place on the
 	// board worth linking somebody to.
-	const [statsSwimlaneId, setStatsSwimlaneId] = useState<string | null>(null);
+	const [detailsSwimlaneId, setDetailsSwimlaneId] = useState<string | null>(
+		null,
+	);
+	const [laneTab, setLaneTab] = useState<SwimlaneDetailsTab>('overview');
 	// The board on screen's own panel, for the same reason.
 	const [boardDetailsOpen, setBoardDetailsOpen] = useState(false);
 	// The narrowed-to goal's panel, opened with its pill and with a link to it.
@@ -496,7 +504,10 @@ export const App = () => {
 		sendRaw,
 	});
 	const {stats: swimlaneStats, onMessage: onSwimlaneStatsMessage} =
-		useSwimlaneStats({swimlaneId: statsSwimlaneId, sendRaw});
+		useSwimlaneStats({
+			swimlaneId: laneTab === 'stats' ? detailsSwimlaneId : null,
+			sendRaw,
+		});
 	const {overview: boardOverview, onMessage: onBoardOverviewMessage} =
 		useBoardOverview({
 			boardId:
@@ -789,7 +800,7 @@ export const App = () => {
 		setGoalDetailsOpen(narrowing);
 		if (narrowing) {
 			setCommitDiff(null);
-			setStatsSwimlaneId(null);
+			setDetailsSwimlaneId(null);
 			setBoardDetailsOpen(false);
 			clearPicked();
 		}
@@ -800,22 +811,34 @@ export const App = () => {
 			? state?.goals.find(goal => goal.id === isolatedGoalId) ?? null
 			: null;
 	const [goalTab, setGoalTab] = useState<GoalDetailsTab>('overview');
-	// Walks every ticket, so only while the tab is open.
-	const statsGoalId =
-		detailedGoal && goalTab === 'stats' ? detailedGoal.id : null;
+	// Walks every ticket, so only while a tab that needs it is open.
+	const codeGoalId =
+		detailedGoal && goalTab !== 'overview' ? detailedGoal.id : null;
 	const goalSignature = useMemo(
 		() =>
-			statsGoalId && state
-				? goalStatsSignature(statsGoalId, state.boards, refDiffStats)
+			codeGoalId && state
+				? goalCodeSignature(codeGoalId, state.boards, refDiffStats)
 				: '',
-		[statsGoalId, state?.boards, refDiffStats],
+		[codeGoalId, state?.boards, refDiffStats],
 	);
-	const {stats: goalStats, onMessage: onGoalStatsMessage} = useGoalStats({
-		goalId: statsGoalId,
+	const goalAsk = {
 		signature: goalSignature,
 		socketEpoch,
 		asOfTime: scrubCut(state?.timeTravel),
 		sendRaw,
+	};
+	const {answer: goalStats, onMessage: onGoalStatsMessage} =
+		useGoalAnswer<IssueStatsValue>({
+			...goalAsk,
+			ask: 'stats',
+			goalId: goalTab === 'stats' ? codeGoalId : null,
+		});
+	const {answer: goalCommits, onMessage: onGoalCommitsMessage} = useGoalAnswer<
+		GuiRefCommitEntry[]
+	>({
+		...goalAsk,
+		ask: 'commits',
+		goalId: goalTab === 'code' ? codeGoalId : null,
 	});
 
 	// The same for the assignee axis, from a dense card's name: the board
@@ -982,6 +1005,7 @@ export const App = () => {
 		onIssueDetailMessage(message);
 		onSwimlaneStatsMessage(message);
 		onGoalStatsMessage(message);
+		onGoalCommitsMessage(message);
 		onBoardOverviewMessage(message);
 		onRefDiffStatsMessage(message);
 		onTicketPreviewMessage(message);
@@ -1256,7 +1280,7 @@ export const App = () => {
 		setCommitDiff(null);
 		// One inspector, one subject: a lane's or the board's panel left open
 		// would hide the ticket just asked for the same way.
-		setStatsSwimlaneId(null);
+		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
 		setGoalDetailsOpen(false);
 
@@ -1273,22 +1297,24 @@ export const App = () => {
 		);
 	};
 
-	// Clicking the lane's own stats icon again closes the panel, which is what
-	// a toggle on the thing itself has to do.
-	const openSwimlaneStats = (swimlaneId: string) => {
+	// Clicking the lane's button for the tab on screen again closes the panel,
+	// which is what a toggle on the thing itself has to do.
+	const openSwimlaneDetails = (swimlaneId: string, tab: SwimlaneDetailsTab) => {
 		setCommitDiff(null);
 		clearPicked();
 		closeIssueDetails();
 		setBoardDetailsOpen(false);
 		setGoalDetailsOpen(false);
-		setStatsSwimlaneId(current => (current === swimlaneId ? null : swimlaneId));
+		const open = detailsSwimlaneId === swimlaneId && laneTab === tab;
+		setDetailsSwimlaneId(open ? null : swimlaneId);
+		setLaneTab(tab);
 	};
 
 	const toggleBoardDetails = () => {
 		setCommitDiff(null);
 		clearPicked();
 		closeIssueDetails();
-		setStatsSwimlaneId(null);
+		setDetailsSwimlaneId(null);
 		setGoalDetailsOpen(false);
 		setBoardDetailsOpen(open => !open);
 	};
@@ -1356,7 +1382,7 @@ export const App = () => {
 		tab: IssueDetailsTab,
 		diffView?: DiffViewName,
 	) => {
-		setStatsSwimlaneId(null);
+		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
 		setPickedIssueIds([nextIssueId]);
 		openIssueTab(nextIssueId, tab, boardSlug, diffView);
@@ -1814,13 +1840,11 @@ export const App = () => {
 		createSwimlaneTitle,
 		setCreateSwimlaneTitle,
 		renameSwimlane,
-		setRenameSwimlane,
 		setDeleteSwimlaneId,
 		deletingSwimlane,
 		createSwimlane,
-		openRenameSwimlane,
-		submitRenameSwimlane,
 		confirmDeleteSwimlane,
+		setSwimlaneRule,
 	} = useSwimlaneEditing({send, setState, selectedBoard, visibleSwimlanes});
 
 	const {
@@ -1936,8 +1960,8 @@ export const App = () => {
 	// The lane the panel is for, as the board currently has it — so the figures
 	// follow a ticket dropped into the lane while the panel is open, and a
 	// replayed board shows the lane as it was then.
-	const statsSwimlane =
-		shownSwimlanes.find(swimlane => swimlane.id === statsSwimlaneId) ?? null;
+	const detailsSwimlane =
+		shownSwimlanes.find(swimlane => swimlane.id === detailsSwimlaneId) ?? null;
 
 	// The dragged id comes off the drop event rather than being remembered from
 	// dragstart: a drag can begin in one window and end in this one, and the
@@ -2130,7 +2154,7 @@ export const App = () => {
 													selectBoard(id);
 													setCommitDiff(null);
 													clearPicked();
-													setStatsSwimlaneId(null);
+													setDetailsSwimlaneId(null);
 													setBoardDetailsOpen(true);
 												},
 											}}
@@ -2255,8 +2279,11 @@ export const App = () => {
 									// hide.
 									onClick={() => {
 										clearPicked();
-										if (!statsSwimlaneId || !hasTicketDrafts(statsSwimlaneId)) {
-											setStatsSwimlaneId(null);
+										if (
+											!detailsSwimlaneId ||
+											!hasTicketDrafts(detailsSwimlaneId)
+										) {
+											setDetailsSwimlaneId(null);
 										}
 										if (!selectedBoard || !hasTicketDrafts(selectedBoard.id)) {
 											setBoardDetailsOpen(false);
@@ -2330,8 +2357,10 @@ export const App = () => {
 												}
 												live={state?.timeTravel?.mode !== 'scrub'}
 												diffStats={refDiffStats}
-												statsOpen={statsSwimlaneId === swimlane.id}
-												onOpenStats={openSwimlaneStats}
+												openTab={
+													detailsSwimlaneId === swimlane.id ? laneTab : null
+												}
+												onOpenDetails={openSwimlaneDetails}
 												selected={false}
 												selectedIssueId={selectedIssue?.id ?? null}
 												commentsByIssueId={commentsByIssueId}
@@ -2351,8 +2380,6 @@ export const App = () => {
 												isolatedAssigneeId={isolatedAssigneeId}
 												onFilterByAssignee={filterByAssignee}
 												onCreateIssue={openCreateIssueModal}
-												onRenameSwimlane={openRenameSwimlane}
-												onDeleteSwimlane={setDeleteSwimlaneId}
 												dropSide={
 													swimlaneDropEdge?.swimlaneId === swimlane.id
 														? swimlaneDropEdge.side
@@ -2461,25 +2488,32 @@ export const App = () => {
 								</Aside>
 							)}
 
-							{!theatre && !commitDiff && statsSwimlane && (
-								<SwimlaneStats
+							{!theatre && !commitDiff && detailsSwimlane && (
+								<SwimlaneDetails
 									dock={asideDock}
-									swimlane={statsSwimlane}
+									swimlane={detailsSwimlane}
+									tab={laneTab}
+									onChangeTab={setLaneTab}
 									state={swimlaneStats}
 									live={state?.timeTravel?.mode !== 'scrub'}
+									onRename={title => renameSwimlane(detailsSwimlane.id, title)}
+									onSetRule={(rule, on) =>
+										setSwimlaneRule(detailsSwimlane.id, rule, on)
+									}
+									onDelete={() => setDeleteSwimlaneId(detailsSwimlane.id)}
 									onSaveDescription={text =>
 										saveNodeDescription(
-											{kind: 'swimlane', id: statsSwimlane.id},
+											{kind: 'swimlane', id: detailsSwimlane.id},
 											text,
 										)
 									}
-									onClose={() => setStatsSwimlaneId(null)}
+									onClose={() => setDetailsSwimlaneId(null)}
 								/>
 							)}
 
 							{!theatre &&
 								!commitDiff &&
-								!statsSwimlane &&
+								!detailsSwimlane &&
 								boardDetailsOpen &&
 								selectedBoard && (
 									<BoardDetails
@@ -2499,7 +2533,7 @@ export const App = () => {
 
 							{!theatre &&
 								!commitDiff &&
-								!statsSwimlane &&
+								!detailsSwimlane &&
 								!boardDetailsOpen &&
 								detailedGoal &&
 								selectedBoard &&
@@ -2511,6 +2545,9 @@ export const App = () => {
 										boardId={selectedBoard.id}
 										tab={goalTab}
 										onChangeTab={setGoalTab}
+										commits={goalCommits}
+										commitDiffsBySha={issueCommitDiffs}
+										onLoadCommitDiff={loadIssueCommitDiff}
 										stats={goalStats}
 										onOpenIssue={(id, boardRef) => {
 											setPickedIssueIds([id]);
@@ -2522,7 +2559,7 @@ export const App = () => {
 
 							{!theatre &&
 								!commitDiff &&
-								!statsSwimlane &&
+								!detailsSwimlane &&
 								!boardDetailsOpen &&
 								!detailedGoal &&
 								pickedIssues.length > 1 && (
@@ -2568,7 +2605,7 @@ export const App = () => {
 
 							{!theatre &&
 								!commitDiff &&
-								!statsSwimlane &&
+								!detailsSwimlane &&
 								!boardDetailsOpen &&
 								!detailedGoal &&
 								pickedIssues.length <= 1 &&
@@ -2716,20 +2753,6 @@ export const App = () => {
 								}
 								onCreate={createIssue}
 								onClose={() => setCreateIssueModal(null)}
-							/>
-						)}
-
-						{renameSwimlane && (
-							<CreateNodeModal
-								eyebrow="Rename swimlane"
-								placeholder="Swimlane name"
-								confirmLabel="Rename"
-								title={renameSwimlane.title}
-								onChangeTitle={title =>
-									setRenameSwimlane(prev => (prev ? {...prev, title} : prev))
-								}
-								onCreate={submitRenameSwimlane}
-								onClose={() => setRenameSwimlane(null)}
 							/>
 						)}
 

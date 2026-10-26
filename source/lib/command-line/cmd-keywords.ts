@@ -10,6 +10,8 @@ export const CmdKeywords = {
 	UNTAG: 'untag',
 	GOAL: 'goal',
 	UNGOAL: 'ungoal',
+	RULE: 'rule',
+	UNRULE: 'unrule',
 	MOVE: 'move',
 
 	PEEK: 'peek',

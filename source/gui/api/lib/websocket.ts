@@ -16,6 +16,7 @@ import {
 	editBoardTitle,
 	editBoardDescription,
 	editSwimlaneDescription,
+	setSwimlaneRule,
 	createIssue,
 	createSwimlane,
 	deleteSwimlane,
@@ -64,7 +65,7 @@ import {
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
 import {getRefDiffTimeline} from '../../../mcp/api/ref-diff-stats.js';
 import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
-import {getGoalStats} from '../../../mcp/api/goal-stats.js';
+import {getGoalCommits, getGoalStats} from '../../../mcp/api/goal-code.js';
 import {getBoardOverview} from '../../../mcp/api/board-overview.js';
 import {
 	failed,
@@ -660,6 +661,23 @@ export const setupWebsocket = (
 					});
 				}
 
+				if (type === 'goal:commits:get') {
+					const {goalId, key, asOfTime} = message.payload;
+
+					return sendSocket(socket, {
+						type: 'goal:commits:result',
+						payload: {
+							goalId,
+							key,
+							result: await getGoalCommits({
+								repoRoot,
+								goal: goalId,
+								end: asOfTime,
+							}),
+						},
+					});
+				}
+
 				if (type === 'board:overview:get') {
 					const {boardId} = message.payload;
 
@@ -1077,6 +1095,21 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'swimlane:edit:description:result',
+						result,
+					);
+				}
+
+				if (type === 'swimlane:rule:set') {
+					const result = await setSwimlaneRule({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:rule:set:result',
 						result,
 					);
 				}

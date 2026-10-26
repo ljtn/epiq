@@ -63,6 +63,14 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 		'swimlane:edit:description',
 		z.object({swimlaneId: id, description: z.string()}),
 	),
+	message(
+		'swimlane:rule:set',
+		z.object({
+			swimlaneId: id,
+			rule: z.string().min(1).max(64),
+			on: z.boolean(),
+		}),
+	),
 	message('swimlane:delete', z.object({swimlaneId: id})),
 	message(
 		'swimlane:move',
@@ -194,6 +202,14 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	message('swimlane:stats:get', z.object({swimlaneId: id})),
 	message(
 		'goal:stats:get',
+		z.object({
+			goalId: id,
+			key: z.string().max(200),
+			asOfTime: epochMs.optional(),
+		}),
+	),
+	message(
+		'goal:commits:get',
 		z.object({
 			goalId: id,
 			key: z.string().max(200),

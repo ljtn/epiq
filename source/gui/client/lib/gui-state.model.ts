@@ -1,3 +1,5 @@
+import type {LaneRule} from '../../../lib/model/lane-rule.model.js';
+
 export type GuiTag = {id: string; name: string; color: string};
 export type GuiUser = {id: string; name: string; color: string};
 
@@ -66,6 +68,12 @@ export type GuiSwimlane = {
 	issues: GuiIssue[];
 	// The lane's conventions, as markdown; absent when it has none.
 	description?: string;
+	// What standing in the lane means for its tickets; absent when it has none.
+	rules?: LaneRule[];
+	// Whether its open tickets count as done: by its rule, or by its name.
+	countsDone: boolean;
+	// Called Done, which counts whatever its rules say.
+	doneByName: boolean;
 };
 
 export type GuiBoard = {
@@ -202,6 +210,8 @@ export type GuiRefCommitEntry = GuiCommitEntry & {
 	precedingSha: string | null;
 	/** The message below the subject, where there is one. */
 	body?: string;
+	/** On a goal's list: the refs of its tickets this commit carries. */
+	tickets?: string[];
 };
 
 export type GuiCommitDiffFile = {

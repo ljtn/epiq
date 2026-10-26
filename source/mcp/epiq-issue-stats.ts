@@ -9,7 +9,11 @@ import {IssueStats, StatsCommit} from '../lib/stats/issue-stats.model.js';
 import {nodeRef, NODE_REF_LENGTH} from '../lib/utils/node-ref.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {withCommitAuthors} from './api/commit-authors.js';
-import {getCommitsForRef} from '../lib/commits/commits.js';
+import {
+	CommitEntry,
+	getCommitsForRef,
+	getCommitsForRefs,
+} from '../lib/commits/commits.js';
 
 // A ticket's shas never change what their patches contain, so the cache is
 // keyed by the shas themselves rather than aged out: a new commit on the
@@ -38,22 +42,17 @@ const remember = (key: string, stats: IssueStats): IssueStats => {
 	return stats;
 };
 
-// The commits a ref owns, each by the name its author resolves to.
-const statsCommitsFor = async (
-	repoRoot: string,
-	ref: string,
-	end?: number,
-): Promise<Result<StatsCommit[]>> => {
-	// Resolved, like every other commit list: `change-shape` counts distinct
-	// authors by this string, and the Code tab calls one person one author.
-	const commitsResult = withCommitAuthors(
-		await getCommitsForRef({repoRoot, ref, end}),
-	);
-	if (isFail(commitsResult)) return failed(commitsResult.message);
+// Each commit by the name its author resolves to: `change-shape` counts
+// distinct authors by this string, and the Code tab calls one person one author.
+const asStatsCommits = <T extends CommitEntry>(
+	commits: Result<T[]>,
+): Result<StatsCommit[]> => {
+	const resolved = withCommitAuthors(commits);
+	if (isFail(resolved)) return failed(resolved.message);
 
 	return succeeded(
 		'Matched commits by ref',
-		commitsResult.value.map(commit => ({
+		resolved.value.map(commit => ({
 			sha: commit.sha,
 			...(commit.repo ? {repo: commit.repo} : {}),
 			time: commit.time,
@@ -107,7 +106,9 @@ export const getIssueStats = async (
 	const repoRoot = projectRoot(input.repoRoot);
 	if (isFail(repoRoot)) return repoRoot;
 
-	const commits = await statsCommitsFor(repoRoot.value, ref, input.end);
+	const commits = asStatsCommits(
+		await getCommitsForRef({repoRoot: repoRoot.value, ref, end: input.end}),
+	);
 	if (isFail(commits)) return commits;
 
 	return statsOver(repoRoot.value, ref, commits.value);
@@ -123,24 +124,15 @@ export const getRefsStats = async (input: {
 	const repoRoot = projectRoot(input.repoRoot);
 	if (isFail(repoRoot)) return repoRoot;
 
-	const commits = new Map<string, StatsCommit>();
-	for (const ref of input.refs) {
-		const owned = await statsCommitsFor(repoRoot.value, ref, input.end);
-		if (isFail(owned)) return owned;
-		for (const commit of owned.value) {
-			commits.set(`${commit.repo ?? ''}:${commit.sha}`, commit);
-		}
-	}
-
-	return statsOver(
-		repoRoot.value,
-		input.label,
-		// Whole seconds tie often; the key wants one order for one set.
-		[...commits.values()].sort(
-			(a, b) =>
-				b.time - a.time ||
-				(a.repo ?? '').localeCompare(b.repo ?? '') ||
-				a.sha.localeCompare(b.sha),
-		),
+	// The same list the goal's Code tab shows, so the two never disagree.
+	const commits = asStatsCommits(
+		await getCommitsForRefs({
+			repoRoot: repoRoot.value,
+			refs: input.refs,
+			end: input.end,
+		}),
 	);
+	if (isFail(commits)) return commits;
+
+	return statsOver(repoRoot.value, input.label, commits.value);
 };

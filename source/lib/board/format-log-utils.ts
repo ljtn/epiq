@@ -33,6 +33,8 @@ export const formatLogAction = (action: string): string => {
 		'add.issue.tag': 'Tagged with',
 		'remove.issue.tag': 'Removed tag',
 		'add.issue.goal': 'Added to goal',
+		'add.swimlane.rule': 'Added lane rule',
+		'remove.swimlane.rule': 'Removed lane rule',
 		'remove.issue.goal': 'Removed from goal',
 		'lock.node': 'Locked node',
 		'move.node': 'Moved issue',
@@ -147,6 +149,10 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'remove.issue.goal':
 			return loggedGoalName(event.payload.goal);
 
+		case 'add.swimlane.rule':
+		case 'remove.swimlane.rule':
+			return `"${event.payload.rule}"`;
+
 		case 'tombstone.goal':
 			return `"${loggedGoalName(event.payload.id)}"`;
 
@@ -252,6 +258,10 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		case 'add.issue.goal':
 		case 'remove.issue.goal':
 			return loggedGoalName(event.payload.goal);
+
+		case 'add.swimlane.rule':
+		case 'remove.swimlane.rule':
+			return `"${event.payload.rule}"`;
 
 		case 'tombstone.goal':
 			return `"${loggedGoalName(event.payload.id)}"`;

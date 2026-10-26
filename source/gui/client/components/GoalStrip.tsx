@@ -6,6 +6,7 @@ import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
 import {GoalProgressLine} from './GoalMarks';
+import {COLUMN_PADDING} from './SwimlaneColumn';
 
 const GoalPill = ({
 	goal,
@@ -106,7 +107,8 @@ export const GoalStrip = ({
 			display: 'flex',
 			alignItems: 'center',
 			gap: 6,
-			padding: '14px 0 10px',
+			// In from the board's edge as far as a lane's title is.
+			padding: `14px ${COLUMN_PADDING}px 10px`,
 			overflowX: 'auto',
 			flexShrink: 0,
 		}}

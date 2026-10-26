@@ -6,6 +6,7 @@ import {AnyContext, isTicketNode, Swimlane} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {isDoneLane} from '../utils/lane-rules.js';
 import {CursorUI} from './Cursor.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
@@ -38,9 +39,14 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 	const flashIds = replay ? new Set(replay.flashNodeIds) : null;
 	const isSwimlaneFlashing = flashIds?.has(swimlane.id) ?? false;
 	const flashColor = useFlashColor(isSwimlaneFlashing);
+	// A lane whose tickets count as done says so after its count, as the GUI's
+	// header does.
+	const marksDone = isDoneLane(swimlane.id);
 	const title = `${swimlane.title} ${chalk
 		.hex(theme.secondary2)
-		.dim('(' + children.length + ')')}`;
+		.dim('(' + children.length + ')')}${
+		marksDone ? chalk.hex(theme.secondary2)(' ✓') : ''
+	}`;
 	const cmdInputHeight = 3;
 
 	const itemHeight = isDense ? 1 : 5;

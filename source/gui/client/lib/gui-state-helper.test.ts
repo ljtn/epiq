@@ -31,6 +31,8 @@ const state: GuiState = {
 					id: 'lane-1',
 					title: 'Todo',
 					readonly: false,
+					countsDone: false,
+					doneByName: false,
 					issues: [
 						issue('01AAAAAAAAAAAAAAAAAAAAAAAA', 'AAAAAAA', 'First clash'),
 						issue('01BBBBBBBBBBBBBBBBBAAAAAAA', 'AAAAAAA', 'Second clash'),

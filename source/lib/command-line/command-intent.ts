@@ -50,6 +50,12 @@ export const getCommandIntent = (command: string): CommandIntent => {
 		case CmdKeywords.UNGOAL:
 			return CmdIntent.UngoalTicket;
 
+		case CmdKeywords.RULE:
+			return CmdIntent.RuleLane;
+
+		case CmdKeywords.UNRULE:
+			return CmdIntent.UnruleLane;
+
 		case CmdKeywords.ASSIGN:
 			return CmdIntent.AssignUserToTicket;
 
@@ -112,6 +118,8 @@ export const CmdIntent = {
 	UntagTicket: 'ticket-untag',
 	GoalTicket: 'ticket-goal',
 	UngoalTicket: 'ticket-ungoal',
+	RuleLane: 'lane-rule',
+	UnruleLane: 'lane-unrule',
 	AssignUserToTicket: 'ticket-assign-user',
 	UnassignUserFromTicket: 'ticket-unassign-user',
 	CloseIssue: 'close-issue',

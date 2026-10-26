@@ -82,6 +82,8 @@ const log = (): AppEvent[] => [
 	at('add.issue', {id: ISSUE, name: 'Issue', parent: LANE, rank: 'a0'}),
 	at('add.field', {id: FIELD, name: 'Notes', parent: ISSUE, rank: 'a0'}),
 	at('edit.description', {id: ISSUE, md: 'A description'}),
+	at('add.swimlane.rule', {id: LANE, rule: 'done'}),
+	at('remove.swimlane.rule', {id: LANE, rule: 'done'}),
 
 	at('create.contributor', {id: ALICE, name: 'alice'}),
 	at('rename.contributor', {id: ALICE, name: 'Alice Cooper'}),

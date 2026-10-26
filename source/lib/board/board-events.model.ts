@@ -218,6 +218,17 @@ export type AppEventMap = {
 		result: {md: string};
 	};
 
+	/** Gives a lane a rule, by name; one this build does not know is kept. */
+	'add.swimlane.rule': {
+		payload: PayloadBase & {rule: string};
+		result: {rule: string};
+	};
+
+	'remove.swimlane.rule': {
+		payload: PayloadBase & {rule: string};
+		result: {rule: string};
+	};
+
 	'add.issue.comment': {
 		payload: PayloadBase & {
 			issue: string;
@@ -417,6 +428,8 @@ export const EVENT_ACTIONS = [
 	'remove.issue.goal',
 	'move.node',
 	'edit.description',
+	'add.swimlane.rule',
+	'remove.swimlane.rule',
 	'add.issue.comment',
 	'edit.issue.comment',
 	'delete.issue.comment',
