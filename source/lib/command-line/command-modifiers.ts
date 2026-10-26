@@ -23,7 +23,7 @@ import {
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
-import {boardGoals, projectGoals} from '../utils/goal.utils.js';
+import {boardGoals, getTicketGoal, projectGoals} from '../utils/goal.utils.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE', 'COMMENT'];
@@ -315,7 +315,7 @@ const getAvailableBaseCommands = ({
 		}
 
 		if (command === CmdKeywords.UNGOAL) {
-			return Boolean(ticket?.props?.goal);
+			return Boolean(ticket && getTicketGoal(ticket));
 		}
 
 		if (command === CmdKeywords.UNASSIGN) {

@@ -1,4 +1,3 @@
-import {apiBoardGoals} from './goals.js';
 import {ulid} from 'ulid';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
@@ -34,6 +33,7 @@ import {
 	resolveRepoRoot,
 } from './boot.js';
 import {descriptionOf} from './descriptions.js';
+import {apiBoardGoals} from './goals.js';
 import {findWritableBoard, findWritableSwimlane} from './node-targets.js';
 
 type CreateBoardInput = ToolInput & {

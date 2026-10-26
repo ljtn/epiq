@@ -22,7 +22,7 @@ import {
 	useCardDensityView,
 } from '../lib/card-density';
 import {Button} from './Button';
-import {GoalLabel, GoalStripe} from './GoalLabel';
+import {GoalLabel, GoalStripe} from './GoalMarks';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
 import {formatDuration} from '../lib/gui-format.helper';
@@ -587,7 +587,7 @@ export const TicketCard = ({
 	const getVisualTargetIndex = (isAfterMiddle: boolean) =>
 		index + (isAfterMiddle ? 1 : 0);
 
-	// One mark per card: its goal's, or, on a goal, its own.
+	// Its goal's label, which narrows the board to that goal.
 	const goal = ticket.goal;
 	const goalIsolated = goal !== undefined && goal.id === isolatedGoalId;
 	const goalLabel = goal ? (

@@ -1,5 +1,5 @@
-// A goal is a name in the project that tickets belong to, one goal per ticket.
-// It sits in no lane: how far along it is comes from its tickets.
+// A goal is a name in the project that tickets belong to, one goal per ticket;
+// how far along it is comes from its tickets.
 
 import {ulid} from 'ulid';
 import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
@@ -71,11 +71,7 @@ export const apiBoardGoals = (boardId: string): ApiBoardGoal[] =>
 		})),
 	}));
 
-const persist = (
-	stateBranchRoot: string,
-	events: AppEvent[],
-	saved: {id: string; name: string},
-) => {
+const persist = <T>(stateBranchRoot: string, events: AppEvent[], saved: T) => {
 	const results = materializeAndPersistAll(events, stateBranchRoot);
 	if (isFail(results)) return failed(results.message);
 
@@ -116,7 +112,8 @@ export const setIssueGoal = async (
 
 	if (issue.props.goal === goalId) return succeeded('No changes made', saved);
 
-	const results = materializeAndPersistAll(
+	return persist(
+		ready.value.boot.stateBranchRoot,
 		[
 			{
 				id: ulid(),
@@ -125,11 +122,8 @@ export const setIssueGoal = async (
 				payload: goalId ? {id: issue.id, goal: goalId} : {id: issue.id},
 			},
 		],
-		ready.value.boot.stateBranchRoot,
+		saved,
 	);
-	if (isFail(results)) return failed(results.message);
-
-	return succeeded('Saved', saved);
 };
 
 /** A new goal, and the ticket named, if any, put in it at once. */

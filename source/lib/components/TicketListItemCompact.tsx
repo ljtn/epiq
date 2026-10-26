@@ -1,4 +1,3 @@
-import {goalMark} from '../utils/goal.utils.js';
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
@@ -7,6 +6,7 @@ import {Ticket} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {theme} from '../theme/themes.js';
 import {getStringColor, stringToHslHexColor} from '../utils/color.js';
+import {goalMark} from '../utils/goal.utils.js';
 import {CursorUI} from './Cursor.js';
 import {useFlashColor} from './useFlashColor.js';
 

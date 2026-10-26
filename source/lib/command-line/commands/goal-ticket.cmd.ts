@@ -1,7 +1,9 @@
 import {ulid} from 'ulid';
 import {findAncestor} from '../../repository/node-repo.js';
-import {materializeAndPersistAll} from '../../board/board-log.js';
-import {resolveActorId} from '../../board/board-log.js';
+import {
+	materializeAndPersistAll,
+	resolveActorId,
+} from '../../board/board-log.js';
 import {isTicketNode, Ticket} from '../../model/context.model.js';
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
@@ -9,7 +11,12 @@ import {getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
 import {actorOf} from '../../event/event.model.js';
 import {AppEvent} from '../../board/board-events.model.js';
-import {findGoal, goalName, goalNameRefusal} from '../../utils/goal.utils.js';
+import {
+	findGoal,
+	getTicketGoal,
+	goalName,
+	goalNameRefusal,
+} from '../../utils/goal.utils.js';
 
 const selectedTicket = (): Result<Ticket> => {
 	const {selectedNode} = getState();
@@ -34,14 +41,14 @@ const write = async (events: AppEvent[]) => {
 type Actor = Parameters<typeof actorOf>[0];
 
 const setGoalEvent = (
-	actorId: Actor,
+	actor: Actor,
 	ticket: Ticket,
 	goal?: string,
 ): AppEvent => ({
 	id: ulid(),
 	action: 'set.issue.goal',
 	payload: goal ? {id: ticket.id, goal} : {id: ticket.id},
-	...actorOf(actorId),
+	...actorOf(actor),
 });
 
 /**
@@ -59,12 +66,12 @@ export const goalTicketCommand = async () => {
 
 	const userRes = resolveActorId();
 	if (isFail(userRes)) return failed('Unable to resolve user ID');
-	const actorId: Actor = userRes.value;
+	const actor: Actor = userRes.value;
 
 	const goal = findGoal(name);
 	if (goal) {
 		if (ticket.props.goal === goal.id) return failed('Already in that goal');
-		return write([setGoalEvent(actorId, ticket, goal.id)]);
+		return write([setGoalEvent(actor, ticket, goal.id)]);
 	}
 
 	const refusal = goalNameRefusal(name);
@@ -76,9 +83,9 @@ export const goalTicketCommand = async () => {
 			id: goalId,
 			action: 'create.goal',
 			payload: {id: goalId, name},
-			...actorOf(actorId),
+			...actorOf(actor),
 		},
-		setGoalEvent(actorId, ticket, goalId),
+		setGoalEvent(actor, ticket, goalId),
 	]);
 };
 
@@ -88,7 +95,7 @@ export const ungoalTicketCommand = async () => {
 	if (isFail(ticketResult)) return ticketResult;
 	const ticket = ticketResult.value;
 
-	if (!ticket.props.goal) return failed('Not in a goal');
+	if (!getTicketGoal(ticket)) return failed('Not in a goal');
 
 	const userRes = resolveActorId();
 	if (isFail(userRes)) return failed('Unable to resolve user ID');

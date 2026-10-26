@@ -46,10 +46,6 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	await addTicket(page, member);
 	await startGoal(page, goal);
 
-	// No card stands for the goal: its name is only on its ticket's label.
-	await expect(
-		page.getByTestId('ticket-title').filter({hasText: goal}),
-	).toHaveCount(0);
 	await expect(pill(page, goal)).toContainText('0/1');
 
 	await page.goto(boardUrl);

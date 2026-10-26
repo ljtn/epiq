@@ -8,6 +8,7 @@ import {Goal} from '../model/app-state.model.js';
 import {isTicketNode, Ticket} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
 import {getSafeState} from '../state/state.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {getMutedStringColor} from './color.js';
 import {sanitizeInlineText} from './string.utils.js';
 import {boardsEverOnOf} from './ticket-boards.js';
@@ -21,10 +22,8 @@ const nodesOrNone = () => stateOrNone()?.nodes ?? {};
 const goalsOrNone = () => stateOrNone()?.goals ?? {};
 
 /** A goal that has not been removed. */
-export const getGoal = (id: string): Goal | undefined => {
-	const goal = goalsOrNone()[id];
-	return goal?.tombstoned ? undefined : goal;
-};
+export const getGoal = (id: string): Goal | undefined =>
+	stateOrNone() ? nodeRepo.getGoal(id) : undefined;
 
 /** The project's goals, oldest first. */
 export const projectGoals = (): Goal[] =>
@@ -74,12 +73,12 @@ const ticketBoards = (ticket: Ticket): string[] => {
 	return board ? [board] : [];
 };
 
-// Who belongs to which goal, and which of them each board shows, worked out once per
-// state: a terminal row asks for every ticket on screen, on every key press,
-// and the GUI for every board's goals on every broadcast. Keyed by the state
-// object, which every write replaces, batched ones included; the nodes map is
-// not, as a batch writes into it in place. A deleted lane or board marks its
-// tickets deleted, so they leave with it.
+// Who belongs to which goal, and which of them each board shows, worked out
+// once per state: a terminal row asks for every ticket on screen, on every key
+// press, and the GUI for every board's goals on every broadcast. Keyed by the
+// state object, which every write replaces, batched ones included; the nodes
+// map is not, as a batch writes into it in place. A deleted lane or board marks
+// its tickets deleted, so they leave with it.
 type Membership = {
 	members: Map<string, Ticket[]>;
 	onBoard: Map<string, Map<string, Ticket[]>>;

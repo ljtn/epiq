@@ -5,7 +5,7 @@
 import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
-import {GoalProgressLine} from './GoalLabel';
+import {GoalProgressLine} from './GoalMarks';
 
 const GoalPill = ({
 	goal,

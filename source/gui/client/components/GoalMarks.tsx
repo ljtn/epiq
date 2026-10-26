@@ -1,6 +1,6 @@
-// A card's goal, named in its colour in the goal dropdown's dark frame, so
-// it never reads as a tag. A card in a goal also carries its colour down its
-// left edge, and a goal's progress is the same stroke laid flat.
+// A goal's marks. On a card: its name in its colour, in the goal dropdown's
+// dark frame so it never reads as a tag, and its colour down the left edge.
+// Its progress is the same stroke laid flat.
 
 import React from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -11,7 +11,6 @@ export const GoalLabel = ({
 	height,
 	testId,
 	pressed = false,
-	disabled = false,
 	onPress,
 	pressTitle,
 }: {
@@ -22,7 +21,6 @@ export const GoalLabel = ({
 	testId: string;
 	// Held on, as a narrowed tag chip is.
 	pressed?: boolean;
-	disabled?: boolean;
 	onPress?: () => void;
 	pressTitle?: string;
 }) => {
@@ -70,14 +68,13 @@ export const GoalLabel = ({
 			type="button"
 			data-testid={testId}
 			aria-pressed={pressed}
-			disabled={disabled}
 			title={pressTitle ?? label}
 			// Stopped here, or a click on a card would also select it.
 			onClick={event => {
 				event.stopPropagation();
 				onPress();
 			}}
-			style={{...style, cursor: disabled ? 'default' : 'pointer'}}
+			style={{...style, cursor: 'pointer'}}
 		>
 			{content}
 		</button>

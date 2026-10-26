@@ -4,10 +4,7 @@
 // output lags the skill file.
 import fs from 'node:fs';
 
-const skillFile = new URL(
-	'../../.claude/skills/epiq/SKILL.md',
-	import.meta.url,
-);
+const skillFile = new URL('../../.claude/skills/epiq/SKILL.md', import.meta.url);
 const outFile = new URL('../mcp/skill-content.ts', import.meta.url);
 
 const skill = fs.readFileSync(skillFile, 'utf-8');
@@ -19,6 +16,4 @@ export const EPIQ_SKILL = ${JSON.stringify(skill)};
 
 fs.writeFileSync(outFile, content);
 
-console.log(
-	`Wrote skill-content.ts from ${skill.length} characters of SKILL.md`,
-);
+console.log(`Wrote skill-content.ts from ${skill.length} characters of SKILL.md`);

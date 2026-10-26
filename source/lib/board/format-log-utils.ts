@@ -118,7 +118,7 @@ const getDeletedAttachmentName = (attachmentId: string): string =>
 	nodeRepo.getAttachment(attachmentId)?.name ?? '';
 
 // The goal's name as it reads now, removed or not, or nothing for a cleared one.
-const goalName = (goalId: string | undefined): string =>
+const loggedGoalName = (goalId: string | undefined): string =>
 	(goalId && getState().goals[goalId]?.name) || '';
 
 const formatEventDetails = (event: AppEvent): string => {
@@ -143,10 +143,10 @@ const formatEventDetails = (event: AppEvent): string => {
 		}
 
 		case 'set.issue.goal':
-			return goalName(event.payload.goal) || 'none';
+			return loggedGoalName(event.payload.goal) || 'none';
 
 		case 'tombstone.goal':
-			return `"${goalName(event.payload.id)}"`;
+			return `"${loggedGoalName(event.payload.id)}"`;
 
 		case 'add.issue.assignee': {
 			const contributor = getState().contributors[event.payload.assignee];
@@ -248,10 +248,10 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		}
 
 		case 'set.issue.goal':
-			return goalName(event.payload.goal);
+			return loggedGoalName(event.payload.goal);
 
 		case 'tombstone.goal':
-			return `"${goalName(event.payload.id)}"`;
+			return `"${loggedGoalName(event.payload.id)}"`;
 
 		case 'tombstone.tag': {
 			const tag = getState().tags[event.payload.id];

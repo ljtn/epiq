@@ -41,7 +41,7 @@ export type BoardSelection = {
 	// The window is derived while this is on rather than written into `zoom`,
 	// so turning it off hands the scope buttons back what they had.
 	ticketOnly: boolean;
-	// Narrows the board to one goal: its own ticket and those belonging to it.
+	// Narrows the board to one goal's tickets.
 	goal: string | null;
 };
 

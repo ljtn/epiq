@@ -10,7 +10,7 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {statGrid, statsAcross} from '../lib/issue-stats.style';
 import {Aside, ASIDE_PADDING, readStoredAsideWidth} from './Aside';
 import {Empty} from './FormPrimitives';
-import {GoalProgressLine} from './GoalLabel';
+import {GoalProgressLine} from './GoalMarks';
 import {IconCheck} from './IconCheck';
 import {IconChevronRight} from './IconChevronRight';
 import {CopyRef} from './CopyRef';
