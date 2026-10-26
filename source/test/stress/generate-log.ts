@@ -37,6 +37,9 @@ export type GenerateInput = {
 	// than a fraction of its age: a team closes work to keep the board readable,
 	// so ten years of history leaves about as many open tickets as one year.
 	openTickets?: number;
+	// How many goals the decade's tickets are grouped under, one after another
+	// as the years go by; every other ticket joins the goal of its time.
+	goals?: number;
 };
 
 // Roughly what a person does to a ticket, in the proportions a board sees: far
@@ -158,7 +161,11 @@ export const generateLog = async (
 	//
 	// Strictly before the first event that uses them, so no reordering of
 	// concurrent branches can put a tagging ahead of its tag.
-	let preambleAt = start - (input.actors.length + input.tagNames.length);
+	// No room for a ticket's join at a millisecond a step.
+	const goalCount = step > 1 ? input.goals ?? 0 : 0;
+
+	let preambleAt =
+		start - (input.actors.length + input.tagNames.length + goalCount);
 
 	const tagIds = input.tagNames.map((_, index) =>
 		ulid(start - input.tagNames.length + index),
@@ -175,6 +182,11 @@ export const generateLog = async (
 
 	input.tagNames.forEach((name, index) => {
 		write('create.tag', {id: tagIds[index]!, name}, ulid(preambleAt++), edge);
+	});
+
+	const goalIds = Array.from({length: goalCount}, () => ulid(preambleAt++));
+	goalIds.forEach((id, index) => {
+		write('create.goal', {id, name: `Goal ${index}`}, id, edge);
 	});
 
 	// The tickets on the board, oldest first.
@@ -221,6 +233,18 @@ export const generateLog = async (
 				id,
 				refId,
 			);
+
+			// Every other ticket, halfway to the next event, so the join sorts
+			// after the ticket it names.
+			if (goalCount > 0 && Math.floor(i / shape.length) % 2 === 0) {
+				const goal = goalIds[Math.floor((i / input.events) * goalCount)]!;
+				write(
+					'set.issue.goal',
+					{id: ticket.id, goal},
+					ulid(start + i * step + Math.floor(step / 2)),
+					edge,
+				);
+			}
 
 			continue;
 		}

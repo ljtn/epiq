@@ -64,6 +64,7 @@ import {
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
 import {getRefDiffTimeline} from '../../../mcp/api/ref-diff-stats.js';
 import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
+import {getGoalStats} from '../../../mcp/api/goal-stats.js';
 import {getBoardOverview} from '../../../mcp/api/board-overview.js';
 import {
 	failed,
@@ -636,6 +637,22 @@ export const setupWebsocket = (
 						payload: {
 							swimlaneId,
 							result: await getSwimlaneStats({repoRoot, swimlaneId}),
+						},
+					});
+				}
+
+				if (type === 'goal:stats:get') {
+					const {goalId, asOfTime} = message.payload;
+
+					return sendSocket(socket, {
+						type: 'goal:stats:result',
+						payload: {
+							goalId,
+							result: await getGoalStats({
+								repoRoot,
+								goal: goalId,
+								end: asOfTime,
+							}),
 						},
 					});
 				}

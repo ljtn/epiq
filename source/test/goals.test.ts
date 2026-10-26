@@ -72,18 +72,18 @@ const goalsOf = (boardId: string) =>
 
 describe('a goal', () => {
 	it('is made in the project, and named, coloured and counted', async () => {
-		const {repoRoot, boardId} = await seed();
+		const {repoRoot} = await seed();
 
 		const {id} = unwrap(await createGoal({repoRoot, name: 'Time travel'}));
 
-		expect(goalsOf(boardId)).toEqual([
+		expect(unwrap(await listGoals({repoRoot}))).toEqual([
 			{
 				id,
 				name: 'Time travel',
 				color: expect.stringMatching(/^#[0-9a-f]{6}$/i),
 				done: 0,
 				total: 0,
-				members: [],
+				boards: [],
 			},
 		]);
 	});
@@ -96,20 +96,26 @@ describe('a goal', () => {
 		);
 		const empty = unwrap(await createGoal({repoRoot, name: 'Empty'}));
 
-		expect(unwrap(await listGoals({repoRoot}))).toMatchObject([
-			{id, name: 'Listed', done: 0, total: 1, boards: [{id: boardId}]},
+		const listed = unwrap(await listGoals({repoRoot})).sort((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		expect(listed).toMatchObject([
 			{id: empty.id, name: 'Empty', total: 0, boards: []},
+			{id, name: 'Listed', done: 0, total: 1, boards: [{id: boardId}]},
 		]);
 	});
 
 	it('keeps its colour through a rename', async () => {
-		const {repoRoot, boardId} = await seed();
+		const {repoRoot} = await seed();
 		const {id} = unwrap(await createGoal({repoRoot, name: 'Before'}));
-		const color = goalsOf(boardId)[0]!.color;
+		const [before] = unwrap(await listGoals({repoRoot}));
 
 		unwrap(await renameGoal({repoRoot, goalId: id, name: 'After'}));
 
-		expect(goalsOf(boardId)[0]).toMatchObject({name: 'After', color});
+		expect(unwrap(await listGoals({repoRoot}))[0]).toMatchObject({
+			name: 'After',
+			color: before!.color,
+		});
 	});
 
 	it('refuses a second goal of the same name', async () => {
@@ -240,14 +246,15 @@ describe('a goal across boards', () => {
 		expect(goalsOf(boardId)).toEqual([]);
 	});
 
-	it('shows one with no tickets yet on every board but Closed', async () => {
+	it('shows one with no tickets yet on no board', async () => {
 		const {repoRoot, boardId} = await seed();
-		const other = unwrap(await createBoard({repoRoot, title: 'Other'}));
 		const {id} = unwrap(await createGoal({repoRoot, name: 'Fresh'}));
 
-		expect(goalsOf(boardId)).toMatchObject([{id}]);
-		expect(goalsOf(other.id)).toMatchObject([{id}]);
+		expect(goalsOf(boardId)).toEqual([]);
 		expect(goalsOf(CLOSED_BOARD_ID)).toEqual([]);
+		expect(unwrap(await listGoals({repoRoot}))).toMatchObject([
+			{id, boards: []},
+		]);
 	});
 
 	it('keeps a closed ticket in its goal, on the board it was worked on', async () => {
@@ -375,7 +382,7 @@ describe('replaying goal events', () => {
 	});
 
 	it('keeps both goals two machines named alike, and finds the older', async () => {
-		const {repoRoot, boardId, file, actor} = await seed();
+		const {repoRoot, file, actor} = await seed();
 		const make = (id: string) => ({
 			id,
 			...actor,
@@ -390,7 +397,7 @@ describe('replaying goal events', () => {
 
 		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'Launch'}));
 
-		expect(goalsOf(boardId).map(goal => goal.name)).toEqual([
+		expect(unwrap(await listGoals({repoRoot})).map(goal => goal.name)).toEqual([
 			'Launch',
 			'Launch',
 		]);

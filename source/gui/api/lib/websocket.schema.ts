@@ -192,6 +192,10 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 		z.object({issueId: id, asOfTime: epochMs.optional()}),
 	),
 	message('swimlane:stats:get', z.object({swimlaneId: id})),
+	message(
+		'goal:stats:get',
+		z.object({goalId: id, asOfTime: epochMs.optional()}),
+	),
 	message('board:overview:get', z.object({boardId: id})),
 	bare('me:stats:get'),
 	bare('settings:get'),

@@ -5,16 +5,22 @@ import {useState} from 'react';
 import {CLOSED_BOARD_ID} from '../../../lib/board/static-ids.js';
 import {AsideDock} from '../lib/aside-dock';
 import {GuiBoard, GuiGoal, GuiIssue} from '../lib/gui-state.model';
+import {GoalStatsState} from '../lib/use-goal-stats';
 import {GUI_THEME} from '../lib/gui-theme';
 import {statGrid} from '../lib/issue-stats.style';
-import {menuRowHoverBackground} from '../lib/select-style';
 import {Aside} from './Aside';
 import {Empty} from './FormPrimitives';
 import {GoalProgressLine} from './GoalLabel';
+import {IconCheck} from './IconCheck';
+import {IconChevronRight} from './IconChevronRight';
 import {CopyRef} from './CopyRef';
 import {DetailsHeader} from './NodeDetails';
 import {Section} from './Section';
 import {Stat} from './StatRow';
+import {IssueStats} from './IssueStats';
+import {Tabs} from './Tabs';
+
+export type GoalDetailsTab = 'overview' | 'stats';
 
 type Member = {issue: GuiIssue; lane: string; done: boolean};
 type Group = {board: GuiBoard; members: Member[]};
@@ -62,7 +68,15 @@ const groupsOf = (
 
 // The ref copies, as a ticket panel's does; the rest of the row opens the
 // ticket. Two buttons side by side, as one cannot hold the other.
-const MemberRow = ({member, onOpen}: {member: Member; onOpen: () => void}) => {
+const MemberRow = ({
+	member,
+	color,
+	onOpen,
+}: {
+	member: Member;
+	color: string;
+	onOpen: () => void;
+}) => {
 	const [hovered, setHovered] = useState(false);
 
 	return (
@@ -72,15 +86,37 @@ const MemberRow = ({member, onOpen}: {member: Member; onOpen: () => void}) => {
 			onMouseLeave={() => setHovered(false)}
 			style={{
 				display: 'flex',
-				alignItems: 'baseline',
-				gap: 8,
+				alignItems: 'center',
+				gap: 10,
 				borderRadius: 6,
-				padding: '6px 8px',
-				fontSize: 11,
-				background: hovered ? menuRowHoverBackground : 'transparent',
+				padding: '7px 8px 7px 10px',
+				fontSize: 12,
+				background: hovered ? GUI_THEME.raisedHover : GUI_THEME.raised,
+				transition: 'background 120ms ease',
 			}}
 		>
-			<span style={{flexShrink: 0}}>
+			<span
+				style={{
+					display: 'flex',
+					flexShrink: 0,
+					color: member.done ? color : GUI_THEME.faint,
+				}}
+			>
+				{member.done ? (
+					<IconCheck size={12} />
+				) : (
+					<span
+						style={{
+							width: 8,
+							height: 8,
+							margin: 2,
+							borderRadius: '50%',
+							border: `1.5px solid ${color}`,
+						}}
+					/>
+				)}
+			</span>
+			<span style={{flexShrink: 0, fontSize: 11}}>
 				<CopyRef refValue={member.issue.ref} />
 			</span>
 			<button
@@ -89,9 +125,8 @@ const MemberRow = ({member, onOpen}: {member: Member; onOpen: () => void}) => {
 				onClick={onOpen}
 				style={{
 					display: 'flex',
-					alignItems: 'baseline',
-					justifyContent: 'space-between',
-					gap: 10,
+					alignItems: 'center',
+					gap: 8,
 					flex: 1,
 					minWidth: 0,
 					padding: 0,
@@ -104,16 +139,45 @@ const MemberRow = ({member, onOpen}: {member: Member; onOpen: () => void}) => {
 			>
 				<span
 					style={{
+						flex: 1,
+						minWidth: 0,
 						overflow: 'hidden',
 						textOverflow: 'ellipsis',
 						whiteSpace: 'nowrap',
-						color: member.done ? GUI_THEME.dim : GUI_THEME.primarySoft,
+						color: member.done
+							? GUI_THEME.secondary
+							: hovered
+							? GUI_THEME.primary
+							: GUI_THEME.primarySoft,
 						textDecoration: member.issue.isClosed ? 'line-through' : undefined,
+						transition: 'color 120ms ease',
 					}}
 				>
 					{member.issue.title}
 				</span>
-				<span style={{color: GUI_THEME.dim, flexShrink: 0}}>{member.lane}</span>
+				<span
+					style={{
+						flexShrink: 0,
+						padding: '1px 7px',
+						borderRadius: 999,
+						fontSize: 10,
+						color: GUI_THEME.secondary,
+						background: GUI_THEME.hover,
+						border: `1px solid ${GUI_THEME.line}`,
+					}}
+				>
+					{member.lane}
+				</span>
+				<span
+					style={{
+						display: 'flex',
+						flexShrink: 0,
+						color: hovered ? GUI_THEME.primary : GUI_THEME.faint,
+						transition: 'color 120ms ease',
+					}}
+				>
+					<IconChevronRight size={14} />
+				</span>
 			</button>
 		</div>
 	);
@@ -124,6 +188,9 @@ export const GoalDetails = ({
 	goal,
 	boards,
 	boardId,
+	tab,
+	onChangeTab,
+	stats,
 	onOpenIssue,
 	onClose,
 }: {
@@ -132,6 +199,9 @@ export const GoalDetails = ({
 	boards: GuiBoard[];
 	// The board on screen, whose tickets come first.
 	boardId: string;
+	tab: GoalDetailsTab;
+	onChangeTab: (tab: GoalDetailsTab) => void;
+	stats: GoalStatsState | null;
 	onOpenIssue: (issueId: string, boardRef: string) => void;
 	onClose: () => void;
 }) => {
@@ -147,6 +217,7 @@ export const GoalDetails = ({
 			<MemberRow
 				key={member.issue.id}
 				member={member}
+				color={goal.color}
 				onOpen={() => onOpenIssue(member.issue.id, board.ref)}
 			/>
 		);
@@ -160,56 +231,85 @@ export const GoalDetails = ({
 				onClose={onClose}
 			/>
 
-			<Section title="Progress">
-				<div style={statGrid(3, 3)}>
-					<Stat
-						size="compact"
-						value={`${goal.done}/${goal.total}`}
-						label="Done"
-						testId="goal-details-done"
-					/>
-					<Stat
-						size="compact"
-						value={`${Math.round(share * 100)}%`}
-						label="Of the goal"
-					/>
-					<Stat
-						size="compact"
-						value={String(here)}
-						testId="goal-details-here"
-						label="On this board"
-					/>
-				</div>
-				<GoalProgressLine
-					color={goal.color}
-					share={share}
-					thickness={4}
-					style={{marginTop: 16}}
+			<Tabs
+				tabs={[
+					{id: 'overview', label: 'Overview'},
+					{id: 'stats', label: 'Stats'},
+				]}
+				activeTab={tab}
+				onChange={onChangeTab}
+			/>
+
+			{tab === 'stats' ? (
+				<IssueStats
+					of="goal"
+					stats={stats?.stats ?? null}
+					loading={stats?.loading ?? true}
+					error={stats?.error ?? null}
+					boardStats={null}
 				/>
-			</Section>
+			) : (
+				<>
+					<Section title="Progress">
+						<div style={statGrid(3, 3)}>
+							<Stat
+								size="compact"
+								value={`${goal.done}/${goal.total}`}
+								label="Done"
+								testId="goal-details-done"
+							/>
+							<Stat
+								size="compact"
+								value={`${Math.round(share * 100)}%`}
+								label="Of the goal"
+							/>
+							<Stat
+								size="compact"
+								value={String(here)}
+								testId="goal-details-here"
+								label="On this board"
+							/>
+						</div>
+						<GoalProgressLine
+							color={goal.color}
+							share={share}
+							thickness={4}
+							style={{marginTop: 16}}
+						/>
+					</Section>
 
-			{groups.length === 0 && (
-				<Section title="Tickets">
-					<Empty>No tickets yet</Empty>
-				</Section>
+					{groups.length === 0 && (
+						<Section title="Tickets">
+							<Empty>No tickets yet</Empty>
+						</Section>
+					)}
+
+					{groups.map(({board, members}) => (
+						<Section
+							key={board.id}
+							title={
+								board.id === boardId
+									? 'On this board'
+									: board.id === CLOSED_BOARD_ID
+									? 'Closed'
+									: `On ${board.title}`
+							}
+						>
+							<div
+								data-testid="goal-group"
+								style={{
+									marginTop: 8,
+									display: 'flex',
+									flexDirection: 'column',
+									gap: 4,
+								}}
+							>
+								{members.map(row(board))}
+							</div>
+						</Section>
+					))}
+				</>
 			)}
-
-			{groups.map(({board, members}) => (
-				<Section
-					key={board.id}
-					title={
-						board.id === boardId
-							? 'On this board'
-							: board.id === CLOSED_BOARD_ID
-							? 'Closed'
-							: `On ${board.title}`
-					}
-				>
-					<div data-testid="goal-group" style={{marginTop: 8}}>
-						{members.map(row(board))}
-					</div>
-				</Section>
-			))}
 		</Aside>
 	);
 };

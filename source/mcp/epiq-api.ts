@@ -37,6 +37,7 @@ export {
 	renameGoal,
 	setIssueGoal,
 } from './api/goals.js';
+export {getGoalStats, goalStats} from './api/goal-stats.js';
 export {
 	addIssueTag,
 	tombstoneTag,

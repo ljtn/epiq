@@ -122,11 +122,12 @@ import {
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useNeedleUrl} from './lib/needle-url';
-import {GoalDetails} from './components/GoalDetails';
+import {GoalDetails, GoalDetailsTab} from './components/GoalDetails';
 import {GoalStrip} from './components/GoalStrip';
 import {ManageGoalsModal} from './components/ManageGoalsModal';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
+import {useGoalStats} from './lib/use-goal-stats';
 import {useBoardOverview} from './lib/use-board-overview';
 import {useContributorEmails} from './lib/use-contributor-emails';
 import {usePersonalStats} from './lib/use-personal-stats';
@@ -798,6 +799,13 @@ export const App = () => {
 		goalDetailsOpen && isolatedGoalId
 			? state?.goals.find(goal => goal.id === isolatedGoalId) ?? null
 			: null;
+	const [goalTab, setGoalTab] = useState<GoalDetailsTab>('overview');
+	const {stats: goalStats, onMessage: onGoalStatsMessage} = useGoalStats({
+		goalId: detailedGoal && goalTab === 'stats' ? detailedGoal.id : null,
+		signature: detailedGoal ? `${detailedGoal.done}/${detailedGoal.total}` : '',
+		asOfTime: scrubCut(state?.timeTravel),
+		sendRaw,
+	});
 
 	// The same for the assignee axis, from a dense card's name: the board
 	// narrowed to one person's tickets, and pressing the name again lets go.
@@ -962,6 +970,7 @@ export const App = () => {
 		// scrubber's own commit dot opens.
 		onIssueDetailMessage(message);
 		onSwimlaneStatsMessage(message);
+		onGoalStatsMessage(message);
 		onBoardOverviewMessage(message);
 		onRefDiffStatsMessage(message);
 		onTicketPreviewMessage(message);
@@ -2489,6 +2498,9 @@ export const App = () => {
 										goal={detailedGoal}
 										boards={state.boards}
 										boardId={selectedBoard.id}
+										tab={goalTab}
+										onChangeTab={setGoalTab}
+										stats={goalStats}
 										onOpenIssue={(id, boardRef) => {
 											setPickedIssueIds([id]);
 											openIssueTab(id, 'overview', boardRef);

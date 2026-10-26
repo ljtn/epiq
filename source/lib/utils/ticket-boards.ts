@@ -33,6 +33,30 @@ const boardsEverUnder = (laneId: string): string[] => {
 	return result;
 };
 
+// Keyed by the node, which every update replaces, so a closed ticket's log is
+// walked once rather than on every write to the board.
+const lanesOfTicket = new WeakMap<object, string[]>();
+
+const lanesEverIn = (ticket: Ticket): string[] => {
+	const cached = lanesOfTicket.get(ticket);
+	if (cached) return cached;
+
+	const lanes = new Set<string>();
+
+	if (ticket.parentNodeId) lanes.add(ticket.parentNodeId);
+
+	for (const entry of ticket.log ?? []) {
+		const payload = entry.payload as {id?: string; parent?: string};
+
+		if (payload.id === ticket.id && payload.parent) lanes.add(payload.parent);
+	}
+
+	const result = [...lanes];
+	lanesOfTicket.set(ticket, result);
+
+	return result;
+};
+
 /**
  * Every board the ticket has lived on, its current one included.
  *
@@ -53,19 +77,9 @@ const boardsEverUnder = (laneId: string): string[] => {
  * the boards it hung off.
  */
 export const boardsEverOnOf = (ticket: Ticket): string[] => {
-	const lanes = new Set<string>();
-
-	if (ticket.parentNodeId) lanes.add(ticket.parentNodeId);
-
-	for (const entry of ticket.log ?? []) {
-		const payload = entry.payload as {id?: string; parent?: string};
-
-		if (payload.id === ticket.id && payload.parent) lanes.add(payload.parent);
-	}
-
 	const boards = new Set<string>();
 
-	for (const laneId of lanes) {
+	for (const laneId of lanesEverIn(ticket)) {
 		for (const board of boardsEverUnder(laneId)) boards.add(board);
 	}
 

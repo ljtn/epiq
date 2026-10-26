@@ -93,6 +93,14 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	await expect(details).toBeVisible();
 	await expect(page).not.toHaveURL(/\/issue\//);
 
+	// Its Stats tab measures the code of all its tickets together.
+	const aside = page.locator('aside');
+	await aside.getByRole('button', {name: 'Stats', exact: true}).click();
+	await expect(aside).toContainText(
+		'No commit carries the ref of a ticket in this goal',
+	);
+	await aside.getByRole('button', {name: 'Overview', exact: true}).click();
+
 	await memberRow.getByTestId('goal-member-open').click();
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 	await expect(page.locator('aside')).toContainText(member);
@@ -282,7 +290,10 @@ test('Manage goals adds a goal the board can then be put in', async ({
 	await page.getByTestId('goal-strip-manage').click();
 	await page.getByTestId('new-goal-name').fill(second);
 	await page.getByTestId('add-goal').click();
-	await expect(pill(page, second)).toContainText('0/0');
+	await expect(
+		page.getByTestId('manage-goal-row').filter({hasText: second}),
+	).toBeVisible();
+	await expect(pill(page, second)).toHaveCount(0);
 	await page
 		.getByTestId('manage-goals')
 		.getByRole('button', {name: 'Close', exact: true})
@@ -290,7 +301,7 @@ test('Manage goals adds a goal the board can then be put in', async ({
 
 	await joinGoal(page, second);
 	await expect(pill(page, second)).toContainText('0/1');
-	await expect(pill(page, first)).toContainText('0/0');
+	await expect(pill(page, first)).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });

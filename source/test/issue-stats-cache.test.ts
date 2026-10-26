@@ -26,9 +26,8 @@ vi.mock('../lib/stats/issue-stats.js', () => ({
 
 const {getCommitsForRef} = await import('../lib/commits/commits.js');
 const {deriveIssueStats} = await import('../lib/stats/issue-stats.js');
-const {getIssueStats, resetIssueStatsCacheForTests} = await import(
-	'../mcp/epiq-issue-stats.js'
-);
+const {getIssueStats, getRefsStats, resetIssueStatsCacheForTests} =
+	await import('../mcp/epiq-issue-stats.js');
 
 const derive = vi.mocked(deriveIssueStats);
 const commits = vi.mocked(getCommitsForRef);
@@ -64,6 +63,28 @@ describe('getIssueStats caching', () => {
 		await getIssueStats({idOrRef: REF, repoRoot: '/repo'});
 
 		expect(derive).toHaveBeenCalledTimes(1);
+	});
+
+	it('measures several tickets over their commits, each once', async () => {
+		commits.mockImplementation(async ({ref}) =>
+			succeeded(
+				'Matched',
+				ref === 'AAAAAAA'
+					? [commitNamed('shared'), commitNamed('only-a')]
+					: [commitNamed('shared')],
+			),
+		);
+
+		await getRefsStats({
+			repoRoot: '/repo',
+			label: 'goal',
+			refs: ['AAAAAAA', 'BBBBBBB'],
+		});
+
+		expect(derive).toHaveBeenCalledTimes(1);
+		expect(
+			derive.mock.calls[0]![0].commits.map(commit => commit.sha).sort(),
+		).toEqual(['only-a', 'shared']);
 	});
 
 	// The shas are the whole of what the answer depends on, so a new commit on

@@ -155,6 +155,7 @@ export type GuiMessage =
 	// ticket has come to, not what a zoomed window happens to hold.
 	| {type: 'diff-stats:get'}
 	| {type: 'swimlane:stats:get'; payload: {swimlaneId: string}}
+	| {type: 'goal:stats:get'; payload: {goalId: string; asOfTime?: number}}
 	| {type: 'board:overview:get'; payload: {boardId: string}}
 	| {type: 'emails:get'}
 	| {

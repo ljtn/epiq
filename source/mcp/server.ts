@@ -27,6 +27,7 @@ import {
 	setIssueGoal,
 	createGoal,
 	listGoals,
+	goalStats,
 	renameGoal,
 	removeGoal,
 	assumeActor,
@@ -389,12 +390,25 @@ export const createMcpServer = () => {
 		'epiq_goal_list',
 		{
 			description:
-				'List the goals in the project: each a group of tickets serving one outcome, with done/total (done is closed, or in a lane named Done) and the boards its tickets are on. Put a ticket in one with epiq_issue_goal_set.',
+				'List the goals in the project: each a group of tickets serving one outcome, with done/total (done is closed, or in a lane named Done) and the boards its tickets are on. Put a ticket in one with epiq_issue_goal_set; epiq_goal_stats gives its code stats.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),
 		},
 		exclusiveTool(listGoals),
+	);
+
+	server.registerTool(
+		'epiq_goal_stats',
+		{
+			description:
+				'Code stats for a goal, by its name or id: epiq_issue_stats over every commit of every ticket in it, each commit counted once.',
+			inputSchema: z.object({
+				goal: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(goalStats),
 	);
 
 	server.registerTool(

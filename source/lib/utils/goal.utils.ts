@@ -3,7 +3,7 @@
 // never from the goal itself. Tags stay the way to say several things. This
 // module answers it for every door: the API, the GUI behind it, and the TUI.
 
-import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
+import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {Goal} from '../model/app-state.model.js';
 import {isTicketNode, Ticket} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
@@ -129,16 +129,9 @@ export const goalBoards = (goalId: string): string[] => [
 export const goalMembersOn = (goalId: string, boardId: string): Ticket[] =>
 	membership().onBoard.get(goalId)?.get(boardId) ?? [];
 
-/**
- * The goals a board shows: those with a ticket on it, and those with none
- * anywhere yet, so a new goal is seen where it can be joined.
- */
+/** The goals a board shows: those with a ticket on it. */
 export const boardGoals = (boardId: string): Goal[] =>
-	projectGoals().filter(goal =>
-		goalMembers(goal.id).length === 0
-			? boardId !== CLOSED_BOARD_ID
-			: goalMembersOn(goal.id, boardId).length > 0,
-	);
+	projectGoals().filter(goal => goalMembersOn(goal.id, boardId).length > 0);
 
 /**
  * How far along a goal is, over every ticket in it on every board, however
