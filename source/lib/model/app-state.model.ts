@@ -31,14 +31,9 @@ export type ViewMode = 'wide' | 'dense';
 // A tombstoned tag keeps its id and record but reads as absent everywhere, and
 // its name is free for a fresh tag.
 export type Tag = {id: string; name: string; tombstoned?: boolean};
-// A goal belongs to one board. Tombstoned, it keeps its record and every
-// ticket's link to it, and reads as absent.
-export type Goal = {
-	id: string;
-	name: string;
-	board: string;
-	tombstoned?: boolean;
-};
+// A goal belongs to the project, its tickets to any board. Tombstoned, it
+// keeps its record and every ticket's link to it, and reads as absent.
+export type Goal = {id: string; name: string; tombstoned?: boolean};
 // A placeholder, not an empty name, so a tombstoned assignee still reads as one.
 export const REMOVED_CONTRIBUTOR_NAME = 'removed';
 

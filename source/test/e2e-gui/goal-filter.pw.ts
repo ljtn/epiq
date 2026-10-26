@@ -82,6 +82,15 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	await page.goto(page.url());
 	await expect(card(page, other)).toHaveCount(0);
 
+	// Its panel names it, counts it and lists its tickets, each a way in.
+	const details = page.getByTestId('goal-details');
+	await expect(details).toContainText(goal);
+	await expect(page.getByTestId('goal-details-done')).toContainText('0/1');
+	await page.getByTestId('goal-member').filter({hasText: member}).click();
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+	await expect(page.locator('aside')).toContainText(member);
+	await expect(card(page, other)).toHaveCount(0);
+
 	// The card's own label lets go as well as the pill does.
 	await card(page, member).getByTestId('ticket-goal').click();
 	await expect(card(page, other)).toBeVisible();

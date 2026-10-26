@@ -9,12 +9,7 @@ import {getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
 import {actorOf} from '../../event/event.model.js';
 import {AppEvent} from '../../board/board-events.model.js';
-import {
-	findTicketGoal,
-	goalName,
-	newGoalRefusal,
-	ticketBoardId,
-} from '../../utils/goal.utils.js';
+import {findGoal, goalName, goalNameRefusal} from '../../utils/goal.utils.js';
 
 const selectedTicket = (): Result<Ticket> => {
 	const {selectedNode} = getState();
@@ -50,8 +45,8 @@ const setGoalEvent = (
 });
 
 /**
- * `:goal <name>` puts the selected issue in its board's goal of that name,
- * making the goal first when there is none.
+ * `:goal <name>` puts the selected issue in the goal of that name, making the
+ * goal first when there is none.
  */
 export const goalTicketCommand = async () => {
 	const {modifier, inputString} = getCmdState().commandMeta;
@@ -66,23 +61,21 @@ export const goalTicketCommand = async () => {
 	if (isFail(userRes)) return failed('Unable to resolve user ID');
 	const actorId: Actor = userRes.value;
 
-	const goal = findTicketGoal(ticket, name);
+	const goal = findGoal(name);
 	if (goal) {
 		if (ticket.props.goal === goal.id) return failed('Already in that goal');
 		return write([setGoalEvent(actorId, ticket, goal.id)]);
 	}
 
-	const refusal = newGoalRefusal(ticket, name);
+	const refusal = goalNameRefusal(name);
 	if (refusal) return failed(refusal);
 
 	const goalId = ulid();
-	const boardId = ticketBoardId(ticket);
-	if (!boardId) return failed('The issue is on no board');
 	return write([
 		{
 			id: goalId,
 			action: 'create.goal',
-			payload: {id: goalId, name, board: boardId},
+			payload: {id: goalId, name},
 			...actorOf(actorId),
 		},
 		setGoalEvent(actorId, ticket, goalId),

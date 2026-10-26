@@ -105,11 +105,11 @@ export type AppEventMap = {
 	};
 
 	/**
-	 * A goal on a board: a name tickets can belong to, its progress read off
-	 * them. Never a ticket itself, so it sits in no lane.
+	 * A goal in the project: a name tickets on any board can belong to, its
+	 * progress read off them. Never a ticket itself, so it sits in no lane.
 	 */
 	'create.goal': {
-		payload: PayloadBase & {name: string; board: string};
+		payload: PayloadBase & {name: string};
 		result: Goal;
 	};
 

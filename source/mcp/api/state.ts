@@ -35,7 +35,7 @@ import {
 } from './boot.js';
 import {getIssueTags, getIssueAssignees} from './issue-projection.js';
 import {boardsEverOnOf} from '../../lib/utils/ticket-boards.js';
-import {apiBoardGoals, goalFields} from './goals.js';
+import {apiBoardGoals, apiGoals, goalFields} from './goals.js';
 import {getAttachmentMaxKb} from './attachments.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {getPersistFileName} from '../../lib/board/board-log.js';
@@ -258,6 +258,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 					),
 			})),
 		tags: nodeRepo.getTags().map(x => ({...x, ...identityOf(x.id, x.name)})),
+		goals: apiGoals(),
 		contributors: Object.values(stateResult.value.contributors).map(x => ({
 			...x,
 			...identityOf(x.id, x.name),

@@ -1,6 +1,6 @@
 // A card's goal, named in its colour in the goal dropdown's dark frame, so
 // it never reads as a tag. A card in a goal also carries its colour down its
-// left edge.
+// left edge, and a goal's progress is the same stroke laid flat.
 
 import React from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -100,4 +100,43 @@ export const GoalStripe = ({color, inset}: {color: string; inset: number}) => (
 			pointerEvents: 'none',
 		}}
 	/>
+);
+
+// How far along a goal is: its colour over a faint track, so a short stroke
+// reads as a share of the whole.
+export const GoalProgressLine = ({
+	color,
+	share,
+	thickness,
+	testId,
+	style,
+}: {
+	color: string;
+	share: number;
+	thickness: number;
+	testId?: string;
+	style?: React.CSSProperties;
+}) => (
+	<span
+		aria-hidden
+		style={{
+			display: 'block',
+			height: thickness,
+			borderRadius: thickness / 2,
+			background: GUI_THEME.line,
+			pointerEvents: 'none',
+			...style,
+		}}
+	>
+		<span
+			data-testid={testId}
+			style={{
+				display: 'block',
+				height: '100%',
+				width: `${Math.round(share * 100)}%`,
+				borderRadius: thickness / 2,
+				background: color,
+			}}
+		/>
+	</span>
 );

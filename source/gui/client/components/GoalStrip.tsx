@@ -1,21 +1,25 @@
-// A board's goals, above its lanes: one pill each, filled as far as its
+// A board's goals, above its lanes: one pill each, underlined as far as its
 // tickets are done. A pill narrows the board to its goal; pressing it again
 // lets go.
 
-import {GuiGoal} from '../lib/gui-state.model';
+import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
+import {GoalProgressLine} from './GoalLabel';
 
 const GoalPill = ({
 	goal,
 	pressed,
 	onPress,
 }: {
-	goal: GuiGoal;
+	goal: GuiBoardGoal;
 	pressed: boolean;
 	onPress: () => void;
 }) => {
 	const share = goal.total > 0 ? goal.done / goal.total : 0;
+	// Counted on every board; said, as the filter shows only this one's.
+	const elsewhere =
+		goal.here < goal.total ? `, ${goal.total - goal.here} on other boards` : '';
 
 	return (
 		<button
@@ -26,7 +30,7 @@ const GoalPill = ({
 			title={
 				pressed
 					? 'Show every ticket again'
-					: `${goal.done} of ${goal.total} done · show only this goal`
+					: `${goal.done} of ${goal.total} done${elsewhere} · show only this goal`
 			}
 			onClick={event => {
 				event.stopPropagation();
@@ -41,29 +45,25 @@ const GoalPill = ({
 				maxWidth: 220,
 				flexShrink: 0,
 				boxSizing: 'border-box',
-				height: 24,
+				height: 26,
 				padding: '0 10px',
 				font: 'inherit',
 				fontSize: 11,
 				lineHeight: 1,
 				color: goal.color,
-				background: GUI_THEME.well,
+				background: GUI_THEME.panel,
 				border: `1px solid ${pressed ? goal.color : GUI_THEME.line}`,
 				borderRadius: 6,
 				cursor: 'pointer',
 			}}
 		>
-			{/* The pill is its own progress bar. */}
-			<span
-				aria-hidden
-				data-testid="goal-pill-fill"
-				style={{
-					position: 'absolute',
-					inset: '0 auto 0 0',
-					width: `${Math.round(share * 100)}%`,
-					background: `${goal.color}33`,
-					pointerEvents: 'none',
-				}}
+			{/* Along its foot, clear of the rounded corners. */}
+			<GoalProgressLine
+				color={goal.color}
+				share={share}
+				thickness={2}
+				testId="goal-pill-progress"
+				style={{position: 'absolute', left: 6, right: 6, bottom: 2}}
 			/>
 			<span
 				style={{
@@ -95,7 +95,7 @@ export const GoalStrip = ({
 	onFilterByGoal,
 	onManage,
 }: {
-	goals: GuiGoal[];
+	goals: GuiBoardGoal[];
 	isolatedGoalId: string | null;
 	onFilterByGoal: (goalId: string) => void;
 	onManage?: () => void;
@@ -106,7 +106,7 @@ export const GoalStrip = ({
 			display: 'flex',
 			alignItems: 'center',
 			gap: 6,
-			padding: '10px 0 2px',
+			padding: '14px 0 10px',
 			overflowX: 'auto',
 			flexShrink: 0,
 		}}

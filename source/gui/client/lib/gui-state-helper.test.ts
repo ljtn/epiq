@@ -48,6 +48,7 @@ const state: GuiState = {
 			goals: [],
 		},
 	],
+	goals: [],
 	tags: [],
 	contributors: [],
 	user: {id: 'u', name: 'u', color: ''},

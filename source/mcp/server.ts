@@ -373,7 +373,7 @@ export const createMcpServer = () => {
 		'epiq_issue_goal_set',
 		{
 			description:
-				"Put an Epiq issue in a goal on its board, by the goal's name or id, creating the goal if the board has none of that name; null takes it out. One goal per ticket. A board's goals and their progress are listed by epiq_board_list.",
+				"Put an Epiq issue in a goal, by the goal's name or id, creating the goal if there is none of that name; null takes it out. One goal per ticket, on any board. Goals and their progress are listed by epiq_board_list, per board.",
 			inputSchema: z.object({
 				issueId: z.string().min(1),
 				goal: z.string().min(1).nullable(),
@@ -399,8 +399,7 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_goal_remove',
 		{
-			description:
-				'Remove a goal from its board; its tickets stay where they are, in no goal',
+			description: 'Remove a goal; its tickets stay where they are, in no goal',
 			inputSchema: z.object({
 				goalId: z.string().min(1),
 				repoRoot: z.string().optional(),

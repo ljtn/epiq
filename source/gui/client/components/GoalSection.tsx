@@ -1,5 +1,5 @@
 // The ticket panel's Goal row: a dropdown naming the ticket's goal, or No
-// goal, that picks another of its board's goals, names a new one, or opens
+// goal, that picks another of the project's goals, names a new one, or opens
 // Manage goals.
 
 import {useState} from 'react';
@@ -29,10 +29,10 @@ export const GoalSection = ({
 	onManageGoals,
 }: {
 	issue: GuiIssue;
-	// The goals of the ticket's board.
+	// The project's goals.
 	goals: GuiGoal[];
 	onSetGoal: (issueId: string, goal: string | null) => void;
-	// Absent where the ticket's board takes no new goals.
+	// Absent where the ticket takes no new goal.
 	onCreateGoal?: (name: string) => void;
 	onManageGoals?: () => void;
 }) => {
@@ -219,7 +219,7 @@ export const GoalSection = ({
 						{choices.length === 0 ? (
 							<MenuItem>
 								<span style={{color: GUI_THEME.dim}}>
-									{needle ? 'No goal matches' : 'This board has no goals'}
+									{needle ? 'No goal matches' : 'No goals yet'}
 								</span>
 							</MenuItem>
 						) : (

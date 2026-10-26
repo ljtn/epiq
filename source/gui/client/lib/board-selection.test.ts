@@ -193,6 +193,12 @@ describe('applySelectionPatch', () => {
 		expect(isDefaultSelection(narrowed)).toBe(false);
 	});
 
+	// Or a goal carried onto a bare ticket URL is never written back, and so
+	// can never be switched off there.
+	it('is not the default while narrowed to a goal', () => {
+		expect(isDefaultSelection({...DEFAULT_SELECTION, goal: 'G1'})).toBe(false);
+	});
+
 	describe('zoom', () => {
 		const zoomed = applySelectionPatch(narrowed, {
 			zoom: {start: 1000, end: 5000},
@@ -385,7 +391,7 @@ describe('carried selection', () => {
 		return {carry: carryRender(carry, query, selection), selection};
 	};
 
-	it('picks the four up from a query that names them', () => {
+	it('picks them up from a query that names them', () => {
 		const {carry} = render(DEFAULT_CARRY, 'ticket=1&scope=week&offset=2');
 		expect(carry.values.ticketOnly).toBe(true);
 		expect(carry.values.offset).toBe(2);
@@ -395,6 +401,11 @@ describe('carried selection', () => {
 		const {carry} = render(DEFAULT_CARRY, 'ticket=1');
 		const opened = render(carry, '');
 		expect(opened.selection.ticketOnly).toBe(true);
+	});
+
+	it('keeps the board narrowed to a goal across opening a ticket', () => {
+		const {carry} = render(DEFAULT_CARRY, 'goal=G1');
+		expect(render(carry, '').selection.goal).toBe('G1');
 	});
 
 	// The bug: a change is two steps — the carried values, then the URL a

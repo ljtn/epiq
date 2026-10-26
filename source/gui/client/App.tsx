@@ -122,6 +122,7 @@ import {
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useNeedleUrl} from './lib/needle-url';
+import {GoalDetails} from './components/GoalDetails';
 import {GoalStrip} from './components/GoalStrip';
 import {ManageGoalsModal} from './components/ManageGoalsModal';
 import {useTicketPreviews} from './lib/use-ticket-previews';
@@ -463,6 +464,10 @@ export const App = () => {
 	const [statsSwimlaneId, setStatsSwimlaneId] = useState<string | null>(null);
 	// The board on screen's own panel, for the same reason.
 	const [boardDetailsOpen, setBoardDetailsOpen] = useState(false);
+	// The narrowed-to goal's panel, opened with its pill and with a link to it.
+	const [goalDetailsOpen, setGoalDetailsOpen] = useState(() =>
+		Boolean(selection.goal),
+	);
 
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
 
@@ -500,27 +505,7 @@ export const App = () => {
 			sendRaw,
 		});
 
-	// The board the open ticket stands on, whose goals its Goal row offers:
-	// not always the one in view.
-	const issueBoard =
-		(selectedIssue &&
-			state?.boards.find(board =>
-				board.swimlanes.some(lane =>
-					lane.issues.some(issue => issue.id === selectedIssue.id),
-				),
-			)) ||
-		null;
-	// The goals the open ticket can be in: its board's, or, once closed, those
-	// of every board it stood on.
-	const issueGoals = selectedIssue?.isClosed
-		? (state?.boards ?? [])
-				.filter(board => selectedIssue.boardIds.includes(board.id))
-				.flatMap(board => board.goals)
-		: issueBoard?.goals ?? [];
-	// The board whose goals Manage goals is open on.
-	const [managingGoalsOf, setManagingGoalsOf] = useState<string | null>(null);
-	const managedBoard =
-		state?.boards.find(board => board.id === managingGoalsOf) ?? null;
+	const [managingGoals, setManagingGoals] = useState(false);
 
 	// The bar beside a card's ref. Repository-wide and asked for once, not per
 	// card and not on the board's own state: a commit is not an event the log
@@ -797,8 +782,22 @@ export const App = () => {
 		selectedBoard?.goals.some(goal => goal.id === selection.goal)
 			? selection.goal
 			: null;
-	const filterByGoal = (goalId: string) =>
-		changeSelection({goal: isolatedGoalId === goalId ? null : goalId});
+	// Narrowing to a goal opens its panel over whatever the inspector held.
+	const filterByGoal = (goalId: string) => {
+		const narrowing = isolatedGoalId !== goalId;
+		setGoalDetailsOpen(narrowing);
+		if (narrowing) {
+			setCommitDiff(null);
+			setStatsSwimlaneId(null);
+			setBoardDetailsOpen(false);
+			clearPicked();
+		}
+		changeSelection({goal: narrowing ? goalId : null});
+	};
+	const detailedGoal =
+		goalDetailsOpen && isolatedGoalId
+			? state?.goals.find(goal => goal.id === isolatedGoalId) ?? null
+			: null;
 
 	// The same for the assignee axis, from a dense card's name: the board
 	// narrowed to one person's tickets, and pressing the name again lets go.
@@ -1239,6 +1238,7 @@ export const App = () => {
 		// would hide the ticket just asked for the same way.
 		setStatsSwimlaneId(null);
 		setBoardDetailsOpen(false);
+		setGoalDetailsOpen(false);
 
 		// A plain click both opens the ticket and makes it the selection, so a
 		// following modifier-click extends from it instead of starting over.
@@ -1260,6 +1260,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setBoardDetailsOpen(false);
+		setGoalDetailsOpen(false);
 		setStatsSwimlaneId(current => (current === swimlaneId ? null : swimlaneId));
 	};
 
@@ -1268,6 +1269,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setStatsSwimlaneId(null);
+		setGoalDetailsOpen(false);
 		setBoardDetailsOpen(open => !open);
 	};
 
@@ -1316,6 +1318,7 @@ export const App = () => {
 		if (!board) return;
 
 		setCommitDiff(null);
+		setGoalDetailsOpen(false);
 
 		const params = new URLSearchParams({tab});
 		if (diffView) writeDiffViewParam(params, diffView === 'flat');
@@ -2259,17 +2262,17 @@ export const App = () => {
 											onManage={
 												selectedBoard.readonly
 													? undefined
-													: () => setManagingGoalsOf(selectedBoard.id)
+													: () => setManagingGoals(true)
 											}
 										/>
 									)}
-									{managedBoard && (
+									{managingGoals && (
 										<ManageGoalsModal
-											goals={managedBoard.goals}
-											onCreate={name => createGoal(managedBoard.id, name)}
+											goals={state?.goals ?? []}
+											onCreate={name => createGoal(name)}
 											onRename={renameGoal}
 											onRemove={removeGoal}
-											onClose={() => setManagingGoalsOf(null)}
+											onClose={() => setManagingGoals(false)}
 										/>
 									)}
 									{/* Scrolling sideways is this row's job; scrolling down is each
@@ -2475,6 +2478,27 @@ export const App = () => {
 								!commitDiff &&
 								!statsSwimlane &&
 								!boardDetailsOpen &&
+								detailedGoal &&
+								selectedBoard &&
+								state && (
+									<GoalDetails
+										dock={asideDock}
+										goal={detailedGoal}
+										boards={state.boards}
+										boardId={selectedBoard.id}
+										onOpenIssue={(id, boardRef) => {
+											setPickedIssueIds([id]);
+											openIssueTab(id, 'overview', boardRef);
+										}}
+										onClose={() => setGoalDetailsOpen(false)}
+									/>
+								)}
+
+							{!theatre &&
+								!commitDiff &&
+								!statsSwimlane &&
+								!boardDetailsOpen &&
+								!detailedGoal &&
 								pickedIssues.length > 1 && (
 									<BulkDetails
 										dock={asideDock}
@@ -2520,6 +2544,7 @@ export const App = () => {
 								!commitDiff &&
 								!statsSwimlane &&
 								!boardDetailsOpen &&
+								!detailedGoal &&
 								pickedIssues.length <= 1 &&
 								selectedIssue &&
 								state?.user && (
@@ -2559,14 +2584,13 @@ export const App = () => {
 										onEditDescription={editIssueDescription}
 										onAddTag={addIssueTag}
 										onRemoveTag={removeIssueTag}
-										goals={issueGoals}
+										goals={state?.goals ?? []}
 										onSetGoal={setIssueGoal}
-										{...(issueBoard &&
-											!issueBoard.readonly &&
-											selectedIssue && {
+										{...(selectedIssue &&
+											!selectedIssue.readonly && {
 												onCreateGoal: (name: string) =>
-													createGoal(issueBoard.id, name, selectedIssue.id),
-												onManageGoals: () => setManagingGoalsOf(issueBoard.id),
+													createGoal(name, selectedIssue.id),
+												onManageGoals: () => setManagingGoals(true),
 											})}
 										onAddAssignee={addIssueAssignee}
 										onAddExternalAssignee={addExternalIssueAssignee}

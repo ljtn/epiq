@@ -136,8 +136,8 @@ const log = (): AppEvent[] => [
 	at('remove.issue.assignee', {id: ISSUE, assignee: ALICE}),
 	at('add.issue.tag', {id: ISSUE, tag: TAG}),
 	at('remove.issue.tag', {id: ISSUE, tag: TAG}),
-	// A goal names nobody: a record on the board, and a field on a ticket.
-	at('create.goal', {id: GOAL, name: 'Ship it', board: BOARD}),
+	// A goal names nobody: a record in the project, and a field on a ticket.
+	at('create.goal', {id: GOAL, name: 'Ship it'}),
 	at('rename.goal', {id: GOAL, name: 'Ship it soon'}),
 	at('set.issue.goal', {id: ISSUE, goal: GOAL}),
 	at('set.issue.goal', {id: ISSUE}),

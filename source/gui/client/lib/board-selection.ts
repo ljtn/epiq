@@ -188,7 +188,8 @@ export const isDefaultSelection = (selection: BoardSelection): boolean =>
 	selection.layout === DEFAULT_SELECTION.layout &&
 	!isNarrowed(selection.only) &&
 	selection.windowOnly === DEFAULT_SELECTION.windowOnly &&
-	selection.ticketOnly === DEFAULT_SELECTION.ticketOnly;
+	selection.ticketOnly === DEFAULT_SELECTION.ticketOnly &&
+	selection.goal === DEFAULT_SELECTION.goal;
 
 // A change to one field, with what it implies for the others: a new scope
 // starts at its most recent period. A new view implies nothing for the
@@ -236,10 +237,10 @@ export const applySelectionPatch = (
 // opening a ticket rebuilds the query from scratch, and none of a board
 // narrowed to a window, a stretch dragged out of the chart, or a window paged
 // back off the present must come undone under the reader who clicked one of
-// the cards it left showing.
+// the cards it left showing. Nor must the goal a board is narrowed to.
 export type CarriedSelection = Pick<
 	BoardSelection,
-	'offset' | 'zoom' | 'windowOnly' | 'ticketOnly'
+	'offset' | 'zoom' | 'windowOnly' | 'ticketOnly' | 'goal'
 >;
 
 // The carried values together with the query they were read out of. The query
@@ -255,6 +256,7 @@ const carriedFrom = (selection: BoardSelection): CarriedSelection => ({
 	zoom: selection.zoom,
 	windowOnly: selection.windowOnly,
 	ticketOnly: selection.ticketOnly,
+	goal: selection.goal,
 });
 
 export const DEFAULT_CARRY: SelectionCarry = {

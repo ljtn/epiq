@@ -69,12 +69,10 @@ const goalsOf = (boardId: string) =>
 	unwrap(deriveGuiState()).boards.find(board => board.id === boardId)!.goals;
 
 describe('a goal', () => {
-	it('is made on a board, and named, coloured and counted there', async () => {
+	it('is made in the project, and named, coloured and counted', async () => {
 		const {repoRoot, boardId} = await seed();
 
-		const {id} = unwrap(
-			await createGoal({repoRoot, boardId, name: 'Time travel'}),
-		);
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Time travel'}));
 
 		expect(goalsOf(boardId)).toEqual([
 			{
@@ -83,13 +81,14 @@ describe('a goal', () => {
 				color: expect.stringMatching(/^#[0-9a-f]{6}$/i),
 				done: 0,
 				total: 0,
+				here: 0,
 			},
 		]);
 	});
 
 	it('keeps its colour through a rename', async () => {
 		const {repoRoot, boardId} = await seed();
-		const {id} = unwrap(await createGoal({repoRoot, boardId, name: 'Before'}));
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Before'}));
 		const color = goalsOf(boardId)[0]!.color;
 
 		unwrap(await renameGoal({repoRoot, goalId: id, name: 'After'}));
@@ -97,17 +96,17 @@ describe('a goal', () => {
 		expect(goalsOf(boardId)[0]).toMatchObject({name: 'After', color});
 	});
 
-	it('refuses a second goal of the same name on a board', async () => {
-		const {repoRoot, boardId} = await seed();
-		unwrap(await createGoal({repoRoot, boardId, name: 'Linked repos'}));
+	it('refuses a second goal of the same name', async () => {
+		const {repoRoot} = await seed();
+		unwrap(await createGoal({repoRoot, name: 'Linked repos'}));
 
-		const again = await createGoal({repoRoot, boardId, name: 'linked REPOS'});
-		expect(isFail(again) && again.message).toMatch(/already has a goal/);
+		const again = await createGoal({repoRoot, name: 'linked REPOS'});
+		expect(isFail(again) && again.message).toMatch(/already a goal/);
 	});
 
 	it('counts its tickets done when closed or in a lane called Done', async () => {
 		const {repoRoot, boardId, file} = await seed();
-		const {id} = unwrap(await createGoal({repoRoot, boardId, name: 'Goal'}));
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Goal'}));
 		const one = await file('One');
 		const two = await file('Two');
 		const three = await file('Three');
@@ -126,7 +125,7 @@ describe('a goal', () => {
 
 	it('leaves its tickets where they are, in no goal, once removed', async () => {
 		const {repoRoot, boardId, file} = await seed();
-		const {id} = unwrap(await createGoal({repoRoot, boardId, name: 'Passing'}));
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Passing'}));
 		const part = await file('Part');
 		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: id}));
 
@@ -141,10 +140,8 @@ describe('a goal', () => {
 
 describe('a ticket in a goal', () => {
 	it('carries the goal as it reads now, and leaves it again', async () => {
-		const {repoRoot, boardId, file} = await seed();
-		const {id} = unwrap(
-			await createGoal({repoRoot, boardId, name: 'Time travel'}),
-		);
+		const {repoRoot, file} = await seed();
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Time travel'}));
 		const part = await file('Needle in the URL');
 
 		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: id}));
@@ -157,7 +154,7 @@ describe('a ticket in a goal', () => {
 		expect(Object.keys(issueOf(part))).not.toContain('goal');
 	});
 
-	it('joins a goal by name, making it when the board has none of that name', async () => {
+	it('joins a goal by name, making it when there is none of that name', async () => {
 		const {repoRoot, boardId, file} = await seed();
 		const one = await file('One');
 		const two = await file('Two');
@@ -170,68 +167,80 @@ describe('a ticket in a goal', () => {
 	});
 
 	it('joins a new goal in the same write that makes it', async () => {
-		const {repoRoot, boardId, file} = await seed();
+		const {repoRoot, file} = await seed();
 		const part = await file('Part');
 		const before = getState().eventLog.length;
 
-		unwrap(
-			await createGoal({repoRoot, boardId, name: 'Bigger', issueId: part}),
-		);
+		unwrap(await createGoal({repoRoot, name: 'Bigger', issueId: part}));
 
 		expect(issueOf(part).goal!.name).toBe('Bigger');
 		expect(getState().eventLog.length - before).toBe(2);
 	});
 
-	it("refuses another board's goal", async () => {
-		const {repoRoot, file} = await seed();
+	it("joins a goal another board's tickets are in", async () => {
+		const {repoRoot, boardId, file} = await seed();
 		const other = unwrap(await createBoard({repoRoot, title: 'Other'}));
-		const {id} = unwrap(
-			await createGoal({repoRoot, boardId: other.id, name: 'Elsewhere'}),
+		const otherLane = unwrap(
+			await createSwimlane({repoRoot, boardId: other.id, title: 'Lane'}),
 		);
-		const part = await file('Part');
+		const there = unwrap(
+			await createIssue({repoRoot, title: 'There', parentId: otherLane.id}),
+		).id;
+		const {id} = unwrap(
+			await createGoal({repoRoot, name: 'Shared', issueId: there}),
+		);
+		const here = await file('Here');
 
-		const result = await setIssueGoal({repoRoot, issueId: part, goal: id});
-		expect(isFail(result) && result.message).toMatch(/another board/);
+		unwrap(await setIssueGoal({repoRoot, issueId: here, goal: 'shared'}));
+
+		expect(issueOf(here).goal!.id).toBe(id);
+		expect(goalsOf(boardId)).toMatchObject([{id, total: 2, here: 1}]);
+		expect(goalsOf(other.id)).toMatchObject([{id, total: 2, here: 1}]);
 	});
 });
 
-describe("a ticket off its goal's board", () => {
-	it('draws and counts no goal once moved away, and both again once back', async () => {
+describe('a goal across boards', () => {
+	it('goes with its ticket to another board, and shows there', async () => {
 		const {repoRoot, boardId, file} = await seed();
 		const part = await file('Traveller');
 		const {id} = unwrap(
-			await createGoal({repoRoot, boardId, name: 'Home', issueId: part}),
+			await createGoal({repoRoot, name: 'Home', issueId: part}),
 		);
 		const away = unwrap(await createBoard({repoRoot, title: 'Away'}));
 		const awayLane = unwrap(
 			await createSwimlane({repoRoot, boardId: away.id, title: 'Lane'}),
 		);
-		const homeLane = issueOf(part).parentNodeId;
 
 		unwrap(await moveIssue({repoRoot, issueId: part, parentId: awayLane.id}));
-		expect(issueOf(part).goal).toBeUndefined();
-		expect(goalsOf(boardId)[0]).toMatchObject({total: 0});
 
-		unwrap(await moveIssue({repoRoot, issueId: part, parentId: homeLane}));
 		expect(issueOf(part).goal!.id).toBe(id);
-		expect(goalsOf(boardId)[0]).toMatchObject({total: 1});
+		expect(goalsOf(away.id)).toMatchObject([{id, total: 1, here: 1}]);
+		expect(goalsOf(boardId)).toEqual([]);
 	});
 
-	it('stays in its goal once closed, can leave it, and starts no new one', async () => {
+	it('shows one with no tickets yet on every board but Closed', async () => {
+		const {repoRoot, boardId} = await seed();
+		const other = unwrap(await createBoard({repoRoot, title: 'Other'}));
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Fresh'}));
+
+		expect(goalsOf(boardId)).toMatchObject([{id}]);
+		expect(goalsOf(other.id)).toMatchObject([{id}]);
+		expect(goalsOf(CLOSED_BOARD_ID)).toEqual([]);
+	});
+
+	it('keeps a closed ticket in its goal, on the board it was worked on', async () => {
 		const {repoRoot, boardId, file} = await seed();
 		const part = await file('Finished');
-		unwrap(await createGoal({repoRoot, boardId, name: 'Kept', issueId: part}));
-		unwrap(await createGoal({repoRoot, boardId, name: 'Other'}));
+		unwrap(await createGoal({repoRoot, name: 'Kept', issueId: part}));
 		unwrap(await closeIssue({repoRoot, issueId: part}));
 
 		expect(issueOf(part).goal!.name).toBe('Kept');
-		expect(goalsOf(boardId)[0]).toMatchObject({done: 1, total: 1});
+		expect(goalsOf(boardId)).toMatchObject([
+			{name: 'Kept', done: 1, total: 1, here: 1},
+		]);
 
-		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'other'}));
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'Other'}));
 		expect(issueOf(part).goal!.name).toBe('Other');
-
-		const fresh = await setIssueGoal({repoRoot, issueId: part, goal: 'New'});
-		expect(isFail(fresh) && fresh.message).toMatch(/closed ticket/);
 
 		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: null}));
 		expect(issueOf(part).goal).toBeUndefined();
@@ -240,7 +249,7 @@ describe("a ticket off its goal's board", () => {
 	it('finds a goal whatever spacing its name was typed with', async () => {
 		const {repoRoot, boardId, file} = await seed();
 		const part = await file('Part');
-		unwrap(await createGoal({repoRoot, boardId, name: 'Dense cards'}));
+		unwrap(await createGoal({repoRoot, name: 'Dense cards'}));
 
 		const result = unwrap(
 			await setIssueGoal({repoRoot, issueId: part, goal: '  Dense\tcards '}),
@@ -284,8 +293,8 @@ describe('replaying goal events', () => {
 	});
 
 	it('skips a link to a goal removed before it', async () => {
-		const {repoRoot, boardId, file, actor} = await seed();
-		const {id} = unwrap(await createGoal({repoRoot, boardId, name: 'Gone'}));
+		const {repoRoot, file, actor} = await seed();
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Gone'}));
 		const part = await file('Part');
 		unwrap(await removeGoal({repoRoot, goalId: id}));
 
@@ -298,10 +307,10 @@ describe('replaying goal events', () => {
 	});
 
 	it('leaves the goal as it is for one it cannot read', async () => {
-		const {repoRoot, boardId, file, actor} = await seed();
+		const {repoRoot, file, actor} = await seed();
 		const part = await file('Part');
 		const {id} = unwrap(
-			await createGoal({repoRoot, boardId, name: 'Kept', issueId: part}),
+			await createGoal({repoRoot, name: 'Kept', issueId: part}),
 		);
 
 		const [result] = materializeAll([
@@ -318,7 +327,7 @@ describe('replaying goal events', () => {
 			id,
 			...actor,
 			action: 'create.goal',
-			payload: {id, name: 'Launch', board: boardId},
+			payload: {id, name: 'Launch'},
 		});
 		materializeAll([
 			make('01M5Z00000000000000000000E'),
@@ -335,52 +344,21 @@ describe('replaying goal events', () => {
 		expect(issueOf(part).goal!.id).toBe('01M5Z00000000000000000000E');
 	});
 
-	it('makes a goal once per id, and never on the Closed board', async () => {
+	it('makes a goal once per id', async () => {
 		const {repoRoot, boardId, actor} = await seed();
-		const {id} = unwrap(await createGoal({repoRoot, boardId, name: 'First'}));
+		const {id} = unwrap(await createGoal({repoRoot, name: 'First'}));
 		unwrap(await removeGoal({repoRoot, goalId: id}));
 
-		const [again, closed] = materializeAll([
+		const [again] = materializeAll([
 			{
 				id: '01M5Z00000000000000000000G',
 				...actor,
 				action: 'create.goal',
-				payload: {id, name: 'Revived', board: boardId},
-			},
-			{
-				id: '01M5Z00000000000000000000H',
-				...actor,
-				action: 'create.goal',
-				payload: {
-					id: '01M5Z00000000000000000000H',
-					name: 'Hidden',
-					board: CLOSED_BOARD_ID,
-				},
+				payload: {id, name: 'Revived'},
 			},
 		] as AppEvent[]);
 
 		expect(isFail(again as Result)).toBe(true);
-		expect(isFail(closed as Result)).toBe(true);
-		expect(goalsOf(boardId)).toEqual([]);
-	});
-
-	it('skips a goal made on a board it never saw', async () => {
-		const {boardId, actor} = await seed();
-
-		const [result] = materializeAll([
-			{
-				id: '01M5Z00000000000000000000D',
-				...actor,
-				action: 'create.goal',
-				payload: {
-					id: '01M5Z00000000000000000000D',
-					name: 'Nowhere',
-					board: '01M5Z0000000000000000000YY',
-				},
-			},
-		] as AppEvent[]);
-
-		expect(isFail(result as Result)).toBe(true);
 		expect(goalsOf(boardId)).toEqual([]);
 	});
 });

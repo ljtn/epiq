@@ -1,4 +1,4 @@
-// A goal is a name on a board that tickets belong to, one goal per ticket.
+// A goal is a name in the project that tickets belong to, one goal per ticket.
 // It sits in no lane: how far along it is comes from its tickets.
 
 import {ulid} from 'ulid';
@@ -9,20 +9,19 @@ import {Ticket} from '../../lib/model/context.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
 import {
 	boardGoals,
-	findTicketGoal,
+	findGoal,
 	getGoal,
-	goalBoardRefusal,
 	goalName,
-	newGoalRefusal,
 	getTicketGoal,
 	goalColor,
+	goalMembersOn,
 	goalNameRefusal,
 	goalProgress,
-	ticketBoardId,
+	projectGoals,
 } from '../../lib/utils/goal.utils.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
-import {ApiGoal, ApiGoalRef} from '../api-state.model.js';
+import {ApiBoardGoal, ApiGoal, ApiGoalRef} from '../api-state.model.js';
 import {bootedWithActorAndState, ToolInput} from './boot.js';
 import {findWritableIssue} from './node-targets.js';
 
@@ -38,11 +37,19 @@ export const goalFields = (ticket: Ticket) => {
 	return goal ? {goal: goalRef(goal)} : {};
 };
 
-/** A board's goals, each with how far along its tickets are. */
-export const apiBoardGoals = (boardId: string): ApiGoal[] =>
+const apiGoal = (goal: Goal): ApiGoal => ({
+	...goalRef(goal),
+	...goalProgress(goal.id),
+});
+
+/** The project's goals, each with how far along its tickets are. */
+export const apiGoals = (): ApiGoal[] => projectGoals().map(apiGoal);
+
+/** The goals a board shows, and how many of each one's tickets are on it. */
+export const apiBoardGoals = (boardId: string): ApiBoardGoal[] =>
 	boardGoals(boardId).map(goal => ({
-		...goalRef(goal),
-		...goalProgress(goal.id),
+		...apiGoal(goal),
+		here: goalMembersOn(goal.id, boardId),
 	}));
 
 const persist = (
@@ -57,8 +64,8 @@ const persist = (
 };
 
 /**
- * Puts a ticket in one of its board's goals, by id or name, making a goal of
- * that name when there is none; null takes it out.
+ * Puts a ticket in a goal, by id or name, making a goal of that name when
+ * there is none; null takes it out.
  */
 export const setIssueGoal = async (
 	input: ToolInput & {issueId: string; goal: string | null},
@@ -73,17 +80,10 @@ export const setIssueGoal = async (
 
 	let goalId: string | undefined;
 	if (input.goal !== null) {
-		const goal = findTicketGoal(issue, input.goal);
-		if (!goal && getGoal(input.goal)) {
-			return failed('That goal is on another board');
-		}
+		const goal = findGoal(input.goal);
 		if (!goal) {
-			const refusal = newGoalRefusal(issue, input.goal);
-			if (refusal) return failed(refusal);
-
 			const created = await createGoal({
 				repoRoot: input.repoRoot,
-				boardId: ticketBoardId(issue) ?? '',
 				name: input.goal,
 				issueId: issue.id,
 			});
@@ -113,18 +113,15 @@ export const setIssueGoal = async (
 	return succeeded('Saved', saved);
 };
 
-/** A new goal on a board, and the ticket named, if any, put in it at once. */
+/** A new goal, and the ticket named, if any, put in it at once. */
 export const createGoal = async (
-	input: ToolInput & {boardId: string; name: string; issueId?: string},
+	input: ToolInput & {name: string; issueId?: string},
 ) => {
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
-	const boardRefusal = goalBoardRefusal(input.boardId);
-	if (boardRefusal) return failed(boardRefusal);
-
 	const name = goalName(input.name);
-	const refusal = goalNameRefusal(input.boardId, name);
+	const refusal = goalNameRefusal(name);
 	if (refusal) return failed(refusal);
 
 	const actor = actorOf(ready.value.actor);
@@ -134,7 +131,7 @@ export const createGoal = async (
 			id,
 			...actor,
 			action: 'create.goal',
-			payload: {id, name, board: input.boardId},
+			payload: {id, name},
 		},
 	];
 
@@ -142,9 +139,6 @@ export const createGoal = async (
 		const issueResult = findWritableIssue(input.issueId);
 		if (isFail(issueResult)) return issueResult;
 		const issue = issueResult.value;
-		if (ticketBoardId(issue) !== input.boardId) {
-			return failed(`${nodeRef(issue.id)} is not on that board`);
-		}
 
 		events.push({
 			id: ulid(),
@@ -166,15 +160,12 @@ export const renameGoal = async (
 	const goal = getGoal(input.goalId);
 	if (!goal) return failed('Goal not found');
 
-	const boardRefusal = goalBoardRefusal(goal.board);
-	if (boardRefusal) return failed(boardRefusal);
-
 	const name = goalName(input.name);
 	if (name === goal.name) {
 		return succeeded('No changes made', {id: goal.id, name});
 	}
 
-	const refusal = goalNameRefusal(goal.board, name, goal.id);
+	const refusal = goalNameRefusal(name, goal.id);
 	if (refusal) return failed(refusal);
 
 	return persist(
@@ -198,9 +189,6 @@ export const removeGoal = async (input: ToolInput & {goalId: string}) => {
 
 	const goal = getGoal(input.goalId);
 	if (!goal) return failed('Goal not found');
-
-	const boardRefusal = goalBoardRefusal(goal.board);
-	if (boardRefusal) return failed(boardRefusal);
 
 	return persist(
 		ready.value.boot.stateBranchRoot,

@@ -389,7 +389,7 @@ export const IssueDetails = ({
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
 	onOpenAssigneePicker: () => void;
-	// The Goal row's: the goals of the ticket's board. Without onSetGoal the
+	// The Goal row's: the project's goals. Without onSetGoal the
 	// row is not drawn.
 	goals?: GuiGoal[];
 	onSetGoal?: (issueId: string, goal: string | null) => void;

@@ -7,7 +7,7 @@ import {Input} from './FormPrimitives';
 import {IconTrash} from './IconTrash';
 
 type Props = {
-	// The board's goals.
+	// The project's goals.
 	goals: GuiGoal[];
 	onCreate: (name: string) => void;
 	onRename: (goalId: string, name: string) => void;

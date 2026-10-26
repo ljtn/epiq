@@ -33,10 +33,7 @@ export type GuiMessage =
 			type: 'issue:goal:set';
 			payload: {issueId: string; goal: string | null};
 	  }
-	| {
-			type: 'goal:create';
-			payload: {boardId: string; name: string; issueId?: string};
-	  }
+	| {type: 'goal:create'; payload: {name: string; issueId?: string}}
 	| {type: 'goal:rename'; payload: {goalId: string; name: string}}
 	| {type: 'goal:remove'; payload: {goalId: string}}
 	| {type: 'issue:tag:remove'; payload: {issueId: string; tagId: string}}

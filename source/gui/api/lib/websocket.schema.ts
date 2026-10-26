@@ -79,10 +79,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	),
 	message('issue:tag:add', z.object({issueId: id, tagName: z.string()})),
 	message('issue:goal:set', z.object({issueId: id, goal: id.nullable()})),
-	message(
-		'goal:create',
-		z.object({boardId: id, name: z.string(), issueId: id.optional()}),
-	),
+	message('goal:create', z.object({name: z.string(), issueId: id.optional()})),
 	message('goal:rename', z.object({goalId: id, name: z.string()})),
 	message('goal:remove', z.object({goalId: id})),
 	message('issue:tag:remove', z.object({issueId: id, tagId: id})),

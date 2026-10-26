@@ -13,7 +13,7 @@ export const DetailsHeader = ({
 	onClose,
 }: {
 	testId: string;
-	kind: 'Board' | 'Swimlane';
+	kind: 'Board' | 'Swimlane' | 'Goal';
 	title: string;
 	onClose: () => void;
 }) => (

@@ -53,8 +53,11 @@ export type GuiIssue = {
 
 export type GuiGoalRef = {id: string; name: string; color: string};
 
-/** A board's goal, and how far along all its tickets are. */
+/** A goal, and how far along its tickets are, on every board. */
 export type GuiGoal = GuiGoalRef & {done: number; total: number};
+
+/** A goal a board shows, and how many of its tickets are on that board. */
+export type GuiBoardGoal = GuiGoal & {here: number};
 
 export type GuiSwimlane = {
 	id: string;
@@ -72,7 +75,7 @@ export type GuiBoard = {
 	// The Closed board, and every board while the timeline is scrubbed.
 	readonly: boolean;
 	swimlanes: GuiSwimlane[];
-	goals: GuiGoal[];
+	goals: GuiBoardGoal[];
 	// The board's conventions, as markdown; absent when it has none.
 	description?: string;
 };
@@ -97,6 +100,7 @@ export type GuiTimeTravelStatus = {
 export type GuiState = {
 	boards: GuiBoard[];
 	tags: GuiTag[];
+	goals: GuiGoal[];
 	contributors: GuiUser[];
 	user: GuiUser;
 	commentsByIssueId: Record<string, GuiComment[]>;

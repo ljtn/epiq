@@ -88,8 +88,8 @@ export const useIssueMutations = ({
 		send('issue:goal:set', {issueId, goal});
 	};
 
-	const createGoal = (boardId: string, name: string, issueId?: string) => {
-		send('goal:create', issueId ? {boardId, name, issueId} : {boardId, name});
+	const createGoal = (name: string, issueId?: string) => {
+		send('goal:create', issueId ? {name, issueId} : {name});
 	};
 
 	const renameGoal = (goalId: string, name: string) => {

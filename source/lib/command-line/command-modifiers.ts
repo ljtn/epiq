@@ -23,7 +23,7 @@ import {
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
-import {boardGoals} from '../utils/goal.utils.js';
+import {boardGoals, projectGoals} from '../utils/goal.utils.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE', 'COMMENT'];
@@ -180,13 +180,17 @@ export const ticketInScope = ({
 		(node): node is Ticket => node != null && isTicketNode(node),
 	);
 
-/** The goals of the board in scope, by name. */
+/** The project's goals by name, the board in scope's first. */
 export const goalNamesInScope = (): string[] => {
 	const {breadCrumb = [], selectedNode} = getState();
 	const board = [...breadCrumb, selectedNode].find(
 		node => node?.context === 'BOARD',
 	);
-	return board ? boardGoals(board.id).map(goal => goal.name) : [];
+	const shown = board ? boardGoals(board.id) : [];
+	return [
+		...shown,
+		...projectGoals().filter(goal => !shown.includes(goal)),
+	].map(goal => goal.name);
 };
 
 const isTicketClosed = (ticket: Ticket): boolean =>

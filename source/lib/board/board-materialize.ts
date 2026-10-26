@@ -313,8 +313,8 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 	},
 
 	'create.goal': event => {
-		const {id, name, board} = event.payload;
-		const result = nodeRepo.createGoal({id, name, board});
+		const {id, name} = event.payload;
+		const result = nodeRepo.createGoal({id, name});
 
 		if (isFail(result)) {
 			return materializeSkip(result.message ?? 'Unable to create goal', event);

@@ -1,9 +1,9 @@
-// A goal is a name on a board that tickets belong to, one goal per ticket;
-// how far along it is comes from those tickets, never from the goal itself.
-// Tags stay the way to say several things. This module answers it for every
-// door: the API, the GUI behind it, and the TUI.
+// A goal is a name in the project that tickets belong to, one goal per ticket,
+// on whichever board they stand; how far along it is comes from those tickets,
+// never from the goal itself. Tags stay the way to say several things. This
+// module answers it for every door: the API, the GUI behind it, and the TUI.
 
-import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
+import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {Goal} from '../model/app-state.model.js';
 import {isTicketNode, Ticket} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
@@ -26,93 +26,52 @@ export const getGoal = (id: string): Goal | undefined => {
 	return goal?.tombstoned ? undefined : goal;
 };
 
-/** A board's goals, oldest first. */
-export const boardGoals = (boardId: string): Goal[] =>
+/** The project's goals, oldest first. */
+export const projectGoals = (): Goal[] =>
 	Object.values(goalsOrNone())
-		.filter(goal => goal.board === boardId && !goal.tombstoned)
+		.filter(goal => !goal.tombstoned)
 		.sort((a, b) => a.id.localeCompare(b.id));
 
 /** A goal's name as stored, so a lookup and a write compare alike. */
 export const goalName = (name: string): string =>
 	sanitizeInlineText(name).trim();
 
-/** One of a board's goals, by id or by name in any case. */
-export const findGoal = (
-	boardId: string,
-	idOrName: string,
-): Goal | undefined => {
+/** A goal by id, or by name in any case. */
+export const findGoal = (idOrName: string): Goal | undefined => {
 	const wanted = goalName(idOrName);
 	if (!wanted) return undefined;
 
 	const byId = getGoal(wanted);
-	if (byId?.board === boardId) return byId;
+	if (byId) return byId;
 
 	// The oldest of a name, should two machines have made one each.
 	const name = wanted.toLowerCase();
-	return boardGoals(boardId).find(goal => goal.name.toLowerCase() === name);
+	return projectGoals().find(goal => goal.name.toLowerCase() === name);
 };
 
-const isClosed = (ticket: Ticket) => ticket.parentNodeId === CLOSED_SWIMLANE_ID;
-
-/**
- * The boards whose goals a ticket can be in: the one it stands on, or, once
- * closed, every one it stood on, so closing keeps it counted as done.
- */
-export const ticketGoalBoards = (ticket: Ticket): string[] => {
-	if (isClosed(ticket)) return boardsEverOnOf(ticket);
-	const board = ticketBoardId(ticket);
-	return board ? [board] : [];
-};
-
-/** One of the goals a ticket can be in, by id or name. */
-export const findTicketGoal = (
-	ticket: Ticket,
-	idOrName: string,
-): Goal | undefined =>
-	ticketGoalBoards(ticket)
-		.map(board => findGoal(board, idOrName))
-		.find(goal => goal !== undefined);
-
-/**
- * The goal a ticket belongs to, while it has not been removed and the ticket
- * stands on its board: moved to another board, it draws none there and
- * counts for none here, and moving back restores it.
- */
-export const getTicketGoal = (ticket: Ticket): Goal | undefined => {
-	const goal = ticket.props?.goal ? getGoal(ticket.props.goal) : undefined;
-	return goal && ticketGoalBoards(ticket).includes(goal.board)
-		? goal
-		: undefined;
-};
-
-/** Why a ticket may not start a new goal by name, or null when it may. */
-export const newGoalRefusal = (ticket: Ticket, name: string): string | null => {
-	if (isClosed(ticket))
-		return 'A closed ticket starts no goal; reopen it first';
-	const board = ticketBoardId(ticket);
-	return goalBoardRefusal(board) ?? goalNameRefusal(board ?? '', name);
-};
-
-/** Why a board may not take a new goal, or a change to one, or null. */
-export const goalBoardRefusal = (
-	boardId: string | undefined,
-): string | null => {
-	const board = boardId ? nodesOrNone()[boardId] : undefined;
-	if (!board || board.isDeleted || board.context !== 'BOARD') {
-		return 'Board not found';
-	}
-	return board.readonly ? 'Board is readonly' : null;
-};
+/** The goal a ticket belongs to, while it has not been removed. */
+export const getTicketGoal = (ticket: Ticket): Goal | undefined =>
+	ticket.props?.goal ? getGoal(ticket.props.goal) : undefined;
 
 /** Muted, and from the id, so renaming a goal keeps its colour. */
 export const goalColor = (goal: Goal): string => getMutedStringColor(goal.id);
 
 /** The board a ticket stands on: its lane's parent. */
-export const ticketBoardId = (ticket: Ticket): string | undefined => {
+const ticketBoardId = (ticket: Ticket): string | undefined => {
 	const lane = ticket.parentNodeId
 		? nodesOrNone()[ticket.parentNodeId]
 		: undefined;
 	return lane?.parentNodeId ?? undefined;
+};
+
+/**
+ * The boards a ticket shows its goal on: the one it stands on, or, once
+ * closed, every one it stood on, so a finished goal stays where it was worked.
+ */
+const ticketBoards = (ticket: Ticket): string[] => {
+	if (ticket.parentNodeId === CLOSED_SWIMLANE_ID) return boardsEverOnOf(ticket);
+	const board = ticketBoardId(ticket);
+	return board ? [board] : [];
 };
 
 // Who belongs to which goal, worked out once per state: a terminal row asks
@@ -141,9 +100,25 @@ const membersByGoal = (): Map<string, Ticket[]> => {
 export const goalMembers = (goalId: string): Ticket[] =>
 	membersByGoal().get(goalId) ?? [];
 
+/** How many of a goal's tickets a board shows. */
+export const goalMembersOn = (goalId: string, boardId: string): number =>
+	goalMembers(goalId).filter(ticket => ticketBoards(ticket).includes(boardId))
+		.length;
+
 /**
- * How far along a goal is, over every ticket in it, however long ago it was
- * closed: done is closed, or standing in a lane called Done.
+ * The goals a board shows: those with a ticket on it, and those with none
+ * anywhere yet, so a new goal is seen where it can be joined.
+ */
+export const boardGoals = (boardId: string): Goal[] =>
+	projectGoals().filter(goal =>
+		goalMembers(goal.id).length === 0
+			? boardId !== CLOSED_BOARD_ID
+			: goalMembersOn(goal.id, boardId) > 0,
+	);
+
+/**
+ * How far along a goal is, over every ticket in it on every board, however
+ * long ago it was closed: done is closed, or standing in a lane called Done.
  */
 export const goalProgress = (goalId: string): {done: number; total: number} => {
 	const members = goalMembers(goalId);
@@ -157,17 +132,16 @@ export const goalProgress = (goalId: string): {done: number; total: number} => {
 	return {done: members.filter(isDone).length, total: members.length};
 };
 
-/** Why a goal may not be named so on its board, or null when it may. */
+/** Why a goal may not be named so, or null when it may. */
 export const goalNameRefusal = (
-	boardId: string,
 	name: string,
 	exceptId?: string,
 ): string | null => {
 	if (!goalName(name)) return 'A goal needs a name';
 
-	const taken = findGoal(boardId, name);
+	const taken = findGoal(name);
 	return taken && taken.id !== exceptId
-		? `This board already has a goal called "${taken.name}"`
+		? `There is already a goal called "${taken.name}"`
 		: null;
 };
 

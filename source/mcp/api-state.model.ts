@@ -59,8 +59,11 @@ export type ApiGoalRef = {
 	color: string;
 };
 
-/** A board's goal, and how far along its tickets are, all of them. */
+/** A goal, and how far along its tickets are, on every board. */
 export type ApiGoal = ApiGoalRef & {done: number; total: number};
+
+/** A goal a board shows, and how many of its tickets are on that board. */
+export type ApiBoardGoal = ApiGoal & {here: number};
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};
 
@@ -117,7 +120,7 @@ export type ApiBoard = {
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
 	swimlanes: ApiSwimlane[];
-	goals: ApiGoal[];
+	goals: ApiBoardGoal[];
 	// The board's conventions, as markdown; absent when it has none.
 	description?: string;
 };
@@ -140,6 +143,7 @@ export type ApiTimeTravelStatus = {
 
 export type ApiState = {
 	tags: ApiTag[];
+	goals: ApiGoal[];
 	contributors: ApiAssignee[];
 	user: ApiAssignee;
 	boards: ApiBoard[];
