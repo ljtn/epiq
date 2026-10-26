@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
 import {FormHeader} from './FormHeader';
+import {Input} from './FormPrimitives';
 
 // A board's or a lane's panel: its description, and what can be said about
 // it. Kin to a ticket's panel, and named for what it belongs to so it is not
@@ -60,7 +61,7 @@ export const DetailsHeader = ({
 					{kind}
 				</span>
 				{draft !== null ? (
-					<input
+					<Input
 						data-testid={`${testId}-title-input`}
 						value={draft}
 						autoFocus
@@ -70,18 +71,7 @@ export const DetailsHeader = ({
 							if (event.key === 'Escape') setDraft(null);
 						}}
 						onBlur={save}
-						style={{
-							...TITLE_STYLE,
-							flex: 1,
-							font: 'inherit',
-							fontSize: TITLE_STYLE.fontSize,
-							fontWeight: TITLE_STYLE.fontWeight,
-							background: GUI_THEME.well,
-							border: `1px solid ${GUI_THEME.line}`,
-							borderRadius: 6,
-							padding: '2px 6px',
-							outline: 'none',
-						}}
+						style={{...TITLE_STYLE, flex: 1, padding: '2px 6px'}}
 					/>
 				) : (
 					<span
