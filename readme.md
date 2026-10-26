@@ -53,9 +53,9 @@ Since anyone on the board can connect a repo, URLs are read with care: only `htt
 
 A goal groups the tickets that serve one outcome, on any board. A ticket can be in one goal. Goals are not tickets: a board shows the goals its tickets are in as a strip above the lanes, each pill underlined as far as the goal's tickets are done (closed, or in a done lane), on every board. A lane named Done counts, and so does any lane ticked "Tickets here count as done" in its panel.
 
-- **GUI:** pick a goal in a ticket's Goal dropdown, or type a new name there to create one; from the keyboard, **Put in a goal** and **Take out of its goal** in the palette (⌘K, then `goal`). Click a pill to show only that goal's tickets and open its panel: progress, every ticket in it on any board, and a Stats tab measuring the code of all of them together. **Manage goals** (the strip, the dropdown or the palette) adds, renames and removes them.
-- **TUI:** `:goal <name>` puts the selected ticket in that goal, creating it if needed; `:ungoal` takes it out; `:filter goal <name>` shows only its tickets. A ticket in a goal carries `◆` in the goal's colour. Renaming and removing a goal is done in the GUI or the MCP, as with tags.
-- **MCP:** `epiq_issue_goal_set` with a goal's name (created if needed) or `null`; `epiq_goal_list` lists every goal with its progress and boards; `epiq_goal_stats` gives a goal's code stats; `epiq_goal_create`, `epiq_goal_rename`, `epiq_goal_remove`. `epiq_board_list` lists the goals each board shows.
+- **GUI:** pick a goal in a ticket's Goal dropdown, or type a new name there to create one; from the keyboard, **Put in a goal** and **Take out of its goal** in the palette (⌘K, then `goal`). Click a pill to show only that goal's tickets and open its panel: progress and every ticket in it on any board, a Stats tab measuring the code of all of them together, and a Code tab listing every commit on them. **Manage goals** (the strip, the dropdown or the palette) adds, renames and removes them.
+- **TUI:** `:goal <name>` puts the selected ticket in that goal, creating it if needed; `:ungoal` takes it out; `:filter goal <name>` shows only its tickets. A ticket in a goal carries `◆` in the goal's colour. `:rule done` and `:unrule done` mark the selected lane done or not; a done lane shows `✓` after its count. Renaming and removing a goal is done in the GUI or the MCP, as with tags.
+- **MCP:** `epiq_issue_goal_set` with a goal's name (created if needed) or `null`; `epiq_goal_list` lists every goal with its progress and boards; `epiq_goal_stats` gives a goal's code stats; `epiq_goal_create`, `epiq_goal_rename`, `epiq_goal_remove`. `epiq_board_list` lists the goals each board shows. `epiq_swimlane_rule_set` marks a lane done; `epiq_swimlane_list` says which lanes count.
 
 A board shows a goal once one of its tickets is on it. Removing a goal leaves its tickets where they are, in no goal.
 
@@ -174,7 +174,7 @@ Every process — your TUI, your GUI, each agent's MCP server - writes as your u
 
 That agent then shows up in the contributor list, assigns itself rather than you, and authors its own events. This can be useful when tracing many agents at the same time. Consider reusing names instead of inventing one per session, or the registry fills with single-run identities.
 
-### Board and lane rules
+### Board and lane conventions
 
 A board's or a lane's description holds its conventions: "tests before review", "one ticket per PR". The MCP hands them to agents where they apply. Assuming an identity returns the board rules, getting or moving a ticket returns its lane's, and creating one returns both. Agents are told to follow them unless they conflict with their user's instructions. Write them with `epiq_board_description_edit` and `epiq_swimlane_description_edit`, in the board's or the lane's panel in the GUI, or with `edit description` on a selected lane or board in the TUI.
 
