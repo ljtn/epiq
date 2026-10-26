@@ -55,11 +55,11 @@ import {
 	resolveRepoRoot,
 } from './boot.js';
 import {
-	boardsEverOnOf,
 	getIssueTags,
 	getIssueComments,
 	getIssueAssignees,
 } from './issue-projection.js';
+import {boardsEverOnOf} from '../../lib/utils/ticket-boards.js';
 import {
 	IssueTargets,
 	IssueRef,
@@ -73,6 +73,7 @@ import {
 	writeDescription,
 } from './descriptions.js';
 import {findWritableIssue, findWritableSwimlane} from './node-targets.js';
+import {goalFields} from './goals.js';
 
 type MoveIssueInput = ToolInput &
 	IssueTargets & {
@@ -170,6 +171,7 @@ export const getIssue = async (input: GetIssueInput) => {
 		readonly: Boolean(issue.readonly),
 		tags: getIssueTags(issue),
 		assignees: getIssueAssignees(issue),
+		...goalFields(issue),
 		comments: getIssueComments(issue.id),
 		...laneDescriptionOf(issue.parentNodeId),
 	} satisfies ApiIssueDetail & {laneDescription?: string});
@@ -260,6 +262,7 @@ export async function listIssues(
 					readonly: Boolean(n.readonly),
 					tags: getIssueTags(n),
 					assignees: getIssueAssignees(n),
+					...goalFields(n),
 				} satisfies ApiIssue),
 		),
 	);

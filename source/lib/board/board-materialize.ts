@@ -312,6 +312,47 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 		});
 	},
 
+	'create.goal': event => {
+		const {id, name} = event.payload;
+		const result = nodeRepo.createGoal({id, name});
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to create goal', event);
+		}
+
+		return succeeded('Goal added', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'rename.goal': event => {
+		const {id, name} = event.payload;
+		const result = nodeRepo.renameGoal(id, name);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to rename goal', event);
+		}
+
+		return succeeded('Goal renamed', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'tombstone.goal': event => {
+		const result = nodeRepo.tombstoneGoal(event.payload.id);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to remove goal', event);
+		}
+
+		return succeeded('Goal tombstoned', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
 	'create.contributor': event => {
 		const {id, name} = event.payload;
 		const result = nodeRepo.createContributor({id, name});
@@ -405,6 +446,34 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 		return succeeded('Issue untagged', {
 			action: event.action,
 			result: {tag},
+		});
+	},
+
+	'add.issue.goal': event => {
+		const {id, goal} = event.payload;
+		const result = nodeRepo.addGoal(id, goal);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to add goal', event);
+		}
+
+		return succeeded('Added to goal', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'remove.issue.goal': event => {
+		const {id, goal} = event.payload;
+		const result = nodeRepo.removeGoal(id, goal);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to remove goal', event);
+		}
+
+		return succeeded('Removed from goal', {
+			action: event.action,
+			result: result.value,
 		});
 	},
 

@@ -154,6 +154,11 @@ export const getStringColor = (
 	return stringToHslHexColor(normalized);
 };
 
+// A string's hue, quietened: for a mark that sits on many cards at once, where
+// a tag's full colour would crowd the board.
+export const getMutedStringColor = (value: string): string =>
+	rgbToHex(hslToRgb(hashString(normalizeName(value)) % 360, 28, 58));
+
 export const getDimStringColor = (
 	id: string,
 	config = TAGS_DEFAULT,

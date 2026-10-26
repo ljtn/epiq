@@ -54,6 +54,7 @@ const board = (id: string, issues: GuiIssue[]): GuiBoard => ({
 	title: id,
 	readonly: false,
 	swimlanes: [{id: `${id}-lane`, title: 'lane', readonly: false, issues}],
+	goals: [],
 });
 
 const boards = [

@@ -38,6 +38,8 @@ export type ApiIssue = {
 	/** Present only for a load-derived lock, which knows why it exists. */
 	tags: ApiTag[];
 	assignees: ApiAssignee[];
+	/** Absent when it belongs to none, or its goal is gone. */
+	goal?: ApiGoalRef;
 	parentNodeId: string;
 	isClosed: boolean;
 	/**
@@ -48,6 +50,20 @@ export type ApiIssue = {
 	 */
 	boardIds: string[];
 };
+
+/** The goal a ticket belongs to, as it reads now. */
+export type ApiGoalRef = {
+	id: string;
+	name: string;
+	// From its id, muted.
+	color: string;
+};
+
+/** A goal, and how far along its tickets are, on every board. */
+export type ApiGoal = ApiGoalRef & {done: number; total: number};
+
+/** A goal a board shows, and which of its tickets that board shows. */
+export type ApiBoardGoal = ApiGoal & {members: {id: string; done: boolean}[]};
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};
 
@@ -104,6 +120,7 @@ export type ApiBoard = {
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
 	swimlanes: ApiSwimlane[];
+	goals: ApiBoardGoal[];
 	// The board's conventions, as markdown; absent when it has none.
 	description?: string;
 };
@@ -126,6 +143,7 @@ export type ApiTimeTravelStatus = {
 
 export type ApiState = {
 	tags: ApiTag[];
+	goals: ApiGoal[];
 	contributors: ApiAssignee[];
 	user: ApiAssignee;
 	boards: ApiBoard[];

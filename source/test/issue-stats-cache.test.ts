@@ -26,9 +26,8 @@ vi.mock('../lib/stats/issue-stats.js', () => ({
 
 const {getCommitsForRef} = await import('../lib/commits/commits.js');
 const {deriveIssueStats} = await import('../lib/stats/issue-stats.js');
-const {getIssueStats, resetIssueStatsCacheForTests} = await import(
-	'../mcp/epiq-issue-stats.js'
-);
+const {getIssueStats, getRefsStats, resetIssueStatsCacheForTests} =
+	await import('../mcp/epiq-issue-stats.js');
 
 const derive = vi.mocked(deriveIssueStats);
 const commits = vi.mocked(getCommitsForRef);
@@ -62,6 +61,47 @@ describe('getIssueStats caching', () => {
 	it('answers a repeat ask from the cache', async () => {
 		await getIssueStats({idOrRef: REF, repoRoot: '/repo'});
 		await getIssueStats({idOrRef: REF, repoRoot: '/repo'});
+
+		expect(derive).toHaveBeenCalledTimes(1);
+	});
+
+	it('measures several tickets over their commits, each once', async () => {
+		commits.mockImplementation(async ({ref}) =>
+			succeeded(
+				'Matched',
+				ref === 'AAAAAAA'
+					? [commitNamed('shared'), commitNamed('only-a')]
+					: [commitNamed('shared')],
+			),
+		);
+
+		await getRefsStats({
+			repoRoot: '/repo',
+			label: 'goal',
+			refs: ['AAAAAAA', 'BBBBBBB'],
+		});
+
+		expect(derive).toHaveBeenCalledTimes(1);
+		expect(
+			derive.mock.calls[0]![0].commits.map(commit => commit.sha).sort(),
+		).toEqual(['only-a', 'shared']);
+	});
+
+	it('reads the same commits in any ticket order as one set', async () => {
+		commits.mockImplementation(async ({ref}) =>
+			succeeded('Matched', [commitNamed(ref === 'AAAAAAA' ? 'a' : 'b')]),
+		);
+
+		await getRefsStats({
+			repoRoot: '/repo',
+			label: 'g',
+			refs: ['AAAAAAA', 'BBBBBBB'],
+		});
+		await getRefsStats({
+			repoRoot: '/repo',
+			label: 'g',
+			refs: ['BBBBBBB', 'AAAAAAA'],
+		});
 
 		expect(derive).toHaveBeenCalledTimes(1);
 	});

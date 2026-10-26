@@ -55,6 +55,7 @@ import {
 	EditModifiers,
 	getCmdModifiers,
 	getOpenProjectModifiers,
+	goalNamesInScope,
 	REPLAY_DURATION_HINTS,
 } from './command-modifiers.js';
 import {
@@ -832,6 +833,8 @@ const validators: Record<CmdKeyword, Validator> = {
 		const wordList =
 			args.modifier === 'tag'
 				? tags
+				: args.modifier === 'goal'
+				? goalNamesInScope()
 				: args.modifier === 'assignee'
 				? contributors
 				: [];
@@ -924,6 +927,24 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		return requireExact(args);
 	},
+
+	[CmdKeywords.GOAL]: args => {
+		const goals = goalNamesInScope().slice(0, 10).map(chip);
+
+		return requireModifierOrInputStr({
+			hint: goals.length
+				? hintDefault('goal:') + goals.join('') + hintDefault('')
+				: hintDefault('name a new goal ...'),
+		})(args);
+	},
+	// Undone by `:goal` again, so no confirm; but nothing typed after it either.
+	[CmdKeywords.UNGOAL]: args =>
+		args.modifier || args.inputString.trim()
+			? invalid({
+					message: hintAlert('Takes no argument'),
+					completionWordList: [],
+			  })
+			: valid(CONFIRM_MSG),
 
 	[CmdKeywords.CLOSE_ISSUE]: args => requireExact(args),
 	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),

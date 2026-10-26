@@ -26,7 +26,7 @@ export const useBoardSelection = (): [
 
 	const fromUrl = hasSelectionParams(searchParams);
 
-	// The four storage does not keep, carried across the routes of this session
+	// What storage does not keep, carried across the routes of this session
 	// instead. A reload still starts wide, unzoomed and at the present — where
 	// somebody is looking is a moment, not a preference to restore.
 	//

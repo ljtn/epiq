@@ -38,6 +38,61 @@ const remember = (key: string, stats: IssueStats): IssueStats => {
 	return stats;
 };
 
+// The commits a ref owns, each by the name its author resolves to.
+const statsCommitsFor = async (
+	repoRoot: string,
+	ref: string,
+	end?: number,
+): Promise<Result<StatsCommit[]>> => {
+	// Resolved, like every other commit list: `change-shape` counts distinct
+	// authors by this string, and the Code tab calls one person one author.
+	const commitsResult = withCommitAuthors(
+		await getCommitsForRef({repoRoot, ref, end}),
+	);
+	if (isFail(commitsResult)) return failed(commitsResult.message);
+
+	return succeeded(
+		'Matched commits by ref',
+		commitsResult.value.map(commit => ({
+			sha: commit.sha,
+			...(commit.repo ? {repo: commit.repo} : {}),
+			time: commit.time,
+			author: commit.authorIdentity?.resolved
+				? commit.authorIdentity.name
+				: commit.author,
+			subject: commit.subject,
+		})),
+	);
+};
+
+const projectRoot = (repoRoot?: string): Result<string> => {
+	const result = resolveClosestEpiqProjectRoot(repoRoot ?? process.cwd());
+	return isFail(result) ? failed(result.message) : result;
+};
+
+// Everything the answer depends on is in the key: this repo, what is measured,
+// the exact commits, and who they resolve to. Nothing here reads the working
+// tree or HEAD, so nothing can go stale underneath it.
+const statsOver = async (
+	repoRoot: string,
+	label: string,
+	commits: StatsCommit[],
+): Promise<Result<IssueStats>> => {
+	const key = [
+		repoRoot,
+		label,
+		commits.map(commit => `${commit.sha}:${commit.author}`).join(','),
+	].join(' ');
+
+	const cached = cache.get(key);
+	if (cached) return succeeded('Derived issue stats', cached);
+
+	const statsResult = await deriveIssueStats({repoRoot, ref: label, commits});
+	if (isFail(statsResult)) return failed(statsResult.message);
+
+	return succeeded('Derived issue stats', remember(key, statsResult.value));
+};
+
 export const getIssueStats = async (
 	input: {repoRoot?: string; idOrRef: string; end?: number} = {idOrRef: ''},
 ): Promise<Result<IssueStats>> => {
@@ -49,52 +104,43 @@ export const getIssueStats = async (
 	// the ref field exists to prevent.
 	const ref = raw.length > NODE_REF_LENGTH ? nodeRef(raw) : raw.toUpperCase();
 
-	const repoRootResult = resolveClosestEpiqProjectRoot(
-		input.repoRoot ?? process.cwd(),
+	const repoRoot = projectRoot(input.repoRoot);
+	if (isFail(repoRoot)) return repoRoot;
+
+	const commits = await statsCommitsFor(repoRoot.value, ref, input.end);
+	if (isFail(commits)) return commits;
+
+	return statsOver(repoRoot.value, ref, commits.value);
+};
+
+/** The same stats over every commit of several tickets, each counted once. */
+export const getRefsStats = async (input: {
+	repoRoot?: string;
+	label: string;
+	refs: string[];
+	end?: number;
+}): Promise<Result<IssueStats>> => {
+	const repoRoot = projectRoot(input.repoRoot);
+	if (isFail(repoRoot)) return repoRoot;
+
+	const commits = new Map<string, StatsCommit>();
+	for (const ref of input.refs) {
+		const owned = await statsCommitsFor(repoRoot.value, ref, input.end);
+		if (isFail(owned)) return owned;
+		for (const commit of owned.value) {
+			commits.set(`${commit.repo ?? ''}:${commit.sha}`, commit);
+		}
+	}
+
+	return statsOver(
+		repoRoot.value,
+		input.label,
+		// Whole seconds tie often; the key wants one order for one set.
+		[...commits.values()].sort(
+			(a, b) =>
+				b.time - a.time ||
+				(a.repo ?? '').localeCompare(b.repo ?? '') ||
+				a.sha.localeCompare(b.sha),
+		),
 	);
-	if (isFail(repoRootResult)) return failed(repoRootResult.message);
-	const repoRoot = repoRootResult.value;
-
-	// Resolved, like every other commit list. `change-shape` counts distinct
-	// authors by this string, so leaving it raw made one person committing from
-	// two linked addresses read as two authors on the Stats tab while the Code
-	// tab called them one — the same split between two views that the event log
-	// and the scrubber already had.
-	const commitsResult = withCommitAuthors(
-		await getCommitsForRef({repoRoot, ref, end: input.end}),
-	);
-	if (isFail(commitsResult)) return failed(commitsResult.message);
-
-	const commits: StatsCommit[] = commitsResult.value.map(commit => ({
-		sha: commit.sha,
-		...(commit.repo ? {repo: commit.repo} : {}),
-		time: commit.time,
-		author: commit.authorIdentity?.resolved
-			? commit.authorIdentity.name
-			: commit.author,
-		subject: commit.subject,
-	}));
-
-	// Everything the answer depends on is in the key: this repo, this ticket, the
-	// exact commits it owns, and who those commits resolve to. Nothing here
-	// reads the working tree or HEAD, so nothing can go stale underneath it.
-	//
-	// The authors are in the key because linking an address changes the answer
-	// without changing a single sha — `change-shape` counts distinct authors off
-	// these strings, so a cache entry made before a link kept reporting two
-	// authors for one person. Keyed on the resolved names rather than on the
-	// link log, so a link that touches none of these commits evicts nothing.
-	const key = [
-		repoRoot,
-		ref,
-		commits.map(commit => `${commit.sha}:${commit.author}`).join(','),
-	].join(' ');
-
-	const cached = cache.get(key);
-	if (cached) return succeeded('Derived issue stats', cached);
-
-	const statsResult = await deriveIssueStats({repoRoot, ref, commits});
-	if (isFail(statsResult)) return failed(statsResult.message);
-
-	return succeeded('Derived issue stats', remember(key, statsResult.value));
 };

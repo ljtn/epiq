@@ -3,6 +3,7 @@ import {SANS_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
 	GuiContributor,
 	GuiUser,
+	GuiGoal,
 	GuiIssue,
 	GuiTag,
 	GuiComment,
@@ -43,6 +44,7 @@ import {
 } from '../lib/diff-selection';
 import {parseDiffCommentMeta} from '../../../lib/utils/diff-comment.js';
 import {DescriptionField} from './DescriptionField';
+import {GoalSection} from './GoalSection';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
@@ -298,6 +300,10 @@ export const IssueDetails = ({
 	attachmentUploadStatus,
 	onUploadAttachments,
 	onDeleteAttachment,
+	goals = [],
+	onSetGoal,
+	onCreateGoal,
+	onManageGoals,
 	commits,
 	commitsLoading,
 	commitsError,
@@ -383,6 +389,12 @@ export const IssueDetails = ({
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
 	onOpenAssigneePicker: () => void;
+	// The Goal row's: the project's goals. Without onSetGoal the
+	// row is not drawn.
+	goals?: GuiGoal[];
+	onSetGoal?: (issueId: string, goal: string | null) => void;
+	onCreateGoal?: (name: string) => void;
+	onManageGoals?: () => void;
 }) => {
 	// Unsent, so in the ticket's drafts.
 	const titleEdit = useEditDraft(issue?.id ?? '', 'title', issue?.title ?? '');
@@ -735,6 +747,16 @@ export const IssueDetails = ({
 								</AddRow>
 							)}
 						</Section>
+
+						{onSetGoal && (
+							<GoalSection
+								issue={issue}
+								goals={goals}
+								onSetGoal={onSetGoal}
+								onCreateGoal={onCreateGoal}
+								onManageGoals={onManageGoals}
+							/>
+						)}
 
 						<Section
 							title="Assignees"

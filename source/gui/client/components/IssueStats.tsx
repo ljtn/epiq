@@ -155,6 +155,7 @@ export const IssueStats = ({
 	boardStats,
 	activity,
 	across = 4,
+	of = 'ticket',
 }: {
 	stats: Stats | null;
 	loading: boolean;
@@ -168,10 +169,11 @@ export const IssueStats = ({
 	across?: number;
 	// The ticket's own events, read with the Board figures they add up to.
 	activity?: React.ReactNode;
+	// What the stats are of, for the copy: one ticket, or a goal's.
+	of?: 'ticket' | 'goal';
 }) => {
 	if (error) return <Empty>{error}</Empty>;
-	if (loading || !stats)
-		return <Empty>Reading this ticket&rsquo;s code…</Empty>;
+	if (loading || !stats) return <Empty>{`Reading this ${of}’s code…`}</Empty>;
 
 	const {shape, languages, tests, comments, flags} = stats;
 
@@ -186,8 +188,9 @@ export const IssueStats = ({
 
 				<Section title="Code">
 					<div style={LINE}>
-						No commit carries this ticket&rsquo;s ref, so there is no code to
-						measure. That is not the same as no work.
+						{of === 'goal'
+							? 'No commit carries the ref of a ticket in this goal, so there is no code to measure.'
+							: 'No commit carries this ticket’s ref, so there is no code to measure. That is not the same as no work.'}
 					</div>
 				</Section>
 			</div>
@@ -212,7 +215,7 @@ export const IssueStats = ({
 			<BoardSection boardStats={boardStats} across={across} first />
 			{activity}
 
-			<Section title="Code">
+			<Section title="Code" first={!boardStats && !activity}>
 				<div style={statGrid(4, across)}>
 					<Stat
 						value={String(shape.files)}
@@ -251,8 +254,7 @@ export const IssueStats = ({
 				</Note>
 
 				<Note when={shape.truncated}>
-					This ticket is large enough that the scan stopped early — every count
-					here is a floor.
+					{`This ${of} is large enough that the scan stopped early — every count here is a floor.`}
 				</Note>
 			</Section>
 
@@ -355,7 +357,7 @@ export const IssueStats = ({
 						restColor={seriesColor(0)}
 						label={`${percent(leadComments.share)} of the ${
 							leadComments.name
-						} lines this ticket added are comments`}
+						} lines this ${of} added are comments`}
 						reference={leadComments.repoShare}
 						referenceLabel={
 							leadComments.repoShare === null

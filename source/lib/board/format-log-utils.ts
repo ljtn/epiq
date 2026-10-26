@@ -32,6 +32,8 @@ export const formatLogAction = (action: string): string => {
 		'reopen.issue': 'Reopened',
 		'add.issue.tag': 'Tagged with',
 		'remove.issue.tag': 'Removed tag',
+		'add.issue.goal': 'Added to goal',
+		'remove.issue.goal': 'Removed from goal',
 		'lock.node': 'Locked node',
 		'move.node': 'Moved issue',
 		'add.issue.comment': 'Commented',
@@ -50,6 +52,9 @@ export const formatLogAction = (action: string): string => {
 		'create.tag': 'Created tag',
 		'tombstone.tag': 'Deleted tag',
 		'restore.tag': 'Restored tag',
+		'create.goal': 'Created goal',
+		'rename.goal': 'Renamed goal',
+		'tombstone.goal': 'Removed goal',
 		'create.contributor': 'Added contributor',
 		'rename.contributor': 'Renamed contributor',
 		'link.contributor.user': 'Linked contributor',
@@ -113,6 +118,10 @@ const formatAttachmentKb = (bytes: number): string =>
 const getDeletedAttachmentName = (attachmentId: string): string =>
 	nodeRepo.getAttachment(attachmentId)?.name ?? '';
 
+// The goal's name as it reads now, removed or not.
+const loggedGoalName = (goalId: string): string =>
+	getState().goals[goalId]?.name ?? '';
+
 const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
 		case 'add.issue.tag': {
@@ -134,6 +143,13 @@ const formatEventDetails = (event: AppEvent): string => {
 			return tag ? `"${tag.name}"` : '';
 		}
 
+		case 'add.issue.goal':
+		case 'remove.issue.goal':
+			return loggedGoalName(event.payload.goal);
+
+		case 'tombstone.goal':
+			return `"${loggedGoalName(event.payload.id)}"`;
+
 		case 'add.issue.assignee': {
 			const contributor = getState().contributors[event.payload.assignee];
 			return contributor
@@ -154,6 +170,8 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'add.field':
 		case 'create.tag':
 		case 'restore.tag':
+		case 'create.goal':
+		case 'rename.goal':
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'edit.title': {
@@ -231,6 +249,13 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 			return contributor ? contributor.name : '';
 		}
 
+		case 'add.issue.goal':
+		case 'remove.issue.goal':
+			return loggedGoalName(event.payload.goal);
+
+		case 'tombstone.goal':
+			return `"${loggedGoalName(event.payload.id)}"`;
+
 		case 'tombstone.tag': {
 			const tag = getState().tags[event.payload.id];
 			return tag ? `"${tag.name}"` : '';
@@ -242,6 +267,8 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		case 'add.field':
 		case 'create.tag':
 		case 'restore.tag':
+		case 'create.goal':
+		case 'rename.goal':
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'edit.title':

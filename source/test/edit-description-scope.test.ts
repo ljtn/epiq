@@ -14,7 +14,10 @@ vi.mock('../lib/utils/ticket.utils.js', () => ({
 	ticketAssigneesFromBreadCrumb: () => ({status: 'success', value: []}),
 	ticketTagsFromBreadCrumb: () => ({status: 'success', value: []}),
 }));
-vi.mock('../lib/state/state.js', () => ({getState: () => ({})}));
+vi.mock('../lib/state/state.js', async () => {
+	const {succeeded} = await import('../lib/model/result-types.js');
+	return {getState: () => ({}), getSafeState: () => succeeded('', {})};
+});
 
 const {getCmdModifiers} = await import(
 	'../lib/command-line/command-modifiers.js'

@@ -19,6 +19,9 @@ export type CardMetrics = {
 	// The title's line, which the controls beside it centre on.
 	titleLineHeight: number;
 	titleFontSize: number;
+	// The line under the title, which the goal's label stands as tall as: a
+	// tag chip's height on a wide card, so a goal or a tag never grows one.
+	metaLineHeight: number;
 	// The line the drop indicator draws between two cards, and its air.
 	dropMargin: string;
 };
@@ -31,6 +34,7 @@ export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 		gap: 12,
 		titleLineHeight: 16,
 		titleFontSize: 12,
+		metaLineHeight: 17,
 		dropMargin: '4px 8px 8px',
 	},
 	dense: {
@@ -40,6 +44,7 @@ export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 		gap: 4,
 		titleLineHeight: 15,
 		titleFontSize: 12,
+		metaLineHeight: 13,
 		dropMargin: '1px 8px 2px',
 	},
 };

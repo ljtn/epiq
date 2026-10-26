@@ -29,6 +29,13 @@ export type GuiMessage =
 			payload: {issueId: string; description: string};
 	  }
 	| {type: 'issue:tag:add'; payload: {issueId: string; tagName: string}}
+	| {
+			type: 'issue:goal:set';
+			payload: {issueId: string; goal: string | null};
+	  }
+	| {type: 'goal:create'; payload: {name: string; issueId?: string}}
+	| {type: 'goal:rename'; payload: {goalId: string; name: string}}
+	| {type: 'goal:remove'; payload: {goalId: string}}
 	| {type: 'issue:tag:remove'; payload: {issueId: string; tagId: string}}
 	| {
 			type: 'contributor:remove';
@@ -148,6 +155,10 @@ export type GuiMessage =
 	// ticket has come to, not what a zoomed window happens to hold.
 	| {type: 'diff-stats:get'}
 	| {type: 'swimlane:stats:get'; payload: {swimlaneId: string}}
+	| {
+			type: 'goal:stats:get';
+			payload: {goalId: string; key: string; asOfTime?: number};
+	  }
 	| {type: 'board:overview:get'; payload: {boardId: string}}
 	| {type: 'emails:get'}
 	| {
