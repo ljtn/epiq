@@ -1,9 +1,6 @@
 import {LaneFlow} from './swimlane-stats.model.js';
 
-// What a lane's traffic looks like, from the lane sequences its tickets have
-// been through. Sequences in, counts out: the caller derives the journeys from
-// whatever copy of the log it holds, so the GUI, the TUI and the MCP can each
-// answer this without one of them owning it.
+// A lane's traffic, from the lane sequences its tickets have been through.
 
 // A ticket filed straight into the lane arrived from nowhere, which is a
 // different fact from arriving from a lane and worth its own row.
@@ -27,13 +24,8 @@ const ranked = (
 		.sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
 
 /**
- * `journeys` is one lane sequence per ticket, oldest first, over every ticket
- * that has ever been in this lane or anywhere else — a lane's traffic is a
- * question about the tickets that have left it, and those are elsewhere now.
- *
- * A ticket can pass through the same lane more than once; each pass counts,
- * which is what makes a lane that things come back to look different from one
- * they go through once.
+ * `journeys`: one lane sequence per ticket, oldest first, over every ticket.
+ * Each pass through the lane counts.
  */
 export const deriveLaneFlow = (
 	swimlaneId: string,

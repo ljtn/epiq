@@ -19,11 +19,7 @@ const expandHome = (input: string): string =>
 		? path.join(os.homedir(), input.slice(1))
 		: input;
 
-/**
- * `:open 2` picks from the recent list; anything else is a path, taken from
- * the shell's point of view (relative to cwd, `~` expanded) and allowed to sit
- * inside the project rather than at its root.
- */
+/** `:open 2` picks from the recent list; anything else is a shell-style path. */
 export const resolveOpenTarget = (
 	arg: string,
 	recent: RecentProject[],
@@ -70,9 +66,7 @@ export const openProjectCommand = async (): Promise<Result<null>> => {
 	const root = targetResult.value;
 	const previousCwd = process.cwd();
 
-	// Everything downstream resolves the project from cwd, so switching means
-	// moving there. Undone if the project does not load, so a failed open
-	// leaves the screen describing the directory it still stands in.
+	// Downstream resolves the project from cwd, so move there; undone on failure.
 	try {
 		process.chdir(root);
 	} catch (error) {

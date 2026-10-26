@@ -98,9 +98,7 @@ export const DEFAULT_REPLAY_DURATION_MS = 15_000;
 // A bare integer is read as seconds; an `s`/`m` suffix selects seconds/minutes.
 const REPLAY_DURATION_FORMAT = /^(\d+)(s|m)?$/;
 
-// Parse a playback-duration token (e.g. `30s`, `2m`, `45`) into milliseconds.
-// Returns null for anything that is not a positive duration so callers can fall
-// back to the default and/or surface a hint.
+// A playback duration (`30s`, `2m`, `45`) in ms, or null if not a positive one.
 export const parseReplayDuration = (raw: string): number | null => {
 	const match = raw.trim().toLowerCase().match(REPLAY_DURATION_FORMAT);
 	if (!match) return null;
@@ -116,11 +114,8 @@ export type ReplayArgs = {
 	durationInput: string;
 };
 
-// Split `:replay` arguments into the `<when>` target and the optional trailing
-// duration. Offsets (e.g. `2y`) are captured as the `modifier`, so the whole
-// `inputString` is the duration. Absolute dates land in `inputString` and may
-// carry a space-separated time (`2024-01-01 12:30`), so the duration is only
-// peeled off when the last token actually looks like a duration.
+// Splits `:replay` arguments into target and optional trailing duration, peeled
+// off only when the last token looks like one, since a date may carry a time.
 export const parseReplayArgs = (
 	modifier: string,
 	inputString: string,
@@ -150,9 +145,7 @@ export const isDateWithinPeekHorizon = ({
 	return date.getTime() >= horizonDate.getTime();
 };
 
-// =========================================
 // Hints
-// =========================================
 
 type Unit = 'h' | 'd' | 'w' | 'mo' | 'y';
 

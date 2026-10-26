@@ -1,15 +1,10 @@
 // Following the log: which line, if any, the panel should open for itself.
-//
-// A pure decision rather than a branch inside the effect that runs it, because
-// every interesting case here is a case the panel cannot be put into on demand
-// — a burst arriving at once, the same ticket twice, a line that leads nowhere.
+// Pure, so the cases a panel can't be put into on demand are testable.
 
 import {LogEntry} from './event-log';
 import {destinationOf, LogDestination} from './log-destination';
 
-// The last line following saw. Null means it has not looked yet — enabling
-// seeds this without opening anything, so switching on is not a request to go
-// wherever the log happens to be standing.
+// The last line following saw. Null until it looks: enabling opens nothing.
 export type FollowMark = {line: string | null};
 
 export const NOT_FOLLOWING: FollowMark = {line: null};
@@ -30,17 +25,8 @@ export type FollowStep =
 	{open: null; mark: FollowMark} | {open: LogDestination; mark: FollowMark};
 
 /**
- * `entries` in the order the panel draws them, oldest first.
- *
- * `pinned` is the panel's own rule for whether the reader is watching the foot
- * or reading back through what is there. Following obeys it rather than adding
- * a second one: scrolled back, the pane already refuses to pull itself down,
- * and taking the board away would be the same interruption by another route.
- *
- * `at` is where the reader actually is, not where following last sent them.
- * Those differ the moment the reader clicks anything themselves, and following
- * must not go quiet on the ticket the log is talking about because it once
- * opened it and the reader has since walked off.
+ * `entries` oldest first. `pinned` is the pane's rule for whether the reader
+ * is at the foot; `at` is where the reader actually is now.
  */
 export const followStep = ({
 	entries,
@@ -55,23 +41,8 @@ export const followStep = ({
 	pinned: boolean;
 	at: LogDestination | null;
 }): FollowStep => {
-	// The first look after the switch is its own rule.
-	//
-	// It opens the newest line that leads anywhere, straight away, rather than
-	// banking the mark and waiting. A mode that announces itself by doing
-	// nothing cannot be told from one that is broken: the reader presses the
-	// button, the board sits still, and nothing says whether it is watching or
-	// wedged. The jump is the demonstration.
-	//
-	// Two differences from every look after it, both deliberate:
-	//
-	// - the search is unbounded, because there is no mark to stop at. That is
-	//   the case the bound below exists to prevent — falling back to an older
-	//   line — and here it is the point: the newest thing in the window is
-	//   exactly what the reader is being shown.
-	// - the pin does not apply. Every other move is refused while the reader is
-	//   reading back through the log, because an arrival is not their doing.
-	//   Pressing the button is.
+	// The first look opens the newest line that leads anywhere at once, ignoring
+	// the pin and the mark, so the reader sees following work.
 	const first = mark.line === null;
 
 	if (!first) {
@@ -79,18 +50,8 @@ export const followStep = ({
 		if (!pinned) return {open: null, mark};
 	}
 
-	// The newest line that leads anywhere, searched back only as far as the
-	// line already seen: a burst is one move rather than a walk through it, and
-	// the board- and swimlane-level lines it passes are skipped because they
-	// lead nowhere at all.
-	//
-	// Stopping at the mark is what keeps it honest. Unbounded, a burst that
-	// leads nowhere at all — a swimlane renamed, say — would fall back to some
-	// older line still in the window and open a ticket nothing had happened to.
-	//
-	// A reverse loop rather than a reversed copy and a map: the window can hold
-	// twenty thousand entries and this runs on every arrival, where the answer
-	// is almost always the last one.
+	// The newest line that leads anywhere, searched back only to the mark, so a
+	// burst leading nowhere never reopens an older ticket.
 	let target: LogDestination | null = null;
 
 	for (let index = entries.length - 1; index >= 0; index--) {
@@ -109,11 +70,7 @@ export const followStep = ({
 	// leave following waiting to be told about them again.
 	if (!target) return {open: null, mark: {line: newestId}};
 
-	// Already there. A run of edits on the open ticket would otherwise re-open
-	// it on every one — and this asks where the reader *is*, so it stops being
-	// true the moment they click away themselves. It holds on the first look
-	// too: switching on while already reading the newest thing should not be a
-	// navigation to where you are.
+	// Already there: no navigation.
 	if (at && sameDestination(at, target)) {
 		return {open: null, mark: {line: newestId}};
 	}

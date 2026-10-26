@@ -35,23 +35,14 @@ type Props = {
 	height: number;
 };
 
-// One nav node per row, the way InlineEditor does it for the event log: the
-// TUI's own up/down then scrolls the patch, and the cursor it leaves behind is
-// what a comment will later be anchored to.
+// One nav node per row, so up/down scrolls and the cursor anchors comments.
 const toRowNodeId = (sha: string, index: number) => `${sha}::patch::${index}`;
 
-/**
- * A patch line as the terminal may be handed it. The line is whatever the
- * commit's author put in the file, and a terminal obeys an escape sequence in
- * it — so control characters are shown as a mark, never passed through.
- */
+/** Control characters shown as a mark, so a patch can't drive the terminal. */
 const drawable = (text: string): string =>
 	expandTabs(text).replace(/[\x00-\x1f\x7f-\x9f]/g, '\ufffd');
 
-// No syntax highlighting: added, removed, context and the hunk header is what
-// a diff is, and a terminal says it in four colours without a grammar for
-// every language in the repo. `o` opens the commit in a real editor when the
-// code's own colours are what you want.
+// No syntax highlighting; `o` opens the commit in an editor.
 const rowColor = (kind: PatchRow['kind']): string => {
 	switch (kind) {
 		case 'added':
@@ -67,13 +58,8 @@ const rowColor = (kind: PatchRow['kind']): string => {
 	}
 };
 
-// Padded with a non-breaking space: ink trims a trailing ordinary one, and
-// the padding is there to carry a background colour to the edge.
-//
-// Measured in display columns, not characters, because that is what the text
-// beside it was cut to: a line of CJK or emoji is half as many characters as
-// it is columns wide, and padding by character count would push the row past
-// the pane and have ink wrap it onto a second terminal line.
+// Pads with a non-breaking space (ink trims ordinary ones), in display columns
+// so wide characters don't wrap the row.
 export const padTo = (text: string, width: number): string => {
 	const used = stringWidth(text);
 
@@ -87,17 +73,8 @@ const rowSign = (kind: PatchRow['kind']): string => {
 };
 
 /**
- * The row's line number in the *new* revision, and nothing for a removed line.
- *
- * Numbering each row on whichever side it belongs to reads as a column that
- * counts 1, 2, 3, 3, 5, 4 — two interleaved sequences that look like one
- * broken one. One side counts monotonically, and the `-` already says a
- * removed line is not in the new file.
- *
- * It is also the only number worth showing: a new-revision line number means
- * the same thing in every view of that revision, which is what lets a comment
- * be anchored to it. An old-side number is a position in whatever this diff
- * happened to be against.
+ * The new-revision line number, blank for removed lines: one monotonic column,
+ * and the number comments anchor to.
  */
 const rowNumber = (row: PatchRow): string => {
 	if (row.kind === 'file' || row.kind === 'hunk' || row.kind === 'note') {
@@ -144,10 +121,7 @@ export function CommitDiffUI({
 
 	const rows = load.state === 'loaded' ? load.rows : null;
 
-	// A patch is sized by what changed rather than by how big the files are, so
-	// the lockfile that defeats the GUI's blob-based check is usually a handful
-	// of rows here. A rewrite of one is not, and a node per row is what makes
-	// that expensive — so past the cap the editor takes it.
+	// Past the cap the editor takes it: a node per row gets expensive.
 	const tooLarge = rows !== null && rows.length > LARGE_DIFF_LINES;
 
 	const rowNodesRef = useRef<NavNode<'TEXT'>[]>([]);
@@ -166,9 +140,7 @@ export function CommitDiffUI({
 		};
 	}, [sha, rows, tooLarge]);
 
-	// The key handlers run outside React and need these same rows to work out
-	// what `c` selected. Cleared on the way out so a keystroke arriving after
-	// the pager closes finds nothing rather than the last patch read.
+	// For the key handlers outside React; cleared on close.
 	useEffect(() => {
 		setOpenPatch(rows ? {sha, rows} : null);
 		setDiffMark(null);
@@ -182,9 +154,7 @@ export function CommitDiffUI({
 	const {selectedIndex} = useAppState();
 	const {mark} = useDiffPagerState();
 
-	// Which rows already carry a comment. Derived from the ticket's own
-	// comments, which the board already holds — re-read on every render of the
-	// ticket so a comment written here shows against its line straight away.
+	// Rows already commented, re-derived each render so a new comment shows at once.
 	const commented = useMemo(
 		() =>
 			rows
@@ -220,17 +190,8 @@ export function CommitDiffUI({
 	const scrollHeight = Math.max(1, height - 4);
 
 	/**
-	 * Columns left for the line itself.
-	 *
-	 * Counted rather than estimated, because a row that overflows does not get
-	 * clipped — ink wraps it onto a second terminal line, and then every row is
-	 * two rows tall while `ScrollBoxUI` is being told each is one. The window it
-	 * computes is then wrong by however many rows happened to be long, which
-	 * reads as a pager that will not scroll to its own top.
-	 *
-	 * Spent on: the ticket pane's right padding, this row's own padding either
-	 * side, the gutter, the space and sign before the text, and the column the
-	 * scroll box keeps for its bar.
+	 * Columns left for the line, counted exactly: an overflowing row wraps and
+	 * breaks `ScrollBoxUI`'s one-row-per-line window.
 	 */
 	const textWidth = Math.max(8, width - gutterWidth - 6);
 
@@ -257,9 +218,7 @@ export function CommitDiffUI({
 			borderStyle="single"
 			paddingBottom={1}
 		>
-			{/* Truncated whole rather than by its parts: cutting the subject alone
-			    left the keys after it to overflow, and a header that wraps onto a
-			    second line steals a row from the patch on every narrow terminal. */}
+			{/* Truncated whole, so the header never wraps onto a second line. */}
 			<Text color={theme.secondary2} wrap="truncate-end">
 				{truncateToWidth(
 					`${sha.slice(0, 7)} ${subject} — ${note}`,
@@ -314,9 +273,7 @@ export function CommitDiffUI({
 					const isSelected = index === selectedIndex;
 					const color = rowColor(row.kind);
 
-					// A file reads as a bar across the pane rather than a chip around
-					// its name, which is the only thing that separates one file’s
-					// hunks from the next one’s while scrolling past.
+					// A file is a bar across the pane, separating its hunks from the next file's.
 					if (row.kind === 'file') {
 						return (
 							<Box key={toRowNodeId(sha, index)} paddingX={1}>
@@ -337,9 +294,7 @@ export function CommitDiffUI({
 
 					const marked = inRange(index);
 
-					// The margin rule takes the column that already sat between the
-					// number and the sign, so saying a line carries a comment costs
-					// the code none of its width.
+					// The comment rule takes the column between number and sign.
 					const body = `${rowSign(row.kind)}${truncateToWidth(
 						drawable(row.text),
 						textWidth,
@@ -365,10 +320,7 @@ export function CommitDiffUI({
 									{commented.has(index) ? '│' : ' '}
 								</Text>
 							</Box>
-							{/* Padded out on the row the cursor is on, so its highlight is a
-							    band across the pane rather than a stub around whatever the
-							    line happened to contain — a blank added line otherwise
-							    highlights two characters and looks like damage. */}
+							{/* Padded on the cursor row so its highlight spans the pane. */}
 							<Text
 								color={isSelected ? theme.accent : color}
 								backgroundColor={

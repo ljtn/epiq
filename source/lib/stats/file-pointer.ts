@@ -1,9 +1,4 @@
-// A file, addressed the way the Commits tab addresses one.
-//
-// Every path a stat names is somewhere a reader may want to go, and the
-// Commits tab opens a file by commit and path. The last of the ticket's
-// commits to touch a file is the one to open: it is the file as the ticket
-// left it, not as it was halfway through.
+// A file, as the Commits tab opens it: by the last ticket commit to touch it.
 
 import {FilePointer} from './issue-stats.model.js';
 import {FileChange} from './patch-scan.js';

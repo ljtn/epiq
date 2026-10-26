@@ -1,17 +1,9 @@
-// What a path is: which language, and which of the roles a repository gives
-// its files — test, generated, dependency manifest, build plumbing, prose.
-//
-// One table rather than one per question, because the questions overlap: a
-// `.ts` under `__tests__` is TypeScript *and* a test, and a `.json` named
-// `package-lock.json` is generated JSON nobody wrote. Every classifier here is
-// a convention, so each is wrong somewhere — which is why the stats they feed
-// are framed as questions to ask rather than verdicts to trust.
+// What a path is: its language, and its role (test, generated, manifest,
+// build, prose). Conventions only, so stats framed on them are prompts.
 
 export type CommentSyntax = {
 	line: string[];
-	// Open/close pairs. Python's docstring quotes sit here too: they are not
-	// comments to the parser, but they are prose to a reader, and counting
-	// them as code would call every documented module uncommented.
+	// Open/close pairs. Python docstrings count as prose too.
 	block: [string, string][];
 };
 
@@ -34,9 +26,7 @@ const language = (name: string, comment: CommentSyntax): LanguageSpec => ({
 const TYPESCRIPT = language('TypeScript', C_LIKE);
 const JAVASCRIPT = language('JavaScript', C_LIKE);
 
-// Keyed by lowercase extension. Deliberately finite: an extension nobody
-// listed lands in "Other" and still counts towards the totals, which is
-// better than guessing at its comment syntax and miscounting prose as code.
+// By lowercase extension; anything unlisted is "Other", never guessed at.
 const BY_EXTENSION: Record<string, LanguageSpec> = {
 	ts: TYPESCRIPT,
 	tsx: TYPESCRIPT,
@@ -130,12 +120,7 @@ const GENERATED_DIRECTORY =
 
 const GENERATED_FILE = /(\.min\.(js|css)|\.map|\.snap|\.pb\.go|_pb2\.py)$/;
 
-/**
- * Written by a tool, not by the ticket. Counted in the totals — the change is
- * real and a reviewer should know a lockfile moved — but kept out of every
- * ratio, since a regenerated lockfile would otherwise drown the numbers that
- * describe what somebody actually wrote.
- */
+/** Written by a tool: counted in totals but kept out of every ratio. */
 export const isGeneratedPath = (path: string): boolean =>
 	LOCKFILE.test(path) ||
 	GENERATED_DIRECTORY.test(path) ||
@@ -156,10 +141,7 @@ export const isBuildOrCiPath = (path: string): boolean =>
 export const isDocPath = (path: string): boolean =>
 	/\.(md|mdx|rst|txt)$/i.test(path) || /(^|\/)docs?\//i.test(path);
 
-// A test that was written and then switched off. `.only` is the sharper of
-// the two: it does not announce itself in a run's output the way a skip does,
-// it silently reduces the suite to one case, and it reaches main looking like
-// a passing build.
+// A test switched off; `.only` is the sneakier, silently shrinking the suite.
 const SKIPPED_TEST =
 	/\b(it|test|describe|context|suite)\.skip\b|\bx(it|describe|test)\s*\(|@pytest\.mark\.skip|@unittest\.skip|\bt\.Skip\s*\(|@(Ignore|Disabled)\b/;
 

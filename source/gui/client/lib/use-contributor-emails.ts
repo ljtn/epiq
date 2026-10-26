@@ -1,6 +1,5 @@
-// Which git addresses the board has bound to which contributors, and the one
-// state nothing else reports: an address two people claim, which resolves to
-// neither of them.
+// Which git addresses are bound to which contributors, including addresses two
+// people claim, which resolve to neither.
 
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {GuiIdentity} from './gui-state.model';
@@ -16,10 +15,7 @@ export type ContributorEmails = {
 	emails: EmailClaim[];
 	/** The addresses the viewer holds, so the panel can say which are theirs. */
 	mine: string[];
-	/**
-	 * This repository's own git address and what has become of it. Null where
-	 * git has none configured.
-	 */
+	/** This repository's git address and its state; null where none is set. */
 	git: {
 		email: string;
 		linkedToMe: boolean;
@@ -42,21 +38,13 @@ export type ContributorEmailsState = {
 	/** What this repository's history offers, for claiming without typing. */
 	candidates: EmailCandidate[];
 	/**
-	 * Why the history could not be read, when it could not. Distinct from an
-	 * empty list: with nothing linking itself, this list is the only way to
-	 * claim an address, so a failed scan must not read as nothing left to claim.
+	 * Why the history could not be read. Distinct from an empty list, which would
+	 * read as nothing left to claim.
 	 */
 	scanError: string | null;
-	/**
-	 * Why the last claim or unclaim failed, when it did. Only a failure: a claim
-	 * that worked shows in the list itself, and no other panel in this GUI
-	 * reports its own successes back.
-	 */
+	/** Why the last claim or unclaim failed; successes show in the list. */
 	lastError: string | null;
-	/**
-	 * Bumped when a claim or unclaim lands. The commit track is fetched from git
-	 * rather than derived from board state, so nothing else brings it back.
-	 */
+	/** Bumped when a claim lands, since the commit track is fetched from git. */
 	changed: number;
 };
 
@@ -76,11 +64,8 @@ export const useContributorEmails = ({
 		changed: 0,
 	});
 
-	// Whether a link or unlink of ours is in flight. `failed` is a broadcast for
-	// any mutation on any socket, so without this the panel reported somebody
-	// else's error as its own — and the one failure it must not miss, the
-	// read-only gate while scrubbing, is refused before it reaches the email
-	// handler and so never produces an `emails` reply to carry the reason.
+	// Whether our link or unlink is in flight, since `failed` is broadcast for any
+	// mutation on any socket.
 	const pending = useRef(false);
 
 	// Asked for when the panel opens and not polled: links change when somebody
@@ -93,9 +78,7 @@ export const useContributorEmails = ({
 	}, [open, sendRaw]);
 
 	const onMessage = useCallback((message: any) => {
-		// The server's guard on mutating messages answers `failed` — while
-		// scrubbing history, for instance. Ignoring it left the Link button doing
-		// nothing at all with nothing said.
+		// The server's mutation guard answers `failed`, e.g. while scrubbing.
 		if (message.type === 'failed') {
 			if (!pending.current) return;
 
@@ -123,8 +106,7 @@ export const useContributorEmails = ({
 
 		const value = getResultValue<ContributorEmails>(message.payload);
 
-		// A failed read is not an empty board. Without this the panel showed its
-		// cheerful "none linked yet" for what was actually an error.
+		// A failed read is not an empty board.
 		if (!value) {
 			setState(prev => ({
 				...prev,

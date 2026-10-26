@@ -1,6 +1,5 @@
-// Everything the inline editor spends on chrome rather than text: the ticket
-// pane's right padding, the box's left margin, its border, its left padding,
-// and the scrollbar column the scroll box reserves.
+// Columns the inline editor spends on chrome: padding, margin, border and the
+// scrollbar.
 const CHROME_WIDTH = 6;
 
 const MIN_GUTTER_WIDTH = 5;
@@ -25,20 +24,12 @@ const CHROME_ROWS = 5;
 // A field below the editor costs its own row plus the blank one above it.
 const FIELD_ROWS = 2;
 
-// The `››` rows are one menu rather than a list of fields, so they are drawn as
-// a block: one blank line above the first, then a row each. Spacing them like
-// fields cost four rows nobody was reading, which at 20 terminal rows was the
-// whole of the editor's budget — the pane then overflowed and the box closed
-// on an empty description.
+// The `››` rows are one menu: a blank line above, then a row each.
 const MENU_BLOCK_LEAD_ROWS = 1;
 
 /**
- * How many rows of text the box can draw. One row too many and the last of
- * them lands on the bottom border: the row list keeps the height it was given
- * while the box around it shrinks to the space that is left.
- *
- * `fieldCount` is the fields spaced like fields (Assignees, Tags); `menuCount`
- * the `››` rows below them.
+ * Rows of text the box can draw; one too many lands on the bottom border.
+ * `fieldCount` counts spaced fields, `menuCount` the `››` rows.
  */
 export const inlineEditorRowCount = (
 	height: number,

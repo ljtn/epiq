@@ -1,7 +1,5 @@
-// Joins the board side to the code side: which commits a ticket owns is a
-// question about refs and git history (getCommitsForRef), what those commits
-// say about the change is a question about patches (source/lib/stats). This
-// file is the seam, and the only place that knows about both.
+// Joins a ticket's commits (getCommitsForRef) to what their patches say
+// (source/lib/stats); the only place that knows both.
 
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {deriveIssueStats} from '../lib/stats/issue-stats.js';
@@ -15,11 +13,8 @@ import {
 	getCommitsForRefs,
 } from '../lib/commits/commits.js';
 
-// A ticket's shas never change what their patches contain, so the cache is
-// keyed by the shas themselves rather than aged out: a new commit on the
-// ticket is a new key, and the old entry falls off the end. Bounded because
-// walking a board would otherwise keep every ticket's scan alive for the
-// lifetime of the server.
+// Keyed by the shas, whose patches never change, so entries never go stale;
+// bounded so a walk over the board doesn't hold every scan.
 const CACHE_LIMIT = 32;
 
 const cache = new Map<string, IssueStats>();
@@ -69,9 +64,8 @@ const projectRoot = (repoRoot?: string): Result<string> => {
 	return isFail(result) ? failed(result.message) : result;
 };
 
-// Everything the answer depends on is in the key: this repo, what is measured,
-// the exact commits, and who they resolve to. Nothing here reads the working
-// tree or HEAD, so nothing can go stale underneath it.
+// The key holds everything the answer depends on; nothing reads the working
+// tree or HEAD.
 const statsOver = async (
 	repoRoot: string,
 	label: string,
@@ -98,9 +92,7 @@ export const getIssueStats = async (
 	const raw = input.idOrRef.trim();
 	if (!raw) return failed('idOrRef must not be empty');
 
-	// A full id is accepted for the same reason epiq_issue_get accepts one:
-	// callers hold ids, readers hold refs, and slicing by hand is the mistake
-	// the ref field exists to prevent.
+	// A full id is accepted too, like epiq_issue_get: callers hold ids.
 	const ref = raw.length > NODE_REF_LENGTH ? nodeRef(raw) : raw.toUpperCase();
 
 	const repoRoot = projectRoot(input.repoRoot);

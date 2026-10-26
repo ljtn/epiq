@@ -10,9 +10,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_TIME_BUCKETS = 60;
 const MAX_TIME_BUCKETS = 900;
 
-// Sub-linear on purpose, so bars thin out as you zoom out instead of silently
-// swallowing larger intervals. The coefficient and exponent are the curve
-// through two chosen anchors: ~220 buckets at 7 days, ~800 at 365.
+// Sub-linear, so bars thin out as you zoom out: ~220 buckets at 7 days, ~800 at 365.
 export const bucketCountForSpan = (spanMs: number): number => {
 	const days = Math.max(1, spanMs / DAY_MS);
 
@@ -44,9 +42,7 @@ export const buildAxis = (
 	// commit in the repository, and engines cap argument count.
 	const commitTimes = commits.map(c => c.time);
 
-	// The scope's own range, which the server returns as earliest/latest. Taking
-	// it from the data instead would draw a week's worth of events across a
-	// window labelled a month.
+	// The scope's own range, not the data's, so a month window spans a month.
 	const windowStart = timeline?.earliest ?? minOf(commitTimes, now);
 	const windowEnd = timeline?.latest ?? maxOf(commitTimes, now);
 
@@ -74,16 +70,10 @@ export const buildAxis = (
 	};
 };
 
-// Whether the axis describes a stretch of time a position can be read off. It
-// does not before the first window arrives: with no timeline and no commits,
-// earliest and latest are both `now`, the span floor of 1ms is all that is
-// left, and every fraction maps to the same instant — so a click anywhere
-// would read as a scrub to now.
+// False before the first window arrives, when every fraction maps to now.
 export const isScrubbable = (axis: ScrubberAxis): boolean => axis.span > 1;
 
-// Re-aggregated rather than rendering the server's buckets directly: those are
-// sparse, so using them as display slots gives every bar a different real
-// duration.
+// Re-aggregated, since the server's sparse buckets have uneven durations.
 export const bucketIssueCounts = (
 	axis: ScrubberAxis,
 	timeline: GuiEventTimeline | null,
@@ -93,10 +83,7 @@ export const bucketIssueCounts = (
 ): number[] => {
 	const counts = new Array<number>(axis.bucketCount).fill(0);
 
-	// Counted off the events where they exist, since only they carry the action,
-	// identity and ticket a filter needs. The buckets cannot be filtered — they
-	// arrive pre-summed across every kind — so past the server's cap the filter
-	// has nothing to act on and everything is counted.
+	// Only events can be filtered; past the server's cap, buckets count everything.
 	if (timeline && timeline.events.length > 0) {
 		for (const entry of timeline.events) {
 			if (!isShown(entry, view, hiddenIds, keptIssues)) continue;
@@ -123,9 +110,7 @@ export type CommitBucketStats = {
 	deletions: number;
 };
 
-// Must use the same buckets as the issue histogram, or the mirrored halves stop
-// lining up. Bucketing is by containment, never nearest-neighbour: a bucket's
-// contents have to be exactly what happened inside its own window.
+// Same buckets as the issue histogram, so the mirrored halves line up; by containment, never nearest.
 export const bucketCommitStats = (
 	axis: ScrubberAxis,
 	commits: readonly GuiCommitEntry[],
@@ -152,9 +137,7 @@ export const bucketCommitStats = (
 	return byIndex;
 };
 
-// A bar's height as a share of the track, on a log scale against the largest
-// bucket: the largest fills the track and nothing saturates, while one
-// regenerated lockfile still leaves an ordinary bucket clear of the axis.
+// A bar's height as a share of the track, log-scaled against the largest bucket.
 export const logShare = (value: number, max: number): number =>
 	value <= 0 ? 0 : Math.min(1, Math.log1p(value) / Math.log1p(max));
 

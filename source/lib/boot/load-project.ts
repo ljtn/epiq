@@ -33,9 +33,7 @@ import {failAt, formatUnknownError} from '../utils/logger.utils.js';
 const hasWorkspaceInit = (events: AppEvent[]): boolean =>
 	events.some(event => event.action === 'init.workspace');
 
-// The sync's own pull, so a board that was never pushed, local commits a push
-// never sent, and lines appended since the last commit are all handled the
-// way a sync handles them, rather than failing a fast-forward.
+// The sync's own pull, so an unpushed board or uncommitted lines don't fail a fast-forward.
 const pullStateBranch = async (
 	repoRoot: string,
 	stateBranchRoot: string,
@@ -67,15 +65,8 @@ let loadingProject = false;
 export const isLoadingProject = (): boolean => loadingProject;
 
 /**
- * Boots the app state from the project at `repoRoot`: ensures its state
- * worktree and materialises the event log. Shared by the initial TUI boot and
- * by `:open`, which switches into another project.
- *
- * The remote is not consulted when there is a local log to show: a pull is a
- * network round-trip, and nothing reaches the screen until this returns.
- * `refreshProjectFromRemote` catches up once the first frame is up. A project
- * with no local log pulls first, since booting it empty would draw the init
- * prompt over a board that already exists.
+ * Boots app state from the project at `repoRoot`, for the TUI and `:open`.
+ * Pulls first only when there is no local log; otherwise `refreshProjectFromRemote` catches up.
  */
 export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
 	loadingProject = true;
@@ -112,11 +103,8 @@ const loadProjectFrom = async (repoRoot: string): Promise<Result<void>> => {
 	if (isFail(eventsResult)) return failAt(3, eventsResult.message);
 
 	if (!hasWorkspaceInit(eventsResult.value.events)) {
-		// Under the lock, like every other pull: this one rebases the state
-		// worktree, and a rebase nobody has claimed the worktree for is a rebase
-		// another process is entitled to read as abandoned and unwind
-		// (`TATEM5B`). Held elsewhere, the boot goes on with the events already
-		// on disk — the same answer `refreshProjectFromRemote` gives.
+		// Under the lock: this pull rebases, and an unclaimed rebase may be unwound by
+		// another process. Held elsewhere, boot goes on with the local events.
 		const pullResult = await withSyncLock({
 			worktreeRoot: stateBranchRoot,
 			operation: 'boot pull',
@@ -155,10 +143,8 @@ const loadProjectFrom = async (repoRoot: string): Promise<Result<void>> => {
 	const recordResult = recordRecentProject({root: repoRoot});
 	if (isFail(recordResult)) logger.info(recordResult.message);
 
-	// Same for what ↑ offers: this project's own history, whether the app is
-	// booting into it or `:open` is moving to it from another. Hydrated even
-	// when the read failed — leaving the previous project's commands on ↑ is
-	// the cross-project leak the history is keyed by project to avoid.
+	// This project's own command history, hydrated even on a failed read so the
+	// previous project's commands never leak onto ↑.
 	const historyResult = readCommandHistory({root: repoRoot});
 	if (isFail(historyResult)) logger.info(historyResult.message);
 	hydrateCommandHistory(isFail(historyResult) ? [] : historyResult.value);
@@ -166,12 +152,7 @@ const loadProjectFrom = async (repoRoot: string): Promise<Result<void>> => {
 	return succeeded('Loaded project', undefined);
 };
 
-/**
- * The pull `loadProject` left out: brings the state branch up to date and
- * re-materialises the board only if that moved it, reporting through the sync
- * pill like any other sync. Taken under the sync lock, since a sync from
- * another process may be driving the same worktree.
- */
+/** Pulls the state branch under the sync lock and re-materialises only if it moved. */
 export const refreshProjectFromRemote = async (
 	repoRoot: string,
 ): Promise<Result<void>> => {

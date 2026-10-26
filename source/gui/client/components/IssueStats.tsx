@@ -26,13 +26,8 @@ import {IconArrowUpRight} from './IconArrowUpRight';
 import {IconButton, ICON_SIZE} from './IconButton';
 import {Stat, StatRow} from './StatRow';
 
-// What the ticket's own code says about itself, read as an answer to one
-// question: how hard should somebody look at this diff, and where.
-//
-// Two rules hold the page together. There is no score — a single number would
-// be gamed within a week and would hide which of its inputs moved. And every
-// path on the page is a link into that file's diff, so "22% of this change is
-// in one file" is somewhere to go rather than something to know.
+// What the ticket's code says about how hard to look at the diff, and where.
+// No single score, and every path links into that file's diff.
 
 const FileLink = ({
 	file,
@@ -45,9 +40,7 @@ const FileLink = ({
 }) => {
 	const label = children ?? shortPath(file.path);
 
-	// No sha means the scan never saw which commit last touched it, which
-	// leaves nothing to open — so it stays text rather than becoming a link
-	// that goes nowhere.
+	// No sha, nothing to open: plain text.
 	if (!onOpen || !file.sha) {
 		return <span title={file.path}>{label}</span>;
 	}
@@ -63,10 +56,7 @@ const FileLink = ({
 				padding: 0,
 				font: 'inherit',
 				color: 'inherit',
-				// Dotted rather than solid: at this size a solid rule reads as
-				// part of the text, and these sit among figures that are not
-				// links. Enough to say "this goes somewhere", quiet enough not to
-				// compete with the number above it.
+				// Dotted, so it reads as a link without competing with the figure.
 				textDecoration: 'underline dotted',
 				textDecorationColor: GUI_THEME.dim2,
 				textUnderlineOffset: 3,
@@ -107,20 +97,13 @@ const FileLinkIcon = ({
 		</IconButton>
 	) : null;
 
-// A note earns a line only when it has something to say. A page of zeroes
-// reads as a checklist somebody has to work through; three lines read as
-// three things to look at.
+// A note shows only when it has something to say.
 const Note = ({when, children}: {when: boolean; children: React.ReactNode}) =>
 	when ? <div style={LINE}>{children}</div> : null;
 
 /**
- * The other half of a ticket: not what the code says, but what the board has
- * done with it. A ticket can be old because it is hard or because nobody
- * looked at it, and the third figure — how long it has sat where it is now —
- * is what separates the two.
- *
- * Its own component because it is the one section that still means something
- * for a ticket with no code at all. That is, in fact, when it means most.
+ * What the board has done with the ticket; how long it has sat where it is
+ * tells hard from neglected. Meaningful even with no code.
  */
 const BoardSection = ({
 	boardStats,
@@ -177,9 +160,7 @@ export const IssueStats = ({
 
 	const {shape, languages, tests, comments, flags} = stats;
 
-	// No code yet is not nothing to say: how long a ticket has been open, and
-	// how long it has sat where it is, is the whole story of one that has not
-	// been started.
+	// With no code, the board's figures are the whole story.
 	if (shape.commits === 0) {
 		return (
 			<div style={{fontSize: TEXT.ui}}>
@@ -209,9 +190,7 @@ export const IssueStats = ({
 
 	return (
 		<div style={{fontSize: TEXT.ui}}>
-			{/* First: what the board has done with a ticket is the frame the
-			    code is read in — whether this change is a week old and still
-			    moving, or has been sent back twice already. */}
+			{/* First: the board's history frames how the code is read. */}
 			<BoardSection boardStats={boardStats} across={across} first />
 			{activity}
 
@@ -240,9 +219,7 @@ export const IssueStats = ({
 							)
 						}
 					/>
-					{/* Off the commits, not off the board: who is assigned a ticket
-					    and who actually wrote its code are different questions, and
-					    this is the second one. */}
+					{/* From the commits: who wrote the code, not who is assigned. */}
 					<Stat
 						value={String(shape.authors.length)}
 						label={shape.authors.length === 1 ? 'Author' : 'Authors'}
@@ -338,21 +315,11 @@ export const IssueStats = ({
 			</Section>
 
 			<Section title="Comments">
-				{/* One bar, for the language the ticket is mostly written in, with
-				    the repository's own share marked on it. A bar per language
-				    turned three true numbers into a wall of stripes, and the
-				    comparison — this change against this codebase — is the only
-				    reading of a comment share worth anything. */}
+				{/* One bar for the ticket's main language, with the repository's share marked. */}
 				{leadComments && (
 					<ProportionBar
 						value={leadComments.share}
-						// Yellow for the prose, blue for the code it explains — the
-						// very value the diff paints a comment with, so the bar and the
-						// file agree about which is which. Brighter than a categorical
-						// slot is allowed to be, which is the right call for two
-						// segments that are named underneath and separated by a gap:
-						// what binds here is separation from the blue (ΔE 37.7 under
-						// protanopia) and contrast against the panel, and both pass.
+						// The diff's own comment colour; separation from the blue holds under protanopia.
 						color={COMMENT_YELLOW}
 						restColor={seriesColor(0)}
 						label={`${percent(leadComments.share)} of the ${

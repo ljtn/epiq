@@ -1,13 +1,5 @@
-// The log in a window of its own. The window is a mirror, not a second client:
-// the board goes on slicing the log exactly as it does for the panel beside it
-// and posts each slice across, and the window draws it and posts back the
-// clicks. So the two can never disagree about what is in the window — the
-// board's filters, its checkout and its playhead all reach the popped log
-// through the one slice the panel would have been handed.
-//
-// Two ends, one protocol: `useLogWindow` is the board's side, `useLogMirror`
-// the window's, and `parseLogWindowMessage` is the only reader of what
-// arrives — a message is untrusted data until it has been through it.
+// The log in a window of its own: a mirror, drawing the slices the board posts
+// and posting back clicks. `parseLogWindowMessage` is the only reader of input.
 
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {LogEntry} from './event-log';
@@ -20,9 +12,7 @@ export const LOG_WINDOW_PATH = '/log';
 const LOG_WINDOW_NAME = 'epiq-log';
 const LOG_WINDOW_FEATURES = 'popup=yes,width=520,height=760';
 
-// Sent by the board. `followedLine` is which row to mark: following is decided
-// on the board's side for both panels, so the window is told the answer rather
-// than working one out of its own.
+// Sent by the board. `followedLine` is decided board-side for both panels.
 export type LogLinesMessage = {
 	type: 'epiq-log:lines';
 	entries: LogEntry[];
@@ -33,9 +23,7 @@ export type LogLinesMessage = {
 	eventsUnlisted: boolean;
 };
 
-// Sent by the window. `pinned` is the one thing the board cannot see for
-// itself — whether this pane is at its foot — and following needs it, so it
-// comes back across the same channel a click does.
+// Sent by the window. `pinned` is whether this pane is at its foot.
 export type LogWindowMessage =
 	| {type: 'epiq-log:ready'}
 	| {type: 'epiq-log:open'; destination: LogDestination; replace: boolean}
@@ -85,9 +73,7 @@ export const parseLogWindowMessage = (
 	}
 };
 
-// What the board said, or null. The entries are taken as they come: they are
-// the board's own rows, from the same origin, and checking four hundred of
-// them field by field on every slice would cost more than it guards.
+// Entries are trusted as the board's own rows from the same origin.
 export const parseLogLinesMessage = (data: unknown): LogLinesMessage | null =>
 	isRecord(data) &&
 	data['type'] === 'epiq-log:lines' &&
@@ -226,9 +212,8 @@ export const useLogWindow = ({
 	return {poppedOut: target !== null && open, popOut};
 };
 
-// The window's end: what the board has sent so far, and the way to answer.
-// Null lines until the first slice lands — and for good when there is no
-// board, which is what opening the route by hand gets.
+// The window's end. Null lines until the first slice, and for good without a
+// board.
 export const useLogMirror = (): {
 	lines: {
 		entries: LogEntry[];

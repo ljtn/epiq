@@ -48,10 +48,8 @@ type RemoveIssueAssigneeInput = ToolInput & {
 };
 
 /**
- * Takes a board identity for the rest of this process. The actor is resolved
- * per write from the environment, so setting it here reaches the very next
- * event — no relaunch. A name given at launch wins: `applyActorNameArgument`
- * refuses to rename a process that was already told who it is.
+ * Takes a board identity for the rest of this process, from the next event on.
+ * A name given at launch wins.
  */
 export const assumeActor = async (
 	input: ToolInput & {name: string},
@@ -71,9 +69,7 @@ export const assumeActor = async (
 
 	const actor = ready.value.actor;
 
-	// Registered here rather than left to the first write, because the log file
-	// name is a lossy storage key — `claude/peter` sanitizes to `claude-peter`
-	// — and the registry is where display names are read from.
+	// Registered now: the log file name is a lossy key, and names come from the registry.
 	const isRegistered = Boolean(ready.value.state.contributors[actor.userId]);
 
 	if (!isRegistered) {
@@ -109,17 +105,12 @@ export const assumeActor = async (
 	});
 };
 
-// Reads actors, not decoded events: the actor comes off the file name, so an
-// event this build cannot decode still proves its author wrote something. Going
-// through the decoded log instead would let an unreadable schema version make
-// somebody look unauthored, and the guard below would clear their removal.
+// Reads actors off file names, so an undecodable event still proves authorship.
 const findEventLogAuthor = async (
 	stateBranchRoot: string,
 	userId: string,
 ): Promise<{id: string; name: string} | undefined> => {
-	// `loadActorNames` has already dropped UNNAMED_ACTOR, which matters here:
-	// the caller writes what comes back into a `create.contributor`, so
-	// returning it would register somebody under it permanently.
+	// `loadActorNames` has already dropped UNNAMED_ACTOR, so it is never registered.
 	const name = loadActorNames(stateBranchRoot).get(userId);
 
 	return name === undefined ? undefined : {id: userId, name};
@@ -139,9 +130,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	if (targetId) {
 		const registered = ready.value.state.contributors[targetId];
 
-		// A contributor node is only written when somebody is explicitly created
-		// or assigned, so an author who was never assigned is absent from the
-		// registry. Register them under the id they already author with.
+		// An author never assigned is absent from the registry; register them under their id.
 		const authored = registered
 			? undefined
 			: await findEventLogAuthor(ready.value.boot.stateBranchRoot, targetId);
@@ -193,10 +182,8 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	);
 	if (overLongName) return failed(overLongName);
 
-	// The same union a picker offers, so a name typed here matches what the
-	// person saw offered. The registry alone reports log-only authors as
-	// unknown, and an unmatched name is one `createUnlinked` away from a
-	// duplicate id for somebody who already has one.
+	// The same union a picker offers; the registry alone misses log-only authors,
+	// and an unmatched name mints a duplicate id.
 	const matches = contributorDirectory({
 		events: ready.value.state.eventLog ?? [],
 		registry: ready.value.state.contributors,
@@ -267,9 +254,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	});
 };
 
-// Tombstone, not deletion: the id and every reference to it survive, so only
-// the display name stops rendering. Refused for anyone who has authored an
-// event, since the log names them throughout and is never rewritten.
+// Tombstone, not deletion; refused for anyone who has authored an event.
 export const tombstoneContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
@@ -333,9 +318,7 @@ const findCreatedContributorName = async (
 	return name;
 };
 
-// The removal guard only sees the log this machine has pulled, so somebody
-// whose events have not arrived yet can be cleared by mistake. This makes that
-// reversible rather than forcing a network round-trip inside a read path.
+// Undoes a removal made before somebody's events had been pulled.
 export const restoreContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
@@ -404,10 +387,7 @@ export const getBoardContributors = async (
 		? filterEventsForBoard(eventsResult.value, input.boardId)
 		: eventsResult.value;
 
-	// Unfiltered, unlike the directory's `isExternal`: removal is refused for
-	// anyone who has authored anywhere, so this must read the same actors that
-	// guard does — off the file names, including events this build cannot
-	// decode.
+	// Unfiltered, matching the removal guard: actors off file names.
 	const workspaceAuthorIds = new Set<string>();
 
 	const actorsResult = loadEventActors(ready.value.boot.stateBranchRoot);

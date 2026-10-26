@@ -42,9 +42,7 @@ const canonical = (dir: string): string => {
 const byMostRecent = (a: RecentProject, b: RecentProject) =>
 	b.lastOpenedAt - a.lastOpenedAt;
 
-// An entry is only worth offering while its directory still hosts the project
-// it was recorded for. A re-initialised directory carries a new id and gets
-// its own entry the next time it boots.
+// Live while its directory still hosts the project it was recorded for.
 const isLive = (entry: RecentProject): boolean => {
 	if (!hasLocalProjectFile(entry.root)) return false;
 
@@ -129,11 +127,7 @@ export const listRecentProjects = ({exclude}: {exclude?: string} = {}): Result<
 	);
 };
 
-/**
- * Upserts `root` as the most recently opened project. The registry is a
- * convenience, so a corrupt file is replaced rather than allowed to block the
- * boot that is recording into it.
- */
+/** Upserts `root` as the most recent project; a corrupt registry is replaced, never blocking boot. */
 export const recordRecentProject = ({
 	root,
 	now = Date.now(),

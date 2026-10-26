@@ -1,10 +1,5 @@
-// A lane's own numbers: when it was opened, what its traffic looks like, and
-// what the code on the tickets standing in it adds up to.
-//
-// The traffic half reads the materialized state, like `getIssueHistory` does,
-// so it stays correct mid-scrub. The code half goes to git through
-// `getIssueStats`, which is why the whole thing is fetched on a click rather
-// than ridden along on the board broadcast.
+// A lane's own numbers: when it opened, its traffic, and its tickets' code.
+// Fetched on a click, as the code half goes to git.
 
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
 import {isTicketNode} from '../../lib/model/context.model.js';
@@ -25,10 +20,7 @@ import {nodeRef} from '../../lib/utils/node-ref.js';
 import {getIssueStats} from '../epiq-issue-stats.js';
 import {getStateResult} from './boot.js';
 
-// A lane can hold a great many tickets, and each one measured is a walk over
-// its patches. Past this the code figures say what they saw and stop, which is
-// a slow panel avoided rather than a number missed: the flow figures above
-// them are the point of the panel and cost no git at all.
+// Caps how many tickets' code is measured; the flow figures cost no git.
 const CODE_TICKET_LIMIT = 40;
 
 // Long enough for a slope to be a slope rather than a wobble, short enough that
@@ -51,9 +43,7 @@ const codeForLane = async (
 	for (const id of ticketIds.slice(0, CODE_TICKET_LIMIT)) {
 		const stats = await getIssueStats({repoRoot, idOrRef: nodeRef(id)});
 
-		// A ticket with no commits is not a failure, and neither is one whose
-		// scan could not run — either way the lane's total is over what could
-		// be measured, and one unreadable ticket must not lose the rest.
+		// No commits or a failed scan skips the ticket without losing the rest.
 		if (isFail(stats) || stats.value.shape.commits === 0) continue;
 
 		code.tickets++;
@@ -79,9 +69,7 @@ export const getSwimlaneStats = async (input: {
 
 	const tickets = Object.values(nodes).filter(isTicketNode);
 
-	// Every ticket on the workspace, not just the ones standing here: a lane's
-	// traffic is mostly a fact about tickets that have already left it, and so
-	// is what its stay looked like a month ago.
+	// Every ticket: a lane's traffic is mostly tickets that have left it.
 	const journeys = tickets.map(ticket =>
 		laneVisits(ticket.log ?? [], ulidTimeMs(ticket.id)),
 	);

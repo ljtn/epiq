@@ -72,10 +72,7 @@ const failAt = (step: number, message: string) =>
 	failed(`[${step}] ${message}`);
 
 /**
- * Turns a git repository into an epiq project: the state branch and its
- * worktree, the default board written to the user's event log, and
- * `.epiq/project.json` committed on the user's branch. Every interface — the
- * TUI's `:init`, the MCP's `epiq_project_init` — runs this; nothing else may
+ * Turns a git repo into an epiq project, for every interface. Nothing else may
  * commit or push in the user's repository.
  */
 export const initProject = async ({
@@ -133,9 +130,7 @@ export const initProject = async ({
 	}
 
 	// 6. create state branch (or fail if state branch already exists)
-	// A branch needs a commit to point at, so a repo with none gets one here —
-	// the only place epiq may write a commit in the user's own repository, and
-	// only because they asked for it by running init.
+	// A branch needs a commit, so an empty repo gets one here.
 	const initialCommitResult = await ensureInitialCommit(repoRoot);
 	if (isFail(initialCommitResult)) {
 		return failAt(6, initialCommitResult.message);
@@ -155,10 +150,7 @@ export const initProject = async ({
 		return failAt(6, `State branch already exists: ${stateBranch}`);
 	}
 
-	// A fresh clone has no local state branch and no project file, which is
-	// exactly the checkout that used to mint a second id for a board that
-	// already existed on origin (JQS9XDR). The branch there is the project:
-	// adopt its identity when it carries one, and refuse when it does not.
+	// A fresh clone of an existing project adopts origin's identity, never mints one.
 	const remoteBranchResult = await hasRemoteStateBranch({
 		repoRoot,
 		stateBranch,
@@ -212,11 +204,7 @@ export const initProject = async ({
 		if (isFail(persistResult)) return failAt(9, persistResult.message);
 	}
 
-	// Those appends went to the pending log, which is untracked by design and
-	// ignored outright — so there would be nothing to stage, and the first
-	// commit of a new project would fail with "nothing added to commit". Folded
-	// in here for the same reason a sync folds them in: this is the moment the
-	// tracked log is about to be handed to git.
+	// Fold the pending log in, or the first commit has nothing to stage.
 	const ownEventFileName = getPersistFileName({userId});
 
 	const flushResult = flushPendingLogs(stateBranchRoot, ownEventFileName);
@@ -256,8 +244,6 @@ export const initProject = async ({
 	}
 
 	// 11. ensure local-only paths are ignored.
-	// .epiq/events is no longer used as storage, but keeping it ignored is harmless
-	// for legacy directories and avoids accidental commits.
 	const ignoreResult = await ensureLocalEpiqIgnored(repoRoot);
 	if (isFail(ignoreResult)) {
 		return failAt(11, ignoreResult.message);
@@ -322,9 +308,7 @@ export const initProject = async ({
 	});
 };
 
-// Whether origin already has the state branch: a repository that is already an
-// epiq project, seen from a clone that does not know it yet. Offline, or with
-// no remote at all, the answer is no, and init proceeds as a first init.
+// Whether origin already has the state branch, i.e. this clone joins an existing project.
 const hasRemoteStateBranch = async ({
 	repoRoot,
 	stateBranch,
@@ -349,11 +333,8 @@ const hasRemoteStateBranch = async ({
 };
 
 /**
- * Makes this clone a checkout of the project origin already holds: the
- * identity comes off the state branch, is written and committed as
- * `.epiq/project.json` here, and the worktree is set up as a boot would set
- * it up. A branch that carries no identity — written before branches did —
- * cannot say which id it is, and the person is pointed at a checkout that can.
+ * Makes this clone a checkout of origin's project, committing the branch's
+ * identity as `.epiq/project.json`. A branch without one is refused.
  */
 const adoptRemoteProject = async ({
 	repoRoot,

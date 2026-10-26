@@ -17,9 +17,7 @@ vi.mock('../lib/state/state.js', async () => {
 	return {getState: () => state, getSafeState: () => succeeded('', state)};
 });
 
-// A machine that has answered every setup step, including the claiming one —
-// otherwise `getAvailableBaseCommands` returns from its unfinished-setup branch
-// and every assertion below passes without reaching the `:open` gate at all.
+// Setup fully answered, or `getAvailableBaseCommands` never reaches the `:open` gate.
 vi.mock('../lib/state/settings.state.js', () => ({
 	getSettingsState: () => ({
 		preferredEditor: 'vim',
@@ -37,10 +35,8 @@ vi.mock('../lib/project-setup/project-setup.js', async importOriginal => {
 
 	return {
 		...actual,
-		// Only this directory's id. The `:open` completions read genuine project
-		// files out of temp directories and key them by their own ids, so every
-		// other path has to go through untouched — faking them all collapsed two
-		// recent projects into one.
+		// Only this directory's id; the `:open` completions read real project
+		// files, which must pass through.
 		readProjectId: vi.fn((root: string) =>
 			root === process.cwd()
 				? succeeded('Read', 'BOARD')
@@ -51,15 +47,8 @@ vi.mock('../lib/project-setup/project-setup.js', async importOriginal => {
 
 let initialized = false;
 
-// Whether *this directory* is a project, faked where both readers start rather
-// than at `setup-utils`' own export: `getUserSetupStatus` calls its
-// module-local `isRepositoryInitialized`, which a spread-over-actual mock never
-// replaces. The suite passed regardless while the gate read a flag this file's
-// settings mock left undefined, since `undefined !== null` answered it.
-//
-// Only the call about the current directory is faked. The `:open` completions
-// read real project files out of real temp directories, passing their own
-// paths, and those must go through untouched.
+// Faked in `paths`, since `setup-utils` calls its own module-local reader. Only
+// the current directory: `:open` completions read real temp projects.
 vi.mock('../lib/storage/paths.js', async importOriginal => {
 	const actual = await importOriginal<
 		typeof import('../lib/storage/paths.js')
@@ -141,12 +130,8 @@ describe(':open availability', () => {
 	it('is not offered inside a project', () => {
 		initialized = true;
 
-		// Exactly empty, not merely lacking `:open`. Each branch of
-		// `getAvailableBaseCommands` returns a different list — unfinished setup
-		// gives `[help, config]`, no project gives `[help, init, open]` — and a
-		// bare `not.toContain` passes on all three, which is how this read the
-		// unfinished-setup list for a while without saying so. Empty is what the
-		// last branch gives for a state with no breadcrumb and no selection.
+		// Exactly empty: each branch returns a different list, and
+		// `not.toContain` would pass on all of them.
 		expect(getCmdModifiers(CmdKeywords.NONE)).toEqual([]);
 	});
 

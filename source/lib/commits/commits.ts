@@ -1,11 +1,6 @@
-// The code's commits, and what they changed — one front door, so a caller asks
-// `lib/commits` rather than picking a file out of it.
-//
-// Commits come from the board's own repo and from every repo connected to the
-// board, read from epiq's clones of them. Every read here is a pure
-// read, independent of the board and of any time-travel checkout, which is
-// what lets the TUI, the GUI server and the MCP tools all answer from the same
-// code. Only `fetchCommitRepos` touches the network, and only sync calls it.
+// The code's commits and what they changed: one front door to `lib/commits`.
+// Reads are pure and ignore time travel; only `fetchCommitRepos` (from sync)
+// touches the network.
 
 export {
 	isPlausibleSha,

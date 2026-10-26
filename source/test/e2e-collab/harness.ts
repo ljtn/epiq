@@ -17,28 +17,10 @@ const STATE_BRANCH = 'epiq/state';
 const ACTOR_ENTRY = fileURLToPath(new URL('./actor.ts', import.meta.url));
 
 /**
- * The actor, bundled, and plain `node` to run it.
- *
- * An actor is a process per action — the app's state is a module singleton, so
- * it has to be — and under `tsx` each of those re-transpiled the 211 modules
- * behind `actor.ts` before doing anything: 0.5s of boot against 0.03s for a
- * bundle, and this suite spawns them in the hundreds.
- *
- * Built here rather than committed or cached, once per worker process and from
- * whatever the sources say right now, so there is no stale artifact to run by
- * mistake. It lands under `node_modules` because that is what resolves the
- * externals (`--packages=external` leaves them as imports) and because it is
- * the one writable place in the collab container, which mounts the checkout
- * read-only.
+ * The actor, bundled once per worker for fast spawns, run with plain `node`.
+ * Under `node_modules`, which resolves externals and is writable in the container.
  */
-/**
- * Clears out bundles left by processes that are gone.
- *
- * A worker is not always shut down politely enough to run an exit hook, so
- * the tidying is done on the way in instead: anything named for a pid that no
- * longer answers is nobody's. `kill(pid, 0)` sends no signal — it asks whether
- * the process is there, and a permissions error is still a yes.
- */
+/** Removes bundles named for a pid that no longer answers `kill(pid, 0)`. */
 const sweepDeadBundles = (dir: string): void => {
 	for (const name of fs.readdirSync(dir)) {
 		const pid = /^epiq-collab-actor\.(\d+)\./.exec(name)?.[1];
@@ -55,12 +37,7 @@ const sweepDeadBundles = (dir: string): void => {
 };
 
 const buildActor = (): string => {
-	// One per evaluation of this module, because vitest runs several workers and
-	// each of them loads it: a shared output path would have them writing the
-	// same file at the same moment, and a spawn could catch it half written. The
-	// pid alone would do under the forks pool and not under threads, where every
-	// worker shares one — hence the id beside it. The pid is still in the name,
-	// because it is what says whose file this is when it comes to sweeping.
+	// One per module evaluation, since threads share a pid; the pid is kept for sweeping.
 	const out = fileURLToPath(
 		new URL(
 			`../../../node_modules/.cache/epiq-collab-actor.${
@@ -79,10 +56,7 @@ const buildActor = (): string => {
 		platform: 'node',
 		format: 'esm',
 		target: 'node18',
-		// This is the suite whose failures are hardest to read — an actor that
-		// dies reports its stderr and nothing else — and without this a stack
-		// names a five-digit line in a generated file rather than the source it
-		// came from. The spawns below run with `--enable-source-maps` to use it.
+		// For readable stacks; spawns run with `--enable-source-maps`.
 		sourcemap: 'inline',
 		outfile: out,
 	});
@@ -213,14 +187,8 @@ export const startCollaboration = async ({
 };
 
 /**
- * A second tool on the same machine: the same clone, the same state worktree,
- * a different identity. That is a GUI beside an MCP server beside a TUI —
- * several processes appending to one events directory — as opposed to
- * `startCollaboration`, whose actors are separate machines.
- *
- * The identity comes from `EPIQ_USER_NAME`, so it must be derived the way
- * `resolveEnvActor` derives it or the two would disagree about which log file
- * is this actor's own.
+ * A second tool on the same machine: same clone and worktree, another identity,
+ * derived as `resolveEnvActor` derives it from `EPIQ_USER_NAME`.
  */
 export const sameMachineTool = (host: Actor, name: string): Actor => ({
 	name,
@@ -296,36 +264,10 @@ export const runActor = async (
 	return JSON.parse(fs.readFileSync(reportPath, 'utf8')) as ActorReport;
 };
 
+/** Starts an actor and kills it partway through, without waiting for a report. */
 /**
- * Starts an actor and kills it partway through, without waiting for a report.
- *
- * A sync that dies mid-git is not exotic: the 10s cap on every git call
- * SIGTERMs a slow fetch, an agent session ends, a laptop sleeps. What it
- * leaves behind — a stopped rebase, a stash nobody popped — is what the next
- * process has to cope with.
- */
-/**
- * Runs an actor and SIGKILLs it a given distance *into its sync*.
- *
- * Measured from the sync rather than from the spawn, and the actor says when
- * that is (`syncStartedPath`). Counting from the spawn counted the boot as
- * well: a kill aimed at 900ms against a 340ms sync and a 30ms boot landed after
- * the sync had finished, so the process died with nothing half-done and the
- * recovery this test is named for went untested while the test passed.
- *
- * It aims at the sync and not at the rebase inside it, deliberately. Ana has
- * one commit of her own to replay and that replay lasts single digits of
- * milliseconds — measured in the container, a poll every 2ms catches it about
- * half the time, and no delay lands inside it reliably. What a kill in that
- * window leaves behind is covered instead by `sync-recovery.test.ts`, which
- * builds the state directly rather than racing for it. What this test is for is
- * the part that cannot be built directly: a real process, killed while it is
- * genuinely working, and a board that still converges afterwards.
- *
- * The kill goes to the process group, so the `git` the actor spawned dies with
- * it rather than being orphaned to finish the work. `diedMidSync` reports
- * whether the premise held: the sync had started, and the actor never reached
- * the end of its run.
+ * SIGKILLs an actor's process group a given delay after its sync starts
+ * (`syncStartedPath`). `diedMidSync` reports whether the kill landed inside it.
  */
 export const runActorAndKill = async (
 	actor: Actor,
@@ -370,9 +312,7 @@ export const runActorAndKill = async (
 			},
 		);
 
-		// Polled rather than watched: watching for a file that does not exist yet
-		// means watching its directory and filtering, for something that appears
-		// within a few hundred milliseconds either way.
+		// Polled: the file appears within a few hundred milliseconds.
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const poll = setInterval(() => {
 			if (!fs.existsSync(syncStartedPath)) return;
@@ -407,12 +347,8 @@ export const cleanUp = ({dirs}: Collaboration): void => {
 };
 
 /**
- * Where this actor's state worktree lives. Resolved the way the app resolves
- * it — the committed project id under the actor's own global dir — rather than
- * by importing `getStateBranchRoot`, which reads `EPIQ_GLOBAL_DIR` off *this*
- * process and so would answer for the wrong machine.
- *
- * Only exists after the actor has synced at least once.
+ * The actor's state worktree, under its own global dir (`getStateBranchRoot`
+ * would read this process's). Exists only after its first sync.
  */
 export const stateBranchRootFor = (actor: Actor): string => {
 	const project = JSON.parse(
@@ -448,14 +384,7 @@ export const idsInOwnLog = (actor: Actor): string[] => {
 		});
 };
 
-/**
- * Appends bytes to an actor's own log without going through `persist`.
- *
- * This is the whole point of the hostile suite: a peer's log is arbitrary
- * bytes that arrive over git, and nothing on the read path gets to assume a
- * well-behaved writer produced them. `raw` is written verbatim, so a caller
- * can leave off the trailing newline to reproduce a half-written line.
- */
+/** Appends `raw` verbatim to an actor's own log, bypassing `persist`. */
 export const appendRawToOwnLog = (
 	actor: Actor,
 	fileName: string,

@@ -168,23 +168,17 @@ type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 // on every render.
 const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
-// The board's page margin: the gap before the first column and after the last.
-// One number for both, read by <main>'s padding and by the spacer that ends the
-// row, so the two edges cannot drift apart.
+// The board's page margin, shared by <main>'s padding and the row's end spacer.
 const BOARD_GUTTER = 4;
 
 // A settings card's count, beside a title that already says what is counted.
 const countOrNone = (count: number) => (count === 0 ? 'None' : String(count));
 
-// How long the board has to be quiet before an open log asks for the window
-// again. A state broadcast is not a rare thing — a needle drag makes one every
-// 120ms and a bulk action one per ticket — and each refetch is a full replay of
-// the event log plus a `git log`, so a burst has to cost one ask, not one each.
+// Quiet time before an open log refetches its window: each refetch replays the
+// whole log, and a needle drag broadcasts every 120ms.
 const LOG_REFRESH_QUIET_MS = 400;
 
-// Remembered beside the scrubber's own view flags, which is what their controls
-// sit among. The two series live here rather than in the scrubber because the
-// log is drawn from them and is not the scrubber's to draw.
+// Stored beside the scrubber's view flags; the series live here because the log draws from them.
 const LOG_STORAGE_KEY = 'epiq.timeScrubber.showLog';
 const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
 const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
@@ -221,9 +215,7 @@ const ticketInPath = (pathname: string) =>
 export const App = () => {
 	const {boardId} = useParams<{boardId: string}>();
 
-	// Read off the path rather than from route params: one route element serves
-	// every board path, so selecting a ticket cannot swap the element and
-	// remount the board.
+	// Read off the path: one route element serves every board path, so a ticket switch never remounts the board.
 	const issueMatch = useMatch('/board/:boardId/issue/:issueId');
 	// Legacy form without the /issue/ segment, so old links keep working.
 	const legacyIssueMatch = useMatch('/board/:boardId/:issueId');
@@ -233,10 +225,7 @@ export const App = () => {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [selection, changeSelection] = useBoardSelection();
 
-	// The connection is opened here, before anything that sends on it, and is
-	// handed a trampoline rather than the handler itself: the handler is written
-	// further down, where the state it sets is declared, and everything between
-	// the two still gets to use `send`.
+	// Opened before anything sends on it; the trampoline reaches the handler declared further down.
 	const socketMessageRef = useRef<
 		(message: any, socket: BoardSocketActions) => void
 	>(() => {});
@@ -258,9 +247,7 @@ export const App = () => {
 		msg: 'idle',
 	});
 	const [state, setState] = useState<GuiState | null>(null);
-	// Set only when the server says there is nothing to load here — no epiq
-	// project at or above its root. Distinct from `state === null`, which just
-	// means the first broadcast has not arrived yet.
+	// The server found no project; `state === null` only means no broadcast yet.
 	const [noProject, setNoProject] = useState<{
 		message: string;
 		repoRoot: string;
@@ -278,9 +265,7 @@ export const App = () => {
 		commits: GuiCommitEntry[];
 	}>({requestId: 0, timeline: null, commits: []});
 	const [historyBuffer] = useState(() => createHistoryBuffer(setHistory));
-	// The movie on screen, or null for no player. Held rather than derived from
-	// the timeline: the window is re-fetched while the board changes underneath
-	// it, and a plan that changed halfway would be a different film.
+	// The movie on screen, or null. Held, not derived: the timeline is refetched while it plays.
 	const [theatre, setTheatre] = useState<TheatrePlan | null>(null);
 	// Bumped per answered time-travel request. The player's clock waits on it
 	// rather than stacking a checkout on one the server has not answered yet.
@@ -303,9 +288,7 @@ export const App = () => {
 		SHOW_COMMITS_STORAGE_KEY,
 		true,
 	);
-	// Off from the start: a new board has no tickets for a commit to be linked
-	// to, and a chart that opens empty beside a history reads as broken.
-	// Persisted, so this decides the first run and nothing else.
+	// Off by default: a new board has no tickets to link commits to.
 	const [linkedCommitsOnly, setLinkedCommitsOnly] = usePersistedFlag(
 		LINKED_COMMITS_STORAGE_KEY,
 		false,
@@ -317,14 +300,10 @@ export const App = () => {
 		files: GuiCommitDiffFile[] | null;
 		body?: string;
 	} | null>(null);
-	// Tracks the resizable Aside's live width so DiffPanel can pick split vs.
-	// unified — initialized from the same persisted value Aside itself reads,
-	// so the first render already picks the right layout instead of flashing.
+	// The Aside's live width, for DiffPanel's split vs. unified choice; seeded from its persisted value.
 	const [commitDiffPanelWidth, setCommitDiffPanelWidth] =
 		useState(readStoredAsideWidth);
-	// Which edge every panel attaches to. Owned here rather than inside
-	// `Aside`, because the row below turns into a column for a bottom dock and
-	// a component cannot style its own parent.
+	// Owned here: a bottom dock turns the row below into a column.
 	const [asideDock, setAsideDock] = useAsideDock();
 	const [removeError, setRemoveError] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
@@ -340,11 +319,7 @@ export const App = () => {
 		swimlaneId: string;
 		title: string;
 	} | null>(null);
-	// Which column edge the dragged swimlane would land on. Held as an edge
-	// rather than an index so each column can draw its own line without needing
-	// to know its position in the row.
-	// Lifted here because the Log lives in the details pane and the scatter it
-	// points at is drawn above the board.
+	// Lifted here: the Log is in the details pane and its scatter above the board.
 	const [hoveredLogEventId, setHoveredLogEventId] = useState<string | null>(
 		null,
 	);
@@ -354,23 +329,14 @@ export const App = () => {
 	} | null>(null);
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
-	// Set right before an issues:create request that came from "File ticket"
-	// on a diff selection, consumed by that request's own issues:create:result
-	// reply — that's how the origin ticket's back-comment knows which creation
-	// to react to.
+	// Set before an issues:create from "File ticket" on a diff, consumed by its own reply.
 	const pendingFileTicketOrigin = useRef<{
 		originIssueId: string;
 		originRef: string;
 	} | null>(null);
 
-	// The board a creation was asked for from, kept until its own reply. One
-	// socket outlives a board switch, so a reply can arrive after the reader has
-	// moved on — and opening the new ticket would then drag them off the board
-	// they are looking at, to a ticket another board holds.
-	//
-	// Written by `createIssueOn` rather than at each call site: there are two
-	// ways to file a ticket and a reply that cannot say which board it belongs
-	// to is not obviously wrong, so the one that forgets is not caught.
+	// The board a creation was asked from, kept until its reply: one socket
+	// outlives a board switch. Written only by `createIssueOn`.
 	const pendingCreateBoard = useRef<string | undefined>(undefined);
 
 	const tabParam = searchParams.get('tab');
@@ -378,9 +344,7 @@ export const App = () => {
 		tabParam === 'comments' || tabParam === 'code' || tabParam === 'stats'
 			? tabParam
 			: 'overview';
-	// The one comment a link points at, where it points at one: the comments
-	// tab scrolls to it and marks it. Off the URL like the rest, so the link
-	// survives a reload.
+	// The comment a link points at, scrolled to and marked; off the URL so it survives a reload.
 	const focusedCommentId = searchParams.get('comment');
 	// Where a followed comment permalink points, if any. Read straight off the
 	// URL so the deep link survives a reload rather than living in state.
@@ -388,10 +352,7 @@ export const App = () => {
 		readDiffLocationParams(searchParams) ?? readCommitFocusParam(searchParams);
 	const navigate = useNavigate();
 
-	// Route params carry shorthand refs (full ids in old links still resolve).
-	// `boards` is optional-chained too: a repo with no epiq project yet sends a
-	// state with no boards at all, and indexing straight into it throws during
-	// render, unmounting the app to a white page.
+	// Route params carry shorthand refs. `boards` may be missing before a project exists.
 	const selectedBoard =
 		(state && boardId ? findBoard(state, boardId) : null) ??
 		state?.boards?.[0] ??
@@ -406,12 +367,7 @@ export const App = () => {
 	const selectedBoardIdRef = useRef<string | null>(selectedBoardId);
 	selectedBoardIdRef.current = selectedBoardId;
 
-	// Same reasoning as selectedBoardIdRef, for navigate: it is not guaranteed
-	// referentially stable across renders, and having it in the socket effect's
-	// deps meant every call to navigate() — including a same-board ticket
-	// switch — tore the whole connection down and reopened it. Reading it from
-	// a ref lets the effect drop that dependency and stay mounted across a
-	// plain ticket switch.
+	// A ref, so the socket effect need not depend on navigate and reconnect on every ticket switch.
 	const navigateRef = useRef(navigate);
 	navigateRef.current = navigate;
 
@@ -464,9 +420,7 @@ export const App = () => {
 		void navigate(`/board/${boardSlug}`);
 	};
 
-	// The lane whose panel is open, if any, and on which tab. Not in the URL like
-	// the open ticket: it is a glance at a column rather than a place on the
-	// board worth linking somebody to.
+	// The open lane panel and its tab; not in the URL, it is not worth linking to.
 	const [detailsSwimlaneId, setDetailsSwimlaneId] = useState<string | null>(
 		null,
 	);
@@ -480,9 +434,7 @@ export const App = () => {
 
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
 
-	// The board's state carries no descriptions, comment bodies or commits —
-	// they are most of a ticket's weight and nothing on the board draws them.
-	// Fetched, and kept up to date, for the one ticket whose details are open.
+	// Descriptions, comment bodies and commits, fetched for the one open ticket.
 	const {
 		detail: issueDetail,
 		commits: issueCommits,
@@ -519,9 +471,7 @@ export const App = () => {
 
 	const [managingGoals, setManagingGoals] = useState(false);
 
-	// The bar beside a card's ref. Repository-wide and asked for once, not per
-	// card and not on the board's own state: a commit is not an event the log
-	// knows about.
+	// The bar beside a card's ref, fetched once for the repository.
 	const {stats: refDiffStats, onMessage: onRefDiffStatsMessage} =
 		useRefDiffStats({
 			socketEpoch,
@@ -550,10 +500,7 @@ export const App = () => {
 		open: settingsOpen,
 		sendRaw,
 	});
-	// The other two things the panel answers for: what this machine has been
-	// asked to do on its own, and what the viewer has done here. Both fetched
-	// on opening it, and the totals again after a claim — which is what moves
-	// the commit figure without the board changing at all.
+	// Sync settings and personal totals, fetched when the panel opens; totals again after a claim.
 	const syncSettings = useSyncSettings({open: settingsOpen, sendRaw});
 	const updateInfo = useUpdateInfo({socketEpoch, sendRaw});
 	// The other repos whose commits count as the board's.
@@ -575,12 +522,8 @@ export const App = () => {
 		sendRaw,
 	});
 
-	// The one view that costs a git scan of every commit a ticket owns, so it
-	// is asked for when it is opened rather than with the rest of the ticket.
-	//
-	// Keyed on the ticket's newest sha as well as its id: a commit landing on
-	// the ticket while the tab is open makes the numbers on screen wrong, and
-	// nothing else would ask again.
+	// Fetched on opening the tab, as it scans every commit. Keyed on the newest
+	// sha too, so a commit landing while it is open refetches.
 	const statsSignature =
 		issueCommits?.issueId === selectedIssue?.id
 			? issueCommits?.commits[0]?.sha ?? ''
@@ -592,30 +535,22 @@ export const App = () => {
 		loadIssueStats(selectedIssue.id, statsSignature);
 	}, [selectedTab, selectedIssue?.id, statsSignature, loadIssueStats]);
 
-	// Which of the Code tab's two views the reader last chose. Remembered
-	// rather than reset per ticket: it is a way of reading, not a fact about
-	// any one ticket.
+	// The Code tab's last chosen view, kept across tickets.
 	const [compactedDiffStored, setCompactedDiffStored] = usePersistedFlag(
 		COMPACTED_DIFF_STORAGE_KEY,
 		false,
 	);
 
-	// The route wins where it names a view; where it names none the reader's
-	// own last choice stands, so following one link does not re-set how every
-	// ticket opens from then on. Same bargain the board's own axes strike.
+	// A view named in the route wins without overwriting the reader's own choice.
 	const linkedDiffView = readDiffViewParam(searchParams);
 	const compactedDiffPreferred = linkedDiffView
 		? linkedDiffView === 'flat'
 		: compactedDiffStored;
 
-	// A deep link points at a line of one commit, which the compacted view has
-	// no way to show — so following one holds the tab on the commits, without
-	// forgetting what the reader chose.
+	// A commit deep link holds the tab on the commits, which compacted cannot show.
 	const compactedDiff = compactedDiffPreferred && !diffFocus;
 
-	// Both, so the switch is at once a link somebody can copy and a habit this
-	// browser keeps. Replaced rather than pushed: flipping a view is not a
-	// place to come back to, and the tab change beside it does the same.
+	// Both URL and stored preference; replaced rather than pushed.
 	const chooseDiffView = (next: boolean) => {
 		setCompactedDiffStored(next);
 		setSearchParams(
@@ -629,19 +564,12 @@ export const App = () => {
 		);
 	};
 
-	// A link is only as good as the address bar it was copied from, so opening
-	// the tab writes the view down rather than waiting for the switch to be
-	// touched — otherwise the ordinary way a link gets made, read a ticket and
-	// copy the URL, still sends one that lands wherever the reader was last.
-	// What gets written is their own choice, not the one a commit deep link is
-	// currently forcing, so the link carries what was meant.
+	// Writes the reader's chosen view into the URL on opening the tab, so a copied
+	// link lands on it.
 	useEffect(() => {
 		if (selectedTab !== 'code' || !selectedIssue) return;
 		if (readDiffViewParam(searchParams)) return;
-		// While a commit link holds the tab on the commits, the reader cannot
-		// choose a view — the switch is disabled — so there is no choice of
-		// theirs to write down. Writing one anyway would put a view in the
-		// address bar that the sender never saw and could not have picked.
+		// The switch is disabled under a commit link, so there is no choice to write.
 		if (diffFocus) return;
 
 		setSearchParams(
@@ -664,9 +592,7 @@ export const App = () => {
 	// Costs the same git walk the stats do, and on the same signature, so it is
 	// asked for when the view is opened rather than with the ticket.
 	useEffect(() => {
-		// An empty signature is a ticket with no commits, or one whose commit
-		// list has not landed yet. Either way there is nothing to compact, and
-		// the effect runs again when the list arrives and the signature changes.
+		// An empty signature means no commits yet; the effect reruns when they land.
 		if (selectedTab !== 'code' || !compactedDiff || !selectedIssue) return;
 		if (!statsSignature) return;
 
@@ -679,9 +605,7 @@ export const App = () => {
 		loadIssueSquashedDiff,
 	]);
 
-	// The board's own half of the Stats tab, derived here because this is where
-	// the lanes are: "backwards" is a fact about their order, and the panel
-	// below is handed the answer rather than the board to work it out from.
+	// The board's half of the Stats tab, derived here where the lane order is known.
 	const boardStats = useMemo(() => {
 		if (!selectedIssue || !state) return null;
 
@@ -720,9 +644,7 @@ export const App = () => {
 		[selectedIssue?.id, issueDetail, issueCommits],
 	);
 
-	// Typed into the box beside the board switcher; hides cards whose ref and
-	// title both miss it. Not part of the URL selection: it is a passing
-	// narrowing, not a view worth linking to.
+	// The text box beside the board switcher; not in the URL.
 	const [textFilter, setTextFilter] = useState('');
 	// One entry per narrowed axis, and empty while nothing is narrowed. Every
 	// axis has to pass, so a tag and an assignee ask one question together.
@@ -731,11 +653,8 @@ export const App = () => {
 		[selection.only],
 	);
 
-	// Who caused an event on each ticket, for the axis the board state cannot
-	// answer. Null past the server's cap, which leaves that axis unenforced
-	// rather than emptying the board — and null while nobody is narrowing by it,
-	// which is nearly always: this walks the whole window, and a needle drag
-	// broadcasts a new one several times a second.
+	// Who caused an event on each ticket. Null past the server's cap, and while
+	// no one narrows by actor, since this walks the whole window.
 	const narrowsByActor = selection.only.actor !== undefined;
 	const eventActorIds = useMemo(
 		() => (narrowsByActor ? actorIdsByIssue(history.timeline) : null),
@@ -744,13 +663,8 @@ export const App = () => {
 
 	const zoomed = selection.zoom !== null;
 
-	// The tickets the scrubber's window has an event for, once the board has
-	// been narrowed to them. Null while it has not, and where the window is one
-	// the server answered with counts alone.
-	//
-	// The period test is the same one that greys the box: a narrowing left on
-	// from a period the user has since left must not go on hiding tickets from
-	// under a control that can no longer be pressed.
+	// Tickets with an event in the scrubber's window, or null when not narrowed or
+	// the window is counts only. Same period test that greys the box.
 	const windowIds = useMemo(
 		() =>
 			selection.windowOnly && isPeriodWindow(selection.scope, zoomed)
@@ -759,24 +673,16 @@ export const App = () => {
 		[selection.windowOnly, selection.scope, zoomed, history.timeline],
 	);
 
-	// The board narrows to the ticket as well as the chart, so its card can be
-	// watched crossing the lanes on its own while the needle is dragged. Only
-	// while one is actually open: the box can be left ticked by a link.
+	// Narrows the board to the open ticket too; only while one is actually open.
 	const isolatedIssueId =
 		selection.ticketOnly && selectedIssue ? selectedIssue.id : null;
 
-	// The tag every card is narrowed to, if the tag axis is narrowed to exactly
-	// one: its chips read as pressed, and pressing again is the way back. Read
-	// off that axis alone, so a chip stays lit while the board is also narrowed
-	// by assignee or by who touched it.
+	// The tag the tag axis is narrowed to, if exactly one: its chips read as pressed.
 	const tagOnly = narrowedIds(selection.only.tag);
 	const isolatedTagId = tagOnly?.length === 1 ? tagOnly[0] ?? null : null;
 
-	// Narrowing to a chip points the chart at tags as well, without asking it
-	// to: with the tag axis the only one on, that is what the chart draws. A
-	// chip is a "show me this tag" gesture, and the picture above answering it
-	// in the tag's own colour is the half the board cannot show. Pressing the
-	// lit one again lets go of the tag and switches its axis off.
+	// Narrowing to a chip also points the chart at tags; pressing the lit one again
+	// lets go and turns the axis off.
 	const filterByTag = (tagId: string) =>
 		changeSelection({
 			only: withNarrowing(
@@ -786,9 +692,7 @@ export const App = () => {
 			),
 		});
 
-	// The board narrowed to one goal from its pill; pressing it again lets go.
-	// Only while it is one of this board's goals: a removed one, or another
-	// board's, would leave no pill to let go of it with.
+	// The goal the board is narrowed to, only while it is still one of this board's.
 	const isolatedGoalId =
 		selection.goal &&
 		selectedBoard?.goals.some(goal => goal.id === selection.goal)
@@ -885,9 +789,7 @@ export const App = () => {
 		[state?.boards, selectedBoardId],
 	);
 
-	// What the flow layout draws from: this board's lanes as the columns stand,
-	// every lane's title, and each ticket's ref, title and assignee for the
-	// line under the pointer and its colour.
+	// What the flow layout draws from.
 	const boardLanes = useMemo(
 		() => (selectedBoard?.swimlanes ?? []).map(({id, title}) => ({id, title})),
 		[selectedBoard],
@@ -923,9 +825,7 @@ export const App = () => {
 		[state?.boards],
 	);
 
-	// The tickets the text query keeps, for the chart and the log: they plot
-	// what the columns show. Null while there is no query, so nothing above
-	// walks a set that would keep everything.
+	// The tickets the text query keeps, or null with no query.
 	const queryIssueIds = useMemo(() => {
 		const query = textFilter.trim();
 		if (!query || !selectedBoard) return null;
@@ -939,9 +839,7 @@ export const App = () => {
 		);
 	}, [selectedBoard, textFilter]);
 
-	// Memoized, and returning the lanes untouched when nothing is filtered:
-	// rebuilding every swimlane object each render would hand SwimlaneColumn a
-	// new identity every time and undo its memoization.
+	// Returns the lanes untouched when nothing is filtered, keeping SwimlaneColumn's memo.
 	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
 		const swimlanes = selectedBoard?.swimlanes ?? [];
 		const query = textFilter.trim();
@@ -996,9 +894,7 @@ export const App = () => {
 	]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 
-	// Every frame the board's connection delivers, and what it means. The
-	// connection itself — opening, losing, retrying, sending — is
-	// `useBoardSocket`'s; this is only the reading of what arrives on it.
+	// Reads every frame; the connection itself is `useBoardSocket`'s.
 	const onSocketMessage = (message: any, socket: BoardSocketActions) => {
 		// Not exclusive: `commit:diff:result` is also read below, for the diff the
 		// scrubber's own commit dot opens.
@@ -1032,10 +928,7 @@ export const App = () => {
 			}
 		}
 
-		// Keyed off this request's own reply, never a broadcast: a broadcast
-		// fires for every creation on the board, including other people's,
-		// and navigating on one yanked every connected client to whichever
-		// ticket happened to be created next.
+		// Keyed off this request's own reply: a broadcast fires for everyone's creations.
 		if (message.type === 'issues:create:result') {
 			const origin = pendingFileTicketOrigin.current;
 			pendingFileTicketOrigin.current = null;
@@ -1045,15 +938,8 @@ export const App = () => {
 			const askedFrom = pendingCreateBoard.current;
 			pendingCreateBoard.current = undefined;
 
-			// `boardSlug`, not the route's own param: it falls back to the board
-			// on screen, which is known as soon as state arrives, while the param
-			// is empty until the redirect off `/` commits. A ticket filed in that
-			// window was created and never opened.
-			//
-			// And only while that is still the board the creation was asked for
-			// from: the ticket belongs to the board it was filed on, so opening it
-			// over a board the reader has since moved to would take them away from
-			// it, to somebody else's column.
+			// `boardSlug`, not the route param, which is empty until the redirect off `/`.
+			// Only opened while the reader is still on the board it was filed from.
 			if (created && boardSlug && answersBoardOnScreen(askedFrom, boardSlug)) {
 				void navigateRef.current(
 					`/board/${boardSlug}/issue/${nodeRef(created.id)}?tab=overview`,
@@ -1081,9 +967,7 @@ export const App = () => {
 			if (created) void navigateRef.current(`/board/${created.ref}`);
 		}
 
-		// A refused mutation is otherwise invisible: the optimistic update is
-		// simply undone by the state that follows, which reads as the board
-		// ignoring the action.
+		// Otherwise a refused mutation just looks ignored.
 		if (message.type === 'failed') {
 			setActionError(
 				typeof message.payload === 'string'
@@ -1147,9 +1031,7 @@ export const App = () => {
 
 		if (message.type === 'contributors') {
 			const next = getResultValue<GuiContributor[]>(message.payload);
-			// The list is board-scoped and the answer is slow, so a board switch
-			// can outrun it. The socket no longer dies on that switch, which is
-			// what used to drop the stale answer on the floor.
+			// A board switch can outrun this slow, board-scoped answer.
 			if (
 				next &&
 				answersBoardOnScreen(message.boardId, selectedBoardIdRef.current)
@@ -1166,10 +1048,7 @@ export const App = () => {
 		}
 
 		if (message.type === 'commit:diff:result') {
-			// Wrapped with the sha it was requested for: the scrubber's dot and
-			// the ticket tab's commit list can each have a different commit's
-			// diff in flight at once, and a failed Result alone carries no sha
-			// to attribute the failure to.
+			// Wrapped with its sha: two diffs can be in flight at once.
 			const {sha, result} = message.payload as {
 				sha: string;
 				result: {status: string; message: string; value?: GuiCommitDiff};
@@ -1319,10 +1198,8 @@ export const App = () => {
 		setBoardDetailsOpen(open => !open);
 	};
 
-	// Every ref that resolves to a real ticket, across every board — a ref
-	// mentioned in one ticket's comments routinely belongs to another. Only
-	// these are linkified: a ref's 7-character shape is indistinguishable from
-	// an ordinary uppercase word, so resolving is what makes it safe.
+	// Refs that resolve to a real ticket on any board; only these are linkified,
+	// since a ref looks like any uppercase word.
 	const knownTicketRefs = useMemo(
 		() => new Set(issueIdByRef.keys()),
 		[issueIdByRef],
@@ -1340,23 +1217,15 @@ export const App = () => {
 		[knownTicketRefs, boardSlug, navigate],
 	);
 
-	// Opening a ticket at a named tab, as against `selectIssue`, which carries
-	// whichever tab is already open. Used wherever the thing being followed says
-	// which view it belongs in — a comment reference, a log line.
-	// `board` names which one to open it on, for the project-wide search, whose
-	// hit need not be on the board being looked at. Everything else means the
-	// one already on screen.
+	// Opens a ticket at a named tab, on `board` if given (project-wide search),
+	// else the board on screen.
 	const openIssueTab = (
 		nextIssueId: string,
 		tab: IssueDetailsTab,
 		board = boardSlug,
-		// Which of the Code tab's two views to land on, where the thing being
-		// followed means one of them. Left out everywhere else, so the reader's
-		// own last choice stands.
+		// The Code tab view to land on; omitted to keep the reader's choice.
 		diffView?: DiffViewName,
-		// Standing in the reader's history rather than adding to it, for a move
-		// the reader did not make: following the log replaces, everything else
-		// pushes, because everything else was asked for.
+		// Replace for moves the reader did not make (following the log).
 		replace = false,
 		// The one comment to land on, where the thing being followed names one.
 		comment?: string,
@@ -1395,10 +1264,7 @@ export const App = () => {
 	const selectIssueCode = (nextIssueId: string) =>
 		selectCardTab(nextIssueId, 'code');
 
-	// A log line goes where the thing it names is read: a commit to its diff, a
-	// comment among the comments, anything else to the ticket's overview. Which
-	// of those it is was decided in lib/log-destination and travelled here on
-	// the row.
+	// Goes where lib/log-destination decided: a diff, the comments or the overview.
 	const openLogDestination = (
 		destination: LogDestination,
 		options?: {replace?: boolean},
@@ -1418,9 +1284,7 @@ export const App = () => {
 		);
 	};
 
-	// Following a file from the Stats tab into its diff. Pushed, not replaced:
-	// this is a navigation the reader should be able to come back from, and
-	// coming back means landing on the stats they clicked from.
+	// Pushed, so back returns to the stats.
 	const openStatsFile = (file: {sha: string; path: string}) => {
 		setSearchParams(prev => {
 			const next = new URLSearchParams(prev);
@@ -1436,15 +1300,9 @@ export const App = () => {
 			prev => {
 				const next = new URLSearchParams(prev);
 				next.set('tab', nextTab);
-				// A deep link belongs to the Code tab it points into; leaving it
-				// on the URL after a deliberate tab change would drag the reader
-				// back to it the moment they returned.
+				// A deep link belongs to the Code tab and is dropped on leaving it.
 				clearDiffLocationParams(next);
-				// The view a link named goes with it. It is a pin on one visit to
-				// one tab, not a setting: keeping it would have a link somebody
-				// followed once quietly decide how the Code tab opens for the rest
-				// of the session, and would hang it off URLs copied from the other
-				// tabs, which have no view to name.
+				// A linked view is for that one visit, not a setting.
 				clearDiffViewParam(next);
 				return next;
 			},
@@ -1452,10 +1310,7 @@ export const App = () => {
 		);
 	};
 
-	// Following a comment's file/line reference: the location goes in the URL
-	// rather than into state, so the resulting view survives a reload and can
-	// be handed to someone else. Pushed, not replaced — this is a navigation
-	// the reader should be able to come back from.
+	// The location goes in the URL, so it survives a reload and can be shared. Pushed.
 	const openDiffLocation = (location: DiffLocation) => {
 		// Another ticket's diff: go to that ticket's Code tab at the spot.
 		if (location.issueRef && location.issueRef !== selectedIssue?.ref) {
@@ -1544,12 +1399,8 @@ export const App = () => {
 		onSeek: scrubToTime,
 	});
 
-	// Bumped when the board has changed in a way that means the scrubber's window
-	// has to be asked for again. A number rather than the state itself, because
-	// the scrubber re-fetches on this value *changing*: handing it null while a
-	// movie plays would itself be a change, and would fetch a window anchored to
-	// now — later than the one the movie was planned from, so the log would lose
-	// the very lines the playhead is narrating.
+	// Bumped when the scrubber's window must be refetched. A counter, not state:
+	// passing null mid-movie would refetch a window anchored to now.
 	const [historyTick, setHistoryTick] = useState(0);
 
 	useEffect(() => {
@@ -1571,14 +1422,8 @@ export const App = () => {
 		return () => window.clearTimeout(timer);
 	}, [state, theatre, selection.windowOnly, logOpen]);
 
-	// Claiming an address decides who every commit by it belongs to, and the
-	// commit track is fetched from git rather than derived from board state — so
-	// nothing above brings it back. Without this the panel says the link landed
-	// while the chart and the log go on naming the old author until something
-	// else happens to refetch.
-	//
-	// Not gated on the log being open: the scrubber's own dots and their
-	// tooltips carry the same names.
+	// A claim changes commit authorship, and the commit track comes from git, not
+	// board state, so refetch it.
 	useEffect(() => {
 		if (theatre) return;
 		if (contributorEmails.changed === 0) return;
@@ -1595,9 +1440,7 @@ export const App = () => {
 		setHistoryTick(tick => tick + 1);
 	}, [repos.changed, theatre]);
 
-	// Where the reader is, for the log's own following: a destination in the
-	// same shape a log line resolves to, so the two are compared rather than
-	// following remembering where it last sent anybody.
+	// Where the reader is, in the same shape a log line resolves to.
 	const readerAt: LogDestination | null = commitDiff
 		? {kind: 'commit', sha: commitDiff.sha}
 		: selectedIssue
@@ -1638,27 +1481,17 @@ export const App = () => {
 		timeTravel: state?.timeTravel,
 	});
 
-	// The same slice, mirrored to a window of its own while one is up — in
-	// which case the panel is not drawn here.
-	// Whichever panel is up reports whether it is at its foot: the docked one
-	// directly, the popped-out one across the window boundary. The follow reads
-	// one value either way and does not care which panel answered.
+	// Whether the log panel, docked or popped out, is at its foot.
 	const [logPinned, setLogPinned] = useState(true);
 
-	// One definition, read twice: if these two ever drifted, `useFollowLog`
-	// could hold following true while `useFollowedLine` bailed, which is the
-	// lit-and-inert state both of them exist to prevent.
+	// One definition for both hooks, so they never disagree.
 	const boardIsLive =
 		connected && state?.timeTravel?.mode !== 'scrub' && !theatre;
 
 	const {following, setFollowing} = useFollowLog({
-		// The panel may be beside the board or in a window of its own; either
-		// draws the log and reports its foot, and the follow runs here for both.
-		// Only a log that is shut has nothing to follow.
+		// Docked or popped out, the follow runs here; only a shut log has nothing to follow.
 		logOpen,
-		// A checkout and a movie both stand somewhere other than the present, and
-		// each already drives the board. Offline nothing arrives — and the control
-		// is disabled then, so a reader left following could not switch it off.
+		// Not live during a checkout, a movie or offline.
 		live: boardIsLive,
 		onOpenLog: () => setLogOpen(true),
 	});
@@ -1684,27 +1517,18 @@ export const App = () => {
 		onPinnedChange: setLogPinned,
 	});
 
-	// A movie is checked out one frame at a time over the socket, so a dropped
-	// one leaves the player running against nothing. It closes rather than
-	// stalling; the board is already parked wherever the last frame landed, and
-	// the reconnect brings the way back with it.
+	// A dropped socket closes the movie: its frames come over the socket.
 	useEffect(() => {
 		if (!connected) setTheatre(null);
 	}, [connected]);
 
-	// Both requests carry the same id so their replies can be paired, and replies
-	// to an abandoned request discarded.
-	// Returns the id the reply will carry, so the caller can tell its own
-	// window's answer from one still arriving for a window it has left.
+	// Both requests share an id, returned so the caller can pair and discard replies.
 	const requestBoardHistory = useCallback(
 		(start?: number, end?: number, allBoards?: boolean): number => {
 			const window = start !== undefined ? {start, end} : undefined;
 
 			const requestId = historyBuffer.open();
-			// The board scopes the timeline but not the commit log, which is
-			// repository-wide. Omitting boardId is how the API says "every board"
-			// — which is also the right ask before any board is known, and the
-			// only one the schema accepts (null is refused).
+			// No boardId means every board; the commit log is repository-wide. Null is refused.
 			sendRaw({
 				type: 'timeline:get',
 				payload: {
@@ -1723,9 +1547,7 @@ export const App = () => {
 		[selectedBoardId],
 	);
 
-	// Answering this replays the whole event log server-side, and the assignee
-	// picker is its only reader — so it is fetched when that picker opens rather
-	// than eagerly for every board.
+	// Replays the whole log server-side, so fetched only when the assignee picker opens.
 	const requestContributors = useCallback(() => {
 		sendRaw({
 			type: 'contributors:get',
@@ -1740,9 +1562,7 @@ export const App = () => {
 		setPickedIssueIds([]);
 	}, [selectedBoardId]);
 
-	// A commit that links to a ticket is read on that ticket's Code tab,
-	// next to its comments and the rest of its commits; only one that links
-	// nowhere gets the bare panel.
+	// A linked commit opens on its ticket's Code tab; an unlinked one in the bare panel.
 	const openCommitDiff = useCallback(
 		(sha: string, replace = false) => {
 			const commit = history.commits.find(entry => entry.sha === sha);
@@ -1774,12 +1594,8 @@ export const App = () => {
 
 	const closeCommitDiff = useCallback(() => setCommitDiff(null), []);
 
-	// A diff belongs to the view it was opened over, and the ticket panel
-	// renders only while no diff does — so one left up hides whatever the next
-	// route lands on. Cleared here rather than at each call site: a ticket is
-	// also reached by creating one, by a ref link, and by a comment permalink,
-	// and each of those had to remember on its own. Selecting the ticket
-	// already open is the one case this cannot see, and selectIssue clears it.
+	// Any route change closes an open diff, which would hide the ticket panel.
+	// Reselecting the open ticket is cleared by selectIssue.
 	useEffect(() => {
 		setCommitDiff(null);
 	}, [boardId, issueId]);
@@ -1812,9 +1628,7 @@ export const App = () => {
 		});
 	};
 
-	// Every `issues:create` goes through here, so the board it was asked for
-	// from is recorded with it — the reply is what opens the new ticket, and it
-	// is only the right thing to open while the reader is still on that board.
+	// Every `issues:create` goes through here, recording the board it was asked from.
 	const createIssueOn = (payload: {
 		title: string;
 		parentId: string;
@@ -1881,9 +1695,7 @@ export const App = () => {
 	const recentCommands = useRecentCommands();
 	const commands = useMemo(() => buildCommandRegistry(), []);
 
-	// Rebuilt each render rather than memoized: it reads most of the board, so
-	// the dependency list would be the thing to get wrong, and the commands only
-	// read it when the palette is open.
+	// Rebuilt each render: it reads most of the board, and only while the palette is open.
 	const commandContext = {
 		connected,
 		scrubbing: state?.timeTravel?.mode === 'scrub',
@@ -1937,12 +1749,8 @@ export const App = () => {
 		},
 	};
 
-	// A dead socket cannot carry a mutation, so the board wears the same
-	// readonly it wears mid-scrub — every existing guard keys off this, so the
-	// kebabs, the + buttons, dragging and the editors all stand down together.
-	//
-	// Only once a board has arrived: `connected` starts false, so keying off it
-	// alone would dim and freeze every first paint until the socket opens.
+	// A dead socket makes the board readonly, as mid-scrub. Not before the first
+	// state, or every first paint would freeze.
 	const offline = !connected && state !== null;
 
 	const shownSwimlanes = useMemo(
@@ -1957,15 +1765,11 @@ export const App = () => {
 		[offline, visibleSwimlanes],
 	);
 
-	// The lane the panel is for, as the board currently has it — so the figures
-	// follow a ticket dropped into the lane while the panel is open, and a
-	// replayed board shows the lane as it was then.
+	// The lane as the board has it now, including a replayed board.
 	const detailsSwimlane =
 		shownSwimlanes.find(swimlane => swimlane.id === detailsSwimlaneId) ?? null;
 
-	// The dragged id comes off the drop event rather than being remembered from
-	// dragstart: a drag can begin in one window and end in this one, and the
-	// dataTransfer is the only thing that crosses.
+	// Read off the drop event: a drag can start in another window.
 	const dropSwimlane = (swimlaneId: string) => {
 		const edge = swimlaneDropEdge;
 		setSwimlaneDropEdge(null);
@@ -1987,15 +1791,11 @@ export const App = () => {
 		originRef: string,
 		params: FileTicketParams,
 	) => {
-		// The leftmost swimlane, by the board's own left-to-right "not started →
-		// done" convention — a ticket filed off a code review is new work, so it
-		// belongs there rather than beside the ticket being reviewed.
+		// The leftmost lane: a ticket filed off a review is new work.
 		const targetSwimlaneId = selectedBoard?.swimlanes[0]?.id;
 		if (!targetSwimlaneId) return;
 
-		// Same shape as a diff comment's body, so the Overview renders it the
-		// same way — note, then the snippet headed by a link that opens the
-		// origin ticket's diff at the selection.
+		// Same shape as a diff comment's body: note, then the linked snippet.
 		const side = params.range.side ?? 'additions';
 		const description = [
 			...(params.note ? [params.note, ''] : []),
@@ -2081,14 +1881,9 @@ export const App = () => {
 							/>
 						)}
 
-						{/* The instrumentation, on its own ground: the bar and the timeline
-				    sit below the board rather than on it, so what recedes is the
-				    room and what stays is the work. The log takes the same ground
-				    on the other axis. */}
+						{/* The instrumentation, on chrome ground below the board. */}
 						<div style={{background: GUI_THEME.chrome}}>
-							{/* Dimmed and inert with the rest of the chrome while a movie plays:
-				    the board is the picture, and everything around it is the room
-				    lights. */}
+							{/* Dimmed and inert while a movie plays. */}
 							<div
 								ref={topbarRef}
 								style={theatre ? DIMMED_WHILE_PLAYING : undefined}
@@ -2124,9 +1919,7 @@ export const App = () => {
 												state?.boards.map(board => ({
 													id: board.id,
 													label: board.title,
-													// As the TUI's board list says it. Every board's lanes
-													// are in the state, not just the one on screen, so this
-													// is counted here rather than asked for.
+													// Counted here, as the TUI's board list says it.
 													hint: plural(
 														board.swimlanes.reduce(
 															(total, swimlane) =>
@@ -2236,12 +2029,7 @@ export const App = () => {
 								transition: 'opacity 160ms ease',
 							}}
 						>
-							{/* The log and the board are their own row inside this one, which
-					    turns into a column for a bottom-docked panel. Without it the
-					    log would stack above the board rather than beside it, as a
-					    band the crawl has no height to run in. With no log open this
-					    is one flex child holding another, which lays out exactly as
-					    the board did on its own. */}
+							{/* Log and board as one row, a column for a bottom dock. */}
 							<div
 								style={{
 									display: 'flex',
@@ -2268,15 +2056,10 @@ export const App = () => {
 									/>
 								)}
 
-								{/* Vertical overflow is hidden here: the swimlanes size themselves to
-				    this box, so anything spilling out would put a second scrollbar on
-				    the page next to the columns' own. */}
+								{/* Vertical overflow hidden: the lanes scroll themselves. */}
 								<main
-									// The lane panel closes on a click past it, unlike the ticket
-									// panel beside it, which deliberately stays open (see
-									// details-close.pw.ts) — and so does the board's, unless the
-									// description is half-written, which a stray click must not
-									// hide.
+									// A click past it closes the lane panel, unlike the ticket panel, and the
+									// board's unless its description is half-written.
 									onClick={() => {
 										clearPicked();
 										if (
@@ -2290,9 +2073,7 @@ export const App = () => {
 										}
 									}}
 									style={{
-										// No inset of its own: the columns' own top edge is what lines
-										// up with the panes either side, and a lane's header carries
-										// the gap above its title itself, in the 48px row it stands in.
+										// No top inset: lane headers carry their own gap.
 										padding: `0 0 0 ${BOARD_GUTTER}px`,
 										flex: 1,
 										// Beside the log it has to be able to give up the width the
@@ -2325,9 +2106,7 @@ export const App = () => {
 											onClose={() => setManagingGoals(false)}
 										/>
 									)}
-									{/* Scrolling sideways is this row's job; scrolling down is each
-					    column's. Both on one element gives a page-level vertical bar
-					    alongside each column's own. */}
+									{/* Scrolls sideways; each column scrolls down. */}
 									<div
 										style={{
 											display: 'flex',
@@ -2336,14 +2115,9 @@ export const App = () => {
 											minHeight: 0,
 											overflowX: 'auto',
 											overflowY: 'hidden',
-											// Lit, but not touchable: the board is what a movie is
-											// watched on, and the panel a click would open is closed for
-											// the duration anyway.
+											// Lit but not touchable during a movie.
 											pointerEvents: theatre ? 'none' : undefined,
-											// The player floats over the board, and a column running
-											// under it would play its last cards behind the transport.
-											// Reserved rather than overlaid, so the whole picture stays
-											// in view.
+											// Clears the floating player, so no card plays behind it.
 											paddingBottom: theatre ? THEATRE_PLAYER_CLEARANCE : 0,
 											transition: 'padding-bottom 240ms ease',
 										}}
@@ -2419,27 +2193,15 @@ export const App = () => {
 											/>
 										))}
 
-										{/* Appends: `createSwimlane` ranks at the end, so the ghost sits
-							where the new column will actually appear. Hidden on a readonly
-							board, which also covers a scrubbed timeline. */}
+										{/* Appended where `createSwimlane` ranks the new lane; hidden when readonly. */}
 										{selectedBoard && !selectedBoard.readonly && !offline && (
 											<AddSwimlaneColumn
 												onClick={() => setCreateSwimlaneTitle('')}
 											/>
 										)}
 
-										{/* Grows scrollWidth by exactly what closing the panel gave back
-							in clientWidth, keeping max scrollLeft identical across
-							open/closed so the board doesn't bounce back when scrolled far
-							right. Reads the panel's persisted width directly rather than
-							tracking it live: the panel — and any drag — isn't mounted while
-							this spacer is, so the last-persisted value is always current.
-							Only for a side dock: a bottom panel takes height, not width, so
-							reserving width for it would shove the board the other way.
-
-							A film closes every one of those panels, so the width has to be
-							reserved for that too — or pressing play over a board scrolled
-							hard right bounces it back by the panel's width. */}
+										{/* Reserves the closed side panel's width (also closed by a film), so the
+										board keeps its max scrollLeft and does not bounce back. */}
 										{asideDock === 'right' &&
 											(theatre ||
 												(!commitDiff && !(selectedIssue && state?.user))) && (
@@ -2455,10 +2217,7 @@ export const App = () => {
 								</main>
 							</div>
 
-							{/* The side panels close for the film rather than dimming: at
-					    440px they are a third of the picture, and none of what they
-					    show is part of it. Closing is only visual — the ticket stays
-					    selected, and the panel is back when the player leaves. */}
+							{/* Side panels close for the film; the ticket stays selected. */}
 							{!theatre && commitDiff && (
 								<Aside dock={asideDock} onWidthChange={setCommitDiffPanelWidth}>
 									{({isFullscreen, toggleFullscreen}) => (
@@ -2805,7 +2564,7 @@ export const App = () => {
 										id: 'identity',
 										title: 'User stats',
 										scope: 'Your board',
-										// Who, beside how much: the title no longer says.
+										// Who, beside how much: the title does not say.
 										summary: [
 											state?.user
 												? actorDisplay(state.user.name).label

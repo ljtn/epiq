@@ -79,9 +79,8 @@ export const descriptionOf = (
 };
 
 /**
- * The one write of a node's description, for tickets, lanes and boards alike.
- * The caller has found the node writable; this holds the cap, the scrub guard
- * and the no-op on unchanged text.
+ * The one write of a node's description, for tickets, lanes and boards. Holds
+ * the cap, the scrub guard and the no-op on unchanged text.
  */
 export const writeDescription = ({
 	node,

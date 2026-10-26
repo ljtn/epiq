@@ -11,23 +11,10 @@ import {
 } from '../lib/hover-card';
 import {TICKET_REF_ATTRIBUTE} from './TicketPreviewLayer';
 
-// The app's own tooltip, in place of the browser's, for every `title` in the
-// GUI at once.
-//
-// One delegated listener rather than a wrapper around each trigger: there are
-// about 110 `title` attributes here, wrapping them all would be an enormous
-// diff, and every one written afterwards would go back to the browser's own.
-// This way `title="…"` keeps meaning what it always meant and simply looks
-// like the rest of the app.
-//
-// No typing animation, deliberately. A tooltip is asked for because somebody
-// does not know something, so any animation buys back the latency this exists
-// to remove — and it fires dozens of times an hour, which is where a charming
-// effect turns into something you wait through.
+// The app's tooltip for every `title`, via one delegated listener. No
+// animation: it exists to cut latency.
 
-// Where the title text is parked while the attribute is off the element. It
-// has to leave: there is no way to keep `title` and suppress the native bubble,
-// and both showing at once is worse than either.
+// Where the title is parked: `title` must leave to suppress the native bubble.
 const STASH = 'epiqTip';
 
 type Shown = {label: string; trigger: HTMLElement};
@@ -38,9 +25,7 @@ const triggerFor = (target: EventTarget | null): HTMLElement | null => {
 
 	const owner = target.closest<HTMLElement>(`[title], [data-${'epiq-tip'}]`);
 
-	// A linkified ticket ref has a hint of its own — TicketPreviewLayer's card.
-	// Without this, an enclosing element's plain `title` would open beside it,
-	// two boxes describing the same word.
+	// A ticket ref has its own preview card instead.
 	const refOwner = target.closest(`[${TICKET_REF_ATTRIBUTE}]`);
 	if (refOwner && (!owner || owner.contains(refOwner))) return null;
 
@@ -89,10 +74,7 @@ export const TooltipLayer = () => {
 			setShown(null);
 		};
 
-		// Only the pointer strips the attribute, and only at the moment this
-		// tooltip replaces the browser's — the native bubble waits about a
-		// second, so there is no race to win by taking it earlier, and holding
-		// the attribute as long as possible keeps the element findable by it.
+		// Strips the attribute only when this tooltip replaces the native one.
 		const park = (trigger: HTMLElement, label: string) => {
 			trigger.dataset[STASH] = label;
 			trigger.removeAttribute('title');
@@ -121,11 +103,8 @@ export const TooltipLayer = () => {
 			if (label) open(trigger, label);
 		};
 
-		// Arriving by tab is deliberate in a way that crossing with a pointer is
-		// not, so there is no delay — and the attribute stays put, since browsers
-		// draw the native bubble on hover only. Stripping it here would take a
-		// button's accessible name away at the exact moment a screen reader is
-		// on it.
+		// Focus shows at once and keeps the attribute: the native bubble is hover-only,
+		// and screen readers need the name.
 		const onFocus = (event: FocusEvent) => {
 			const trigger = triggerFor(event.target);
 			const label = trigger?.getAttribute('title');
@@ -152,9 +131,7 @@ export const TooltipLayer = () => {
 		};
 	}, []);
 
-	// Measured once it is in the document, so the first painted frame is already
-	// in the right place — and that pass is what gives the fade a frame to start
-	// from.
+	// Measured before paint, which also gives the fade a starting frame.
 	useEffect(() => {
 		if (!shown) return setPlacement(null);
 
@@ -198,9 +175,7 @@ export const TooltipLayer = () => {
 				padding: '5px 8px',
 				borderRadius: 4,
 				background: '#000',
-				// The panel's inner `line`, not its outer `edge`: the black fill and
-				// the shadow already hold this apart from the page, so the border
-				// only has to describe an edge rather than carry one.
+				// The inner `line`; fill and shadow already separate it.
 				border: `1px solid ${GUI_THEME.line}`,
 				boxShadow: '0 4px 14px rgba(0, 0, 0, 0.55)',
 				color: GUI_THEME.primary,

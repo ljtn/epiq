@@ -12,18 +12,8 @@ import {isFail} from '../lib/model/result-types.js';
 import {getState} from '../lib/state/state.js';
 
 /**
- * A log file name is a read contract, and the only part of the format that
- * cannot be changed by adding.
- *
- * A payload field is additive — a build that does not know it ignores it. A
- * file name is not: every client reads every *other* client's logs, so there is
- * no second name to add one under. `ZFZFW9D` moved the grammar from
- * `<id>.<name>.jsonl` to `<id>.jsonl` on that basis, and the whole of what
- * makes that safe is that both forms keep loading, for good, with the name
- * segment carrying no weight.
- *
- * So this file pins the grammar itself rather than any one reader. It is the
- * test that has to fail if somebody ever tidies away the old form.
+ * A log file name's grammar can't change by adding, since every client reads
+ * every other's logs: both `<id>.<name>.jsonl` and `<id>.jsonl` must load forever.
  */
 
 const ID = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
@@ -95,19 +85,15 @@ describe('a log written before ZFZFW9D', () => {
 		expect(authorOf(root, A)).toBe(ID);
 	});
 
-	// The file name is lowercased on the way to disk and a contributor record
-	// keeps the `ulid()` casing, so a lowercased id read back as-is would split
-	// one person in two — an assignment against one of the halves resolving to
-	// nobody.
+	// File names are lowercased; ids must be read back in `ulid()` casing or
+	// one person splits in two.
 	it('reads back under the casing a contributor record uses', () => {
 		const root = seed({[`${ID.toLowerCase()}.alice.jsonl`]: [workspace(A)]});
 
 		expect(actorIds(root)).toEqual([ID]);
 	});
 
-	// `sanitizeFilePart` leaves dots alone, so "J. Lampa" reaches disk as
-	// `j.-lampa` and the name segment holds any number of them. Only the first
-	// separator divides id from name.
+	// The name segment may hold dots; only the first separator divides id from name.
 	it('survives a name carrying dots of its own', () => {
 		const root = seed({[`${ID.toLowerCase()}.j.-lampa.jsonl`]: [workspace(A)]});
 
@@ -132,9 +118,7 @@ describe('a log written since ZFZFW9D', () => {
 		expect(authorOf(root, A)).toBe(ID);
 	});
 
-	// The extension comes off before the split, so there is no separator left to
-	// find. Reading it the other way round would name every modern author
-	// `jsonl`.
+	// The extension comes off before the split, or every modern author is `jsonl`.
 	it('is not read as an author called jsonl', () => {
 		const root = seed({[`${ID.toLowerCase()}.jsonl`]: [workspace(A)]});
 
@@ -168,9 +152,7 @@ describe('the two grammars side by side', () => {
 		expect(authorOf(root, B)).toBe(OTHER_ID);
 	});
 
-	// The strongest form of "the name segment carries no weight": the same
-	// events under either name derive the same board. Anything the name reached
-	// would show up here as a difference.
+	// The same events under either name derive the same board.
 	it('derive the same board from the same events', () => {
 		const lines = [
 			workspace(A),
@@ -196,9 +178,7 @@ describe('the two grammars side by side', () => {
 });
 
 describe('a pending log beside either grammar', () => {
-	// The marker rides on the id segment, so it comes off before the split. A
-	// line is not attributed differently for having been written while a sync
-	// held the worktree — under either naming.
+	// The marker rides on the id segment and comes off before the split.
 	it('belongs to the same author as the log it will fold into', () => {
 		const root = seed({
 			[`${ID.toLowerCase()}~pending.alice.jsonl`]: [workspace(A)],

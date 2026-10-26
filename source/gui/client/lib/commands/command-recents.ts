@@ -1,14 +1,6 @@
 import {useState} from 'react';
 
-/**
- * The commands this reader reached for last, most recent first.
- *
- * Per browser rather than per board, like the reviewed-file ticks and the
- * panel's dock: which commands somebody uses is a working habit, not a property
- * of the work. Capped, because the palette shows them where an empty query
- * would otherwise show the whole list in declaration order — a tail nobody
- * remembers is not a shortcut.
- */
+/** The commands this browser reached for last, most recent first; capped. */
 const STORAGE_KEY = 'epiq.gui.recentCommands';
 
 const CAP = 6;

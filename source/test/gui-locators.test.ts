@@ -8,21 +8,12 @@ const suiteDir = path.join(
 	'e2e-gui',
 );
 
-// Where reading a `title` is the point rather than a way of finding something:
-// `tooltip.pw.ts` is about the attribute's whole lifecycle, and `issue-stats`
-// checks the share a language bar names.
+// Specs where reading a `title` is the point.
 const allowed = new Set(['tooltip.pw.ts', 'issue-stats.pw.ts']);
 
 describe('the GUI suite does not find controls by their title', () => {
-	// `TooltipLayer` parks the `title` — `removeAttribute('title')` — while its
-	// own tooltip is open, 500ms after the pointer arrives, and a Playwright
-	// click leaves the pointer on what it clicked. So a title locator silently
-	// stops matching the control it names for as long as somebody rests on it,
-	// and `.first()` then resolves to the *next* match instead.
-	//
-	// That cost four specs a place on the flaky list and failed two CI runs of
-	// PR 355 outright. Controls the suite drives carry a `testId`; this keeps
-	// the next one from going back to the title.
+	// `TooltipLayer` removes `title` while its tooltip is open, so a title
+	// locator can match the wrong control. Specs locate by `testId`.
 	const offenders = fs
 		.readdirSync(suiteDir)
 		.filter(name => name.endsWith('.pw.ts') && !allowed.has(name))

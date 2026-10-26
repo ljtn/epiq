@@ -26,37 +26,16 @@ const TIMED_OUT = 'Git command timed out';
 export const isGitTimeout = (message: string): boolean =>
 	message.includes(TIMED_OUT);
 
-/**
- * A local git call against a worktree holding only `.epiq/` answers in
- * milliseconds. Ten seconds is already far past "something is wrong".
- */
+/** A local call on a worktree holding only `.epiq/` answers in milliseconds. */
 const GIT_TIMEOUT_MS = 10_000;
 
 /**
- * Everything whose duration is set by how much data there is rather than by
- * whether anything is wrong: the calls that talk to a remote, and the ones
- * that write the worktree out.
- *
- * A fetch is bounded by the link and by how much history and media the state
- * branch carries, so the short cap turned "slow" into "timed out" — and a
- * timed-out fetch used to read as *offline*, a quiet, self-healing-looking
- * state that never healed. The others are worse when cut short than when slow:
- * a SIGTERMed rebase leaves `.git/rebase-merge` for the next process to abort,
- * and a SIGTERMed checkout or `worktree add` leaves the state worktree
- * half-written — which is exactly what a second machine joining an established
- * board does first.
- *
- * Long enough that reaching it means something is genuinely wrong rather than
- * merely slow, and a caller that reaches it now hears about it.
+ * For calls whose duration scales with data: remote calls, and those that write
+ * the worktree, which are worse cut short (half-written state) than slow.
  */
 const GIT_SLOW_TIMEOUT_MS = 120_000;
 
-/**
- * The most one call may print before it is stopped. Far past any real log or
- * diff this codebase asks for; what it bounds is a repository built to be read
- * — another repo's clone, a pull request's history — handing back a blob or a
- * history big enough to take the process down with it.
- */
+/** Bounds a hostile repo's output, far past any real log or diff. */
 const MAX_GIT_OUTPUT = 256 * 1024 * 1024;
 const MAX_GIT_STDERR = 64 * 1024;
 
@@ -111,10 +90,7 @@ const resolveGitBinary = (): string => {
 
 export const GIT_BIN = resolveGitBinary();
 
-// The variables that point git somewhere other than its working directory. A
-// process started from a git hook inherits them, and every call here names its
-// repository by `cwd` — left in, they would send a sync, or a fetch of another
-// repo's clone, to the repository the hook ran in.
+// Inherited from a git hook, these would override the `cwd` every call relies on.
 const REPOSITORY_OVERRIDES = [
 	'GIT_DIR',
 	'GIT_WORK_TREE',
@@ -138,21 +114,13 @@ export const gitEnv = {
 	...withoutRepositoryOverrides(process.env),
 	GIT_TERMINAL_PROMPT: '0',
 	GIT_ASKPASS: 'echo',
-	// GIT_TERMINAL_PROMPT/GIT_ASKPASS only silence git's own prompts. Without
-	// BatchMode, ssh itself still opens /dev/tty when no agent/key is usable,
-	// which can get the whole process group SIGTTIN-stopped in a background
-	// process (e.g. an MCP server) instead of failing fast.
+	// BatchMode keeps ssh off /dev/tty, which would SIGTTIN-stop a background process.
 	GIT_SSH_COMMAND:
 		process.env['GIT_SSH_COMMAND'] ??
 		'ssh -o BatchMode=yes -o ConnectTimeout=10',
 };
 
-/**
- * The output formats every parser here assumes, whatever the user's config
- * says. `diff.noprefix` turns `diff --git a/x b/x` into `diff --git x x`, and
- * the patch parsers read paths off those prefixes; `log.showSignature` puts
- * gpg's lines into a log meant for parsing.
- */
+/** The output format every parser here assumes, whatever the user's config says. */
 const STABLE_OUTPUT = [
 	'-c',
 	'diff.noprefix=false',
@@ -175,15 +143,7 @@ const subcommandOf = (args: string[]): string | undefined =>
 const stableOutputFor = (args: string[]): string[] =>
 	PARSED_SUBCOMMANDS.has(subcommandOf(args) ?? '') ? STABLE_OUTPUT : [];
 
-/**
- * What git runs with on epiq's own clones of other repos, whatever the user's
- * config says. The clone's contents are its remote's: a bare repository reads
- * `.gitattributes` from its HEAD, which could steer a diff through the user's
- * textconv. The user's hooks are for their repos; a URL rewrite must not reach
- * a transport that runs a command; nothing recurses into a remote's
- * submodules; a credential manager must not open a dialog from a background
- * sync; and no maintenance is left running past epiq's lock.
- */
+/** Config for epiq's clones of other repos, whose contents are untrusted. */
 export const cloneGitConfig = (): string[] =>
 	[
 		'attr.tree=refs/epiq/no-attributes',
@@ -192,9 +152,7 @@ export const cloneGitConfig = (): string[] =>
 		`core.hooksPath=${path.join(getGlobalConfigDir(), 'repos', '.no-hooks')}`,
 		'protocol.ext.allow=never',
 		'protocol.fd.allow=never',
-		// Named, because the clone's environment turns every protocol git
-		// leaves to the user's say off, and `file` is one of those; a local
-		// path is a URL the list may carry, as `file:///` only.
+		// Named, since the clone's environment turns off `file` otherwise.
 		'protocol.file.allow=always',
 		'submodule.recurse=false',
 		'fetch.recurseSubmodules=false',
@@ -212,10 +170,8 @@ export const cloneGitConfig = (): string[] =>
 		'core.logAllRefUpdates=false',
 	].flatMap(setting => ['-c', setting]);
 
-// `<clones>/<project>/<repo id>.git`, or the pending directory one is cloned
-// or staged into (`.<pid>[-<its start>][.<uuid>].pending`) — exactly that
-// shape, so a user's own repos under a global dir set to somewhere they keep
-// them are never taken for one.
+// `<clones>/<project>/<repo id>.git[.<pid>[-<start>][.<uuid>].pending]`, exactly,
+// so a user's own repo is never taken for one.
 const CLONE_DIR =
 	/^[\w-]+[\\/][a-z0-9._-]+-[0-9a-f]{12}\.git(\.\d+(-\d+)?(\.[0-9a-f-]{36})?\.pending)?$/;
 
@@ -228,10 +184,8 @@ const realpathOr = (target: string): string => {
 };
 
 /**
- * Whether `cwd` is one of epiq's clones, judged by where it is — never by what
- * it holds, since a checkout can carry a committed `HEAD`, `objects/` and
- * `config`. As written and as resolved, so a resolved path (`/tmp` is
- * `/private/tmp` on macOS) still counts.
+ * Whether `cwd` is one of epiq's clones, judged by location, never contents.
+ * Checked as written and as resolved (`/tmp` is `/private/tmp` on macOS).
  */
 export const isCloneDir = (cwd: string): boolean => {
 	const clones = path.join(getGlobalConfigDir(), 'repos');
@@ -242,10 +196,7 @@ export const isCloneDir = (cwd: string): boolean => {
 	].some(([root, dir]) => CLONE_DIR.test(path.relative(root!, dir!)));
 };
 
-/**
- * `--git-dir` names a clone, because a bare repository found by its working
- * directory alone is refused under `safe.bareRepository=explicit`.
- */
+/** `--git-dir`, since `safe.bareRepository=explicit` refuses a bare repo found by cwd. */
 const cloneDirArgs = (cwd: string): string[] =>
 	isCloneDir(cwd) ? ['--git-dir=.', ...cloneGitConfig()] : [];
 
@@ -256,10 +207,7 @@ const cloneEnv = {
 	),
 	LC_ALL: 'C',
 	LANGUAGE: '',
-	// The transports a clone may take are the config's above and nothing the
-	// user's environment says: an inherited GIT_ALLOW_PROTOCOL would override
-	// `protocol.*.allow`, and a helper the config does not name defaults to
-	// the user's say, which this turns off.
+	// Transports come from the config above only, never the user's environment.
 	GIT_PROTOCOL_FROM_USER: '0',
 };
 
@@ -292,31 +240,15 @@ const EXIT_SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP'];
 
 let shuttingDown = false;
 
-/**
- * Whether this process was signalled to stop: a clone git failing now was
- * stopped by it, which says nothing about the clone or its remote.
- */
+/** Whether this process was signalled to stop, which explains a clone git failing now. */
 export const isShuttingDown = () => shuttingDown;
 
-// How long a signalled process waits for its clone gits to go before it
-// kills what is left outright: it is the last chance to, and git still
-// running holds the clone's lock files.
+// Grace before clone gits still running, holding lock files, are killed outright.
 const CLONE_KILL_GRACE_MS = 2_000;
 
 /**
- * Clone gits are killed with the process.
- *
- * On a signal: the children are told to go and are waited for, briefly, then
- * killed outright if still there; these handlers go, and the signal is raised
- * again with them out of the way, so whoever else listens — Ink's exit
- * handler in the TUI, nobody in the MCP server — sees it as if this had
- * never been here. Ink's handler stands aside while another listener is
- * registered, so one that stayed, or re-raised only when alone, left the
- * TUI standing after its first SIGTERM.
- *
- * Registered before the first clone git is spawned, never after: a signal
- * that landed between the spawn and the registration killed the process by
- * default and left its git running.
+ * Kills clone gits with the process, then re-raises the signal without these
+ * handlers, since Ink's exit handler stands aside while another is registered.
  */
 const registerCloneKills = () => {
 	if (killsRegistered) return;
@@ -405,10 +337,7 @@ const runGit = ({
 			detached: clone && OWN_GROUP,
 		});
 		if (clone) trackCloneChild(child);
-		// Ended at once without input, as an ignored stdin would be. Every stdin
-		// error is dropped: the one expected is EPIPE from a git that exits before
-		// reading it all, which answers through 'close'. Safe only while callers
-		// pass input to commands that read to EOF, as `log --stdin` does.
+		// Stdin errors are dropped: EPIPE from an early exit answers through 'close'.
 		child.stdin.on('error', () => {});
 		child.stdin.end(input ?? '');
 		const kill = (signal: NodeJS.Signals) =>
@@ -427,10 +356,7 @@ const runGit = ({
 
 		const timeoutMs = timeoutOverride ?? timeoutFor(args);
 
-		// Answered once the child has gone, not when it is told to: a git still
-		// running holds its lock files, and the caller lets go of the clone the
-		// moment this resolves. Forced past a grace period, and answered anyway
-		// after one more.
+		// Resolves once the child is gone, since a running git holds lock files; forced past a grace.
 		let timedOut = false;
 		const timeoutMessage = () =>
 			[
@@ -602,11 +528,8 @@ export const execGitAllowFail = ({
 }): Promise<GitExecResult> =>
 	runGit({args, cwd, allowFail: true}) as Promise<GitExecResult>;
 
-// A dedicated spawn rather than a `runGit` mode: `--batch` needs its object
-// list fed on stdin (runGit's child has stdin set to 'ignore'), and the
-// header-declared byte length must be sliced off the raw stdout Buffer before
-// utf8-decoding it — decode first, as runGit does, and a multi-byte character
-// straddling the boundary would throw the offset off for every blob after it.
+// Its own spawn: `--batch` reads stdin, and sizes are sliced off the raw Buffer
+// before decoding, or a multi-byte character shifts every later offset.
 export const readGitBlobsBatch = (
 	hashes: string[],
 	cwd: string,
@@ -677,9 +600,7 @@ export const readGitBlobsBatch = (
 				return;
 			}
 
-			// `--batch` answers each stdin line in the order it was written, so
-			// walking `hashes` in that same order pairs each one with its response
-			// block without needing to trust the header's own hash back.
+			// `--batch` answers in input order, so `hashes` pairs with each response.
 			const buffer = Buffer.concat(chunks);
 			const blobs = new Map<string, string>();
 			let offset = 0;
@@ -944,21 +865,11 @@ export const isNonFastForward = (message: string): boolean =>
 	message.includes('fetch first') || message.includes('non-fast-forward');
 
 /**
- * Whether a rebase is actually in progress.
- *
- * Asked of git rather than inferred from the exit code of `rebase --abort`,
- * which is non-zero both when there was nothing to abort and when there was one
- * it could not unwind — two states that want opposite responses. Asked
- * structurally rather than by matching git's message, too: the environment
- * these commands run in inherits `LANG`, so the wording is not ours to rely on.
- *
- * `--git-path` is what resolves this correctly inside a linked worktree, where
- * the state sits under `.git/worktrees/<name>/` rather than beside HEAD.
+ * Whether a rebase is in progress, by its state directories, never by git's
+ * localized messages. `--git-path` resolves them in a linked worktree.
  */
 const rebaseInProgress = async (cwd: string): Promise<boolean> => {
-	// One spawn, not one per state directory: autosync runs this every few
-	// seconds and the answer is almost always "no rebase", so the common case
-	// should cost a single `rev-parse` and two `existsSync` calls.
+	// One spawn for both directories: autosync runs this every few seconds.
 	const result = await execGitAllowFail({
 		cwd,
 		args: ['rev-parse', '--absolute-git-dir'],
@@ -978,34 +889,8 @@ const rebaseInProgress = async (cwd: string): Promise<boolean> => {
 };
 
 /**
- * The rebase, re-attempted while the only thing that stopped it was a race it
- * can win next time.
- *
- * Nothing holds a lock on the *write* path, so a GUI, an MCP server and a TUI
- * all append to this directory while one of them syncs. `rebase.autoStash`
- * reverts the working copy and puts it back, but it does not exclude those
- * writers, and an append that lands while git has the worktree leaves the log
- * dirty under it.
- *
- * The exposed window is the *whole* rebase, not one gap inside it. Three
- * different refusals have been seen from the same cause: "could not detach
- * HEAD" before it starts, "cannot rebase: You have unstaged changes" at the
- * pre-flight check, and "would be overwritten by merge" during the replay. So
- * this narrows the odds rather than closing them — the sync that still loses
- * fails as it did before, and the next autosync tries again. Closing it for
- * real means excluding writers for the duration, which is a lock on the append
- * path and a much larger change than this.
- *
- * The two failures are told apart structurally rather than by reading git's
- * message, whose wording follows `LANG`. A rebase that *started* and stopped on
- * a conflict left its state directory behind, and replaying it would land in
- * the same place; one that never started left nothing, so it is worth one more
- * throw.
- *
- * That same test is what keeps the slow timeout from multiplying: a rebase
- * SIGTERMed at the 120s cap leaves `rebase-merge` behind like any interrupted
- * one, so it is read as started and not re-attempted. Only a rebase that cost
- * nothing is paid for again.
+ * Retries a rebase that never started, which an unlocked concurrent append can
+ * cause. One that started (its state directory remains) is never retried.
  */
 const REBASE_ATTEMPTS = 3;
 const REBASE_RETRY_DELAY_MS = 120;
@@ -1031,24 +916,8 @@ const rebaseWithRetry = async (
 };
 
 /**
- * Lock files a git that was killed never got to remove.
- *
- * Git takes `<file>.lock` before writing `<file>`, and removes it when it is
- * done. A process killed in between leaves the lock behind, and every later git
- * that wants the same file refuses — "could not lock '…/MERGE_MSG': File
- * exists" — which is a rebase that cannot start, for good, in a worktree whose
- * previous occupant is long gone.
- *
- * Only the top level of the git directory, and only the lock files: the state
- * they guard is left exactly as it is. The caller is responsible for knowing
- * that nobody is working in the worktree — these locks exist precisely to say
- * "somebody is", and removing one while that is true is how two writers end up
- * in the same file.
- *
- * `preserve` is for the caller's own lock, which is the one lock in this
- * directory that is emphatically not stale: epiq's sits here too and ends in
- * `.lock` like git's, so a sweep that did not know about it would delete the
- * claim the sweeper is standing on and run the rest of its work unheld.
+ * Removes lock files a killed git left at the git dir's top level. The caller
+ * must know nobody is working there; `preserve` spares its own lock.
  */
 export const clearStaleGitLocks = async (
 	cwd: string,
@@ -1077,19 +946,8 @@ export const clearStaleGitLocks = async (
 };
 
 /**
- * The lock git leaves on a branch ref when it is killed mid-update.
- *
- * Refs do not live in a linked worktree's own git directory — they are in the
- * common one, shared with the user's repository and every other worktree — so
- * `clearStaleGitLocks` never sees this one. A `refs/heads/<branch>.lock` left
- * there makes every later commit on that branch fail with "cannot lock ref",
- * which is the same permanent wedge by a narrower path.
- *
- * One named ref, never a walk: that directory belongs to the user as much as to
- * epiq, and a lock on `main` is somebody's commit in progress. The branch comes
- * from the project file, so the resolved path is checked to be inside
- * `refs/heads/` before anything is removed — a name with a `..` in it is a
- * corrupt project file, not a licence to delete elsewhere.
+ * Removes a killed git's lock on one named branch ref, in the shared common dir.
+ * Never a walk, and only inside `refs/heads/`.
  */
 export const clearStaleRefLock = async (
 	cwd: string,
@@ -1139,10 +997,7 @@ export const abortRebaseIfPresent = async (
 		args: ['rebase', '--abort'],
 	});
 
-	// A rebase that is present and will not unwind. Returned as a failure rather
-	// than swallowed as "nothing to do": the caller's next move is to start a
-	// second rebase over the stuck one, and the error it then reports names the
-	// new rebase while the cause sits underneath it.
+	// Failed, not swallowed, or the caller starts a second rebase over the stuck one.
 	if (result.exitCode !== 0) {
 		return failed(
 			`Failed to abort the rebase in progress at ${cwd}\n${result.stderr.trim()}`,
@@ -1158,14 +1013,8 @@ const readHeadSha = async (cwd: string): Promise<string | null> => {
 };
 
 /**
- * Network-level failures only. An auth or policy rejection reaches the user as
- * a failure, because it needs them to act; being offline does not.
- *
- * Our own timeout is deliberately *not* here. A remote that answers, slowly,
- * looked identical to one that is not there: the board reported "committed
- * locally, offline", every later attempt hit the same cap, and the work never
- * published — silently, forever. Being slow needs the user to act, so it
- * reaches them as a failure like any other.
+ * Network-level failures only. Our own timeout is deliberately not one: a slow
+ * remote needs the user to act, so it reaches them as a failure.
  */
 export const isRemoteUnreachable = (message: string): boolean =>
 	/could not resolve host/i.test(message) ||
@@ -1192,10 +1041,7 @@ export const pullBranchRebaseIfPresent = async ({
 
 	const before = await readHeadSha(cwd);
 
-	// Fetch then rebase, rather than `pull --rebase`. A pull rebases onto
-	// whatever FETCH_HEAD holds, and that file is shared by every process using
-	// this worktree — a second fetch landing in between leaves two entries in it
-	// and git refuses with "Cannot rebase onto multiple branches".
+	// Fetch then rebase, not `pull --rebase`, which reads the shared FETCH_HEAD.
 	const fetchResult = await git.fetch({cwd, remote: ORIGIN, branch});
 
 	if (isFail(fetchResult)) {
@@ -1237,12 +1083,7 @@ export const isAheadOfUpstream = async (
 	);
 };
 
-/**
- * Anything git would lose if this worktree were removed with `--force`:
- * modified, staged and untracked alike. Untracked counts — a contributor's
- * first event log is untracked until their first sync, so ignoring it would
- * miss exactly the events most easily lost.
- */
+/** Anything `--force` removal would lose, untracked included (a first event log is). */
 export const hasUncommittedChanges = async (
 	worktreeRoot: string,
 ): Promise<Result<boolean>> => {

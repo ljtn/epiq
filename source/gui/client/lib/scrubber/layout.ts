@@ -14,30 +14,21 @@ export const isLayoutMode = (value: string | null): value is LayoutMode =>
 
 export const TRACK_HEIGHT = 24;
 
-// "Volume" and "Events" occupy the same total height, so switching between
-// them never reflows the board content below. "Volume" is two TRACK_HEIGHT
-// boxes plus the column's 8px gap; "Events" centres one taller scatter area in
-// that same total. "Flow" is the exception, below.
+// "Volume" and "Events" share one total height, so switching never reflows the board.
 const EVENTS_MODE_TOTAL_HEIGHT = 8 + TRACK_HEIGHT * 2;
 export const EVENTS_SCATTER_HEIGHT = TRACK_HEIGHT + 16;
 export const EVENTS_MODE_VERTICAL_PADDING =
 	(EVENTS_MODE_TOTAL_HEIGHT - EVENTS_SCATTER_HEIGHT) / 2;
 
-// "Flow" is the one mode whose height is the board's to set: a strand per
-// swimlane, each a band the lines sharing it are stacked inside. A band is
-// fanned into as many slots as lines it holds at once, a couple of pixels
-// apart, and grows with them up to a cap — past it the slots close up, and the
-// band reads as its load. So a board with more lanes, or busier ones, reflows
-// the columns below once on the way in; the alternative was lines drawn over
-// one another with no way to tell them apart.
+// "Flow" grows with the board: a band per lane, a slot per concurrent line,
+// up to a cap past which the slots close up.
 export const FLOW_SLOT_PX = 2;
 const FLOW_STRAND_MIN = 14;
 const FLOW_STRAND_MAX = 32;
 // Room a band keeps above and below its outermost line.
 const FLOW_BAND_MARGIN = 3;
 
-// The grain's labels sit along the top edge of the chart, and the first
-// strand's title would sit on top of them; the strands start below that row.
+// Clears the grain labels along the top edge.
 const FLOW_TOP_INSET = 10;
 
 export type FlowGeometry = {
@@ -106,48 +97,26 @@ export const flowLineY = (
 	);
 };
 
-// The blank strip between the controls row and the charts, which the track
-// claims for the pointer without drawing in it: aiming at the top of a tall bar
-// otherwise lands just over it, on nothing. It is exactly the gap, so the strip
-// reaches the controls and no further.
-//
-// Wide enough to hold the scoped outline as well, which is drawn outside the
-// charts and would otherwise run along the underside of the controls.
+// The gap above the charts, claimed for the pointer so aiming at a tall bar's top still hits.
 export const TRACK_HIT_PADDING = 12;
 
 export const HOVER_HINT_WIDTH = 220;
 
 // Must stay fainter than the bucket highlight drawn over it.
 export const SEGMENT_HIGHLIGHT_COLOR = 'rgba(122, 157, 214, 0.14)';
-// The grain, drawn all the time: a hairline at every segment boundary, faint
-// enough to sit under the bars and the dots and under the highlight above,
-// and the short label beside it, a shade up from the line so it can be read.
+// The always-drawn grain: a faint hairline per segment boundary, and its label.
 export const SEGMENT_BOUNDARY_COLOR = 'rgba(122, 157, 214, 0.06)';
 export const SEGMENT_LABEL_COLOR = 'rgba(122, 157, 214, 0.32)';
 export const BUCKET_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.06)';
 export const NEEDLE_COLOR = 'rgba(255, 255, 255, 0.62)';
 
-// The needle while the board is standing in the past. The accent, at full
-// strength, because this is no longer a marker on a chart — it is the answer to
-// "why is nothing I do landing", and it has to be the thing the eye goes to.
+// The needle while the board stands in the past: full accent, so the eye finds it.
 export const NEEDLE_PARKED_COLOR = 'rgba(118, 212, 255, 0.95)';
 
-// The glow around it, then. Deliberately absent while live, where the needle
-// marks an exact instant and a soft edge would bloom over bars that can be two
-// pixels wide — parked, being findable beats being exact.
+// Parked only: live, a glow would bloom over two-pixel bars.
 export const NEEDLE_PARKED_GLOW = '0 0 6px rgba(118, 212, 255, 0.55)';
 
-/**
- * Everything after the needle: the stretch the board has not applied.
- *
- * Hatched rather than dimmed. Darkening was the first attempt and it is nearly
- * invisible here — the chart's ground is already near-black, so a dark veil
- * over it has almost nothing to take away. A hatch adds something instead, and
- * reads on any ground.
- *
- * Laid over the bars rather than replacing them, so the shape of the history is
- * still readable through it and the stretch says "not yet" rather than "gone".
- */
+/** Hatches the unapplied stretch after the needle; dimming barely shows on the dark ground. */
 export const UNAPPLIED_VEIL_IMAGE = `repeating-linear-gradient(
 	135deg,
 	rgba(118, 212, 255, 0.11) 0px,
@@ -163,15 +132,10 @@ export const UNAPPLIED_VEIL_COLOR = 'rgba(12, 18, 30, 0.45)';
 // The needle's own edge against it: where the applied stretch ends.
 export const UNAPPLIED_EDGE_COLOR = 'rgba(118, 212, 255, 0.25)';
 
-// Ties the board's narrowing to the window doing it: the accent the checkbox
-// wears while it is on, dimmed to sit around a chart rather than in a row.
+// The scope checkbox's accent, dimmed.
 export const SCOPED_OUTLINE_COLOR = 'rgba(118, 212, 255, 0.45)';
 
-// How far that box sits outside the charts. Wider at the sides than above and
-// below: the needle's grip is NEEDLE_GRIP_WIDTH across and centred on its
-// stem, so at the live end it hangs half of that past the charts' own edge and
-// would otherwise be drawn on the line. Above, TRACK_HIT_PADDING is all the
-// room there is before the controls.
+// Wider at the sides, to clear the needle's grip at the live end.
 export const SCOPED_OUTLINE_INSET_X = 12;
 export const SCOPED_OUTLINE_INSET_Y = 7;
 
@@ -245,14 +209,8 @@ export const dotAppearAnimation = (key: string): string =>
 		key,
 	)}ms backwards`;
 
-// The mirrored delay is what unwinds the scatter the way it was drawn: the dot
-// that twinkled in last is the first to retract.
-//
-// Its own keyframes rather than the twinkle with `direction: reverse` — under
-// `reverse` Chrome fills the delay with the `from` frame, so every dot sits at
-// scale 0 while it waits and the whole series blinks out at once. `both` on a
-// forward animation holds full scale through the wait and zero afterwards,
-// which also stops a dot popping back before it is unmounted.
+// Its own keyframes, not the twinkle reversed: under `reverse` Chrome fills the
+// delay with the `from` frame, so every dot blinks out at once.
 export const dotExitAnimation = (key: string): string =>
 	`epiqScrubberRetract ${DOT_APPEAR_MS}ms ease-in ${
 		DOT_APPEAR_SCATTER_MS - dotDelayMs(key)
@@ -282,22 +240,13 @@ export const barGrowAnimation = (
 	)}ms backwards`;
 };
 
-// The whole sweep, after which a newly mounted bar is no longer part of the
-// entrance.
+// After this, a newly mounted bar is not part of the entrance.
 export const BAR_ENTRANCE_TOTAL_MS = BAR_GROW_MS + BAR_GROW_SWEEP_MS;
 
-// Belongs on the series wrapper, never on the individual bars or dots: those
-// are keyed by bucket time, so a scope change remounts each one and the fade
-// restarts per element as a full-chart flash.
+// On the series wrapper only: bars and dots remount on a scope change and would flash.
 export const FADE_IN_ANIMATION = 'epiqScrubberFadeIn 320ms ease-out';
 
-// The one exception to this codebase's inline-style-only convention:
-// @keyframes cannot be expressed as a React style object.
-// The chart's own pager: an arrow off either end of the track, there only
-// while the pointer is over the chart or one of them has been reached by
-// keyboard, so the chart carries no chrome until it is being used. Keyboard
-// focus specifically: a click leaves the button focused too, and the arrow
-// would otherwise stay lit after the pointer had gone.
+// Pager arrows show on hover or keyboard focus; `:focus-visible`, since a click leaves focus too.
 export const PAGE_ARROW_CLASS = 'epiq-scrubber-page';
 export const PAGED_TRACK_CLASS = 'epiq-scrubber-paged';
 
@@ -380,14 +329,8 @@ export const SCRUBBER_KEYFRAMES = `
 
 // --------------------------------------------------------------------- state
 
-// Gated in JS rather than by a stylesheet media query because the animations it
-// guards are inline styles, which a stylesheet can only beat with !important.
-// Below this the controls row runs out of room for seven scope buttons beside
-// everything else on it, and the end of the row — where the transport is — is
-// the first thing squeezed. Measured against the row's own content rather than
-// a device class: it is the bar that is narrow, not the phone. The text filter
-// is the row's one shrinkable item and gives up to forty pixels first; below
-// this it has given all it can with the pager up.
+// Gated in JS, since what it guards is inline styles. Below this the controls
+// row runs out of room for the scope buttons.
 const NARROW_BAR_QUERY = '(max-width: 1180px)';
 
 const useMediaQuery = (mediaQuery: string): boolean => {
@@ -428,22 +371,16 @@ export const usePrefersReducedMotion = (): boolean => {
 
 export type SeriesPresence = {mounted: boolean; leaving: boolean};
 
-// Unticking a series has to outlive the render that hid it, or its dots vanish
-// instead of retracting. `durationMs` of 0 skips the wait entirely, which is
-// how reduced motion and the bar charts opt out.
+// Keeps a hidden series mounted while its dots retract; `durationMs` 0 skips that.
 export const useExitTransition = (
 	visible: boolean,
 	durationMs: number,
 ): SeriesPresence => {
 	const [mounted, setMounted] = useState(visible);
 	const [leaving, setLeaving] = useState(false);
-	// Compared against, rather than depended on: the effect must run only when
-	// the flag actually flips, so a series hidden on first paint never plays an
-	// exit it was never visible for.
+	// Runs only when the flag flips, so a series hidden on first paint plays no exit.
 	const wasVisible = useRef(visible);
-	// Read through a ref so a duration change cannot re-run the effect. It
-	// would clear the running timeout, hit the guard above, and never reschedule
-	// — stranding the series mounted and invisible.
+	// A ref, so a duration change can't re-run the effect and strand the series mounted.
 	const duration = useRef(durationMs);
 	duration.current = durationMs;
 
@@ -478,14 +415,8 @@ export const useExitTransition = (
 	return useMemo(() => ({mounted, leaving}), [mounted, leaving]);
 };
 
-// The shape of one stacked bar: how tall it stands, and where the colour
-// changes from the half on the baseline to the half beyond it.
-//
-// `top` and `bottom` are each already a fraction of the track. The floor is
-// what keeps a minority share on the chart: a bucket that added four hundred
-// lines and removed two draws its removal at a hundredth of a three-pixel bar,
-// which rounds to nothing and says the removal never happened. A hairline
-// overstates it; a solid bar misstates it completely.
+// One stacked bar's height and colour split. The floor keeps a minority share
+// at least a pixel, rather than rounding it away.
 export const stackedBarShape = (
 	top: number,
 	bottom: number,

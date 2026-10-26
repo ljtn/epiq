@@ -25,17 +25,8 @@ import {applyRepoEvent, RepoEntry} from './board-repos.js';
 // `materializeSkip`, so a replay converges over an event that lost a race.
 
 /**
- * The two ways a creation event can damage state rather than add to it.
- *
- * `createNode` writes into the node map unconditionally — it has to, since the
- * TUI rebuilds ephemeral nodes under fixed ids on every render — so a second
- * `add.*` naming a live id replaces that node's title, rank, parent,
- * description, tags, assignees and readonly flag. And a node that is its own
- * parent turns every ancestor walk into a loop.
- *
- * Neither is reachable from this build's writers; both are reachable from a
- * log, which is why they are convergence skips rather than failures. First
- * writer wins, which is the only choice that converges.
+ * Skips an `add.*` naming a live id (`createNode` would overwrite it) or a node
+ * that is its own parent. First writer wins.
  */
 const refuseUncreatableNode = (
 	id: string,
@@ -806,9 +797,7 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 	'link.contributor.email': event => {
 		const {contributor, email} = event.payload;
 
-		// Checked here rather than in the payload schema: a future epiq may accept
-		// an address this build would reject, and a skip leaves that event in the
-		// log for a newer reader instead of quarantining the line.
+		// Here, not in the schema, so a newer build's address is skipped, not quarantined.
 		if (!isValidEmail(email)) {
 			return materializeSkip(`not an email address: ${email}`, event);
 		}
@@ -832,9 +821,7 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 	'unlink.contributor.email': event => {
 		const {contributor, email} = event.payload;
 
-		// The permission check reads the link's own author and target, both of
-		// which are in the ordered log. Anything read off a log file name would
-		// let two replicas holding different files decide this differently.
+		// Permission from the event's author and target alone, never a log file name.
 		const result = nodeRepo.unlinkContributorEmail(
 			email,
 			contributor,

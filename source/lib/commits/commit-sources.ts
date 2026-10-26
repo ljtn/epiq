@@ -15,9 +15,8 @@ import {
 } from './commit-repos.js';
 
 /**
- * Somewhere commits are read from. The board's own repo is one, read in place;
- * each registered repo is another, read from epiq's clone of it. Every read
- * goes through the same shape, so neither is a special case downstream.
+ * Somewhere commits are read from: the board's own repo in place, or epiq's
+ * clone of a registered repo.
  */
 export type CommitSource = {
 	/** The registered repo's id; absent for the board's own repo. */
@@ -27,19 +26,13 @@ export type CommitSource = {
 	revisions: string[];
 	/** Commits to leave out of every list. */
 	exclude: ReadonlySet<string>;
-	/**
-	 * Where the repo's history window opens, in ms; older commits are left out.
-	 * A fetch can bring in more than the window — a branch new since the
-	 * clone arrives with its whole history — and the window is what was asked.
-	 */
+	/** Where the history window opens, in ms; older commits are left out. */
 	notBefore?: number;
 };
 
 const NOTHING: ReadonlySet<string> = new Set();
 
-// Why a clone could not be read the last time it was, by repo id: a read that
-// fails leaves the repo's commits out, and the panel says so rather than
-// showing a repo that looks fetched and holds nothing.
+// Why each clone failed its last read, by repo id.
 const readProblems = new Map<string, string>();
 
 export const noteCloneRead = (repoId: string, problem: string | null) => {
@@ -50,11 +43,7 @@ export const noteCloneRead = (repoId: string, problem: string | null) => {
 export const cloneReadProblem = (repoId: string): string | null =>
 	readProblems.get(repoId) ?? null;
 
-/**
- * A shallow clone's boundary commits have no parent here, so git diffs them
- * against nothing and reports the whole tree as added. They are where the
- * window was cut, not work anybody did in it.
- */
+/** Shallow boundary commits: where the window was cut, not real work. */
 const shallowBoundary = (clonePath: string): ReadonlySet<string> => {
 	try {
 		return new Set(
@@ -79,9 +68,7 @@ export const listCommitSources = async (
 	const projectResult = readProjectFile(root);
 	if (isFail(projectResult)) return failed(projectResult.message);
 
-	// `--not <stateBranch>` is required: worktrees share one ref namespace, so
-	// epiq's own state commits would otherwise appear mixed into real
-	// development history.
+	// `--not <stateBranch>`: worktrees share refs, so state commits would mix in.
 	const own: CommitSource = {
 		cwd: root,
 		revisions: ['--branches', '--not', projectResult.value.stateBranch],
@@ -97,9 +84,7 @@ export const listCommitSources = async (
 
 		const since = sinceDate(repo.since, projectResult.value.createdAt);
 
-		// A connected repo that is an epiq board holds its event log beside its
-		// work, and this board's own remote holds this board's: neither is
-		// anybody's commits.
+		// A board's state branch is nobody's commits, here or in a connected repo.
 		const stateBranches = new Set(
 			[
 				projectResult.value.stateBranch,
@@ -112,10 +97,7 @@ export const listCommitSources = async (
 			{
 				repo: repo.id,
 				cwd: clonePath,
-				// Every branch the clone holds, which under `default` is the one
-				// its refspec fetches. Not HEAD: on a remote with no commits yet
-				// HEAD is an unborn branch and `git log HEAD` fails, where
-				// `--branches` answers nothing.
+				// `--branches`, not HEAD, which is unborn on an empty remote.
 				revisions: [
 					...[...stateBranches].map(name => `--exclude=${name}`),
 					'--branches',
@@ -144,9 +126,8 @@ const hasCommit = async (cwd: string, sha: string): Promise<boolean> =>
 	);
 
 /**
- * Where to read one commit from. A caller that knows the repo names it; one
- * that holds only a sha — an older client, a hand-typed MCP call, a TUI node —
- * gets the first source that has the commit, the board's own repo first.
+ * Where to read one commit from: the named repo, else the first source that
+ * has the sha, own repo first.
  */
 export const resolveCommitCwd = async (input: {
 	repoRoot?: string;

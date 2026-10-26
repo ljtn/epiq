@@ -3,31 +3,18 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {useFocusLift} from '../lib/use-focus-lift';
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-	// `primary` is the next step — what commits a form, one per decision — and
-	// is lit in the accent so it is found before the rest. `ghost` is what
-	// dismisses it, and what inline controls in a header or a card row take.
-	// Everything else is `default`.
+	// `primary` commits a form, one per decision; `ghost` dismisses it and suits
+	// inline controls.
 	variant?: 'default' | 'ghost' | 'chip' | 'primary';
 	// A primary step that destroys: lit in red rather than the accent.
 	danger?: boolean;
-	// A name that survives the pointer, as `IconButton` has. TooltipLayer takes
-	// `title` off whatever it describes while its tooltip is open, so a button
-	// found by its title is unfindable for as long as somebody rests on it.
+	// TooltipLayer strips `title` while open, so tests find buttons by this.
 	testId?: string;
-	// A hex colour the button *stands for*, rather than one it is painted in: a
-	// tag's own colour. The fill and the border take a wash of it, so the name,
-	// what it sits on and what encloses it read as one object instead of three.
-	// Kept far enough down that it colours the chip without competing with the
-	// title above it.
+	// A tag's own colour, washed into fill and border.
 	tint?: string;
-	// This one is on and stays on — the tag the board is narrowed to. A step
-	// past what the pointer does, so it reads as pressed across a board the
-	// pointer is nowhere near, and pressing it again is visibly the way back.
-	// Only means anything alongside a `tint`.
+	// Pressed and held, e.g. the tag the board is narrowed to. Needs a `tint`.
 	held?: boolean;
-	// The same chip, tightened. A panel shows a ticket's tags once and has the
-	// room; a card shows them in a column of thirty, where the row of tags is
-	// the card's height and every step of padding is paid for down the board.
+	// Tighter padding, for tags on a card.
 	dense?: boolean;
 };
 
@@ -64,9 +51,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 		const lit = isPrimary && !props.disabled;
 		const hue = danger ? GUI_THEME.red : GUI_THEME.accent;
 
-		// Four steps of the same wash: resting, under the pointer, held, and held
-		// under the pointer. The border climbs faster than the fill — it is the edge
-		// that says which chip you are on, while the fill stays behind the name.
+		// Wash alpha: resting, hovered, held, held and hovered.
 		const wash = held ? (lifted ? '4d' : '3d') : lifted ? '2b' : '1c';
 		const edge = held ? 'ff' : lifted ? '7a' : '3d';
 
@@ -120,10 +105,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 						: '5px 9px',
 					fontFamily: 'inherit',
 					fontSize: dense ? 11 : 12,
-					// One weight for every button in a row. `primary` already has a body
-					// where the others have an outline or nothing, and that is the whole
-					// difference — setting it in bold as well said the same thing twice,
-					// and at 12px read as shouting next to the two beside it.
+					// One weight for every button in a row.
 					fontWeight: 400,
 					lineHeight: 1,
 					transition:

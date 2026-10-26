@@ -40,9 +40,8 @@ const reorder = (
 };
 
 /**
- * `targetIndex` is an insertion point in the board's swimlanes *as rendered*,
- * so it counts the dragged column itself — which is why the position is
- * resolved against the list with that column already taken out.
+ * `targetIndex` counts the dragged column itself, so it is resolved against
+ * the list with that column taken out.
  */
 export const moveSwimlane =
 	(

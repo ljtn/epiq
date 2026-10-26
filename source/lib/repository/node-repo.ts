@@ -34,11 +34,8 @@ import {
 import {getOrderedChildren} from './rank.js';
 
 /**
- * Every walk up `parentNodeId` bounds itself on the nodes it has already
- * seen. The tree is acyclic as long as only this build's writers built it —
- * `moveNodeToRank` refuses a move into a descendant, and applying those one at
- * a time can never close a loop — but the node map is built from a log, and a
- * loop there costs a hung process rather than a wrong answer.
+ * Every walk up `parentNodeId` stops at a node already seen: the map comes
+ * from a log, and a loop there must not hang.
  */
 export const findAncestor = <T extends AnyContext>(
 	targetId: string,
@@ -138,15 +135,7 @@ export const nodeRepo = {
 		nodeRepo.deleteNodes([nodeId]);
 	},
 
-	/**
-	 * Several nodes in one pass.
-	 *
-	 * Deleting copies the whole node map, so deleting one at a time copies it
-	 * once per node: leaving a view that had made a node per line of what it
-	 * drew cost seconds, growing with the square of the lines. The virtual rows
-	 * of the diff pager and the event log are both built and torn down whole,
-	 * so they are removed whole.
-	 */
+	/** Several nodes in one pass; each delete copies the whole node map. */
 	deleteNodes(nodeIds: string[]) {
 		if (nodeIds.length === 0) return;
 
@@ -229,11 +218,6 @@ export const nodeRepo = {
 	},
 
 	// Every issue's comments, in one pass over them.
-	//
-	// The caller that wants them all wanted `getCommentsByIssue` per issue, and
-	// that reads every comment on the board each time: O(issues x comments),
-	// which on a board with a hundred thousand of each is ten billion
-	// comparisons and a page that never finishes loading.
 	getCommentsGroupedByIssue(): Map<string, CommentState[]> {
 		const byIssue = new Map<string, CommentState[]>();
 
@@ -465,9 +449,8 @@ export const nodeRepo = {
 		return succeeded('Successfully tomb stoned', node);
 	},
 
-	// Clears the display name but keeps the record, so assignments referencing
-	// the id keep resolving. Unconditional: the rule that only contributors who
-	// have never authored an event may be tombstoned lives in the caller.
+	// Clears the display name but keeps the record, so assignments still resolve.
+	// The caller decides who may be tombstoned.
 	tombstoneContributor(contributorId: string): Result<Contributor> {
 		const contributor = this.getContributor(contributorId);
 		if (!contributor) return failed('Contributor not found');
@@ -536,13 +519,8 @@ export const nodeRepo = {
 	},
 
 	/**
-	 * Binds a git address to a contributor. Idempotent: re-linking a live link
-	 * is a success that writes nothing, so a replay that sees the same event
-	 * twice lands on the same state.
-	 *
-	 * A second contributor claiming the same address is allowed, and makes it
-	 * contested rather than rejecting the write. Refusing here would make the
-	 * outcome depend on which replica saw which event first.
+	 * Binds a git address to a contributor. Idempotent, and a second claimant
+	 * makes it contested rather than failing, so replay order doesn't matter.
 	 */
 	linkContributorEmail({
 		email,
@@ -576,11 +554,7 @@ export const nodeRepo = {
 		return succeeded('Linked email to contributor', link);
 	},
 
-	/**
-	 * Retracts a link, forward-only: the record keeps its key and is flagged, so
-	 * a later re-link is an ordinary state change rather than a resurrection,
-	 * and replay never has to rewrite anything.
-	 */
+	/** Retracts a link by flagging the record, so replay never rewrites it. */
 	unlinkContributorEmail(
 		email: string,
 		contributor: string,

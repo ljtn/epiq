@@ -28,10 +28,8 @@ const run = async (tui: Tui, cmd: string, echo: string) => {
 const git = (cwd: string, args: string) =>
 	execSync(`git ${args}`, {cwd, stdio: 'ignore'});
 
-// A commit whose subject carries the ref, or whose body has an Epiq-Ref line
-// naming it, is what links it to the ticket; one that does neither must stay
-// out of the list, which is the half of the matching that a passing "shows
-// three commits" would not notice.
+// A commit links by its subject's ref or an Epiq-Ref body line; one with neither
+// must stay out of the list.
 const commit = (cwd: string, subject: string, file: string, body?: string) => {
 	fs.writeFileSync(path.join(cwd, file), `export const a = '${file}';\n`);
 	git(cwd, 'add -A');
@@ -82,9 +80,7 @@ describe('TUI diff e2e', () => {
 				commit(tui.cwd, `${ref} the second thing`, 'three.ts');
 				commit(tui.cwd, 'the third thing', 'four.ts', `Epiq-Ref: ${ref}`);
 
-				// Into the ticket, then down to the Diff row. Every press is
-				// confirmed on the row it lands on before the next goes out, the
-				// way the comments suite walks this same list.
+				// Into the ticket, then down to the Diff row, confirming each press.
 				tui.input(ENTER);
 				await tui.waitFor('Diff ››', 4_000);
 
@@ -114,11 +110,8 @@ describe('TUI diff e2e', () => {
 				expect(listed).toContain('o to open in your editor');
 				expect(listed).not.toContain('another ticket entirely');
 
-				// `o` hands the commit to the configured editor (`vim` here, which
-				// this container has no terminal for). Whatever comes of that, the
-				// TUI must still be taking input — so move the cursor afterwards and
-				// wait for it to land. Waiting on text that is already on screen
-				// would pass whether or not the TUI was still alive.
+				// `o` hands the commit to an editor this container can't run; the TUI
+				// must still take input, so move the cursor and wait for it to land.
 				tui.input('o');
 				tui.input(ARROW_DOWN);
 				const afterOpen = await tui.waitFor(/❯.*the second thing/, 6_000);
@@ -206,9 +199,7 @@ describe('TUI diff e2e', () => {
 				expect(patch).toContain('const keep = 1;');
 				expect(patch).not.toContain('+const keep = 1;');
 
-				// `enter to read` is the commit list's own wording. Waiting on a
-				// phrase the pager's header also carries would match the frame
-				// already on screen and never prove `q` did anything.
+				// The commit list's own wording; the pager header shares other phrases.
 				tui.input('q');
 				const back = await tui.waitFor('enter to read', 6_000);
 				expect(back).toContain('Diff (2)');
@@ -302,9 +293,7 @@ describe('TUI diff e2e', () => {
 				expect(ranged).toMatch(/▌\s+-const drop/);
 				expect(ranged).toMatch(/▌\s+1\s+const keep/);
 
-				// Enter on a line opens the command line already carrying the range,
-				// so what the comment will attach to is on screen before a word of
-				// it is typed — and can be corrected there.
+				// Enter opens the command line already carrying the range.
 				tui.input(ENTER);
 				await tui.waitFor(commandLineShows('comment lines:1-2'), 6_000);
 				await run(tui, 'reads oddly now', 'reads oddly now');
@@ -369,11 +358,8 @@ describe('TUI diff e2e', () => {
 
 				git(tui.cwd, 'commit -q --no-verify --allow-empty -m base');
 
-				// Real code: tabs, which measure zero but render four columns wide,
-				// and one line past the width of the terminal. Both used to be
-				// wrapped by ink onto a second row, which left every row two rows
-				// tall while the scroll box was being told each was one — so the
-				// window it computed was wrong and the top became unreachable.
+				// Tabs and an over-wide line: rows must stay one row tall, or the
+				// scroll window miscomputes and the top becomes unreachable.
 				fs.writeFileSync(
 					path.join(tui.cwd, 'deep.ts'),
 					[

@@ -1,8 +1,5 @@
-// What may be connected as a repo's URL. Pure: the GUI client checks a URL
-// as it is typed with the same rule the server refuses it by.
-//
-// A connected repo is fetched by every contributor, so it must be something
-// all of them can reach: a remote, never a path on one machine.
+// What may be connected as a repo's URL; shared by client and server. It must
+// be a remote every contributor can reach.
 
 const SCHEMES = new Set(['https:', 'http:', 'ssh:', 'git:', 'file:']);
 // `user@host:path`, the form ssh remotes are usually written in. Both names
@@ -17,21 +14,17 @@ export const MAX_URL_LENGTH = 2048;
 export const REPO_URL_FORMS = 'Use https://, ssh://, git:// or user@host:path.';
 
 /**
- * Whether local `file:///` repos are allowed: off unless the process says so,
- * which epiq's own tests do so they never touch the network. Never true in a
- * browser; the GUI is told by the server.
+ * Whether local `file:///` repos are allowed: only when the process opts in
+ * (tests). Never in a browser.
  */
 export const localReposAllowed = (): boolean =>
 	(globalThis as {process?: {env?: Record<string, string | undefined>}}).process
 		?.env?.['EPIQ_ALLOW_LOCAL_REPOS'] === '1';
 
 /**
- * Why a URL may not be registered, or null when it may. It arrives from a
- * committed file, so it is anybody's who can open a pull request: plain git
- * transports only, nothing git could read as a flag, nothing that runs a
- * command (`ext::` or any other `<helper>::` remote), no local path unless
- * `allowLocal`, and no password — one in a shared URL is a leaked one, and a
- * credential helper is where it belongs.
+ * Why a URL may not be registered, or null. It comes from a committed file:
+ * plain git transports only, no flags, no `<helper>::`, no password, and no
+ * local path unless `allowLocal`.
  */
 export const repoUrlProblem = (
 	url: string,
@@ -40,9 +33,7 @@ export const repoUrlProblem = (
 	if (url.length > MAX_URL_LENGTH) return 'is too long';
 	if (!PRINTABLE.test(url)) return 'holds spaces or characters git would not';
 	if (url.startsWith('-')) return 'would be read as an option';
-	// A backslash, a `#` or a `?` has no use in a clone URL, and each is read
-	// one way by the URL parser here and another by git and curl: a `\` or a
-	// `#@host` makes one host read as another while git connects elsewhere.
+	// `\`, `#` and `?` parse differently here than in git and curl.
 	if (/[\\#?]/.test(url)) return 'holds a character a clone URL has no use for';
 	// `<transport>::<address>` hands the address to `git remote-<transport>`.
 	// An IPv6 literal carries `::` inside its brackets, which is not that.
@@ -58,9 +49,7 @@ export const repoUrlProblem = (
 		return 'is not a remote URL';
 	}
 
-	// Git decodes the authority before it reads it, so `%2d` is `-` to git and
-	// an option once decoded; the checks below see the encoded text. Nothing
-	// in a host or a login needs encoding.
+	// Git decodes the authority first (`%2d` is `-`), so encoding is refused.
 	if (/%/.test(authorityOf(url))) return 'percent-encodes its host';
 
 	if (!SCHEMES.has(parsed.protocol)) {

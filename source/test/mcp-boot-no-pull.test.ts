@@ -2,21 +2,10 @@ import {readFileSync, readdirSync} from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 
-// Every MCP tool answers out of local state. A boot that pulled would put a
-// network round trip — and another clone's writes — inside a call the caller
-// believes is a read of their own repo, and would do it on a tool that never
-// said it syncs. Syncing is `epiq_sync`'s job, and the autosync loop's, both of
-// which announce themselves.
-//
-// Scanned rather than exercised: the rule is that *no* call site reaches the
-// network, and a test per tool proves nothing about the one added next week.
-// `bootLocal` is the one door, so the rule is one line to check and one line to
-// break — rather than the thirty-seven copies of `{pull: false}` this replaced,
-// each of which had to keep saying it.
+// MCP tools answer from local state; only `epiq_sync` and autosync reach the
+// network. Scanned, so a tool added later is covered too.
 
-// The whole tree, not just `mcp/api`: `boot` is exported, so a call from the
-// server, the GUI's own layer or anywhere else would defeat the rule while a
-// scan of one directory reported it kept.
+// The whole tree, not just `mcp/api`: `boot` is exported.
 const sourceDir = path.join(import.meta.dirname, '..');
 const apiDir = path.join(sourceDir, 'mcp', 'api');
 
@@ -48,9 +37,7 @@ const linesMatching = (pattern: RegExp): {file: string; line: string}[] =>
 const directBootCalls = () => linesMatching(/\bboot\(/);
 
 describe('the MCP never pulls on boot', () => {
-	// A vacuous pass is the failure mode of a scan: a rename, a moved folder or
-	// a tightened filter would leave nothing to check and report success. The
-	// door being used everywhere is what makes checking the door worth anything.
+	// Guards against a vacuous pass if the scan stops finding anything.
 	it('boots through the one door, everywhere', () => {
 		expect(linesMatching(/\bbootLocal\(/).length).toBeGreaterThan(4);
 		expect(linesMatching(/\bbootedWithActorAndState\(/).length).toBeGreaterThan(

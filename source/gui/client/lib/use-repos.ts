@@ -1,8 +1,5 @@
-// The other repos whose commits count as the board's, as the repos panel
-// reads and changes them. They are board events: a new repo is previewed from
-// a staged clone first and connected only on a confirm, while an option change
-// on a connected one is written at once. A change that moves commits is
-// announced to every client as `repos:changed`.
+// The other repos whose commits count as the board's. A new repo is previewed
+// from a staged clone and connected on confirm.
 
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {GuiOwnRepo, GuiRepoList, GuiRepoPreview} from './gui-state.model';
@@ -25,11 +22,7 @@ export type ReposState = {
 	preview: GuiRepoPreview | null;
 	/** A preview being cloned, or its confirm being written. */
 	pending: 'preview' | 'confirm' | null;
-	/**
-	 * Bumped each time another repo's commits may have moved, so whatever
-	 * draws commits asks for them again. They come from git; no board state
-	 * carries the change.
-	 */
+	/** Bumped when another repo's commits may have moved, since they come from git. */
 	changed: number;
 };
 

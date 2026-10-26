@@ -1,6 +1,4 @@
-// Reads ids straight off the persisted logs rather than through the event
-// decoder, so an event this build cannot interpret still counts as present.
-// Losing one is data loss whether or not we can read it.
+// Reads ids straight off the logs, so an event this build can't decode still counts.
 import fs from 'node:fs';
 import path from 'node:path';
 import {actorSegmentOf} from '../../lib/event/pending-log.js';
@@ -8,11 +6,8 @@ import {actorSegmentOf} from '../../lib/event/pending-log.js';
 const eventsDir = (stateBranchRoot: string): string =>
 	path.join(stateBranchRoot, '.epiq', 'events');
 
-// A file listed a moment ago and gone by the time it is opened is a sync
-// having rebased the worktree underneath the listing — which is the very thing
-// concurrent-sync provokes, so the harness must not treat it as a failure. The
-// ids are read again after the actors settle; a file that matters is still
-// there then. Same race `K6W24FY` closed in `logSignature`.
+// A file gone since listing is a sync rebasing underneath, not a failure; ids are
+// read again once actors settle.
 const readLogFile = (filePath: string): string => {
 	try {
 		return fs.readFileSync(filePath, 'utf8');
@@ -34,8 +29,7 @@ const idsInFile = (filePath: string): string[] => {
 			const id = (JSON.parse(trimmed) as {id?: [string, string | null]}).id;
 			if (Array.isArray(id) && typeof id[0] === 'string') ids.push(id[0]);
 		} catch {
-			// A half-written line is itself worth reporting, but the caller only
-			// asks about ids, and a malformed one has none to give.
+			// A malformed line has no id to give.
 		}
 	}
 
@@ -43,17 +37,8 @@ const idsInFile = (filePath: string): string[] => {
 };
 
 /**
- * What this actor has written — including what it has not synced yet.
- *
- * An append lands in the pending log and stays there until a sync folds it into
- * the tracked one, so reading the tracked file alone answers "what have I
- * published", which is a different question and reads as nothing at all for
- * somebody working offline. Every pending file of the actor's counts — live,
- * rotated or folded — since a flush part-way through leaves lines in any of them.
- *
- * Matched by actor id, so a log this actor wrote under its pre-ZFZFW9D name
- * still counts as theirs. Reading it as somebody else's would report a line
- * missing that is sitting right there.
+ * What this actor has written, synced or not: its tracked log and every pending
+ * file. Matched by actor id, so logs under an older name count too.
  */
 export const readOwnEventIds = (
 	stateBranchRoot: string,

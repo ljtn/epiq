@@ -1,13 +1,6 @@
 import {useState} from 'react';
 
-/**
- * Which file diffs the reader has ticked off as reviewed.
- *
- * Per browser rather than per board, like the panel's dock and width: where a
- * reader has got to is a reading habit, not a property of the work. Keyed by
- * commit and path, since a file reviewed in one commit says nothing about the
- * same path changed again in the next.
- */
+/** Which file diffs this browser has ticked as reviewed, keyed by commit and path. */
 const STORAGE_KEY = 'epiq.commits.reviewedFiles';
 
 const reviewedKey = (sha: string, path: string): string => `${sha}:${path}`;

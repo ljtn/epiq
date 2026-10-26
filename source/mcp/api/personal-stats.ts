@@ -1,16 +1,5 @@
-// The viewer's own totals, for the identity panel.
-//
-// Two halves, from two places. Tickets, comments and how long they have been
-// here are counted off the event log — `authoredTotals` does that and nothing
-// else. Commits are not events, so they come from the same author scan the
-// panel already runs for its Unclaimed list: cached for a few seconds, and
-// already excluding the state branch, so the board writing its own log is not
-// mistaken for somebody's work.
-//
-// While the timeline is scrubbed the first half is as of that moment — the
-// log holds only what has been applied — and the commit figure is not, being
-// repository-wide. The same bargain `diff-stats:get` strikes, and for the same
-// reason: a ticket's commits are what it has come to, not what a window holds.
+// The viewer's own totals, for the identity panel: tickets and comments from
+// the log (as of a scrub), commits from the repository-wide author scan.
 
 import {getStateBranch} from '../../git/git-constants.js';
 import {readGitName} from '../../lib/config/git-identity.js';
@@ -38,15 +27,8 @@ export const getPersonalStats = async (
 		links: ready.value.state.emailLinks,
 	});
 
-	// A history that could not be read costs the commit figure, not the panel.
-	// The three counted off the log are still true, and the addresses below
-	// them carry their own scan error already.
-	//
-	// A contested address counts for nobody, here as everywhere else. Two
-	// people claiming one address is the state `emailOwnerIndex` resolves to
-	// neither of them, and the panel says so a few rows below this figure —
-	// crediting both of them here would have the same surface making both
-	// claims at once.
+	// An unreadable history costs only the commit figure. A contested address
+	// counts for nobody, as everywhere else.
 	const mine = isFail(scanned)
 		? []
 		: scanned.value.filter(

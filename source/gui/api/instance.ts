@@ -1,15 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-// The port a GUI asks for first. A second epiq on the same machine only lands
-// somewhere else because this one was taken, which is the whole reason an
-// instance needs to be identifiable.
-//
-// Settable, because the port is not only this process's business: a browser
-// reaching the server through a forwarded port sends that port in its Origin,
-// and the guard on the websocket handshake refuses a handshake whose origin
-// port is not the one the server bound. Anything in front of the server has to
-// be able to make the two agree.
+// The port a GUI asks for first. Settable, since the websocket origin guard
+// needs it to match a forwarded port.
 export const PREFERRED_GUI_PORT = Number(process.env['EPIQ_GUI_PORT']) || 3710;
 
 export const INSTANCE_PATH = '/api/instance';
@@ -22,12 +15,7 @@ export type GuiInstance = {
 	pid: number;
 };
 
-/**
- * Two paths naming the same project have to compare equal, so a symlinked
- * checkout or a trailing slash cannot make one epiq look like a different one.
- * Falls back to `resolve` when the path cannot be read — better a comparison
- * that might miss than a throw on the boot path.
- */
+/** Canonical path for comparing projects; falls back to `resolve` rather than throw. */
 export const canonicalRepoRoot = (repoRoot: string): string => {
 	try {
 		return fs.realpathSync(path.resolve(repoRoot));
@@ -50,13 +38,8 @@ const isGuiInstance = (value: unknown): value is GuiInstance => {
 };
 
 /**
- * Who holds `port`, or null for "nobody I can use".
- *
- * Null covers every unhappy answer alike — nothing listening, something that
- * is not epiq, a hang, a body that is not the shape above — because the caller
- * does the same thing in all of them: carry on and start its own server. The
- * timeout matters: a foreign server that accepts the socket and never replies
- * would otherwise stall the boot it was meant to speed up.
+ * Who holds `port`, or null for any answer that isn't a usable epiq. Times
+ * out, so a silent foreign server can't stall boot.
  */
 export const probeGuiInstance = async (
 	port: number,

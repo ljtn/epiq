@@ -1,16 +1,12 @@
 import {CmdKeyword} from '../../../../lib/command-line/cmd-keywords.js';
 import {GuiContributor, GuiGoal, GuiIssue, GuiTag} from '../gui-state.model';
 
-// Either one of the TUI's keywords — both surfaces name the same thing the same
-// way — or `gui:`-prefixed for what only a browser can do. A test holds the
-// first half to `CmdKeywords`, so the two vocabularies cannot drift apart
-// without saying so.
+// A TUI keyword, or `gui:`-prefixed for what only a browser can do. A test
+// holds the first half to `CmdKeywords`.
 export type GuiCommandId = CmdKeyword | `gui:${string}`;
 
-// What the second step of a two-stage command offers: a tag to apply, a person
-// to assign. `color` is drawn as a swatch where the thing has one. `title`
-// rather than `label` so an argument is `Matchable`, and one matcher ranks both
-// steps.
+// The second step of a two-stage command: a tag to apply, a person to assign.
+// `title` so it is `Matchable` like a command.
 export type CommandArgument = {
 	id: string;
 	title: string;
@@ -23,20 +19,14 @@ export type CommandArgument = {
 
 export type CommandGroup = 'Ticket' | 'Board' | 'View' | 'History';
 
-// Everything a command needs to decide whether it can run, and to run. Handlers
-// are passed in rather than reached for, so the registry is a value the tests
-// can build without a React tree.
-// One ticket anywhere in the project, flattened for the search command. A list
-// rather than the boards themselves, so the registry never has to know how a
-// board is shaped.
+// Everything a command needs to decide whether it can run, and to run.
+// One ticket anywhere in the project, flattened for the search command.
 export type SearchableTicket = {
 	id: string;
 	ref: string;
 	title: string;
 	boardTitle: string;
-	// The board's human-facing ref, which is what its route is keyed by: a
-	// project-wide search can land on a ticket that is not on the board being
-	// looked at, and opening it has to go there.
+	// What its route is keyed by: a search can land on another board.
 	boardRef: string;
 };
 
@@ -87,9 +77,7 @@ export type GuiCommand = {
 	id: GuiCommandId;
 	title: string;
 	group: CommandGroup;
-	// Words the matcher accepts besides the title: what somebody would type
-	// looking for this, including the TUI keyword where the GUI title has
-	// drifted from it.
+	// Words the matcher accepts besides the title, including the TUI keyword.
 	keywords?: string[];
 	// Null when it can run, otherwise why not — which the row shows rather than
 	// hiding, the way the TUI palette keeps unavailable commands listed.
@@ -97,10 +85,8 @@ export type GuiCommand = {
 	// Only on the commands that take one. The palette pushes a second step over
 	// what this returns.
 	getArguments?: (context: CommandContext) => CommandArgument[];
-	// For a command whose argument need not already exist — `:tag urgent` names
-	// a tag into being in the TUI, and a board with no tags yet would otherwise
-	// offer an empty list and no way forward. Null where the query is not a
-	// usable one.
+	// For an argument that need not exist yet, like a new tag. Null where the
+	// query is not usable.
 	freeTextArgument?: (query: string) => CommandArgument | null;
 	run: (context: CommandContext, argument?: CommandArgument) => void;
 };

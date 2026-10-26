@@ -1,16 +1,11 @@
 import {CONFIRM_MSG} from './command-validation.js';
 
-// The sigil, while a confirmed command is still running. Two dots — the colon
-// itself — walking the corners of the braille cell: one column wide, so nothing
-// on the line shifts under it, and the same quiet register as the sync badge's
-// drift rather than a spinner competing with the board for attention.
+// The sigil while a command runs: the colon's two dots walking a braille cell, one column wide.
 export const PENDING_FRAMES = ['⠃', '⠆', '⠰', '⠘'] as const;
 
 export const PENDING_FRAME_MS = 120;
 
-// What sits at the head of the command line. A running command animates the
-// colon in place: the line reads as busy without a word being added to it, and
-// idle it is the plain sigil it has always been.
+// The head of the command line, animated while a command runs.
 export const commandLineSigil = ({
 	isPalette,
 	isPending,
@@ -31,14 +26,8 @@ export const commandLineSigil = ({
 	return isPalette ? '?' : ':';
 };
 
-// "<ENTER> to confirm" is an instruction, and once the command is running it is
-// the wrong one — pressing Enter again is exactly what somebody does when a
-// slow command looks like it never landed. Every other message stays put: a
-// failed result arrives while pending is still true, and that one has to show.
-//
-// Matched on rather than compared: the message arrives styled, wrapped in the
-// escape codes `hintDefault` paints it with, so equality against the bare
-// string silently never holds.
+// Hides "<ENTER> to confirm" while the command runs. `includes`, since the
+// message arrives wrapped in escape codes.
 export const commandLineHint = ({
 	infoMessage,
 	isPending,

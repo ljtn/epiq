@@ -9,12 +9,7 @@ import {HANDOFF_PATH, type Handoff} from './handoff.js';
 // Its own `tsx` process rather than Playwright's global setup: seeding drives
 // a real pty, which Playwright's loader cannot host.
 
-// The tests commit to the repository this server is reading, and then ask it
-// what it sees. Its scans of git's own history are cached for a few seconds in
-// a real session, so every such test used to sleep the cache out before
-// reloading — two and a half minutes of the suite doing nothing. Off here: the
-// scans are over a seeded repository of a few dozen commits, so the answer costs
-// milliseconds to recompute, and the test asks for what is there now.
+// No git scan cache: tests commit and then read straight back.
 process.env['EPIQ_CACHE_MS'] = '0';
 // The tests connect repos from local paths; a real server refuses them.
 process.env['EPIQ_ALLOW_LOCAL_REPOS'] = '1';
@@ -53,9 +48,7 @@ const main = async () => {
 		globalDir: process.env['EPIQ_GLOBAL_DIR']!,
 	};
 
-	// The server boots the repo on its first request; taken here rather than
-	// by the first test, whose 10s expectation is not enough for it under a
-	// full set of workers starting at once.
+	// Boots the repo now: the first test's 10s timeout is too short under full load.
 	await fetch(`${handoff.baseUrl}/api/state`);
 
 	fs.writeFileSync(HANDOFF_PATH, JSON.stringify(handoff));

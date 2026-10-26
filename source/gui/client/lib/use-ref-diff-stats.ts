@@ -1,14 +1,5 @@
-// What every ticket's commits add up to, for the bar beside its ref.
-//
-// One message for the whole board rather than one per card: the server reads
-// the history once and buckets it by ref, so the cost is the same whether one
-// card asks or forty. Asked for rather than broadcast, because a commit lands
-// outside the event log — no state change announces it — and asked again when
-// the window comes back to the front, which is when a commit made in the
-// terminal a moment ago first matters here.
-//
-// Asked for whole, never per moment: a scrubbed board's totals are summed from
-// it here, so dragging the needle asks nothing and draws every step at once.
+// What every ticket's commits add up to, for the bar beside its ref. One ask
+// for the whole board, repeated on focus since commits announce nothing.
 
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 // Types only, from a module that declares nothing but types and imports
@@ -21,11 +12,7 @@ import {diffStatsAt} from './ref-diff-at';
 // object rather than a fresh empty one on every render.
 const NONE: RefDiffTimeline = {};
 
-// The server holds its history scan for FULL_TIMELINE_CACHE_TTL_MS, so an ask
-// inside this window is answered from that cache and costs nothing — and one
-// just outside it is the ask worth making, since a commit that landed in the
-// meantime is what the reader came back to see. Returning to the page fires
-// focus every time, including on a click through from another window.
+// Inside the server's cache TTL an ask costs nothing; just past it is worth it.
 const REFRESH_AFTER_MS = 5_000;
 
 export const useRefDiffStats = ({
@@ -36,9 +23,7 @@ export const useRefDiffStats = ({
 	// The needle of a scrubbed board, or null when live: only commits made by
 	// then count.
 	asOfTime: number | null;
-	// Counts opened sockets, so it is 0 before the first one is up and rises on
-	// every reconnect — after which the socket that would have carried an
-	// earlier answer is gone, and the question has to be put again.
+	// Rises on every reconnect, when the question must be put again.
 	socketEpoch: number;
 	sendRaw: (message: unknown) => void;
 }) => {
@@ -50,10 +35,7 @@ export const useRefDiffStats = ({
 		sendRaw({type: 'diff-stats:get'});
 	}, [sendRaw]);
 
-	// Not at mount, only once a socket is up. Asking at mount as well would send
-	// the same frame twice — it is queued through the connecting socket, and
-	// that socket opening is itself what raises the epoch — and the server
-	// answers both, the first of them on a cold cache.
+	// Only once a socket is up: asking at mount too would send it twice.
 	useEffect(() => {
 		if (socketEpoch === 0) return;
 
@@ -80,9 +62,7 @@ export const useRefDiffStats = ({
 	const onMessage = useCallback((message: any) => {
 		if (message.type !== 'diff-stats') return;
 
-		// A failure — no repository to read, a git lock held elsewhere — leaves
-		// the bars as they are. They are a decoration on the board, and a column
-		// of them blinking out says nothing the reader can act on.
+		// A failure leaves the bars as they are.
 		const next = getResultValue<RefDiffTimeline>(message.payload);
 		if (next) setTimeline(next);
 	}, []);

@@ -18,9 +18,7 @@ const needsWrite = (context: CommandContext): string | null => {
 const needsWritableTicket = (context: CommandContext): string | null =>
 	needsWrite(context) ?? needsTicket(context);
 
-// Readonly is the Closed board, and every board while the timeline is
-// scrubbed; needsWrite has already said the latter, so what is left to say
-// here is the Closed board's.
+// needsWrite already covers a scrubbed timeline; this is the Closed board.
 const needsWritableBoard = (context: CommandContext): string | null => {
 	const held = needsWrite(context);
 	if (held) return held;
@@ -32,15 +30,7 @@ const needsWritableBoard = (context: CommandContext): string | null => {
 
 /**
  * Every command the GUI offers, in the order an empty palette lists them.
- *
- * Named after the TUI's keywords wherever the two surfaces mean the same thing,
- * so what somebody learned in one works in the other. `gui:` ids are the ones a
- * terminal has no equivalent for; the TUI-only commands (`init`, `config`,
- * `exit`, `move`) are simply absent, since a browser has nothing to point them
- * at.
- *
- * Built from handlers rather than reaching for them, so the whole registry is a
- * value a test can construct.
+ * Named after the TUI's keywords where they mean the same; `gui:` is GUI-only.
  */
 export const buildCommandRegistry = (): GuiCommand[] => [
 	{
@@ -52,9 +42,7 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		run: context => context.handlers.createIssue(),
 	},
 	{
-		// `gui:` rather than the TUI's `filter`: that one narrows the board on
-		// screen, and this crosses every board in the project to open one ticket.
-		// Different enough that borrowing the name would misdescribe both.
+		// Not the TUI's `filter`: this searches every board to open one ticket.
 		id: 'gui:search',
 		title: 'Search all tickets',
 		group: 'Board',
@@ -90,9 +78,7 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		run: context => context.handlers.createSwimlane(),
 	},
 	{
-		// The TUI reaches this as `:new board`, where the modifier says which
-		// thing is being made. A palette has no modifiers, so the two creates are
-		// two commands.
+		// The TUI's `:new board`; a palette has no modifiers.
 		id: 'gui:board',
 		title: 'New board',
 		group: 'Board',
@@ -306,9 +292,8 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		run: context => context.handlers.sync(),
 	},
 	{
-		// The TUI's `:config repoConnect` and `:config repoDisconnect`.
-		// Configuration rather than board state, so it stays open while history
-		// is scrubbed.
+		// The TUI's `:config repoConnect` and `:config repoDisconnect`. Stays open
+		// while history is scrubbed.
 		id: 'gui:repos',
 		title: 'Connect repo',
 		group: 'Board',

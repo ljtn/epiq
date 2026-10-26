@@ -11,19 +11,8 @@ import {
 } from '../lib/hover-card';
 import {TicketPreview} from '../lib/use-ticket-previews';
 
-// What a ticket ref shows before you commit to opening it: the ticket's title,
-// where it sits, and the opening of its description.
-//
-// A sibling of TooltipLayer rather than part of it — that one is one delegated
-// listener giving every `title` in the GUI the same look, and a `title` is a
-// string. This draws a card, and only over the refs a description or comment
-// linkified, so the two share their timing and placement (lib/hover-card) and
-// nothing else.
-//
-// Deliberately not interactive: nothing in the card can be clicked, so there
-// is no pointer journey from the ref into it to keep alive, and no way for it
-// to swallow a click meant for the text underneath. The ref itself is already
-// the button that opens the ticket.
+// The hover card for a linkified ticket ref: title, lane and description
+// opening. Shares timing with TooltipLayer (lib/hover-card); not interactive.
 
 /** Set by MarkdownContent on the control it renders for a linkified ref. */
 export const TICKET_REF_ATTRIBUTE = 'data-ticket-ref';
@@ -59,10 +48,7 @@ const Meta = ({preview}: {preview: TicketPreview}) => (
 	</div>
 );
 
-// Tag names in their own colours rather than the chip `Button` a panel or a
-// card uses. That chip is a control — it removes the tag, or narrows the board
-// to it — and its whole shape is about being pressable. Here the same names
-// are being read, not operated, so they are text.
+// Tag names as coloured text, since nothing here is pressable.
 const Tags = ({preview}: {preview: TicketPreview}) => (
 	<div
 		style={{
@@ -96,9 +82,7 @@ const Card = ({preview}: {preview: TicketPreview}) => (
 
 		<Meta preview={preview} />
 
-		{/* Undefined is "still being fetched", and drawing nothing for it keeps
-		    the card from resizing under the pointer a moment after it opens.
-		    An empty string is an answer: this ticket has no description. */}
+		{/* Undefined is still loading; '' means no description. */}
 		{preview.excerpt !== undefined && preview.excerpt !== '' && (
 			<div
 				style={{
@@ -171,11 +155,7 @@ export const TicketPreviewLayer = ({
 			setShown(null);
 		};
 
-		// Which ticket the pointer is over decides this, not which element:
-		// every state broadcast re-renders the prose these controls live in, and
-		// a replaced node fires `mouseover` again. Keying off the node would
-		// read each of those as a fresh hover and restart the wait, so on a
-		// board anything is happening on the card would never open at all.
+		// Keyed by ticket, not node: broadcasts replace nodes, re-firing `mouseover`.
 		const onOver = (event: MouseEvent) => {
 			const trigger = triggerFor(event.target);
 			const ref = trigger?.getAttribute(TICKET_REF_ATTRIBUTE);
@@ -218,16 +198,8 @@ export const TicketPreviewLayer = ({
 		};
 	}, []);
 
-	// Measured once it is in the document, so the first painted frame is
-	// already in the right place — and re-measured when the excerpt lands and
-	// makes the card taller.
-	//
-	// `Boolean(preview)` is in the deps, not `preview` itself, which is rebuilt
-	// on every render: a ref whose ticket is momentarily absent from the board
-	// state (mid-scrub, or a board that left the broadcast) draws no card, so
-	// this runs against no node — and without something to re-run on, the card
-	// would mount at opacity 0 when the ticket came back and stay there until
-	// the pointer left and returned.
+	// Measured before paint and again when the excerpt lands. Depends on
+	// `Boolean(preview)`, so a ticket that briefly vanishes still remeasures.
 	const hasPreview = Boolean(preview);
 
 	useEffect(() => {
@@ -254,9 +226,7 @@ export const TicketPreviewLayer = ({
 		return () => clearInterval(check);
 	}, [shown]);
 
-	// A ref that resolved when it was linkified but not now — the ticket moved
-	// to a board this client stopped being told about, or the board is
-	// mid-scrub — draws nothing rather than an empty card.
+	// A ref that no longer resolves draws nothing.
 	if (!shown || !preview) return null;
 
 	return createPortal(

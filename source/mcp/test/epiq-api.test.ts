@@ -14,9 +14,8 @@ import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {AnyContext} from '../../lib/model/context.model.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 
-// Fixture ids have to be real ULIDs: the projection decodes every one, and
-// decodeTime is strict. Crockford base32 has no I, L, O or U, so the label is
-// transliterated rather than used raw — it stays readable in failure output.
+// Fixture ids must be real ULIDs; the label is transliterated into Crockford
+// base32 so it stays readable.
 const fixtureId = (label: string): string =>
 	`01H${label
 		.toUpperCase()
@@ -117,19 +116,14 @@ vi.mock('../../lib/board/board-log.js', async importOriginal => {
 		);
 	});
 
-	// In production this reads the log file names. Here the steered state log
-	// stands in for them, since that is what a test sets to say who has
-	// authored. A name of `unknown` is the file-name placeholder and is
-	// dropped, exactly as the real one drops it.
+	// Stands in for the log file names via the steered state log. `unknown` is
+	// the file-name placeholder and is dropped.
 	const loadActorNames = vi.fn(() => {
 		const byId = new Map<string, string>();
 		const merged = loadMergedEvents();
 
-		// Both sources, because a test steers whichever one its subject reads,
-		// and the real function sees every author either way — it reads the log
-		// file names, which exist for all of them. Last wins, as it does there.
-		// The default state log first, the steered merged log after, so a test
-		// that sets one explicitly wins over the fixture both share.
+		// Both sources, default first and the steered merged log after, so an
+		// explicit steer wins. Last wins.
 		const seen = [
 			...actorNameHolder.events,
 			...(isFail(merged) ? [] : (merged.value as unknown[])),
@@ -364,9 +358,7 @@ const DEFAULT_STATE_EVENT_LOG = [
 
 let stateEventLog: unknown[] = [...DEFAULT_STATE_EVENT_LOG];
 
-// Set through here rather than assigned directly, so the `loadActorNames` mock
-// — whose factory is hoisted above this and cannot see the binding — stays in
-// step with what a test steered.
+// Keeps the hoisted `loadActorNames` mock in step with what a test steered.
 const setStateEventLog = (events: unknown[]) => {
 	stateEventLog = events;
 	actorNameHolder.events = events;
@@ -574,13 +566,8 @@ describe('mcp tools', () => {
 			expect(result.value.ref).toBe(nodeRef(fixtureId('issue-1')));
 		});
 
-		// The skill tells an agent to read a thread before starting; without this
-		// the only tool that carried a comment was the whole state.
-		//
-		// Named by id through the registry, so a rename reaches a thread written
-		// before it. `nobody` is an id the registry has never seen and reads as
-		// itself — the comment record used to carry a name of its own, frozen at
-		// whatever its author was called that day.
+		// Named by id through the registry, so a rename reaches an older thread;
+		// an unknown id reads as itself.
 		it('carries the comments in log order, named by their author', async () => {
 			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
 				[
@@ -622,11 +609,7 @@ describe('mcp tools', () => {
 			]);
 		});
 
-		// `add.issue.comment` leaves `author` unconstrained on purpose — this
-		// board's log already holds an attachment written without one — so the
-		// id can be missing whatever the type says. It has to read as something
-		// a person can see; `undefined` is not a name, and the GUI beside this
-		// has always said "Unknown".
+		// `author` can be missing whatever the type says; it reads "Unknown".
 		it('names a comment whose author the log never recorded', async () => {
 			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
 				[
@@ -1723,9 +1706,8 @@ describe('mcp tools', () => {
 	});
 
 	it('derives contributors from event-log userIds, not just the registry', async () => {
-		// boot() also calls loadMergedEvents, so a `once` override gets swallowed.
-		// Restore the default at the end: clearAllMocks does not reset
-		// implementations, so a leak here would change every later test.
+		// boot() also calls loadMergedEvents, so a `once` override is swallowed.
+		// Restore the default at the end, as clearAllMocks keeps implementations.
 		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
 			typeof vi.fn
 		>;
@@ -2081,9 +2063,7 @@ describe('mcp tools', () => {
 		});
 	});
 
-	// The state a stale local log can produce: cleared, yet an author.
-	// Guards against a later sync quietly restoring somebody: the log still
-	// carries the name they authored under, so the registry has to win.
+	// A stale local log can carry a cleared author's name; the registry wins.
 	it('keeps a tombstoned name cleared even when the log carries the real one', async () => {
 		contributorRegistry['contributor-1'] = {
 			id: 'contributor-1',

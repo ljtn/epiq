@@ -1,17 +1,9 @@
-// Paging the window from the chart itself: a horizontal wheel or a trackpad
-// swipe across it is a page earlier or later, once per gesture.
-//
-// A gesture is a burst of wheel events, dozens of them for one swipe, each
-// carrying a slice of the distance. Paging fetches a new window from the
-// server, so one swipe must be one page: the slices are summed until they
-// amount to a deliberate push, that page is turned, and the rest of the burst
-// is ignored until it has been quiet long enough to count as a new one.
+// A horizontal wheel or swipe on the chart turns one page per gesture: deltas
+// sum to a threshold, then the rest of the burst is ignored until it goes quiet.
 
 export type PageDirection = -1 | 0 | 1;
 
-// How far a swipe has to travel before it turns a page. A flick on a trackpad
-// is a few hundred pixels; a scroll wheel's horizontal tilt is far coarser and
-// crosses this in a click or two.
+// How far a swipe travels before it turns a page.
 export const WHEEL_PAGE_THRESHOLD_PX = 120;
 
 // How long the wheel has to fall quiet before the next event starts a new

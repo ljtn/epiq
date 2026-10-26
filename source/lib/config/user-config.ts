@@ -26,23 +26,8 @@ const EpiqConfigSchema = z
 		attachmentMaxKb: z.number().optional(),
 		repoCloneMaxMb: z.number().optional(),
 		viewMode: z.enum(['dense', 'wide']).optional(),
-		// The boards this machine was asked about its git addresses on and
-		// declined. Only the refusal is kept: whether somebody claimed an address
-		// is the board's own answer, read from its links, and caching that here
-		// was what left the step asking on a board where it had been answered
-		// from the GUI.
-		//
-		// Per board, because the addresses offered are a repository's own
-		// history — declining one says nothing about the next. Here rather than
-		// on the board, because a refusal must not replicate to everybody else's
-		// clone.
-		//
-		// The `emailSetup` flag this replaces is dropped rather than migrated: it
-		// was a day old, and its two values do not carry over. A claim needs no
-		// migration because it was always on the board, and a decline was global
-		// where this is per board — mapping one to "the board you happen to be
-		// in" would silence a question nobody answered. Anybody who declined
-		// under it is asked once more, per board.
+		// Boards where this machine declined linking its git addresses. Kept
+		// locally and per board, so the refusal never replicates to other clones.
 		declinedEmailBoards: z.array(z.string()).optional(),
 	})
 	.partial();

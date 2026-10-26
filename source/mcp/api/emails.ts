@@ -33,13 +33,7 @@ import {
 
 type LinkInput = ToolInput & {email: string; contributorId?: string};
 
-/**
- * Binds a git address to a contributor, defaulting to whoever is asking.
- *
- * `contributorId` is accepted so somebody can link a colleague who does not use
- * epiq — without that their commits never resolve at all. Retracting is the
- * narrow half: see `unlinkContributorEmail`.
- */
+/** Binds a git address to a contributor, by default the caller; a colleague may be named. */
 export const linkContributorEmail = async (
 	input: LinkInput,
 ): Promise<
@@ -92,13 +86,7 @@ export const linkContributorEmail = async (
 	);
 };
 
-/**
- * Retracts a link, which only its author or the contributor it names may do.
- *
- * Deliberately narrower than linking. Open removal would let one writer strip
- * every link on the board as often as they liked, and the capability to remove
- * somebody else's claim is the same one that would let them remove yours.
- */
+/** Retracts a link; only its author or the contributor it names may. */
 export const unlinkContributorEmail = async (
 	input: LinkInput,
 ): Promise<Result<{contributor: string; email: string}>> => {
@@ -138,13 +126,7 @@ export const unlinkContributorEmail = async (
 	return succeeded(`Unclaimed ${email}`, {contributor, email});
 };
 
-/**
- * Every address the board knows, and who holds it.
- *
- * Contested addresses are listed with all their claimants rather than left out,
- * because "claimed by two people and resolving to neither" is the one state
- * nothing else on the board would ever tell you about.
- */
+/** Every address the board knows and who holds it, contested ones with all claimants. */
 export const listContributorEmails = async (input: ToolInput = {}) => {
 	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
@@ -181,13 +163,8 @@ export const listContributorEmails = async (input: ToolInput = {}) => {
 		? []
 		: emailsOf(emailLinks, actorResult.value.userId);
 
-	// The address this repository's git is configured with, and who holds it.
-	//
-	// Without this, somebody whose own address another contributor claimed sees
-	// an empty list and nothing else: the auto-link refuses to take a claimed
-	// address, so it stays quiet, and the board goes on attributing their
-	// commits to somebody else with no way to find out why. Naming it is the
-	// whole diagnosis.
+	// The repository's git address and its holder, which explains commits
+	// attributed to someone else.
 	const gitEmail = getSettingsState().gitEmail;
 	const heldBy = gitEmail
 		? claimantsOf(emailLinks, gitEmail).filter(
@@ -210,23 +187,14 @@ export const listContributorEmails = async (input: ToolInput = {}) => {
 	});
 };
 
-/**
- * Addresses in this repository's history that nobody has claimed, for the
- * caller to confirm.
- *
- * The scan itself is `findEmailCandidates`, shared with the TUI's setup step so
- * both offer the same list. Nothing links unattended any more, so this is how
- * an address becomes somebody's.
- */
+/** Unclaimed addresses in this repository's history, for the caller to confirm (`findEmailCandidates`). */
 export const suggestOwnEmails = async (input: ToolInput = {}) => {
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const {userId, userName} = ready.value.actor;
 
-	// The state branch is excluded, as it is everywhere else this scan is run.
-	// Its commits are the board writing its own log, so without this the panel
-	// offers the board's bookkeeping as work somebody did.
+	// Excludes the state branch: its commits are the board's own bookkeeping.
 	const branchResult = getStateBranch(ready.value.boot.repoRoot);
 
 	const scanned = await findEmailCandidates({
@@ -241,11 +209,8 @@ export const suggestOwnEmails = async (input: ToolInput = {}) => {
 
 	const likely = candidates.filter(candidate => candidate.looksLikeYours);
 
-	// Every unclaimed address, likely ones first, each carrying whether it looks
-	// like the caller's. Filtering here would decide presentation for every
-	// caller: a one-shot prompt wants the short list, but a panel somebody opened
-	// on purpose has to be able to show an old address whose name matches
-	// nothing they are called now — which is the case the whole feature is for.
+	// Every unclaimed address, likely ones first, unfiltered: a panel must be able
+	// to show an old address too.
 	return succeeded(
 		candidates.length === 0
 			? 'No unclaimed addresses in this history'

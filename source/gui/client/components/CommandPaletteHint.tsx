@@ -1,16 +1,12 @@
 import {useState} from 'react';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 
-// The chord as the platform writes it. A Mac reader shown `Ctrl` reaches for
-// the wrong key, and the pill exists to teach the shortcut — getting it wrong
-// is worse than not showing one.
+// The chord as the platform writes it.
 const isApple = (): boolean =>
 	typeof navigator !== 'undefined' &&
 	/Mac|iPhone|iPad/.test(navigator.userAgent);
 
-// One key, drawn as a key. Two caps side by side rather than one `⌘K` run: the
-// glyph and the letter are separate presses, and set solid they read as a
-// single strange word.
+// Two caps, since the modifier and the letter are separate presses.
 const Key = ({children}: {children: string}) => (
 	<kbd
 		style={{
@@ -34,13 +30,7 @@ const Key = ({children}: {children: string}) => (
 	</kbd>
 );
 
-/**
- * The affordance that says the palette exists.
- *
- * A shortcut nobody can discover is a shortcut nobody uses, so this sits in the
- * topbar the way a docs site puts its search chord there. Clickable as well as
- * readable: the point is to be found by somebody who does not yet know the key.
- */
+/** The topbar pill that shows the palette's chord and opens it. */
 export const CommandPaletteHint = ({onOpen}: {onOpen: () => void}) => {
 	const [hovered, setHovered] = useState(false);
 

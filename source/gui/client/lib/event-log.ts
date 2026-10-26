@@ -1,11 +1,5 @@
-// The log panel's own logic: which lines it holds, and how the column moves as
-// they arrive. Not theatre's, though a movie is one of the three things that
-// can drive it — the panel is on the board whenever its box is ticked.
-//
-// One rule throughout: the last few events at or before the moment the board is
-// standing at. What supplies that moment differs — the playhead while a movie
-// runs, the checkout while the needle is parked, the present while live — but
-// the slice does not.
+// The log panel's logic: the last few events at or before the moment the
+// board stands at, whether playhead, checkout or present.
 
 import {formatDate, formatDayLabel} from '../../../lib/utils/date.utils.js';
 import {commitTicketRef} from '../../../lib/utils/commit-ref.js';
@@ -21,9 +15,7 @@ import {EVENT_CATEGORY_COLORS, GUI_THEME, TEXT} from './gui-theme';
 import {LOG_ROW_SELECTOR} from './log-destination';
 import {categoryOf} from './scrubber';
 
-// One line of the log. `color` is the dot it is marked with, which is the whole
-// of what says a line is a commit rather than a board event — so it is resolved
-// once here rather than being decided again wherever a row is drawn.
+// One line of the log. `color` is the dot, which alone marks a commit.
 export type LogEntry = {
 	id: string;
 	t: number;
@@ -32,19 +24,14 @@ export type LogEntry = {
 	// Null where it opens with none.
 	ref: string | null;
 	color: string;
-	// Who did it: the event's actor in their own colour, or a commit's author,
-	// who has no identity on the board and so wears the panel's own text colour.
-	// Null on an event nobody signed.
+	// The event's actor, or a commit's author in the panel's text colour. Null
+	// when unsigned.
 	actor: {name: string} | null;
 	// What a commit did to the code, for the stat beside its subject. Null on
 	// a board event, which touched no file.
 	diff: {insertions: number; deletions: number} | null;
-	// What the line was about, which is all a click needs to find its way — see
-	// lib/log-destination. Copied off the source entry rather than worked out
-	// here: every event in the window becomes one of these, and at most one of
-	// them is ever followed.
-	//
-	// A board- or swimlane-level event has no ticket and leads nowhere.
+	// What the line is about, for a click (see lib/log-destination). Null for
+	// board- and swimlane-level events.
 	issue: string | null;
 	// The comment the event was about, where it was about one — see
 	// lib/log-destination, which turns it into an anchor.
@@ -66,23 +53,18 @@ const commitLogEntry = (
 		? commit.subject.trim().split(/\s+/)[0]!
 		: null,
 	color: GUI_THEME.green,
-	// The same label the scrubber puts on this commit. Taking the raw git
-	// name here instead left one view calling somebody by their board name
-	// and the other by their git name, in the same window.
+	// The same label the scrubber gives this commit.
 	actor: {name: commitAuthorLabel(commit)},
 	diff: {insertions: commit.insertions, deletions: commit.deletions},
-	// A commit belongs to the ticket it links to, by subject prefix or an
-	// Epiq-Ref line, which the board resolves when the line is clicked — it
-	// already has to, for the scatter's own commit dots.
+	// Resolved from subject prefix or Epiq-Ref when the line is clicked.
 	issue: null,
 	target: null,
 	action: null,
 	sha: commit.sha,
 });
 
-// Both series in one column, in clock order. Commits are lines and nothing
-// more: they change no board state, so they never drive a checkout and never
-// become a frame of a movie — the playhead is still walked by events alone.
+// Both series in clock order. Commits change no board state, so they never
+// drive a checkout or a movie frame.
 export const buildLogEntries = (
 	events: readonly GuiEventTimelineEntry[],
 	commits: readonly GuiCommitEntry[],
@@ -136,9 +118,7 @@ export const issueActivityLogEntries = (
 		...commits.map(commit => ({...commitLogEntry(commit), sha: null})),
 	].sort((left, right) => left.t - right.t);
 
-// How wide the name column is, in characters: the longest name in the slice,
-// up to MAX_ACTOR_CHARS. Zero when nobody signed anything, which is a slice
-// with no name spans in it.
+// The longest name in the slice, capped at MAX_ACTOR_CHARS; zero when unsigned.
 export const actorColumnChars = (entries: readonly LogEntry[]): number => {
 	let widest = 0;
 
@@ -159,9 +139,7 @@ export const touchedLines = (diff: {
 	deletions: number;
 }): boolean => diff.insertions + diff.deletions > 0;
 
-// The name column's width as the panel sets it on itself, gap included, or
-// nothing at all when nobody signed anything — so an unsigned slice keeps no
-// blank column open.
+// Nothing at all when unsigned, so no blank column stays open.
 const LOG_COLUMN_GAP_PX = 8;
 
 export const actorColumnWidth = (chars: number): string =>
@@ -171,30 +149,15 @@ export const actorColumnWidth = (chars: number): string =>
 export const actorColumnWidthsByDay = (days: readonly LogDay[]): string[] =>
 	days.map(day => actorColumnWidth(actorColumnChars(day.entries)));
 
-// How many lines the panel is handed. Well past what one pane shows, because
-// the pane scrolls and reaching back through it is the point — and because
-// folding, not this, is now what bounds the document: a folded day is one row
-// however many events it holds, so the rows actually mounted are the open
-// days' and nothing else.
-//
-// Still a hard cap, so the panel costs the same on a decade of history as on
-// an hour.
+// How many lines the panel is handed; a hard cap, while day folding bounds
+// what is mounted.
 export const LOG_LINES = 400;
 
-// The height of one line, which is what the column shifts by as a line lands.
-// Fixed rather than measured: every row is one clipped line, so the shift is
-// the same every time and the crawl stays even.
+// Fixed rather than measured, so the crawl stays even.
 export const LOG_ROW_HEIGHT = 18;
 
-// The index of the last item whose value is at or before `limit`, or -1 when
-// none is. A binary search rather than a walk on from the last answer, because
-// the moment can move backwards — a seek, or a needle dragged left — as
-// readily as forwards.
-//
-// Reads the value through `valueOf` rather than taking an array of numbers:
-// this runs in a render that repeats every animation frame of a movie, and
-// projecting twenty thousand timestamps into a fresh array first would be an
-// O(n) walk in front of the O(log n) search that follows it.
+// The index of the last item at or before `limit`, or -1. A binary search,
+// since the moment can move backwards; `valueOf` avoids projecting an array.
 export const lastIndexAtOrBefore = <T>(
 	items: readonly T[],
 	limit: number,
@@ -218,22 +181,8 @@ export const lastIndexAtOrBefore = <T>(
 	return found;
 };
 
-// The stretch of `events` at or before `upTo`, oldest first. `events` must be
-// in clock order — the log is read in the order things happened, which is not
-// the order the log stores them in.
-//
-// `capped` is for playback and nothing else. Parked or live the log covers the
-// whole window, so what the chart draws is what the log can reach; a refresh
-// then runs a few times a second behind a 400ms debounce, where the slice costs
-// under 2ms even at the server's 20,000 ceiling. A movie re-slices every
-// animation frame against a 16.7ms budget, already paying for a checkout per
-// event and the board's own re-render, so there it stays bounded.
-//
-// What is mounted is bounded separately, by the day fold and by `dayRowsShown`
-// within a day — this bounds neither, and must not be asked to.
-//
-// Generic over the entry so the timeline's own rows and a movie's cut-down ones
-// both go through it unchanged.
+// The stretch of `events` (in clock order) at or before `upTo`, oldest first.
+// `capped` is for playback only, which re-slices every frame.
 export const logEntriesUpTo = <T extends {t: number}>(
 	events: readonly T[],
 	upTo: number,
@@ -256,9 +205,7 @@ export type LogDay = {
 	entries: LogEntry[];
 };
 
-// Split into days, oldest first, each already labelled the way its divider
-// reads. Grouped here rather than in the panel so what a day *is* — and what
-// identifies it across renders — is settled in one place.
+// Split into days, oldest first, each labelled as its divider reads.
 export const groupByDay = (entries: readonly LogEntry[]): LogDay[] => {
 	const days: LogDay[] = [];
 
@@ -278,14 +225,8 @@ export const groupByDay = (entries: readonly LogEntry[]): LogDay[] => {
 // wherever a measurement is not to be had.
 export const DEFAULT_OPEN_DAYS = 3;
 
-// How many of the newest days to open so the pane is filled. A folded day costs
-// one row; an open one costs a row and its lines.
-//
-// The day that crosses the pane's height is opened rather than left folded: it
-// is what fills the last of the pane, the overflow is scrollable, and stopping
-// short of it leaves the panel mostly empty above a run of folded dates — which
-// is the thing this exists to avoid. The newest day is always open for the same
-// reason, however long it is.
+// How many of the newest days to open to fill the pane: the one crossing its
+// height opens too, and the newest always does.
 export const daysToOpen = (
 	days: readonly LogDay[],
 	rowsAvailable: number,
@@ -303,9 +244,7 @@ export const daysToOpen = (
 	return opened;
 };
 
-// Whether a day's lines are shown. The newest `openCount` days are, until a
-// reader says otherwise — and their say has to outlive the slice moving, which
-// is why the override is keyed by day rather than by index.
+// The reader's override is keyed by day, so it survives the slice moving.
 export const isDayOpen = (
 	days: readonly LogDay[],
 	index: number,
@@ -314,17 +253,10 @@ export const isDayOpen = (
 ): boolean =>
 	overrides.get(days[index]!.key) ?? index >= days.length - openCount;
 
-// The most rows one open day mounts before the rest go behind an "N earlier"
-// row. The day fold bounds the document across days — a folded day is one row
-// however many events it holds — but nothing bounded it *within* a day, and
-// `daysToOpen` always opens the newest day whole. Twenty thousand events spread
-// over a year is 365 dividers and a few open days; twenty thousand in one busy
-// day was twenty thousand mounted rows.
+// The most rows one open day mounts before the rest go behind "N earlier".
 export const LOG_DAY_ROWS = 200;
 
-// What an open day shows, and how many it is holding back. Expanding is per
-// day and sticky, like the fold, so a day opened by hand stays open as the
-// slice moves under it.
+// What an open day shows, and how many it holds back. Expanding is sticky.
 export const dayRowsShown = (
 	day: LogDay,
 	expanded: boolean,
@@ -340,15 +272,12 @@ export const dayRowsShown = (
 	};
 };
 
-// A seek can replace the whole column at once. Sliding that far would be a
-// swipe rather than a crawl, so the shift is capped at what an ordinary step
-// can be — one line, or a line and the day header it brought with it.
+// A seek can replace the whole column; the shift is capped at a line and its
+// day header.
 const MAX_CRAWL_ROWS = 2;
 
-// The column slides up by however many rows joined the bottom, rather than the
-// stack jumping. Run off the element rather than through a CSS animation: lines
-// can arrive faster than the animation is long, and a restart has to be a
-// restart.
+// Run off the element rather than a CSS animation, since lines can arrive
+// faster than it lasts and a restart must restart.
 export const crawlShiftFrames = (rows: number): Keyframe[] => [
 	{
 		transform: `translateY(${
@@ -363,44 +292,20 @@ export const CRAWL_TIMING: KeyframeAnimationOptions = {
 	easing: 'ease-out',
 };
 
-// A line is one element, a span for who signed it, and for a commit a span
-// holding its stat. Its clock and its dot are drawn as pseudo-elements off the
-// row itself rather than as spans inside it, which is the difference between
-// five nodes a line and two or three — and the panel can hold hundreds.
-//
-// The clock is `attr()`ed off the row, the dot's colour comes in as a custom
-// property, and both are laid out in `ch` so the columns hold at whatever size
-// the row's font ends up.
-//
-// Which of them a row shows is the pane's say — see lib/log-fields — carried
-// as a class on it: the clock's column collapses to nothing when it is off,
-// and the dot goes with it into the gap the row keeps in front of its text.
-// That gap is the lead below: room for the dot while it is drawn, a word
-// space after the clock once it is not, and nothing once the clock goes too.
+// A row draws its clock and dot as pseudo-elements, to keep nodes per line
+// low; columns are in `ch`. The pane's classes (see lib/log-fields) hide them.
 export const LOG_TIME_CHARS = 5;
 export const LOG_DOT_COLOR_PROPERTY = '--epiq-log-dot';
 export const LOG_ACTOR_CLASS = 'epiq-log-actor';
 // The provider's mark in front of an agent's name — see lib/agent-identity.
 export const LOG_DIFF_CLASS = 'epiq-log-diff';
 export const LOG_REF_CLASS = 'epiq-log-ref';
-// The name is a column too, so the labels line up whoever signed each line.
-// It is as wide as the widest name in its day — see actorColumnChars — set on
-// the day and read by its rows, and capped, so one long name cannot push every
-// label off the right edge; past it the name is cut with an ellipsis. The
-// pane's field and split classes zero it, so a day sets it only while the
-// column is drawn.
-//
-// A commit's diff stat is deliberately not a column: it belongs to the few
-// rows that are commits and pushes only their labels along, rather than
-// holding every board event's label out to the right of a stat it lacks.
+// The name column is as wide as the widest name in its day, capped. A diff
+// stat is not a column: it only pushes its own row's label.
 export const LOG_ACTOR_WIDTH_PROPERTY = '--epiq-log-actor-width';
 
-// Split, the pane is divided into a lane per actor — see lib/log-lanes. The
-// panel says how many there are, each row says which one it is in, and the
-// rules below turn the pair into an indent and a width, so a line is drawn in
-// its own lane and cut off at the next one's edge. The class is on the pane,
-// like the field classes: nothing about a row changes but the number it
-// carries.
+// Split, the pane is a lane per actor (see lib/log-lanes): each row carries
+// its lane number, and the rules turn it into an indent and width.
 export const LOG_SPLIT_CLASS = 'epiq-log--split';
 export const LOG_LANES_CLASS = 'epiq-log-lanes';
 export const LOG_LANE_HEAD_CLASS = 'epiq-log-lane-head';
@@ -414,27 +319,19 @@ const TIME_BLOCK_PROPERTY = '--epiq-log-time-block';
 const LEAD_PROPERTY = '--epiq-log-lead';
 const LOG_LEAD_PX = 14;
 
-// The gap between the column of lines and either side of the panel. Shared
-// with the arrow below, which hangs at the end of a line rather than at the
-// edge of the panel it happens to be drawn in.
+// Shared with the arrow, which hangs at the end of a line.
 export const LOG_PANE_PADDING_X = 12;
 
-// The rows that lead somewhere, and only those. The attribute names belong to
-// `log-destination` — it hands over the selector rather than the names, so
-// what these rules point at cannot drift from what a click follows.
+// The rows that lead somewhere; the selector comes from `log-destination`.
 const linkedRow = (suffix = ''): string =>
 	LOG_ROW_SELECTOR.split(',')
 		.map(attribute => `.epiq-log-line${attribute}${suffix}`)
 		.join(',');
 
-// One arrow for the whole panel, moved onto whichever row is hovered — see
-// EventLog, and the same node budget the pseudo-elements above are about. It
-// is decorative: the row is the target, so nothing here takes a pointer.
+// One decorative arrow for the panel, moved onto the hovered row.
 export const LOG_ARROW_CLASS = 'epiq-log-arrow';
 
-// The accent, thinned to a ground. Written out rather than derived: the theme
-// keeps colours as hex and has no mixing of its own, and one wash in one panel
-// does not earn a mechanism.
+// The accent, thinned to a ground.
 const LOG_FOLLOWED_WASH = GUI_THEME.accentWash;
 
 // Mounted with the panel, so it carries its own look rather than depending on

@@ -75,9 +75,7 @@ export type DiffViewState = {
 	error: string | null;
 };
 
-// Fullscreen on a panel at least this wide drops the tabs and lays the three
-// panes out side by side. Below it, the lanes would be too narrow to read, so
-// fullscreen keeps the tabbed layout.
+// Fullscreen at least this wide lays the three panes side by side instead of tabbed.
 export const LANE_VIEW_WIDTH = 1400;
 const LANE_GAP = 20;
 const LANE_COUNT = 3;
@@ -91,9 +89,7 @@ const LANE_SHARES = {
 type LaneKey = keyof typeof LANE_SHARES;
 const LANE_KEYS = Object.keys(LANE_SHARES) as LaneKey[];
 
-// Below this the five tabs and their counts no longer fit on one line, and
-// each label wraps under its own number. Measured against the longest set the
-// panel has — Overview, Comments, Code, Stats, Log — rather than guessed.
+// Below this the tab labels wrap under their counts.
 const TAB_COUNTS_WIDTH = 430;
 
 // Wide enough for the upright label and a comfortable click target.
@@ -108,9 +104,7 @@ const LANE_LABEL_STYLE = {
 	letterSpacing: '0.08em',
 } as const;
 
-// The collapsed lane's rail: the whole rail is the target, with the label
-// running up it, so it is not the square IconButton the open header uses,
-// but it hovers and lights the same way.
+// The collapsed lane's rail, the whole of it a target, hovering like IconButton.
 const LaneIconButton = ({
 	label,
 	icon,
@@ -158,13 +152,8 @@ const LaneIconButton = ({
 );
 
 /**
- * One column of the lanes view, collapsible to a rail so the lanes that stay
- * open — the diff, usually — get the width back.
- *
- * The toggles are labelled "Collapse …"/"Expand …" rather than by the lane
- * name: `fullscreen-lanes.pw.ts` proves the tabs are gone in this view by
- * counting buttons named after a lane, and a header button named "Comments"
- * would read as a tab to it.
+ * One lane, collapsible to a rail. Toggles aren't named after the lane, so a
+ * header button never reads as a tab to the tests.
  */
 const Lane = ({
 	laneKey,
@@ -175,9 +164,7 @@ const Lane = ({
 	onToggle,
 	children,
 }: {
-	// Which lane this is, as against what it is called. The test id is built
-	// from the key so that rewording a heading is a rewording and not a broken
-	// suite — the label is what a reader sees, the key is what a test means.
+	// A stable key for test ids, independent of the heading's wording.
 	laneKey: LaneKey;
 	title: string;
 	count?: number;
@@ -196,9 +183,7 @@ const Lane = ({
 				data-collapsed="true"
 				style={{display: 'flex', minHeight: 0, overflow: 'hidden'}}
 			>
-				{/* The whole rail is the target here, unlike the open header: at 28px
-				    there is no room to aim at anything smaller, and re-opening a lane
-				    by accident costs nothing. */}
+				{/* The whole 28px rail is the target. */}
 				<LaneIconButton
 					label={`Expand ${title}`}
 					onClick={onToggle}
@@ -250,10 +235,7 @@ const Lane = ({
 			>
 				<span style={{...LANE_LABEL_STYLE, minWidth: 0}}>{label}</span>
 
-				{/* Only the button collapses the lane. The header used to do it
-				    wholesale, which was far too easy to trigger by aiming at nothing
-				    in particular. The last open lane has nowhere to collapse to, so
-				    it shows no control at all. */}
+				{/* Only the button collapses the lane; the last open lane has none. */}
 				{canCollapse && (
 					<IconButton title={`Collapse ${title}`} onClick={onToggle}>
 						<IconCollapseLane size={ICON_SIZE} />
@@ -326,9 +308,7 @@ export const IssueDetails = ({
 	issue: GuiIssue | null;
 	comments: GuiComment[];
 	onClose: () => void;
-	// The timeline narrowed to this ticket — its own stretch, and its events
-	// only. It lives in the board's selection; the panel is where it is
-	// switched, since what it narrows to is the ticket on screen.
+	// The timeline narrowed to this ticket's stretch and events; switched here.
 	timelineNarrowed: boolean;
 	// The narrowed window came back as counts alone, naming no events.
 	timelineCapped: boolean;
@@ -415,9 +395,7 @@ export const IssueDetails = ({
 	const assigneeRow = useAddRow();
 	const addingTag = tagRow.open;
 	const addingAssignee = assigneeRow.open;
-	// Tracks the resizable Aside's live width so the Code tab can pick split
-	// vs. unified diffs — initialized from the same persisted value Aside
-	// itself reads, so the first render already picks the right layout.
+	// The Aside's live width, so the Code tab can pick split or unified diffs.
 	const [panelWidth, setPanelWidth] = useState(readStoredAsideWidth);
 	// Read synchronously rather than in an effect: entering fullscreen has to
 	// lay the lanes out in the same commit, which aside-stacking.pw.ts proves.
@@ -458,9 +436,7 @@ export const IssueDetails = ({
 		assigneeRow.close();
 	}, [issue?.id]);
 
-	// A tab stays mounted once opened, so what it holds — a diff selection, an
-	// open file, a scroll position — is still there on coming back to it. Only
-	// for the ticket it was opened on.
+	// A tab stays mounted once opened, for the ticket it was opened on.
 	const [visited, setVisited] = useState<{
 		issueId?: string;
 		tabs: IssueDetailsTab[];
@@ -565,16 +541,12 @@ export const IssueDetails = ({
 	return (
 		<Aside ref={panelRef} dock={dock} onWidthChange={setPanelWidth}>
 			{({isFullscreen, toggleFullscreen}) => {
-				// Docked to the bottom the panel already spans the window, so it earns
-				// the lanes without fullscreen. Not width alone: MAX_ASIDE_WIDTH and
-				// LANE_VIEW_WIDTH are both 1400, so a side panel dragged to its limit
-				// would otherwise flip into lanes on the last pixel.
+				// A bottom dock already spans the window. Not width alone: a side panel at
+				// MAX_ASIDE_WIDTH would flip into lanes on the last pixel.
 				const laneView =
 					(isFullscreen || dock === 'bottom') && panelWidth >= LANE_VIEW_WIDTH;
 
-				// A collapsed lane costs a fixed rail; the rest of the width is split
-				// between the lanes still open, so the diff actually receives what
-				// collapsing its neighbours gave up.
+				// Collapsed lanes take a fixed rail; open ones split the rest.
 				const openShares = LANE_KEYS.filter(key => !laneCollapsed[key]).reduce(
 					(total, key) => total + LANE_SHARES[key],
 					0,
@@ -588,12 +560,8 @@ export const IssueDetails = ({
 					LANE_GAP * (LANE_COUNT - 1) -
 					railTotal;
 
-				// Every track in pixels, including the open ones. A track going from
-				// `minmax(0, 1fr)` to `28px` changes type, and CSS cannot interpolate
-				// across types — it snaps, whatever transition is set. Sizing both
-				// states in the same unit is what lets the collapse animate at all.
-				// Floored, so rounding can only leave a sliver of the row unused
-				// rather than overflow it.
+				// Every track in pixels, since CSS can't animate `1fr` to `28px`. Floored, so
+				// rounding never overflows the row.
 				const laneWidth = (key: LaneKey): number =>
 					laneCollapsed[key]
 						? COLLAPSED_LANE_WIDTH
@@ -615,10 +583,7 @@ export const IssueDetails = ({
 							draft={descriptionEdit}
 							current={issue.description ?? ''}
 							readonly={disabled}
-							// The primitive's default is 1500, which silently dropped
-							// the tail of anything longer — and seven descriptions on
-							// this board are already past it, written from the TUI or
-							// over MCP where no such cap applies.
+							// The primitive's default of 1500 would truncate existing descriptions.
 							maxLength={MAX_DESCRIPTION_LENGTH}
 							onSave={text => onEditDescription(issue.id, text)}
 							collapseKey={issue.id}
@@ -968,18 +933,14 @@ export const IssueDetails = ({
 							commitCount={commitsCount}
 							pinnedToCommits={Boolean(diffFocus)}
 						/>
-						{/* With no commits there is nothing to compact, and both views
-						    would say so — so the per-commit one says it, because its
-						    empty state also says how to link a commit to this ticket. */}
+						{/* With no commits, the per-commit view's empty state says how to link one. */}
 						{diffView.compacted && commits.length > 0
 							? squashedPane
 							: perCommitPane}
 					</div>
 				);
 
-				// A tab rather than a fifth lane: the reading layout puts the diff
-				// side by side with what is said about it, and a page of numbers is
-				// not something to read alongside anything.
+				// A tab rather than a lane: numbers aren't read beside the diff.
 				const statsPane = issue && (
 					<IssueStats
 						stats={stats}
@@ -992,10 +953,7 @@ export const IssueDetails = ({
 					/>
 				);
 
-				// Docked to the bottom the panel is wide and short, so the title
-				// rides in the header row beside the ref and the age rather than
-				// taking a row of its own. Docked right it is the other way round:
-				// height to spare, width to protect.
+				// Docked bottom, the title rides in the header row.
 				const inlineTitle = dock === 'bottom';
 
 				const titleNode =
@@ -1045,9 +1003,7 @@ export const IssueDetails = ({
 								fontWeight: 600,
 								lineHeight: 1.4,
 								cursor: issue.readonly ? 'default' : 'text',
-								// One row shared with the ref, the age and the panel's
-								// own controls: a long title takes what is left and
-								// gives up the rest, rather than wrapping the row.
+								// A long title truncates rather than wrapping the row.
 								...(inlineTitle
 									? {
 											minWidth: 0,
@@ -1111,11 +1067,7 @@ export const IssueDetails = ({
 										{inlineTitle ? titleNode : ageNode}
 									</div>
 
-									{/* Sharing the row with the title, the age belongs to the
-									    far end of it rather than trailing the title — and to
-									    this group rather than the one beside it, which aligns
-									    on the baseline the ref and the title read along. Here
-									    it is centred on the line the buttons keep. */}
+									{/* Beside the title, the age sits at the row's far end, centred with the buttons. */}
 									<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 										{/* Its own margin rather than the row's gap, which is
 										    the spacing the three buttons keep from each other. */}

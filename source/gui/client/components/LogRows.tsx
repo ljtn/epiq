@@ -100,10 +100,7 @@ export const DayDivider = ({
 	);
 };
 
-// The rows an open day is holding back. Inside the day rather than above it,
-// because what it opens is the rest of this day and not another one — and
-// wearing the folded day's own chevron, since it says the same thing about the
-// same kind of thing.
+// The rows an open day holds back, inside the day, with its chevron.
 export const EarlierRow = ({
 	hidden,
 	label,
@@ -142,14 +139,8 @@ export const EarlierRow = ({
 	</button>
 );
 
-// One element, a span for who did it, and one text node. The clock and the
-// kind dot are pseudo-elements of this row rather than spans in it — see
-// EVENT_LOG_STYLES — because the panel holds hundreds of these and three spans
-// apiece is three hundred nodes of nothing.
-//
-// The clock, the dot and the name are shown or hidden by the pane's class;
-// the label is the one field with no element of its own to hide, so it is the
-// one the row is told about.
+// One element per row: the clock and kind dot are pseudo-elements (see
+// EVENT_LOG_STYLES), and fields are shown by the pane's class, except the label.
 export const EventRow = ({
 	entry,
 	showLabel,
@@ -158,9 +149,7 @@ export const EventRow = ({
 }: {
 	entry: LogEntry;
 	showLabel: boolean;
-	// Which lane the row sits in while the log is split: a number, null on a
-	// line nobody signed — it spans them all — and undefined while the log is
-	// not split, which leaves the row exactly as it was.
+	// The row's lane while split: null spans all lanes, undefined when not split.
 	lane?: number | null;
 	// True on the one line the board is standing on while following.
 	followed?: boolean;
@@ -175,10 +164,7 @@ export const EventRow = ({
 			.filter(Boolean)
 			.join(' ')}
 		data-time={formatTimeOfDay(new Date(entry.t))}
-		// A row is one clipped line, so a long label is cut off with nowhere to
-		// read the rest. Only the browser knows which rows are actually clipped,
-		// but a title costs nothing until it is hovered, where measuring every row
-		// on every render would not.
+		// A clipped row's full label, on hover.
 		title={entry.label}
 		// The event, for the chart to single out while the row is hovered.
 		data-event-id={entry.id}
@@ -204,13 +190,8 @@ export const EventRow = ({
 	</div>
 );
 
-// Who signed the line. An agent's provider prefix goes — see
-// lib/agent-identity — leaving the slash and the name; a person's name is
-// written as it is, and the full name stays in the title.
-//
-// Quieter than the label after it, and in nobody's
-// colour: a signature repeated down every row is what the eye should skip,
-// not what it should land on.
+// Who signed the line, without an agent's provider prefix (see lib/agent-identity).
+// Quieter than the label.
 const ActorName = ({name}: {name: string}) => (
 	<span className={LOG_ACTOR_CLASS} title={name}>
 		{actorDisplay(name).label}

@@ -3,27 +3,8 @@ import {failed, Result, succeeded} from '../model/result-types.js';
 import {EventAction} from './board-events.model.js';
 
 /**
- * What a payload has to look like before a materializer is allowed to touch it.
- *
- * The envelope (`v`, `id`) was the only part ever parsed, so a line that is
- * valid JSON at a supported version naming a known action reached its handler
- * with any shape at all. A peer's log arrives over `merge=union` and the log is
- * append-only, so one such line stopped the board for everybody, permanently:
- * a numeric `rank` threw out of `derive`, a numeric id threw in `nodeRef`, a
- * null `ranks` threw in `Object.entries`, and a node naming itself as its own
- * parent made the move guard's ancestor walk run forever.
- *
- * Two rules shape these schemas:
- *
- * - **Loose, never strict.** Every object accepts unknown keys, because a
- *   newer epiq may add a field to an existing action without bumping
- *   `SCHEMA_VERSION`. Rejecting those would quarantine events this build can
- *   read perfectly well.
- * - **Require only what a handler dereferences.** These are not a description
- *   of the domain; they are the preconditions the code already assumes.
- *   Anything narrower (an enum of extensions, a rank's hex shape) belongs in
- *   the handler as a `materializeSkip`, where a future value is a skipped
- *   event rather than a quarantined one.
+ * What a payload must look like before a materializer touches it. Loose, since
+ * newer builds add fields; and requiring only what a handler dereferences.
  */
 
 const id = z.string().min(1);
@@ -47,9 +28,7 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'add.board': positioned,
 	'add.swimlane': positioned,
 	'add.issue': positioned,
-	// `val` is unconstrained: the handler puts it straight into the node's
-	// props without reading it, so a shape this build did not expect costs
-	// nothing, while requiring one would drop the field node entirely.
+	// `val` is unconstrained: the handler never reads it.
 	'add.field': z.looseObject({id, name, parent: id, rank}),
 
 	'edit.title': z.looseObject({id, name}),
@@ -76,10 +55,7 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'restore.contributor': z.looseObject({id, name}),
 	'link.contributor.user': z.looseObject({contributor: id}),
 
-	// `email` is only shape-checked here. The stored form is whatever
-	// `normalizeEmail` returns, and the handler normalizes rather than trusting
-	// the writer to have done it — an un-normalized address in the log would
-	// simply never match.
+	// `email` is only shape-checked; the handler normalizes it.
 	'link.contributor.email': z.looseObject({contributor: id, email: id}),
 	'unlink.contributor.email': z.looseObject({contributor: id, email: id}),
 
@@ -96,12 +72,7 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'add.issue.goal': z.looseObject({id, goal: id}),
 	'remove.issue.goal': z.looseObject({id, goal: id}),
 
-	// `author` is unconstrained on both, though the type declares it. The
-	// attachment handler never reads it, the comment handler stores it as an id
-	// and resolves the name at display — and this board's log already holds an
-	// attachment written without one. Requiring it would have made that
-	// attachment disappear, which is the exact damage this check exists to
-	// prevent.
+	// `author` is unconstrained, though typed: logs exist with attachments lacking one.
 	'add.issue.comment': z.looseObject({id, issue: id, md: z.string()}),
 	'edit.issue.comment': z.looseObject({id, issue: id, md: z.string()}),
 	'delete.issue.comment': z.looseObject({id, issue: id}),

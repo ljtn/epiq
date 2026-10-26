@@ -1,13 +1,6 @@
 /**
- * One collaborator, in its own process.
- *
- * App state is a module singleton, so two actors cannot share a process. Each
- * gets its own clone and its own `EPIQ_GLOBAL_DIR` — where identity and the
- * state worktree live — while sharing the project id that is committed to the
- * repo. That is what a second machine actually looks like.
- *
- * Reads its job from argv, writes a report to disk, exits. It does not throw:
- * the orchestrator has to be able to tell a refusal from a crash.
+ * One collaborator per process (state is a singleton), with its own clone and
+ * `EPIQ_GLOBAL_DIR`. Never throws, so a refusal is told from a crash.
  */
 import fs from 'node:fs';
 import {getStateBranchRoot} from '../../git/git-storage.js';
@@ -46,9 +39,7 @@ else patchSettingsState(settings.value);
 
 const actor = {userId: job.userId, userName: job.userName};
 
-// What `init` does, minus the TUI it is wired into: the first sync creates the
-// state branch and its worktree, then the default events give the board a
-// workspace and a swimlane to put issues in.
+// What `init` does, minus the TUI: first sync, then the default events.
 if (job.init) {
 	const bootstrap = await syncEpiqWithRemote({
 		cwd: job.repoRoot,

@@ -8,12 +8,8 @@ import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
 
-// The rows of a ticket's detail view, in the order the TUI draws them. The
-// order is decided by the ranks in `materializeTicketVirtualNodes` and nowhere
-// else, and moving down the list is how the e2e suites reach a row — so an
-// inserted row silently walks those arrow counts onto the wrong one. Pinned
-// here so that lands as a failure next to the change rather than in a docker
-// suite that does not run on `npm test`.
+// A ticket's detail rows in TUI draw order. The e2e suites navigate them by
+// arrow count, so an inserted row should fail here first.
 
 const IDS = {
 	root: '01H00000000000000000000000',

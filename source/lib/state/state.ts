@@ -116,10 +116,8 @@ export const getSafeState = () => {
 	return succeeded('Retrieved state', _appState);
 };
 
-// The setup step asks whether this person has claimed an address, and asks it
-// from a module that cannot import this one — see `email-claims.state`. Wired
-// here, where the links are, so the answer is always read from the board rather
-// than from a copy of it.
+// Injected here so the setup step reads claims from the board; see
+// `email-claims.state`.
 setClaimedEmailsReader(contributor =>
 	_appState ? emailsOf(_appState.emailLinks, contributor) : [],
 );
@@ -175,13 +173,10 @@ export function initWorkspaceState(workspace: Workspace) {
 }
 
 /**
- * Derived fields are always recomputed.
- * Callers can *read* full AppState via getState(), but can’t *write* derived keys.
+ * Derived fields are always recomputed: readable via getState(), never written.
  */
-// Deriving walks every node to rebuild the child index, so doing it per update
-// makes a replay quadratic: 1.4k events over a growing node set took 905ms,
-// and every doubling of the log quadrupled it. Inside a batch the base state is
-// kept up to date and the derived half is rebuilt once at the end.
+// Deriving rebuilds the child index over every node, so inside a batch only
+// base state is kept current and the derive runs once at the end.
 let deferring = false;
 let deferredBase: BaseState | null = null;
 
@@ -194,9 +189,7 @@ export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 		if (nextBase.nodes !== prev.nodes) dirtyParents = null;
 
 		deferredBase = nextBase;
-		// Readers inside the batch still see every base field — nodes, tags,
-		// contributors — just not the derived ones, which nothing writing events
-		// consults.
+		// Readers inside the batch see every base field, but no derived ones.
 		_appState = {...prev, ...nextBase};
 		return succeeded('State updated', null);
 	}
@@ -219,9 +212,8 @@ export function withDeferredDerive<T>(fn: () => T): Result<T> {
 	deferredBase = null;
 	dirtyParents = new Set();
 
-	// Applies whatever the batch wrote. Returns null when it wrote nothing —
-	// which is also the path a boot takes before its first event has built the
-	// workspace, so there is no state to derive from yet.
+	// Returns null when the batch wrote nothing, as on a boot before the workspace
+	// exists.
 	const flush = (): Result<null> | null => {
 		const base = deferredBase;
 
@@ -249,9 +241,7 @@ export function withDeferredDerive<T>(fn: () => T): Result<T> {
 			? failed(flushed.message)
 			: succeeded('State updated', value);
 	} finally {
-		// Only reached when `fn` threw: the writes it managed are already in the
-		// base state, so deriving here stops a throw leaving the derived half
-		// stale for every reader afterwards.
+		// Only reached when `fn` threw, so the derived half isn't left stale.
 		if (deferring) flush();
 	}
 }
@@ -275,17 +265,9 @@ type StateMapKey = {
 }[keyof BaseState];
 
 /**
- * Writes one entry of a keyed collection.
- *
- * Inside a replay batch the collection is written in place. Rebuilding it per
- * write is what made a replay quadratic a second time: `{...s.nodes, [id]: n}`
- * copies every node a board has, once per event, so a log twice as long cost
- * four times as much — 5k events took 1.1s, 40k took 96s. Deferring the derive
- * fixed the index being rebuilt per event; it never touched this.
- *
- * Outside a batch it copies, because a reader holding the previous state must
- * not see it change underneath them. Nothing reads derived state mid-batch —
- * that is what makes the write safe rather than merely faster.
+ * Writes one entry of a keyed collection: in place inside a replay batch, or
+ * the copy per write makes replay quadratic; copied outside one, for readers
+ * holding the previous state.
  */
 export function setStateEntry<K extends StateMapKey>(
 	key: K,
@@ -314,9 +296,7 @@ export function setStateEntry<K extends StateMapKey>(
 
 	collection[id] = value;
 
-	// The batch still has to carry what it wrote, or the flush finds nothing to
-	// derive from. Spreading the state's own keys is a fixed, small cost — it is
-	// the collection that grows.
+	// The batch still carries what it wrote, or the flush finds nothing to derive.
 	const nextBase = {...prev, [key]: collection} as BaseState;
 
 	deferredBase = nextBase;
@@ -335,9 +315,8 @@ export const isChildSelected = (
 export const useAppState = () =>
 	useSyncExternalStore(subscribe, getState, getState);
 
-// Which parents a batch's in-place node writes touched, or null when a write
-// went past this — a swapped map, or a filter that decides membership by more
-// than the node — and only a full rebuild is right.
+// Which parents a batch's in-place node writes touched, or null when only a
+// full rebuild is right.
 let dirtyParents: Set<string> | null = null;
 
 // The node map the current index was grouped from. A batch writes that map in
@@ -345,10 +324,7 @@ let dirtyParents: Set<string> | null = null;
 let indexedNodes: Record<string, NavNode<AnyContext>> | null = null;
 
 // The whole index for a whole board; one parent's list for each parent a
-// batch touched. Regrouping every node per write is what made a write on a
-// large board cost most of a second — the TUI holds six virtual fields per
-// ticket — and a write touches a ticket, its lane, and at most the lane it
-// left.
+// batch touched.
 const buildChildIndex = (
 	nodes: Record<string, NavNode<AnyContext>>,
 	filters: AppState['filters'],

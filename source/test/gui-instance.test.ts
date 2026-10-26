@@ -57,15 +57,8 @@ afterEach(async () => {
 	);
 });
 
-// Long enough that no answer below is the clock's. The production default is
-// 500ms, which is a budget for a *stalled* server and not for a loopback round
-// trip — but the unit suite shares a machine with the docker and browser suites
-// in the pre-push gate, and one round trip lost that race and reported a valid
-// body as `null`. The timeout itself is pinned by its own case at the bottom.
-//
-// It matters for the null cases too: every unhappy answer collapses to `null`,
-// so without this a timeout is indistinguishable from the rejection each of
-// them means to be checking, and they pass for the wrong reason.
+// Long enough that no answer is the clock's on a loaded machine, so a null
+// really means rejection. The timeout itself is tested at the bottom.
 const ANSWERED = 10_000;
 
 describe('probeGuiInstance', () => {

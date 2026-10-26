@@ -3,13 +3,8 @@ import {LaneStayPoint} from '../../../lib/stats/swimlane-stats.model.js';
 import {formatDuration} from '../lib/gui-format.helper';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 
-// The lane's median stay, once a day, for the last month.
-//
-// One series, so no legend: the section heading above says what is plotted, and
-// a box holding a single swatch would only repeat it. The endpoint is the only
-// labelled value — a number on every point is chaos and goes unread — and the
-// rest is a slope, which is the whole reason this is a line and not four more
-// figures.
+// The lane's daily median stay for the last month. One series, so no legend;
+// only the endpoint is labelled.
 
 const HEIGHT = 68;
 // Room under the plot for the two date labels, and over it for the endpoint's
@@ -69,10 +64,7 @@ export const StayTrend = ({points}: {points: LaneStayPoint[]}) => {
 	const plotted = measured.map(plot);
 	const last = plotted.at(-1)!;
 
-	// Gaps rather than a bridge: a day the lane stood empty is not a value to
-	// interpolate through, and joining across it would invent one. Each run of
-	// consecutive days is its own line and its own fill, so neither reaches
-	// across the hole.
+	// Each run of consecutive days is its own line: an empty day isn't interpolated.
 	const runs = plotted.reduce<Plotted[][]>((groups, entry, index) => {
 		const previous = measured[index - 1];
 		const broken =
@@ -137,9 +129,7 @@ export const StayTrend = ({points}: {points: LaneStayPoint[]}) => {
 					)
 				}
 			>
-				{/* Behind everything, and the same recessive hairline the peak
-				    wears: a week boundary is a place to read the line against, not
-				    a thing to look at. */}
+				{/* Week boundaries, behind everything as faint hairlines. */}
 				{weekMarks.map(x => (
 					<line
 						key={x}
@@ -163,9 +153,7 @@ export const StayTrend = ({points}: {points: LaneStayPoint[]}) => {
 					strokeWidth={1}
 				/>
 
-				{/* What the height means, and what the top of it is worth — so a
-				    line sitting high reads as a long wait rather than as a big
-				    number of something unnamed. */}
+				{/* The axis label and its top value. */}
 				<text
 					x={0}
 					y={PAD_TOP - 4}

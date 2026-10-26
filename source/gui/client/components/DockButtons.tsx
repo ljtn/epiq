@@ -3,11 +3,7 @@ import {IconButton, ICON_SIZE} from './IconButton';
 import {IconDockBottom} from './IconDockBottom';
 import {IconDockRight} from './IconDockRight';
 
-/**
- * Which edge the panel is attached to, as the pair of states rather than a
- * toggle: devtools shows both choices at once, and the one that is lit is the
- * answer to "where is it now" without having to click to find out.
- */
+/** Which edge the panel docks to, both choices shown at once. */
 export const DockButtons = ({
 	dock,
 	onDock,

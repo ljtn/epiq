@@ -1,8 +1,5 @@
-// Starts git on behalf of a clone against a server that never answers, then
-// waits to be signalled; a fourth argument names a git proxy to connect
-// through. With `with-signal-exit`, Ink's own exit handler is
-// registered first, as the TUI has it: it stands aside while another
-// listener is on the signal, which is what the clone-git handler must not be.
+// Starts git for a clone against a server that never answers, then waits for a
+// signal. Args: an optional git proxy; `with-signal-exit` registers Ink's handler first.
 import {createRequire} from 'node:module';
 import {execGit} from '../../git/git-utils.js';
 

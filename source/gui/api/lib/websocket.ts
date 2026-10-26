@@ -103,15 +103,7 @@ import {getUpdateInfo} from '../../../lib/version/version-check.js';
 import {EPIQ_VERSION} from '../../../version.js';
 import {issueDetail, issuePreview, slimStateResult} from './slim-state.js';
 
-/**
- * The ceiling on one websocket frame.
- *
- * `MAX_DESCRIPTION_LENGTH` is the longest field this socket carries, and a
- * character can reach four bytes as UTF-8, so this is that with room for the
- * envelope and then an order of magnitude over — generous enough that no real
- * message meets it, small enough that a hostile one cannot make the server hold
- * a hundred megabytes while it finds out the field is too long anyway.
- */
+/** The ceiling on one frame: far above the longest description, far below `ws`'s 100 MiB default. */
 export const MAX_SOCKET_FRAME_BYTES = 1024 * 1024;
 
 // Derives rather than boots, so a live re-materialize can't stomp a checkout.
@@ -122,19 +114,12 @@ const broadcastDerivedState = () => {
 	});
 };
 
-/**
- * The other repos' commits moved, or a repo left: every client asks for its
- * commits again. They come from git, so no board state carries the change.
- */
+/** Commits in the other repos moved or a repo left: every client refetches them. */
 const broadcastReposChanged = () => {
 	broadcastGuiMessage({type: 'repos:changed'});
 };
 
-/**
- * After a sync, outside any lock: a first clone can take minutes. Clients are
- * told only when a repo actually moved, since each then asks for its commits
- * again.
- */
+/** After a sync, outside any lock: a first clone can take minutes. */
 export const fetchReposAndBroadcast = async (
 	repoRoot: string,
 	minIntervalMs?: number,
@@ -142,11 +127,7 @@ export const fetchReposAndBroadcast = async (
 	broadcastFetchOutcomes(await fetchRepos({repoRoot, minIntervalMs}));
 };
 
-/**
- * Commits moved: every client asks for them again. A fetch failed or moved
- * anything: an open repos panel asks for the list again, so a failure shows
- * there rather than leaving it reading "not fetched yet".
- */
+/** Tells clients to refetch commits, and the repos panel to refetch on any move or failure. */
 const broadcastFetchOutcomes = (
 	result: Awaited<ReturnType<typeof fetchRepos>>,
 ) => {
@@ -166,10 +147,7 @@ const sendSocket = (socket: WebSocket, body: unknown) => {
 const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
 	const payload = slimStateResult(await getGuiState({repoRoot}));
 
-	// Only a missing project puts the client on the init screen. Every other
-	// failure — a git lock a concurrent TUI is holding, a half-written log — is
-	// transient, and the board it is already showing is better than a wrong
-	// diagnosis.
+	// Only a missing project shows the init screen; other failures are transient.
 	if (isFail(payload) && payload.message === NO_PROJECT_MESSAGE) {
 		return sendSocket(socket, {
 			type: 'state:unavailable',
@@ -240,11 +218,7 @@ export const setupWebsocket = (
 		getPort,
 	}: {
 		onStateChanged: () => void;
-		/**
-		 * The auto sync cadence changed under the loop. Distinct from
-		 * `onStateChanged`, which only asks for a pass: an armed timer is holding
-		 * the *old* interval, so it has to be dropped rather than waited out.
-		 */
+		/** The autosync cadence changed: an armed timer holds the old interval and must be dropped. */
 		onSyncSettingsChanged: () => void;
 		getPort: () => number;
 	},
@@ -252,18 +226,9 @@ export const setupWebsocket = (
 	const wss = new WebSocketServer({
 		server,
 		path: '/ws',
-		// A frame is buffered whole and then parsed before any handler sees it, so
-		// without a ceiling the size checks the API applies — a 300-character
-		// title, a 20,000-character description — only get their say after the
-		// whole thing is in memory twice over. `ws` defaults to 100 MiB.
-		//
-		// Well clear of anything legitimate: the largest message this socket
-		// carries is a description at 20,000 characters, and attachments go over
-		// HTTP rather than through here.
+		// Bounds memory before the API's own size checks run; attachments go over HTTP.
 		maxPayload: MAX_SOCKET_FRAME_BYTES,
-		// A handshake is not bound by the same-origin policy, so without this any
-		// page the user has open reaches every message below — including `sync`,
-		// which pushes to the shared remote.
+		// A handshake is exempt from the same-origin policy.
 		verifyClient: (info: {origin: string}) =>
 			!isForeignOrigin(info.origin, getPort()),
 	});
@@ -315,10 +280,7 @@ export const setupWebsocket = (
 					});
 				}
 
-				// One line of that text, for a ref being hovered rather than opened.
-				// Wrapped with the issueId like the commit and stats replies: the
-				// pointer moves on faster than a reply arrives, so more than one can
-				// be in flight and the client has to tell them apart.
+				// Wrapped with the issueId: several hover requests can be in flight.
 				if (type === 'issue:preview:get') {
 					const {issueId} = message.payload;
 					const description = getIssueDescription(issueId);
@@ -377,10 +339,7 @@ export const setupWebsocket = (
 							: {ok: true, message: result.message},
 					});
 
-					// Then the ordinary mutation path. A link decides who every commit
-					// by that address belongs to, so it has to queue a sync and push a
-					// fresh state like any other write — without this the event sits
-					// unpushed and every other client goes on showing the old names.
+					// A link changes commit authorship, so it syncs and broadcasts like any write.
 					return sendMutationResult(
 						socket,
 						repoRoot,
@@ -421,9 +380,7 @@ export const setupWebsocket = (
 					// restart the clock on a cadence nobody altered.
 					if (!isFail(result)) onSyncSettingsChanged();
 
-					// The settings as they now are, either way, so a refused write
-					// leaves the panel showing what is actually configured rather
-					// than the value that was turned down.
+					// The settings as they now are, even after a refused write.
 					return sendSocket(socket, {
 						type: 'settings',
 						payload: isFail(result) ? readAutoSyncSettings() : result,
@@ -447,10 +404,7 @@ export const setupWebsocket = (
 				if (type === 'commit:diff:get') {
 					const {sha, repo} = message.payload;
 
-					// Wrapped with the sha rather than sending the Result bare: two
-					// surfaces can each have a diff request in flight for a different
-					// commit (the scrubber's dot and the ticket tab's commit list), and
-					// a failed Result carries no sha of its own to tell them apart.
+					// Wrapped with the sha: two surfaces can each have a diff in flight.
 					return sendSocket(socket, {
 						type: 'commit:diff:result',
 						payload: {
@@ -462,10 +416,8 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'repos:get') {
-					// The own repo first: it is a git call, and a change handled
-					// while it ran would otherwise be sent after its answer with a
-					// list read before it — and the panel would take the stale one.
-					// The list is read in the same turn as it is sent.
+					// Own repo first, then the list read in the same turn it is sent, so
+					// a change handled meanwhile cannot send a stale list last.
 					const own = await readOwnRepo(repoRoot);
 
 					return sendSocket(socket, {
@@ -531,9 +483,7 @@ export const setupWebsocket = (
 						});
 					}
 
-					// A removed repo's commits leave every view at once, and a changed
-					// window or branch set reads differently from the same clone. A
-					// rename moves no commit, so nobody is asked to read again.
+					// A rename moves no commit, so only other changes ask clients to refetch.
 					if (
 						!isFail(result) &&
 						result.message !== REPO_UNCHANGED &&
@@ -556,10 +506,7 @@ export const setupWebsocket = (
 				if (type === 'issue:commits:get') {
 					const {issueId} = message.payload;
 
-					// Wrapped with the issueId for the same reason commit:diff:result is:
-					// switching tickets while the Code tab stays open can leave an older
-					// ticket's request in flight, and the client needs to tell whose
-					// reply this is before applying it.
+					// Wrapped with the issueId: an older ticket's request may still be in flight.
 					return sendSocket(socket, {
 						type: 'issue:commits:result',
 						payload: {
@@ -601,9 +548,7 @@ export const setupWebsocket = (
 				if (type === 'issue:stats:get') {
 					const {issueId, asOfTime} = message.payload;
 
-					// Wrapped with the issueId like the two above, and for the same
-					// reason: the Stats tab stays open across a change of ticket, so
-					// an older request can still be in flight when the reply lands.
+					// Wrapped with the issueId, as above.
 					return sendSocket(socket, {
 						type: 'issue:stats:result',
 						payload: {
@@ -630,9 +575,7 @@ export const setupWebsocket = (
 				if (type === 'swimlane:stats:get') {
 					const {swimlaneId} = message.payload;
 
-					// Wrapped with the swimlaneId like the replies above: the panel
-					// stays open across a change of lane, so an older request can
-					// still be in flight when this one lands.
+					// Wrapped with the swimlaneId: an older lane's request may still be in flight.
 					return sendSocket(socket, {
 						type: 'swimlane:stats:result',
 						payload: {
@@ -936,10 +879,7 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'contributors:get') {
-					// Echoed back, the way `timeline` echoes its request id.
-					// Answering this replays the event log, and one socket now
-					// outlives a board switch — so without it, the answer for a
-					// board the reader has left lands on the one they moved to.
+					// Echoes the board id: one socket outlives a board switch.
 					return sendSocket(socket, {
 						type: 'contributors',
 						boardId: message.payload?.boardId,
@@ -1250,9 +1190,7 @@ export const setupWebsocket = (
 					return await dispatchMessage(message);
 				}
 
-				// The live check must stay *inside* the lock; checking then awaiting is
-				// check-then-act. `runExclusive` is not re-entrant, so nothing reached
-				// from here may take it again.
+				// The live check stays inside the lock; `runExclusive` is not re-entrant.
 				return await runExclusive(async () => {
 					if (getTimeTravelStatus().mode !== 'live') {
 						return sendSocket(socket, {

@@ -188,14 +188,8 @@ describe('parsePatch', () => {
 	});
 
 	/**
-	 * A removed line reading `-- x` arrives in the patch as `--- x`, and an
-	 * added one reading `++ x` as `+++ x` — the same shape as the `---`/`+++`
-	 * path headers. Read as headers they were dropped from the rows and stopped
-	 * advancing the line numbers, so everything below them was numbered one too
-	 * low and a comment anchored there quoted the wrong code.
-	 *
-	 * Real enough to matter: a markdown rule, a YAML document separator, and
-	 * `-- ` in SQL all produce it.
+	 * A removed `-- x` arrives as `--- x` and an added `++ x` as `+++ x`; they
+	 * are lines, not path headers, or numbering below them drifts.
 	 */
 	it('reads a line that looks like a path header as the line it is', () => {
 		const files = parsePatch(

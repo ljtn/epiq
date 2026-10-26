@@ -1,16 +1,8 @@
-// Everything the ticket panel needs that the board's own state does not carry:
-// the description and comment bodies, the ticket's commits, and the diff of any
-// commit opened in its Code tab.
-//
-// Three fetches, three replies and three pieces of state that were spread
-// across the component rendering the panel. They belong together — each is
-// asked for when the selected ticket changes, and each is thrown away when it
-// changes again.
+// What the ticket panel needs beyond board state: bodies, commits and diffs,
+// fetched per selected ticket.
 
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-// Types only, from a module that declares nothing but types and imports
-// nothing at all — so reading the server's own shape here costs the client
-// bundle nothing and cannot drag Node code across the boundary.
+// Types only, so no Node code crosses the boundary.
 import {IssueStats} from '../../../lib/stats/issue-stats.model.js';
 import {getResultValue} from './gui-state-helper';
 import {
@@ -38,9 +30,7 @@ export type IssueCommits = {
 
 export type IssueSquashedDiffState = {
 	issueId: string;
-	// The ticket's newest sha, exactly as the stats state uses it: a squashed
-	// diff is a function of the commits it squashes, so an unchanged signature
-	// needs no second look and a new commit needs one.
+	// The ticket's newest sha: an unchanged one needs no second look.
 	signature: string;
 	loading: boolean;
 	error: string | null;
@@ -58,16 +48,8 @@ export type IssueStatsState = {
 };
 
 /**
- * Whether an answer derived from a ticket's commits has to be asked for again.
- *
- * Read by the Stats tab and by the Diff tab's compacted view, which are the
- * same question over the same signature.
- *
- * Nothing on screen: yes. A different ticket, or the same one with a new
- * newest commit: yes, what is held describes something else. An answer that
- * failed: yes — a failure is not an answer, and without this the tab would
- * show the same error until the reader switched tickets and back. Otherwise
- * no: a ticket's stats are a function of its commits, and those have not moved.
+ * Whether stats or a compacted diff must be asked for again: nothing held, a
+ * different ticket or newest commit, or a failure.
  */
 export const needsStats = (
 	held: {issueId: string; signature: string; error: string | null} | null,
@@ -89,9 +71,7 @@ export type IssueDetailPanel = {
 	detail: IssueDetail | null;
 	commits: IssueCommits | null;
 	stats: IssueStatsState | null;
-	// Asked for when the Stats tab opens rather than on every ticket, since it
-	// costs a git scan of every commit the ticket owns and most tickets are
-	// opened to be read, not measured.
+	// Asked for when the Stats tab opens, since it costs a git scan.
 	loadStats: (issueId: string, signature: string) => void;
 	squashed: IssueSquashedDiffState | null;
 	// Same bargain as `loadStats`: asked for when the compacted view is opened,
@@ -105,9 +85,7 @@ export type IssueDetailPanel = {
 		issueId: string,
 		update: (comments: GuiComment[]) => GuiComment[],
 	) => void;
-	// Handed every frame; it takes the three that are its own and ignores the
-	// rest. Deliberately not exclusive — `commit:diff:result` is also the
-	// scrubber's, whose dot opens a diff in a panel of its own.
+	// Not exclusive: `commit:diff:result` also serves the scrubber.
 	onMessage: (message: any) => void;
 };
 
@@ -136,9 +114,8 @@ export const useIssueDetail = ({
 }): IssueDetailPanel => {
 	const [detail, setDetail] = useState<IssueDetail | null>(null);
 	const [commits, setCommits] = useState<IssueCommits | null>(null);
-	// Kept for the session and keyed by sha: a sha's diff is the same on any
-	// ticket, and clearing per ticket raced a Code tab that requests a diff on
-	// mount, wiping the request's entry so its reply had nothing to land in.
+	// Kept for the session and keyed by sha; clearing per ticket would drop
+	// replies to requests already in flight.
 	const [commitDiffs, setCommitDiffs] = useState<
 		Record<string, CommitDiffState>
 	>({});
@@ -154,12 +131,8 @@ export const useIssueDetail = ({
 		sendRaw({type: 'issue:get', payload: {issueId}});
 	}, [issueId, boardState, paused, sendRaw]);
 
-	// Separate from the fetch above, which re-runs on every board change: the
-	// commit list comes from git, not the event log, so a board change is no
-	// reason to rescan it.
-	//
-	// Asked again when another repo's clone has moved, keeping the list on
-	// screen until the new one lands.
+	// Separate from the fetch above: commits come from git, so a board change
+	// doesn't rescan. Asked again when another repo's clone moves.
 	const [reposEpoch, setReposEpoch] = useState(0);
 
 	// The cut each read was last asked at. A moved needle leaves older answers
@@ -206,13 +179,8 @@ export const useIssueDetail = ({
 		setStats(null);
 	}, [issueId]);
 
-	// Asking is only ever "put this ticket into loading"; the request itself is
-	// the effect below.
-	//
-	// `signature` is what the answer was computed from — the ticket's newest
-	// sha. A ticket's stats are a function of its commits, so an unchanged
-	// signature asks for nothing and a new commit on the open ticket asks
-	// again. An answer that failed is always retried: it is not an answer.
+	// Only puts the ticket into loading; the effect below asks. An unchanged
+	// `signature` asks nothing, and a failure is always retried.
 	const loadStats = useCallback((id: string, signature: string) => {
 		setStats(prev =>
 			needsStats(prev, id, signature)
@@ -261,9 +229,7 @@ export const useIssueDetail = ({
 		});
 	}, [squashed?.issueId, squashed?.signature, squashed?.loading, sendRaw]);
 
-	// Which repo each listed commit is in, so a diff is asked of the right one.
-	// A sha not in the list — a permalink to a commit since rebased away — goes
-	// without, and the server finds it wherever it is.
+	// Which repo each listed commit is in; an unlisted sha lets the server look.
 	const repoBySha = useRef(new Map<string, string>());
 	repoBySha.current = new Map(
 		(commits?.commits ?? []).flatMap(commit =>
@@ -312,9 +278,7 @@ export const useIssueDetail = ({
 		}
 
 		if (message.type === 'issue:commits:result') {
-			// Wrapped with the issueId it was asked for: switching tickets with the
-			// Code tab open can leave an older ticket's request in flight, and a
-			// failed Result carries no issueId to tell whose reply this is.
+			// Wrapped with its issueId, since a failed Result carries none.
 			const {issueId: forIssue, result} = message.payload as {
 				issueId: string;
 				result: {status: string; message: string; value?: GuiRefCommitEntry[]};

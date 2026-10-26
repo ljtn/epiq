@@ -1,16 +1,5 @@
-// The board's event log: a panel down the left holding one timestamped line
-// per event, grouped by day. The newest day is open and the rest are folded to
-// a divider each, so a long history is a handful of rows until a reader asks
-// for more of it. The pane scrolls back through what is loaded and stays pinned
-// to the bottom as new lines land — but only while it is already there, so
-// reading back is not yanked away by the next event.
-//
-// A panel rather than a wash over the board — it takes its own width and the
-// board moves over for it, so neither has to be read through the other.
-//
-// The rows it is handed are a slice taken against the moment the board is
-// standing at, never a list grown as events arrive, so the panel costs the same
-// on a year of history as on an hour.
+// The board's event log: one line per event, grouped by day, newest day open.
+// Stays pinned to the foot only while already there.
 
 import {
 	memo,
@@ -97,24 +86,14 @@ const LOG_WIDTH_STORAGE_KEY = 'epiq.eventLog.width';
 // so this row and the panel's on the other side of the board are one line.
 const LOG_HEADER_HEIGHT = ICON_BUTTON_SIZE;
 
-// Under this the field boxes fold into a menu, rather than running under the
-// buttons at the far end and off the pane. A width rather than a measurement of
-// the row: what a row measures once folded is the folded row, so measuring
-// would fold and unfold it forever at the width where it just fits.
-// Measured: the five boxes end 319px in, and the buttons at the far end begin
-// 60px from the right, so they meet at 379 and the row is cramped well before
-// that. Folding at 400 leaves the gap the rest of the row keeps.
+// Below this pane width the field boxes fold into a menu. A fixed width, since
+// measuring the row would fold and unfold it forever.
 const LOG_HEADER_FOLD_WIDTH = 400;
 
-// How near the foot counts as being at it. A couple of rows, so a pin survives
-// a sub-pixel scroll position or a rounding difference between scrollHeight and
-// the box it is measured against.
+// How near the foot counts as at it.
 const PINNED_SLACK_PX = LOG_ROW_HEIGHT * 2;
 
-// What each line shows, chosen at the top of the panel. Quiet when ticked:
-// four lit boxes would outshine the lines they are about. Quiet in the same
-// colour the scrubber's periods are, so the two rows of chrome over the board
-// read as one family; ticked is told by the box's fill, not by its colour.
+// The field toggles. Ticked shows in the box's fill, not its colour.
 const LogHeader = ({
 	fields,
 	onChangeField,
@@ -131,10 +110,7 @@ const LogHeader = ({
 	onChangeSplit: (next: boolean) => void;
 	// False where the slice names nobody: there would be no lanes to draw.
 	canSplit: boolean;
-	// The pane is too narrow to stand the boxes in a row, so they go behind one
-	// control instead. Nothing shrinks or wraps on the way: this row is read
-	// against the rows beside it, and a header that reflowed to two lines would
-	// push the panel's first line down out of that reading.
+	// The boxes fold into one menu rather than wrap.
 	folded: boolean;
 	// Whatever else the header carries, at its far end.
 	children?: React.ReactNode;
@@ -147,16 +123,12 @@ const LogHeader = ({
 			gap: 12,
 			flexShrink: 0,
 			height: LOG_HEADER_HEIGHT,
-			// The same gap under the row as over it: the rule below is the panel's
-			// only divider, and a row sitting straight on it read as a header the
-			// first line had been pushed into.
+			// The same gap under the row as over it.
 			padding: `${PANE_HEADER_INSET}px ${LOG_PANE_PADDING_X}px ${PANE_HEADER_INSET}px 30px`,
 			borderBottom: `1px solid ${GUI_THEME.line}`,
 		}}
 	>
-		{/* The name column is folded away while the log is split — the lane it is
-		    in says who — so its box stands down rather than claiming to show a
-		    column that is not there. */}
+		{/* The name box stands down while split: the lane says who. */}
 		{folded ? (
 			<LogFieldsMenu
 				fields={fields}
@@ -174,9 +146,7 @@ const LogHeader = ({
 				/>
 			))
 		)}
-		{/* Not one of the fields, so it is not worn as a box and does not stand
-		    among them: those say what a line shows, this says where the line is
-		    put. It sits with the panel's own buttons at the far end. */}
+		{/* Placement, not a field, so it sits with the panel's buttons. */}
 		<span
 			style={{
 				marginLeft: 'auto',
@@ -204,9 +174,7 @@ const LogHeader = ({
 	</div>
 );
 
-// Who each lane is, across the top of the pane. The lines scroll under it —
-// see the sticky rule in EVENT_LOG_STYLES — because a lane is only a position
-// until something names it, and the name column is folded away while split.
+// Lane names, sticky over the scrolling lines (see EVENT_LOG_STYLES).
 const LaneHeadings = ({lanes}: {lanes: readonly LogLane[]}) => (
 	<div data-testid="log-lane-heads" className={LOG_LANE_HEAD_CLASS}>
 		{lanes.map(lane => (
@@ -233,42 +201,29 @@ const EventLogPanel = ({
 	onPopOut,
 	onDock,
 }: {
-	// The pane's width on the board: false is shut, and the width moves between
-	// the two. What is drawn inside keeps the open width throughout and is
-	// clipped, so nothing reflows on the way in or out — the header's own fold
-	// would otherwise trip on every close. Both default to open, for the window,
-	// which has no board to arrive on.
+	// The pane's width; false is shut. Content keeps the open width and is clipped,
+	// so nothing reflows. Both default to open, for the window.
 	revealed?: boolean;
 	settled?: boolean;
 	entries: readonly LogEntry[];
 	// The moment the lines were sliced against. Moving it is moving the
 	// timeline, and the pane snaps to its foot for that — see below.
 	moment: number;
-	// Following a line. One handler on the pane rather than one per row: the
-	// rows carry where they go, and hundreds of closures would be the expensive
-	// half of a feature whose whole point is that it costs nothing until used.
+	// One handler on the pane; rows carry their destination.
 	onOpen: (destination: LogDestination, options?: {replace?: boolean}) => void;
 	// Where the reader is, so following can tell "already there" from "went
 	// there once". Null where nothing is open.
 	at?: LogDestination | null;
-	// The line the board is standing on while following, for the mark down its
-	// row. Decided on the board's side — this panel is drawn in two places and
-	// must not be the thing that decides.
+	// The followed line, decided by the board.
 	followedLine?: string | null;
-	// The window holds more events than the server will list, so the lines
-	// below are commits alone and the panel has to say so rather than present
-	// a history that reads as complete.
+	// The server won't list this many events, so only commits are shown.
 	eventsUnlisted?: boolean;
-	// The pane is at its foot. Reported up rather than kept here, because the
-	// board is what runs the follow and a popped-out panel has to be able to
-	// post the same answer back across the window boundary.
+	// Reported up: the board runs the follow, even from a popped-out panel.
 	onPinnedChange?: (pinned: boolean) => void;
 	// The event under the pointer, or null off the rows: what the chart lights
 	// up while a row is hovered.
 	onHoverEvent?: (eventId: string | null) => void;
-	// Room to leave at the foot of the column for whatever is floating over it —
-	// the history player's drawer, when one is up. A row past it, because the
-	// crawl starts each line one row low and slides it up.
+	// Room at the foot for whatever floats over it, plus a row for the crawl.
 	bottomClearance: number;
 	// A panel beside the board, dragged to width; or a window of its own, which
 	// it fills — see lib/log-window.
@@ -290,9 +245,7 @@ const EventLogPanel = ({
 		ReadonlyMap<string, boolean>
 	>(() => new Map());
 
-	// A day whose older rows the reader has asked for. Keyed the same way and
-	// for the same reason, and one-way: having asked for the rest of a day,
-	// nothing should take it back as lines land.
+	// Days the reader expanded. One-way, so landing lines don't fold them.
 	const [expandedDays, setExpandedDays] = useState<ReadonlySet<string>>(
 		() => new Set(),
 	);
@@ -307,14 +260,10 @@ const EventLogPanel = ({
 	// How many rows the pane has room for, so the days opened by default fill it
 	// rather than leaving it mostly empty. Null until it has been measured.
 	const [paneRows, setPaneRows] = useState<number | null>(null);
-	// And how wide it is, which is how many lanes it can hold — see
-	// lib/log-lanes. Zero until measured, which caps the lanes at one rather
-	// than drawing a pane's worth of them before the pane is known.
+	// Pane width sets how many lanes fit (see lib/log-lanes). Zero caps it at one.
 	const [paneWidth, setPaneWidth] = useState(0);
 
-	// The lanes are the actors in the slice on screen, so they follow it as the
-	// moment moves rather than standing for a board nobody in this window
-	// touched — see lib/log-lanes.
+	// The lanes are the actors in the slice on screen (see lib/log-lanes).
 	const lanes = useMemo(
 		() => logLanes(entries, laneCapacity(paneWidth)),
 		[entries, paneWidth],
@@ -342,25 +291,17 @@ const EventLogPanel = ({
 		pinnedRef.current =
 			pane.scrollHeight - pane.scrollTop - pane.clientHeight <= PINNED_SLACK_PX;
 
-		// Only the changes, not every scroll event: the board re-runs its follow
-		// on this, and returning to the foot is what resumes one the reader
-		// paused by reading back.
+		// Only on change: returning to the foot resumes a paused follow.
 		if (wasPinned !== pinnedRef.current) onPinnedChange?.(pinnedRef.current);
 	};
 
-	// And once on the way in, because the board's value outlives this panel.
-	// The log is drawn in two places and closes and reopens; a panel that
-	// mounted at its foot while the board still held the last one's `false`
-	// would report nothing — nothing had changed here — and following would sit
-	// dead behind a pin that belonged to a pane that is gone.
+	// And once on mount: the board's value outlives this panel, which mounts
+	// at its foot.
 	useEffect(() => {
 		onPinnedChange?.(pinnedRef.current);
 	}, [onPinnedChange]);
 
-	// Measured off the pane's own height, which does not depend on what is in it
-	// — so opening days to fill the pane cannot feed back into how many fit.
-	// Before paint, so the first frame is already filled rather than showing one
-	// day and then growing.
+	// Measured off the pane's own height, before paint.
 	useLayoutEffect(() => {
 		const pane = scrollRef.current;
 		if (!pane) return;
@@ -380,22 +321,12 @@ const EventLogPanel = ({
 		return () => observer.disconnect();
 	}, [bottomClearance]);
 
-	// The arrow that marks the row under the pointer is one node for the whole
-	// panel, carried to whichever row that is. Moved through its ref rather
-	// than by state: hovering sweeps across rows, and re-rendering the column
-	// at every one of them is the cost this panel is built to avoid.
+	// One arrow node for the panel, moved by ref rather than state so hovering
+	// doesn't re-render the column.
 	const arrowRef = useRef<HTMLSpanElement>(null);
 
-	// Deliberately not persisted, unlike the field boxes beside it: those say
-	// what a line shows, this makes the panel navigate on its own, and a board
-	// that starts moving before the reader has touched anything would be a
-	// strange way to open.
-	// An absolutely positioned child extends the pane's scrollable overflow,
-	// hidden or not. So an arrow left on a row the column has since lost is a
-	// stretch of empty pane below the last line, and a snap to the foot lands in
-	// it — showing nothing until the log grows back down to where the row was.
-	// Called before either snap above: past the end of the column the arrow
-	// marks nothing, and goes back to the top where it takes no room.
+	// A positioned child extends the scrollable overflow, so an arrow left past the
+	// column's end leaves empty pane at the foot. Called before either snap.
 	const parkStrayArrow = () => {
 		const arrow = arrowRef.current;
 		const column = columnRef.current;
@@ -407,9 +338,7 @@ const EventLogPanel = ({
 		arrow.style.opacity = '0';
 	};
 
-	// Before paint, so a line arriving never shows the pane a frame out of place.
-	// Only while the reader is at the foot: scrolled back, the log is something
-	// being read, and pulling it to the bottom would take that away.
+	// Keeps the pane at the foot as lines arrive, if it was there; before paint.
 	useLayoutEffect(() => {
 		const pane = scrollRef.current;
 		if (!pane || !pinnedRef.current) return;
@@ -418,31 +347,20 @@ const EventLogPanel = ({
 		pane.scrollTop = pane.scrollHeight;
 	}, [newestId, days.length, foldOverrides, openCount]);
 
-	// Moving the timeline is different from a line arriving: reading back
-	// through the log is reading the moment the board stands at, and once that
-	// moment changes the place being read is gone with it. So the pane goes to
-	// the foot whether or not it was there — and is pinned again, so what lands
-	// next follows. Without this a scrub that shortens the log by hundreds of
-	// lines left the pane scrolled to where they used to be, showing nothing.
+	// Moving the timeline sends the pane to the foot and re-pins it, wherever it was.
 	useLayoutEffect(() => {
 		const pane = scrollRef.current;
 		if (!pane) return;
 
 		pinnedRef.current = true;
-		// Said out loud, because this pins the pane without the reader
-		// scrolling: the programmatic scroll below re-enters `onScroll` with the
-		// pin already true, so nothing there reports it. A board still holding
-		// the `false` from a reader who had read back would then never follow
-		// again, and the only way out would be scrolling up and down by hand.
+		// The scroll below re-enters onScroll already pinned, so report it here.
 		onPinnedChange?.(true);
 		parkStrayArrow();
 		pane.scrollTop = pane.scrollHeight;
 	}, [moment, onPinnedChange]);
 
-	// The keys on screen before this render. The column slides by however many
-	// rows joined the bottom, which is not always one: an event that crosses
-	// midnight brings a day divider down with it, and a fixed shift would leave
-	// the crawl stepping at every boundary.
+	// Keys on screen before this render. The crawl shifts by however many rows
+	// joined, since a day divider can arrive with an event.
 	const shownKeysRef = useRef<Set<string>>(new Set());
 
 	useEffect(() => {
@@ -470,9 +388,7 @@ const EventLogPanel = ({
 		}
 
 		column.animate(crawlShiftFrames(appended), CRAWL_TIMING);
-		// Deliberately keyed on the newest line rather than on `days`, which is
-		// rebuilt every render: the crawl moves when the log does, not when the
-		// board beside it repaints.
+		// Keyed on the newest line, not on `days`, which is rebuilt every render.
 	}, [newestId, animate]);
 
 	const markRow = (target: EventTarget | null) => {
@@ -485,9 +401,7 @@ const EventLogPanel = ({
 		if (row) arrow.style.top = `${row.offsetTop}px`;
 		arrow.style.opacity = row ? '1' : '0';
 
-		// Split, a row ends at its own lane rather than at the pane, so the arrow
-		// goes to the end of the line instead of to the far right, where it would
-		// hang over lanes the row has nothing to do with.
+		// Split, the arrow goes to the end of the row's own lane.
 		if (row && split) {
 			arrow.style.right = 'auto';
 			arrow.style.left = `${
@@ -514,10 +428,7 @@ const EventLogPanel = ({
 	return (
 		<aside
 			data-testid="event-log"
-			// The pane is at its open width and no longer moving. Said out loud
-			// because the edge is a grab target: anything aiming at it — a reader
-			// or a test — is aiming at a place that is still travelling until this
-			// turns true.
+			// The edge is a grab target, still moving until this is true.
 			data-settled={settled ? 'true' : 'false'}
 			aria-live="off"
 			style={
@@ -537,14 +448,8 @@ const EventLogPanel = ({
 						inWindow || resize.dragging || !animate
 							? undefined
 							: `width ${REVEAL_MS}ms ease`,
-					// The board-facing edge, drawn as the ticket panel's is on the other
-					// side of the board: an outer edge rather than the `line` that
-					// divides sections, and a shadow cast the same way, so the pane
-					// reads as a surface in front of the board rather than as more of
-					// it. Its ground stays the chrome's, unlike the panel's — the log
-					// is instrumentation, not a second panel — which is why the edge
-					// takes half the alpha: over black it would otherwise outshine the
-					// panel's own.
+					// The board-facing edge with a shadow, like the ticket panel's; half the alpha,
+					// since this pane sits on the chrome's darker ground.
 					borderRight: inWindow
 						? 'none'
 						: `1px solid ${GUI_THEME.edgeOnChrome}`,
@@ -566,10 +471,7 @@ const EventLogPanel = ({
 				/>
 			)}
 
-			{/* Holds the open width while the pane either side of it moves, so the
-			    lines and the header row are the same shape on the way out as they
-			    were on the way in, rather than being reflowed at every width
-			    between here and nothing. */}
+			{/* Holds the open width while the pane resizes, so nothing reflows. */}
 			<div
 				style={{
 					width: inWindow ? '100%' : resize.width,
@@ -585,9 +487,7 @@ const EventLogPanel = ({
 					split={splitWanted}
 					onChangeSplit={setSplitWanted}
 					canSplit={lanes.length > 0}
-					// Unmeasured until the observer first fires, and the wide row is the
-					// common case — so nothing folds on the first paint and unfolds a
-					// frame later.
+					// Unmeasured counts as wide, so nothing folds on the first paint.
 					folded={paneWidth > 0 && paneWidth < LOG_HEADER_FOLD_WIDTH}
 				>
 					{onPopOut && (
@@ -622,9 +522,7 @@ const EventLogPanel = ({
 						const destination = readDestination(event.target);
 						if (destination) onOpen(destination);
 					}}
-					// One pair of handlers for the pane, like the click above: the rows
-					// say where they go, and hundreds of listeners would be the costly
-					// half of a panel whose lines are one node each.
+					// One pair of handlers for the pane, as with the click.
 					onMouseOver={event => {
 						markRow(event.target);
 						onHoverEvent?.(
@@ -646,10 +544,8 @@ const EventLogPanel = ({
 						// The arrow is placed against this, in the column's own
 						// coordinates rather than the window's.
 						position: 'relative',
-						// A column, so the block below can push itself down with an auto
-						// margin. `justify-content: flex-end` would do the same until the
-						// content overflowed, at which point it puts the overflow above the
-						// scrollable area, where it cannot be reached.
+						// A column, so the block below can sit at the foot with an auto margin;
+						// `justify-content: flex-end` would make overflow unreachable.
 						display: 'flex',
 						flexDirection: 'column',
 						padding: `0 ${LOG_PANE_PADDING_X}px ${
@@ -657,10 +553,7 @@ const EventLogPanel = ({
 						}px 30px`,
 					}}
 				>
-					{/* Hidden until a row that leads somewhere is under the pointer, and
-				    inert throughout — the row is what takes the click. Worded as well
-				    as drawn: an arrow alone says "somewhere", and which rows lead
-				    anywhere is not a thing a reader should have to learn by trying. */}
+					{/* Shown on a row that leads somewhere; inert, the row takes the click. */}
 					<span
 						ref={arrowRef}
 						className={LOG_ARROW_CLASS}
@@ -685,10 +578,7 @@ const EventLogPanel = ({
 					{/* Holds a short log at the foot of the panel, so the newest line is
 				    always in the same place however few of them there are. */}
 					<div ref={columnRef} style={{marginTop: 'auto'}}>
-						{/* Above the lines but inside the column they sit in, which hangs
-					    at the foot of the panel: it is a fact about the window rather
-					    than something that happened in it, and anywhere higher it would
-					    float alone in the empty stretch above a short log. */}
+						{/* Inside the column, so it hangs at the foot with the lines. */}
 						{eventsUnlisted && (
 							<div
 								data-testid="log-events-unlisted"

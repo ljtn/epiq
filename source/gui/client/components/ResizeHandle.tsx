@@ -1,8 +1,5 @@
-// The grab edge of a panel that can be dragged to size: a wide invisible hit
-// area with a thin indicator centred in it — the indicator alone, a border's
-// worth of pixels, would be too thin a target to reliably grab. Lit while
-// hovered and while a drag is in progress. The ticket panel and the event log
-// wear the same one, so a resizable edge looks the same wherever it is.
+// A panel's drag edge: a wide invisible hit area round a thin indicator, lit
+// while hovered or dragging.
 
 import {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';

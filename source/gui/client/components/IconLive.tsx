@@ -1,13 +1,5 @@
-// The live mark: a dot with rings leaving it, the way a broadcast is drawn.
-//
-// Not the arrow a log row shows under the pointer — that one says "this line
-// leads somewhere", which is true of a row and wrong for a mode. This says the
-// board is riding the present.
-//
-// Unlit it is a ring around a hollow dot, so the mark keeps its size and its
-// shape whether or not it is on. Lit, the dot fills and two rings leave it half
-// a cycle apart — `epiqLiveRipple`, defined with the bar's own keyframes, so
-// the animation is one declaration rather than one per instance.
+// The live mark: a dot with rings leaving it. Unlit, a ring round a hollow dot
+// at the same size; lit, it ripples via the shared `epiqLiveRipple` keyframes.
 export const IconLive = ({
 	size = 14,
 	lit = false,

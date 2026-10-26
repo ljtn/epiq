@@ -103,11 +103,8 @@ test('the flow layout draws a moved ticket on the lane it went to', async ({
 	await expect(track.getByText(to, {exact: true})).toBeVisible();
 	await expect(track.getByText('Closed', {exact: true})).toBeVisible();
 
-	// Narrowed to the ticket, the window is its own life and the chart its one
-	// line: born on the first lane, and on the second from the move onwards,
-	// which is most of the width — the move came a breath after the creation,
-	// and the window runs on to the fetch. Over the whole window that stretch
-	// is a few pixels at the live end, under the needle's grip.
+	// Narrowed to the ticket, the chart is its one line: first lane, then the
+	// second from the move on, which is most of the width.
 	await page.getByText(title, {exact: true}).first().click();
 	const ticketOnly = page.getByTestId('ticket-only');
 	await expect(ticketOnly).toBeEnabled();
@@ -142,9 +139,7 @@ test('the flow layout draws a moved ticket on the lane it went to', async ({
 	await expect(hint).toHaveCount(0);
 	await expect(canvas).toHaveAttribute('data-focus', id);
 
-	// A click on the line opens its ticket, at the overview — rather than
-	// scrubbing the board to that moment. Told apart from a same-ticket no-op
-	// by parking the panel on another tab first.
+	// A click on the line opens its ticket at the overview; parked on another tab first to tell.
 	await page.getByRole('button', {name: /^Comments/}).click();
 	await expect(page).toHaveURL(/tab=comments/);
 	await page.mouse.move(box.x + box.width * 0.7, y);

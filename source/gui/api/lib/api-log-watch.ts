@@ -28,10 +28,8 @@ const stateBranchRootOf = (project: GuiProject): string | null => {
 };
 
 /**
- * Publishes the board to every client when the log moved since the last
- * publish. What decides it is the log on disk, never what a sync reported:
- * another process on this machine (the TUI, an agent's MCP) appends to the
- * same worktree without telling this one.
+ * Publishes the board when the log on disk moved, not when a sync says so:
+ * other processes (TUI, MCP) append to the same worktree.
  */
 export const createLogPublisher = (input: {project: GuiProject}) => {
 	const currentSignature = (): string | null => {
@@ -50,15 +48,10 @@ export const createLogPublisher = (input: {project: GuiProject}) => {
 	};
 	let publishedRepos = reposOf();
 
-	// Recorded before the derive, not after it succeeds: a log that cannot be
-	// derived is tried again only once it changes, which is also the only time
-	// its outcome can change.
+	// Recorded before the derive: an underivable log is retried only once it changes.
 	let attempted: string | null = currentSignature();
 
-	/**
-	 * For a caller inside `runExclusive` on the live board. Publishing replaces
-	 * every client's board wholesale, so an unchanged log is not worth it.
-	 */
+	/** For a caller inside `runExclusive`; an unchanged log is not republished. */
 	const publishIfLogMoved = async (): Promise<void> => {
 		const stateBranchRoot = stateBranchRootOf(input.project);
 		if (stateBranchRoot === null) return;
@@ -92,10 +85,7 @@ export const createLogPublisher = (input: {project: GuiProject}) => {
 
 export type LogPublisher = ReturnType<typeof createLogPublisher>;
 
-/**
- * Publishes other processes' writes whether or not autosync is on: reading
- * this machine's own worktree costs no network.
- */
+/** Publishes other processes' writes, autosync or not: reading the local worktree costs no network. */
 export const startGuiLogWatch = (
 	publisher: LogPublisher,
 	intervalMs = LOG_WATCH_INTERVAL_MS,

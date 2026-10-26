@@ -3,10 +3,7 @@ import {expect, test} from './fixtures.js';
 import {addTicket} from './ticket.js';
 import {commitLinkedFile, linkedFileName} from './linked-commit.js';
 
-// The highlighter fills its shadow root asynchronously, and `aria-expanded` on
-// the file's own toggle says nothing about that. Measuring before it lands
-// finds no host at all, which reads as a broken test rather than a broken
-// feature — so wait for the header itself.
+// The highlighter fills its shadow root asynchronously, so wait for the header itself.
 const waitForDiffHeader = async (page: Page) => {
 	await page.waitForFunction(`
 		[...document.querySelector('aside').querySelectorAll('*')].some(element =>
@@ -58,9 +55,7 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 		Array.from({length: 60}, (_, index) => `line ${index + 1}`).join('\n') +
 			'\n',
 	);
-	// Wide enough to reach under the series popover wherever its select sits
-	// on the bar: the question here is what is on top where the two meet, and
-	// with the default width they need not meet at all.
+	// Wide enough to reach under the series popover, so the two actually meet.
 	await page.evaluate(`localStorage.setItem('epiq.aside.width', '700')`);
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Stacking ${stamp}`);
@@ -76,13 +71,8 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 		page.getByRole('group', {name: 'Filter the board'}),
 	).toBeVisible();
 
-	// Then the contributors row is opened, which is what makes the list long
-	// enough to reach over the pane — and the only one of the four rows with
-	// anything under it on a fresh board. The overlap used to be a single pixel
-	// left over from the chrome's own heights, so any change to those took it
-	// away and left the test green over nothing; moving the panel's header out
-	// of the pane did exactly that, to within four pixels. The list's own length
-	// is the one lever here that the page's layout cannot quietly withdraw.
+	// The contributors row makes the list long enough to reach over the pane, an
+	// overlap that chrome height changes cannot quietly remove.
 	await page.getByTestId('filter-axis-actor').click();
 
 	// The diff renders its own file header with a z-index inside a shadow
@@ -263,9 +253,7 @@ test('entering fullscreen lays the panel out for its full width in the same fram
 	await addTicket(page, `Frame ${Date.now()}`);
 	await expect(page.getByTestId('lane-overview')).toHaveCount(0);
 
-	// Observes the panel going fullscreen and reads the layout in that same
-	// commit: the lanes must already be there, not arrive a render later after
-	// a frame of tabs stretched across the window.
+	// Read in the same commit as going fullscreen: the lanes must already be there.
 	const lanesWhenFullscreen = await page.evaluate(`
 new Promise(resolve => {
 	const aside = document.querySelector('aside');

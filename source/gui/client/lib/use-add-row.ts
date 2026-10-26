@@ -1,14 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 
-// A section's add row — the tag or assignee picker under a ticket — open for
-// as long as focus is inside its section. Keyboard focus arriving opens it in
-// its input; focus leaving, by a click elsewhere or a Tab out, closes it. A
-// press inside the open section keeps focus in the input, so picking a chip
-// or pressing Add or - lands before any blur could close the row under it.
-//
-// Focus taken by a press elsewhere closes the row only once that press is
-// over: closing it at once lifts everything under it, and the release lands
-// on whatever moved there, so the click that took the focus is lost.
+// A section's add row, open while focus is inside its section. A press
+// elsewhere closes it only once released, or the click lands on what moved.
 export const useAddRow = () => {
 	const [open, setOpen] = useState(false);
 	const [focusPending, setFocusPending] = useState(false);

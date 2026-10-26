@@ -7,29 +7,14 @@ import {isVanished} from '../lib/event/log-signature.js';
 import {EPIQ_DIR_NAME, EVENTS_DIR_NAME} from '../lib/storage/paths.js';
 
 /**
- * The event log is append-only. That is not a style preference — it is what
- * makes `*.jsonl merge=union` safe, what lets an id mean one byte sequence
- * forever, and what every replica's convergence rests on.
- *
- * Nothing enforced it. `createStateBranchSyncCommit` committed the log exactly
- * as it sat on disk, so any process that emptied or replaced the working copy
- * had its damage committed and pushed on the next autosync, and every clone
- * that pulled lost the same history. It has happened: a 2158-line log went to
- * one line, and twice before that a handful of lines went missing unnoticed.
- *
- * A working copy is allowed to gain lines and reorder nothing. Losing even one
- * means the file on disk is damaged, and the last thing to do with a damaged
- * log is publish it.
+ * The event log is append-only: a working copy may gain lines, never lose or
+ * reorder one. A log that did is damaged and must not be committed.
  */
 
 const linesIn = (content: string): string[] =>
 	content.split('\n').filter(line => line.trim().length > 0);
 
-/**
- * Event logs sitting in a directory that is about to be deleted wholesale.
- * Non-empty ones only: an empty file is nothing to save, and refusing over one
- * would strand the very cleanup that unblocks the user.
- */
+/** Non-empty event logs in a directory about to be deleted wholesale. */
 export const findStrandedEventLogs = (root: string): Result<string[]> => {
 	const dir = path.join(root, EPIQ_DIR_NAME, EVENTS_DIR_NAME);
 
@@ -61,21 +46,8 @@ const eventsDirIn = (root: string): string =>
 	path.join(root, EPIQ_DIR_NAME, EVENTS_DIR_NAME);
 
 /**
- * Every event log line on disk right now, per file.
- *
- * Paired with `restoreDroppedEventLines` around anything that hands the
- * worktree to git. `withSyncLock` binds the processes that *sync*; nothing
- * binds the processes that *write*, so while one process rebases, another may
- * be appending to and reading from the directory git is rewriting.
- * `rebase.autoStash` widens that window — it reverts the working copy to HEAD
- * and puts it back afterwards — and an interrupted rebase widens it further,
- * since the next process recovers with `git rebase --abort`, which resets the
- * working tree over anything written in between.
- *
- * Snapshotting is not a lock. It is the weaker guarantee that whatever was
- * already on disk is still on disk when git is done, which is the same rule
- * `assertLogOnlyGrew` enforces at the commit boundary: a log may gain lines
- * and reorder nothing.
+ * Every event log line on disk, per file. Paired with `restoreDroppedEventLines`
+ * around git's rewrites, since writers hold no lock: what was on disk stays.
  */
 export const snapshotEventLogs = (root: string): EventLogSnapshot => {
 	const dir = eventsDirIn(root);
@@ -87,12 +59,8 @@ export const snapshotEventLogs = (root: string): EventLogSnapshot => {
 		for (const name of fs.readdirSync(dir)) {
 			if (!name.endsWith('.jsonl')) continue;
 
-			// A pending log is untracked and ignored, so git has nothing to drop
-			// from it — protecting it is unnecessary, and worse than unnecessary:
-			// a sync folds one into the tracked log and deletes it, and a snapshot
-			// taken beforehand would read that as lines going missing and put the
-			// file back. The lines would then be in both, and the next flush would
-			// append them again, every sync, forever.
+			// Pending logs are skipped: a sync folds and deletes one, which a restore
+			// would undo, duplicating its lines every sync.
 			if (isPendingFileName(name)) continue;
 
 			try {
@@ -115,14 +83,7 @@ export const snapshotEventLogs = (root: string): EventLogSnapshot => {
 	return snapshot;
 };
 
-/**
- * A line worth putting back: one that parses, so it carries an id and can take
- * its place in the causal order.
- *
- * A half-written line — a crash mid-append — has no id and is already lost to
- * the loader, which quarantines it. Restoring one would only re-dirty the file
- * and hand the next commit something to publish.
- */
+/** A line worth putting back: one that parses, so it carries an id. */
 const isRestorable = (line: string): boolean => {
 	try {
 		const parsed: unknown = JSON.parse(line);
@@ -133,14 +94,8 @@ const isRestorable = (line: string): boolean => {
 };
 
 /**
- * Puts back any line the snapshot had that the file no longer does.
- *
- * Append-only makes this safe: an id means one byte sequence forever,
- * `getSortedEvents` dedupes by id, and file order is not load-bearing — so
- * re-appending a line that is already there costs nothing and re-appending one
- * git dropped restores an event that had no other copy.
- *
- * Returns the files it repaired, for the caller to report.
+ * Re-appends any line the snapshot had that the file lost; safe since events
+ * dedupe by id and file order is not load-bearing. Returns the repaired files.
  */
 export const restoreDroppedEventLines = (
 	root: string,
@@ -225,11 +180,7 @@ export const describeDroppedLines = (
 		`  ${dropped[0]?.slice(0, 200) ?? '<none>'}`,
 	].join('\n');
 
-/**
- * Compares the working copy of one event log against the version already
- * committed. `allowFail` because the file legitimately has no committed
- * version on a first sync, and a missing path is not an integrity problem.
- */
+/** Compares one event log against its committed version, which a first sync lacks. */
 export const assertLogOnlyGrew = async ({
 	stateBranchRoot,
 	relativePath,

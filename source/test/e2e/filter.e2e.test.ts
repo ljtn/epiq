@@ -12,10 +12,8 @@ const EMPTY_CMD = commandLineIsIdle;
 
 type Tui = ReturnType<typeof setupTui>;
 
-// Run a command-line command and wait for it to fully settle. Commands are
-// echoed into the (async) command-line buffer first, so we wait for the echo,
-// then submit, then wait for the line to clear. Firing the next command before
-// this completes lets keystrokes merge into a single un-submitted buffer.
+// Runs a command and waits for echo, submit and a cleared line, so the next
+// command's keystrokes can't merge into this one.
 const run = async (tui: Tui, cmd: string, echo: string) => {
 	tui.input(cmd);
 	await tui.waitFor(commandLineShows(echo), 4_000);
@@ -33,10 +31,8 @@ const createIssue = async (
 ) => {
 	await run(tui, `:new issue ${title}`, `new issue ${title}`);
 	await run(tui, `:tag ${tag}`, `tag ${tag}`);
-	// "!" marks a deliberately unlinked assignee. Assign refuses an unknown
-	// name without it, so that a typo can't quietly mint a near-duplicate
-	// contributor — and these fixtures are exactly that case: people who have
-	// never authored an event.
+	// "!" marks a deliberately unlinked assignee: these people never authored an
+	// event, and assign refuses unknown names without it.
 	await run(tui, `:assign !${assignee}`, `assign !${assignee}`);
 };
 
@@ -62,10 +58,8 @@ describe('TUI board filtering e2e', () => {
 				tui.input(ENTER);
 				await tui.waitFor('Todo (0)');
 
-				// Three issues spanning two tags and two assignees, so every filter
-				// below has both a matching and a non-matching issue to discriminate.
-				// Titles are kept short so they render in full (the card truncates
-				// long ones), which lets us assert on exact title text.
+				// Each filter below has a matching and a non-matching issue; short
+				// titles render in full.
 				//   Login bug -> tag frontend, assignee alice
 				//   DB sync   -> tag backend,  assignee bob
 				//   Nav menu  -> tag frontend, assignee bob

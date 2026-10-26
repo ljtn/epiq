@@ -5,11 +5,8 @@ import path from 'node:path';
 import {afterAll, describe, expect, it} from 'vitest';
 import {isFail, Result} from '../lib/model/result-types.js';
 
-// A fetch in flight when a remove lands. The remove finds the clone held and
-// marks it; the holder's own exit is what deletes it, so the mark must land
-// while the fetch is inside git. Over ssh to a wrapper that sleeps and then
-// runs upload-pack locally: the environment is read when the module loads, so
-// it is set before the import below.
+// A remove during a fetch marks the clone; the holder's exit deletes it. The ssh
+// wrapper's environment is read at module load, so it is set before the import.
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-in-flight-'));
 const slowSsh = path.join(scratch, 'slow-ssh.sh');

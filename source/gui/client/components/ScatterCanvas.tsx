@@ -1,6 +1,5 @@
-// The punchcard, drawn to a canvas rather than to DOM nodes. A window can
-// hold twenty thousand points and one node each is more than a browser will
-// animate, so this owns its own entrance and exit and its own hit testing.
+// The punchcard on a canvas: a window can hold twenty thousand points, so it
+// owns its own animation and hit testing.
 
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useCanvasSurface} from '../lib/use-canvas-surface';
@@ -75,11 +74,7 @@ const pointAt = (
 	return best;
 };
 
-// One node instead of one per event. At 2.2k dots the DOM version was 93% of
-// the whole document, and every frame that touched an ancestor paid for it.
-// Drawing them costs the same whether there are ten or ten thousand.
-// Everything else fades to this while one event is singled out, so the dot that
-// stays at full strength reads as the answer.
+// The alpha of every other dot while one event is singled out.
 const DIMMED_ALPHA = 0.08;
 const HIGHLIGHT_RADIUS_SCALE = 2.2;
 
@@ -97,9 +92,8 @@ export const ScatterCanvas = ({
 	highlightId: string | null;
 	onPointEnter: (point: ScatterPoint) => void;
 	onPointLeave: () => void;
-	// The commit a press landed on, or null for anywhere else. Reported rather
-	// than acted on: the track holds the pointer capture, so it is the one that
-	// can tell this press apart from the start of a range drag.
+	// The commit pressed, or null. Reported: the track holds pointer capture and
+	// tells a press from a range drag.
 	onPressCommit: (sha: string | null) => void;
 }) => {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -107,11 +101,8 @@ export const ScatterCanvas = ({
 	// Read through refs by the draw loop, so a data change never restarts it.
 	const layersRef = useRef(layers);
 	layersRef.current = layers;
-	// Only dims when the highlighted event is actually on the chart. It may not
-	// be: an event outside the fetched window has no dot, and the bucketed
-	// fallback dots carry no id at all.
-	// Memoized: this walks every plotted point, and the track re-renders on
-	// every mouse move.
+	// Dims only when the highlighted event has a dot. Memoized: the track
+	// re-renders on every mouse move.
 	const activeHighlight = useMemo(
 		() =>
 			highlightId !== null &&
@@ -272,14 +263,8 @@ export const ScatterCanvas = ({
 				hoveredRef.current = null;
 				onPointLeave();
 			}}
-			// Never stopped, not even over a commit: every press has to reach the
-			// track, or a range drag that begins on a dot never begins at all — and
-			// on a busy scatter most of them do. What the press turns out to mean is
-			// settled on release, by how far it travelled.
-			//
-			// There is deliberately no onClick here. The track takes pointer
-			// capture, which retargets the compatibility mouse events with it, so a
-			// click on the canvas is not the canvas's to hear.
+			// Never stopped: a range drag may begin on a dot. No onClick, since the track's
+			// pointer capture retargets clicks.
 			onPointerDown={event => onPressCommit(hitTest(event)?.commitSha ?? null)}
 		/>
 	);

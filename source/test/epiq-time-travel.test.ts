@@ -11,9 +11,8 @@ vi.mock('../lib/storage/paths.js', async () => ({
 		'../lib/storage/paths.js',
 	)),
 	resolveClosestEpiqProjectRoot: vi.fn(),
-	// The timeline index stats the log files to notice when they move. These
-	// tests hand it events through the mocked loader instead, so it must find no
-	// directory — and clearTimelineCache below is what stands in for a signature.
+	// Events come from the mocked loader, so the index must find no log
+	// directory; clearTimelineCache stands in for a signature.
 	getEventsDirPath: vi.fn(() => '/epiq-timeline-index-no-such-dir'),
 }));
 
@@ -66,10 +65,7 @@ vi.mock('node:fs', () => {
 	return {existsSync, default: {existsSync}};
 });
 
-// Mocked as a unit rather than by widening the `node:fs` mock above: the
-// directory it prepares is a real one with real permissions, which is its own
-// test's business (lib/storage/private-temp-dir.test.ts). Here it only has to
-// name a path for the diff assertions to match against.
+// Mocked as a unit: here it only has to name a path.
 vi.mock('../lib/storage/private-temp-dir.js', () => ({
 	privateTempDir: (...segments: string[]) => ({
 		status: 'success',
@@ -132,9 +128,8 @@ import {
 	runExclusive,
 } from '../mcp/epiq-time-travel.js';
 
-// Commit timeline reads pick their own separators per read, so canned git log
-// output is written with the plain ones and re-spelled in the ones the read's
-// --format asks for.
+// Canned git log output uses plain separators, re-spelled in the ones each
+// read's --format asks for.
 const cannedLog =
 	(stdout: string) =>
 	async ({args}: {args: string[]}) => {
@@ -671,9 +666,8 @@ describe('epiq-time-travel', () => {
 			expect(result.value.events.at(-1)?.label).toBe('I1 moved within Todo');
 		});
 
-		// Where the ticket sat before a move is routinely outside the window being
-		// drawn, so the index has to be built over the whole log — otherwise every
-		// move at the start of a window reads as a lane change.
+		// Built over the whole log, or every move at a window's start reads as
+		// a lane change.
 		it('reads the lane a move came from even when it is outside the window', async () => {
 			const baseTime = 1_700_000_000_000;
 			const events = [
@@ -783,8 +777,7 @@ describe('epiq-time-travel', () => {
 
 			expect(result.value.events).toEqual([]);
 			expect(result.value.buckets.length).toBeGreaterThan(0);
-			// 8CYH2TC: the caller cannot tell an empty list from a withheld one
-			// unless the window says which it is.
+			// Says it was withheld, so it isn't mistaken for an empty list.
 			expect(result.value.capped).toBe(true);
 		});
 
@@ -1129,9 +1122,8 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(false);
 		});
 
-		// The scrubber's own 'commits:get' (unwindowed, same as this) typically
-		// fires moments before a ticket's Commits tab does — this is the specific
-		// duplicate scan the timeline cache exists to collapse into one git call.
+		// The scrubber's 'commits:get' usually fires just before the Commits tab's;
+		// the cache collapses them into one git call.
 		it('reuses a timeline already scanned for a different ref instead of re-scanning', async () => {
 			vi.mocked(execGit).mockImplementation(
 				cannedLog(
@@ -1158,24 +1150,17 @@ describe('epiq-time-travel', () => {
 		const REC = '\x1e';
 		const ZERO_BLOB = '0'.repeat(40);
 
-		// A real 40-hex sha per label: the per-commit walk keys off a line being
-		// exactly that shape, so a readable stand-in like "newer000…" would be
-		// skipped rather than read as a commit.
+		// Real 40-hex shas: the per-commit walk skips any line of another shape.
 		const sha = (label: string): string =>
 			createHash('sha1').update(label).digest('hex');
 
-		// Every git call this can make, answered from the shape the test
-		// describes: the commit timeline (which commits carry the ref), the
-		// ancestry checks that pin the endpoints to one line of history, the
-		// root-commit check, the per-commit path walk over the range, and the
-		// range diff itself.
+		// Answers every git call this can make from the history the test describes.
 		const mockGit = ({
 			history,
 			pathsByCommit = {},
 			diffFiles = [],
-			// Labels whose commit is NOT on the newest's line of history — a
-			// copy a rebase left behind on a stale branch. Empty means the
-			// ticket's commits all sit on one line, which is the healthy case.
+			// Labels whose commit is off the newest's line of history (a rebase
+			// copy on a stale branch). Empty is the healthy case.
 			strandedLabels = [],
 		}: {
 			// Newest first, as git log returns them.
@@ -1315,11 +1300,8 @@ describe('epiq-time-travel', () => {
 			expect(lastDiffArgs()).not.toContain('--');
 		});
 
-		// The reason the endpoints are not simply the first and last match: a
-		// ref matches across every branch, and a rebase leaves the pre-rebase
-		// copy reachable from the stale one. Diffing from that copy compares
-		// across the divergence and returns everything the two branches ever
-		// differed by.
+		// A ref matches across branches, and a rebase strands a copy on the stale
+		// one; diffing from it would span the divergence.
 		it('ignores a rebase copy stranded on another branch', async () => {
 			mockGit({
 				history: [
@@ -1343,9 +1325,8 @@ describe('epiq-time-travel', () => {
 			expect(result.value.contiguous).toBe(true);
 		});
 
-		// Adjacency in the cross-branch listing is not adjacency in history —
-		// two copies of one commit sort next to each other. The range walk is
-		// what says whether anything else is really in between.
+		// Two copies of one commit sort adjacent; the range walk says what is
+		// really in between.
 		it('reads contiguity off the range rather than off the listing', async () => {
 			mockGit({
 				history: [
@@ -1421,9 +1402,8 @@ describe('epiq-time-travel', () => {
 			expect(lastDiffArgs()).not.toContain('source/theirs.ts');
 		});
 
-		// Narrowing keeps the other ticket's *files* out; it cannot keep its
-		// changes out of a file both touched. That file is named rather than
-		// passed off as clean.
+		// Narrowing keeps another ticket's files out, not its changes to a shared
+		// file; that file is named.
 		it('names a file the interleaved commit also touched', async () => {
 			mockGit({
 				history: [
@@ -1471,10 +1451,7 @@ describe('epiq-time-travel', () => {
 			expect(result.value.overlappingPaths).toEqual([]);
 		});
 
-		// A ticket that added something and took it back out again nets to
-		// nothing. That is an answer — an empty diff — not a failure, unlike a
-		// single commit that changed nothing, which is a commit nobody meant to
-		// open.
+		// A ticket whose changes net to nothing has an empty diff, not a failure.
 		it('answers with an empty diff when the commits cancel out', async () => {
 			mockGit({
 				history: [
@@ -1493,10 +1470,8 @@ describe('epiq-time-travel', () => {
 			expect(result.value.commits).toBe(2);
 		});
 
-		// TCYD699: what a comment in the compacted view hangs off. Not the
-		// ticket's newest commit — that usually touched a fraction of its
-		// files, and a comment on any of the rest would name a commit whose
-		// diff has no such file.
+		// A compacted-view comment hangs off the last commit to touch its file,
+		// not the ticket's newest, which may not have that file.
 		it('anchors each file to the last of the ticket’s commits to touch it', async () => {
 			mockGit({
 				history: [
@@ -1825,12 +1800,8 @@ describe('epiq-time-travel', () => {
 		const blobHash = (label: string): string =>
 			createHash('sha1').update(label).digest('hex');
 
-		// entries with `before`/`after` left undefined simulate that side having
-		// no blob (the file was added or deleted at this commit) — the zero hash
-		// getChangedFileBlobs reads as "no blob on this side", same convention
-		// its caller already keys off.
-		// `binary` stands in for git's `-\t-` numstat line, a file with no line
-		// count to give.
+		// An undefined `before`/`after` means no blob on that side (added or
+		// deleted); `binary` stands in for git's `-\t-` numstat line.
 		const mockGitForFiles = (
 			entries: {
 				path: string;
@@ -1958,9 +1929,7 @@ describe('epiq-time-travel', () => {
 					{path: 'logo.png', insertions: 0, deletions: 0},
 				]);
 
-				// The dash says two things, and the second is that git will not diff
-				// this file at all — which is what keeps the panel from drawing its
-				// bytes, and the bytes off the wire.
+				// The dash also means git won't diff the file, so its bytes stay off the wire.
 				const [text, binary] = result.value.files;
 				expect(text?.isBinary).toBe(false);
 				expect(binary?.isBinary).toBe(true);
@@ -2045,11 +2014,7 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(false);
 		});
 
-		// Regression guard against a git-version quirk biting silently: --raw's
-		// line shape is assumed, not just hoped for (a real assumption already
-		// broke once this session — --full-index turned out to be a no-op on
-		// one git version). A line that doesn't parse should fail loudly rather
-		// than quietly under-report the commit's real files.
+		// A `--raw` line that doesn't parse fails loudly rather than under-reporting files.
 		it('fails rather than silently dropping a diff --raw line it cannot parse', async () => {
 			vi.mocked(execGit).mockImplementation(async ({args}) => {
 				if (args[0] === 'diff') {
@@ -2071,9 +2036,8 @@ describe('epiq-time-travel', () => {
 			expect(readGitBlobsBatch).not.toHaveBeenCalled();
 		});
 
-		// diff-tree's single-commit mode reports no files for a merge commit
-		// unless told otherwise — diffing against the first parent explicitly
-		// (`sha~1`) works for both merge and non-merge commits alike.
+		// Diffing against `sha~1` explicitly, since single-commit diff-tree lists
+		// no files for a merge.
 		it('lists a merge commit as a diff against its first parent, not as having no changes', async () => {
 			mockGitForFiles([
 				{path: 'source/a.ts', before: 'before', after: 'after'},
@@ -2246,9 +2210,8 @@ describe('epiq-time-travel', () => {
 			);
 		});
 
-		// The cut is exclusive, so checking out *at* the event's own time would
-		// show the state before it — the description it replaced, not the one it
-		// wrote.
+		// The cut is exclusive, so a checkout at the event's own time would show
+		// the state before it.
 		it('cuts one millisecond after the named event, so that event is applied', async () => {
 			vi.mocked(loadEffectiveEventTimes).mockReturnValue(
 				succeeded('times', new Map([['evt-1', 5000]])),
@@ -2262,9 +2225,8 @@ describe('epiq-time-travel', () => {
 			expect(result.value.asOfTime).toBe(5001);
 		});
 
-		// The Log row displays the raw ULID time; the split judges by the
-		// effective one. Resolving here rather than on the client is what keeps a
-		// poisoned far-future id from checking out the whole log.
+		// Resolved by effective time server-side, so a far-future id can't check
+		// out the whole log.
 		it('resolves the effective time rather than trusting a displayed one', async () => {
 			vi.mocked(loadEffectiveEventTimes).mockReturnValue(
 				succeeded('times', new Map([['poisoned', 1000]])),
@@ -2328,9 +2290,8 @@ describe('epiq-time-travel', () => {
 				replay: null,
 			});
 
-			// The rebuild above dropped every load-derived lock, so reopening
-			// writes without re-deriving them hands back a writable board over a
-			// log this build cannot fully read.
+			// The rebuild dropped load-derived locks; reopening must re-derive them,
+			// or an unreadable log becomes writable.
 
 			expect(isSuccess(result)).toBe(true);
 		});

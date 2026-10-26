@@ -13,9 +13,7 @@ import {GUI_THEME} from '../lib/gui-theme';
 // Roughly one sample per frame at 60Hz, without depending on the frame clock.
 const POINTER_SAMPLE_MS = 16;
 
-// The glow on the nearest panel's border, for anything inside it that wants
-// to light with it: where the light is, in viewport coordinates, how strong
-// it is right now, and the circle and colour it is drawn with.
+// The nearest panel's border glow, in viewport coordinates, for children to share.
 export type PanelGlow = {
 	x: number;
 	y: number;
@@ -37,12 +35,7 @@ export const PanelGlowContext = createContext<PanelGlow>({
 	color: 'transparent',
 });
 
-/**
- * The panel's glow as a gradient placed on one element inside it: the light
- * is in viewport coordinates and the gradient wants the element's own, so the
- * element is measured on the way through. Before it has a box there is
- * nothing lit to place.
- */
+/** The panel's glow as a gradient in one element's own coordinates. */
 export const useGlowGradient = (
 	ref: React.RefObject<HTMLElement | null>,
 ): {glow: PanelGlow; gradient: string} => {
@@ -96,9 +89,7 @@ export const Panel = <T extends ElementType = 'div'>({
 	const glowRef = useRef<HTMLDivElement | null>(null);
 	const lastMeasuredRef = useRef(0);
 
-	// Tracks the pointer window-wide so a panel lights up as you approach it.
-	// Throttled by timestamp, not requestAnimationFrame, which is paused in
-	// background tabs and would leave the glow frozen.
+	// Tracks the pointer window-wide, throttled by timestamp: rAF pauses in background tabs.
 	useEffect(() => {
 		if (proximityReach === undefined) return;
 
@@ -221,10 +212,7 @@ export const Panel = <T extends ElementType = 'div'>({
 				}}
 			/>
 
-			{/* Positioned so it paints over the glow above (same z level, later in
-			    the tree), but with no z-index of its own: that would make the panel
-			    a stacking context and trap any popover inside it under positioned
-			    content elsewhere on the page. */}
+			{/* Paints over the glow by tree order; a z-index would trap popovers inside. */}
 			<div
 				style={{
 					position: 'relative',

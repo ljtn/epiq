@@ -153,11 +153,7 @@ describe('timeline-index', () => {
 			);
 		});
 
-		// `userName` on a loaded event is parsed back out of the log's file name,
-		// which sanitizing lowercased and stripped — so the actor has to be
-		// named out of the registry the tag and the assignee are named out of,
-		// or the same person reads `claude-adolph` here and `claude/adolph`
-		// where they are assigned.
+		// A file name's sanitized `userName` mustn't name the actor; the registry does.
 		it('names an actor the way the log named them, not the way the file did', () => {
 			const entries = buildTimelineEntries([
 				{
@@ -230,9 +226,7 @@ describe('timeline-index', () => {
 			expect(entry!.actor?.name).toBe('Renamed');
 		});
 
-		// 2BPYNWE. The timeline used to index only `create.contributor`, so a
-		// rename never reached it and a name read as whatever its owner was
-		// called the day they were created — on every line, before and after.
+		// A rename reaches lines written before it.
 		it('carries a rename onto lines written before it', () => {
 			const [first, , last] = buildTimelineEntries([
 				event(1, {userId: 'u-9'}),
@@ -300,9 +294,7 @@ describe('timeline-index', () => {
 			expect(entries.map(entry => entry.board)).toEqual(['b1', 'b1', 'b1']);
 		});
 
-		// A close is a move into the closed lane, which hangs off the Closed
-		// board — read after the move, it belonged there, and the ticket's own
-		// board never saw it go.
+		// A close belongs to the board the ticket left, not the Closed board.
 		it('attributes a close to the board the ticket was closed from', () => {
 			const entries = buildTimelineEntries([
 				{
@@ -359,8 +351,7 @@ describe('timeline-index', () => {
 			]);
 		});
 
-		// WKK7PS0: a comment line in the log led to the comments tab and no
-		// further, because the entry named the ticket and nothing inside it.
+		// A comment line must name the comment, not just its ticket.
 		it('names the comment a comment event happened to', () => {
 			const entries = buildTimelineEntries([
 				event(1),
@@ -389,9 +380,8 @@ describe('timeline-index', () => {
 			]);
 		});
 
-		// What the flow chart places a ticket by: its lane after every event,
-		// and the one a change of lane took it out of — so a window can draw
-		// the ticket without the moves outside it.
+		// Each ticket's lane after every event, and the lane a change left, so a
+		// window can place it.
 		it('carries the lane a ticket is in after each event, and the one it left', () => {
 			const entries = buildTimelineEntries([
 				event(1),

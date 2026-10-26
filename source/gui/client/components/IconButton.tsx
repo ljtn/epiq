@@ -1,8 +1,5 @@
-// The one icon-only button. A 24px square, transparent until hovered, when it
-// takes the hover ground and the accent; pressed, it keeps both. Every icon
-// control — the ticket panel's header, its dock and collapse controls, the
-// kebab menus, the close cross — is one of these, so they all hover, light and
-// sit alike, at one size.
+// The one icon-only button: a 24px square, transparent until hovered, lit
+// when pressed. Every icon control is one.
 
 import React, {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -23,9 +20,8 @@ export const IconButton = ({
 	tone = 'quiet',
 	...rest
 }: {
-	// Read as the tooltip, and as the accessible name where nothing sets one:
-	// only an explicit aria-label is one, so a button nested in another (the
-	// copy button in a commit row) does not lend its name to the row's.
+	// The tooltip, and the accessible name unless aria-label sets one; a nested
+	// button doesn't lend its name to its parent's.
 	title: string;
 	// A control that is on or off. Absent on one that only acts.
 	pressed?: boolean;
@@ -37,15 +33,8 @@ export const IconButton = ({
 	// short pill of the same height and look.
 	label?: string;
 	/**
-	 * How loudly it wears being on.
-	 *
-	 * `quiet` is every icon control on the board: pressed, it keeps the hover
-	 * ground and takes the accent, which is enough for a switch among switches.
-	 *
-	 * `solid` fills with the accent instead and puts the panel's own near-black
-	 * on it. For the one control that has to be read from across a room rather
-	 * than found among its neighbours — the live half of the transport, which
-	 * says the board is moving on its own.
+	 * How it shows being on. `quiet`: the hover ground and accent. `solid`: an
+	 * accent fill, for the live control read from across the room.
 	 */
 	tone?: 'quiet' | 'solid';
 } & Pick<

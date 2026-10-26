@@ -17,9 +17,8 @@ import {IconButton} from './IconButton';
 import {IconLock} from './IconLock';
 import {IconUnplug} from './IconUnplug';
 
-// The repos the board reads commits from, as a section of the settings panel:
-// its own first and locked, then the connected ones, then the row that connects
-// another. Rows, not cards — the section is the card.
+// The repos the board reads commits from: its own first and locked, then the
+// connected ones, then the row that connects another.
 
 type Props = {
 	state: ReposState;
@@ -39,9 +38,7 @@ const LINE_GAP = 8;
 // The confirm button's own red, translucent enough that the name still reads.
 const ARMED_BACKGROUND = 'rgba(255, 135, 135, 0.14)';
 
-// One repo per block: its own ground and corners, apart from the next, so the
-// list reads as items at a glance. The section header's ground, lifted out of
-// the body's shade.
+// Each repo is its own block on the section header's ground.
 const BLOCK_BACKGROUND = CARD.background;
 
 const rowStyle = (armed: boolean): React.CSSProperties => ({
@@ -195,11 +192,8 @@ const FIELD: React.CSSProperties = {
 	fontSize: TEXT.prose,
 };
 
-// What the repo is called, changed in place: its URL's basename unless set,
-// which is how a fork and its upstream are told apart. Drawn as the name it
-// is until focused, so the list reads as names rather than as a form. The row
-// keys this on the label, so one changed elsewhere replaces the field, never
-// gets sent back.
+// A repo's label, edited in place; its URL's basename unless set. The row keys
+// this on the label, so a change from elsewhere replaces the field.
 const LabelField = ({
 	repo,
 	onChange,
@@ -261,10 +255,8 @@ const LabelField = ({
 	);
 };
 
-// How much history is cloned: since the board was created, all of it, or
-// since a day. The day's picker only appears for the third, on a line of its
-// own under the two lists, which fill the row between them. Choosing the third
-// opens the calendar; closing it with no day picked goes back to what was.
+// How much history is cloned: since board creation, all, or since a picked day.
+// Closing the calendar with no day reverts.
 const SinceField = ({
 	repo,
 	onChange,
@@ -537,9 +529,7 @@ export const ReposSettings = ({
 				timeline. Epiq keeps a copy in a local clone, read only.
 			</div>
 
-			{/* The board's own repo, listed first: the one every other row is
-			    connected to. Locked, since it is read from the checkout and there
-			    is nothing to set. */}
+			{/* The board's own repo, first and locked: read from the checkout. */}
 			{state.own && (
 				<div data-testid="own-repo-row" style={rowStyle(false)}>
 					<span style={lineStyle}>

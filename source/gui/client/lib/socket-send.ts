@@ -1,11 +1,5 @@
-// A caller holding the socket ref can reach it while it is still CONNECTING —
-// on the first connect, or on a reconnect after the connection dropped.
-// `WebSocket.send` throws in that state, and an uncaught throw inside a React
-// effect unmounts the tree — a blank page.
-//
-// Queued rather than dropped: the sends that land in this window are the ones
-// that populate the board being drawn, so dropping them would trade a crash for
-// an empty column.
+// `WebSocket.send` throws while CONNECTING, which would blank the page from an
+// effect; sends are queued instead, since they populate the board.
 const pending = new WeakMap<WebSocket, string[]>();
 
 export const sendSocketJson = (socket: WebSocket | null, data: unknown) => {

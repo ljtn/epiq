@@ -115,13 +115,7 @@ type GetIssueInput = ToolInput & {
 	idOrRef: string;
 };
 
-/**
- * One issue, by full id or by the 7-character ref the commit convention uses.
- *
- * The inverse of that convention had no tool: going from a ref back to a
- * ticket meant listing the whole board and filtering, and on a board of any
- * age that response is large enough to be unusable for reading one field.
- */
+/** One issue, by full id or by its 7-character ref. */
 export const getIssue = async (input: GetIssueInput) => {
 	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
@@ -272,8 +266,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
-	// The other three title paths all sanitize; this one used to write the raw
-	// input, so a newline or a control character landed in the log for good.
+	// Sanitized like every title path: a control character would land in the log for good.
 	const title = sanitizeInlineText(input.title);
 
 	if (!title) {
@@ -646,10 +639,7 @@ export async function moveIssue(
 	return succeeded(batch.message, {...batch.value, ...rulesOf()});
 }
 
-/**
- * A ticket's own event log, oldest first. Reads whatever is materialized rather
- * than booting, so it stays correct mid-scrub like the state beside it.
- */
+/** A ticket's own event log, oldest first, from materialized state so it holds mid-scrub. */
 export const getIssueHistory = (
 	issueId: string,
 ): Result<ApiIssueHistoryEntry[]> => {
@@ -669,10 +659,7 @@ export const getIssueHistory = (
 			...(event.action === 'move.node'
 				? {parentId: (event.payload as {parent?: string}).parent}
 				: {}),
-			// By id from the registry, never from the event: an event carries no
-			// name at all since ZFZFW9D, and only the registry knows who an id is.
-			// The registry or the id: not booting is the point of this, so it
-			// never loads the log. `loadActorNames` has the rule.
+			// Named from the registry by id, never the event; never loads the log.
 			actor: identityOf(
 				event.userId,
 				stateResult.value.contributors[event.userId]?.name,

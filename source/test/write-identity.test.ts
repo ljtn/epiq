@@ -17,19 +17,10 @@ import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {bigIntToHex, midRank} from '../lib/utils/rank.js';
 
-// One question: is the board a write leaves behind the board that replaying
-// that write's log line produces?
-//
-// It has to be, and not only for tidiness. Reading the board skips the reload
-// when this process is the one that moved the log — the whole reason a write is
-// a fifth of a second rather than seconds — and that skip is only sound if
-// applying an event in place lands where replaying it would. When it did not,
-// nothing said so: the board looked right, and only the things addressed by
-// event id quietly stopped matching, until something else forced a reload.
+// The board a write leaves must equal what replaying its log line produces,
+// since reads skip the reload after this process's own writes.
 
-// The configured identity, which is what `init` records as a contributor. An
-// event carries the id alone, so `user` is what setup needs and `actor` what a
-// write spreads.
+// The configured identity: `user` for setup, `actor` (id only) for writes.
 const user = {userId: 'u1', userName: 'alice'};
 const actor = {userId: user.userId};
 
@@ -120,10 +111,8 @@ const loggedIds = (nodeId: string): string[] =>
 	(getState().nodes[nodeId]?.log ?? []).map(event => event.id);
 
 describe('an event has one identity', () => {
-	// The id a caller builds an event with is a placeholder — the real one is
-	// minted against the edge. So the board must not keep the placeholder: a log
-	// row carrying an id no line in the file has cannot be found, checked out, or
-	// pointed at from the chart.
+	// The caller's id is a placeholder; the board must keep the minted one, or
+	// its log row can't be found.
 	it('is the log line’s, not the one the caller proposed', () => {
 		const proposed = placeholderId();
 
@@ -159,9 +148,7 @@ describe('an event has one identity', () => {
 		]).toEqual(persistedIds().slice(before));
 	});
 
-	// The invariant the skipped reload rests on, asserted whole rather than
-	// through the ids alone: any future divergence between applying in place and
-	// replaying shows up here.
+	// Applying in place equals replaying, asserted whole.
 	it('leaves the board a replay of the log produces', () => {
 		const result = materializeAndPersistAll(
 			[

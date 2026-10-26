@@ -17,16 +17,8 @@ import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {bigIntToHex} from '../lib/utils/rank.js';
 
-// Who an event belongs to, and what that person is called, are two different
-// questions with two different answers. The id is structural: it comes off the
-// log's file name, where it cannot be forged without writing to somebody
-// else's file. The name is the contributor registry's, so a rename shows on
-// every line at once.
-//
-// What is left of the file name's own copy is a fallback for a board written
-// before contributors were events. These pin that fallback, since it is the
-// part with no other test and the part a future reader is most likely to
-// think is dead.
+// An event's actor id comes off its log file name; its display name from the
+// registry. These pin the file-name fallback for authors the registry lacks.
 
 const ALICE = '01KSAYRA4GHEKJP888WFBWBRDD';
 const BOB = '01KRNH6T93JJV0B09W1NF2MS4J';
@@ -69,7 +61,7 @@ afterEach(() => {
 });
 
 describe('names a log file name carries', () => {
-	// The shape every board written before ZFZFW9D is full of.
+	// The old `<id>.<name>.jsonl` shape.
 	it('reads a name off a pre-ZFZFW9D file name', () => {
 		writeLog(`${ALICE.toLowerCase()}.alice.jsonl`, [
 			'01H0000000000000000000000A',
@@ -97,9 +89,8 @@ describe('names a log file name carries', () => {
 		expect(loadActorNames(root).get(ALICE)).toBe('alice');
 	});
 
-	// Before ZFZFW9D a rename started a new log, so one id can be named twice.
-	// Directory order says nothing about which came last; the log's own order
-	// does, and the answer must not depend on the filesystem.
+	// Old-format logs start anew on rename, so one id can be named twice; the
+	// log's order decides, never directory order.
 	it('settles two names for one author by the log, not the listing', () => {
 		writeLog(`${ALICE.toLowerCase()}.alice.jsonl`, [
 			'01H0000000000000000000000A',
@@ -186,9 +177,7 @@ describe('registering the author of a write', () => {
 		expect(getState().contributors[ALICE]?.name).toBe('Alice');
 	});
 
-	// The guard that matters. A replayed or synced event authored by somebody
-	// else must never pick up this process's name — that would rename them on
-	// every board they share.
+	// An event by somebody else must never pick up this process's name.
 	it('never puts our name on somebody else’s event', () => {
 		patchSettingsState({userId: ALICE, userName: 'Alice'});
 
@@ -210,9 +199,8 @@ describe('registering the author of a write', () => {
 	});
 });
 
-// A sync stages the actor's own log by name, and ZFZFW9D moved the name. An
-// upgraded machine can still hold lines in its old log that were flushed but
-// never committed; staging only the new name would leave them there for good.
+// A sync stages the actor's old-format log too, which may still hold flushed
+// but uncommitted lines.
 describe('the logs a sync stages for this actor', () => {
 	const current = () => getPersistFileName({userId: ALICE});
 
@@ -262,12 +250,8 @@ describe('the logs a sync stages for this actor', () => {
 	});
 });
 
-// The compiler cannot hold this line on its own: TypeScript excess-checks the
-// properties written in an object literal, not the ones a spread brings, so
-// `{...user}` puts the configured display name back on an event and typechecks
-// clean. `stripActor` keeps it off disk either way, which is what makes the
-// slip silent — the event a write applies in place would carry a name the same
-// event decoded from the log does not.
+// TypeScript doesn't excess-check a spread, so `{...user}` would put a display
+// name on an event and still typecheck.
 describe('what an event records about its author', () => {
 	// A `User`, the way every write path holds one: the id the event needs and
 	// the display name it must not take.

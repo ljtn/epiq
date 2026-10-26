@@ -1,22 +1,6 @@
 /**
- * One machine, several tools, one of them writing while another syncs —
- * the contract the two `write-during-sync-*` files are both about, and what
- * they both measure it with.
- *
- * `concurrent-sync.test.ts` races several syncs against each other, and the
- * sync lock settles those. Nothing holds that lock on the write path:
- * `persist` appends and `loadMergedEvents` reads with no lock at all, while a
- * sync in another process is rewriting the same directory — `git rebase`
- * replays commits over that worktree, and `rebase.autoStash` reverts the
- * working copy to HEAD and puts it back afterwards.
- *
- * A GUI beside an MCP server beside a TUI is the ordinary arrangement for an
- * agent-driven board, and only one of them has to be syncing for the others to
- * be writing into a directory git is part-way through rewriting.
- *
- * The contract under test is the narrowest one there is: an issue the board
- * accepted has to still exist afterwards, on every machine. Nothing about
- * ordering, nothing about ranks.
+ * One tool writes, unlocked, while another syncs the same worktree: an issue
+ * the board accepted must still exist afterwards, on every machine.
  */
 import {expect} from 'vitest';
 import {runActor, type Actor} from './harness.js';
@@ -50,27 +34,13 @@ export const acceptedTitles = (
 };
 
 /**
- * A sync that lost the race to a concurrent write.
- *
- * Nothing holds a lock on the append path, deliberately: a write that had to
- * wait on a sync would stall the person doing it, and this is the busiest path
- * in the app. So git can find the log dirty at any point while it rebases and
- * refuse — before it starts, at its pre-flight check, or part-way through the
- * replay, which is why this matches three different refusals.
- *
- * The sync fails having changed nothing and the next one picks it up. That is
- * the design, not a defect, and it is not what this file is here to catch: the
- * contract in the header is that an accepted issue does not go missing, and
- * that stays asserted exactly as strictly as before.
+ * A sync that lost the race to an unlocked concurrent write; git refuses at any
+ * of three points. By design: the next sync picks it up.
  */
 const BLOCKED_BY_A_CONCURRENT_WRITE =
 	/unstaged changes|would be overwritten|could not detach HEAD/;
 
-/**
- * Tolerated, but counted. An occasional blip is what the design trades for a
- * lock-free write path; every round failing is a regression that would
- * otherwise hide behind the same message. This is the line between them.
- */
+/** Lost races are tolerated up to this; every round failing is a regression. */
 export const MAX_BLOCKED_SYNCS = 4;
 
 // Anything that is neither of the two known, expected outcomes. One of these

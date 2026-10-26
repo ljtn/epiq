@@ -1,7 +1,4 @@
-// The row of controls above the chart: what the window covers, where the
-// needle steps to next, which panels are open, and the button that plays the
-// whole thing back. Presentational — props in, JSX out; the state behind them
-// is TimeScrubber's.
+// The controls row above the chart. Presentational; TimeScrubber owns the state.
 
 import {useRef} from 'react';
 import {GUI_THEME, SANS_FONT} from '../lib/gui-theme';
@@ -42,11 +39,7 @@ import {fixtureWellStyle} from '../lib/segmented.style';
 // Borderless, marked the way Tabs marks the open tab. The icon toggles below
 // keep their box: they carry no label, so the border is what holds their shape.
 
-// The two panel toggles and the transport all sit in one family: a panel, a
-// hairline and a glyph. Nothing here is the brightest thing on the bar.
-//
-// Cornered the way the player's own transport is rather than the way a card is:
-// a 6px radius on a box this small reads as a pill, and these are chrome.
+// Panel toggles and transport share one quiet style, cornered as chrome.
 const headerButtonStyle: React.CSSProperties = {
 	background: GUI_THEME.panel2,
 	border: `1px solid ${GUI_THEME.line}`,
@@ -120,9 +113,7 @@ export const ScrubberControls = ({
 	canPlay: boolean;
 	playTitle: string;
 	onPlay: () => void;
-	// The live half of the transport. Owned above this row, because the log
-	// panel reads it too and the board turns it off when the reader reaches for
-	// it — three places, so it cannot live in any one of them.
+	// Live follow, owned above: the log panel reads it and the board turns it off.
 	following: boolean;
 	canFollow: boolean;
 	followTitle: string;
@@ -191,9 +182,7 @@ export const ScrubberControls = ({
 				// Either side of the line between two groups, so a break is twice
 				// this and a line: more where the window has the room.
 				gap: 'clamp(12px, 1.4vw, 22px)',
-				// Sized by the bar rather than by what is on it: the text filter is
-				// the one control here that gives when the row is tight, and a row
-				// sized to its own content would never be tight.
+				// Sized by the bar, so the text filter gives when the row is tight.
 				flex: '1 1 0',
 				minWidth: 0,
 			}}
@@ -268,18 +257,8 @@ export const ScrubberControls = ({
 							</button>
 						))}
 
-						{/* Only ever the current state, never a way in: a window is zoomed by
-				    dragging one out on the chart, and left by naming any period to
-				    its left. It sits at the end of this group because it is not a
-				    period on the same scale as the rest.
-
-				    Faded rather than unmounted: the row must not shift by its width
-				    underneath the pointer as a zoom comes and goes. Its title carries
-				    the gesture, since a button nobody can press has to say why.
-
-				    Flat under a ticket window even while a dragged one is still
-				    held: that window is not what is on screen, and the whole row
-				    reads as unpressed there, the scope buttons included. */}
+						{/* Shows a zoom, never makes one: zoom by dragging on the chart, leave by
+						    picking a period. Faded rather than unmounted, so the row doesn't shift. */}
 						<button
 							title={
 								ticketFocus
@@ -304,11 +283,7 @@ export const ScrubberControls = ({
 
 			<GroupDivider />
 
-			{/* A group of one, right after the window it narrows the board to: the
-			    buttons to its left say which window, and this says whether the
-			    board is held to it. Under "All" that window is every event there
-			    is, which narrows nothing, so it goes flat instead of pretending
-			    to. */}
+			{/* Holds the board to the window; flat under "All", which narrows nothing. */}
 			<LabelledGroup label="Narrow">
 				<SpotlightToggle
 					title={
@@ -321,13 +296,8 @@ export const ScrubberControls = ({
 							: 'Narrow board to timeline window'
 					}
 					on={windowOnly}
-					// Unlike the series pickers it asks the socket for nothing — it
-					// narrows what is already on screen — so offline it can still be
-					// let go of, just not taken up over a window that can no longer be
-					// refreshed.
-					// Flat under the ticket narrowing, which has already taken the
-					// board down to one card: there is nothing left for a window to
-					// take away, and two lit boxes would claim otherwise.
+					// Needs no socket, so it can be let go of offline but not taken up. Flat
+					// under the ticket narrowing, which already leaves one card.
 					disabled={
 						ticketFocus ||
 						everythingInScope ||
@@ -338,9 +308,7 @@ export const ScrubberControls = ({
 				/>
 			</LabelledGroup>
 
-			{/* The row's slack, so what the chart is drawn from and what window it
-			    spans sit at its left end, and what is picked out of that window at
-			    its right. */}
+			{/* The row's slack, between the window controls and the pickers. */}
 			<div aria-hidden style={{flex: '1 1 0', minWidth: 0}} />
 
 			<LabelledGroup
@@ -387,20 +355,11 @@ export const ScrubberControls = ({
 				/>
 
 				<TextFilterInput value={textFilter} onChange={onChangeTextFilter} />
-
-				{/* <Checkbox
-				label="All boards"
-				checked={allBoards}
-				activeColor={GUI_THEME.accent}
-				onChange={onChangeAllBoards}
-			/> */}
 			</LabelledGroup>
 
 			<GroupDivider />
 
-			{/* Last on the row, past everything that draws or narrows the window:
-			    the transport, the one thing here that starts something. Two
-			    groups, each named for what its one button does. */}
+			{/* Last: the transport. */}
 			<LabelledGroup label="Live">
 				<LiveToggle
 					following={following}
@@ -421,9 +380,7 @@ export const ScrubberControls = ({
 	);
 };
 
-// A hairline between two groups of the row, lit by the panel's glow exactly as
-// its border is, so a point on it is as bright as a point on the border the
-// same distance from the pointer.
+// A hairline between groups, lit by the panel's glow like its border.
 const GroupDivider = () => {
 	const ref = useRef<HTMLSpanElement>(null);
 	const {glow, gradient} = useGlowGradient(ref);
@@ -457,15 +414,8 @@ const GroupDivider = () => {
 // As tall as a row's controls, not the row: the group names sit above them.
 const GROUP_DIVIDER_HEIGHT = 22;
 
-// One group of the row, named. The groups were told apart by gap width alone
-// — twenty between, six or ten within — which a reader stops seeing. The name
-// hangs in the panel's own top padding, taken out of flow so the bar is no
-// taller for it, at the group's left edge. Stretched to the row's height so
-// every name hangs at the same line, whatever its group's own height.
-//
-// Faint, and lit by the panel's own glow: the same circle of light that
-// follows the pointer along the border above it passes over the name, so the
-// two brighten and fade as one.
+// A named group. The name hangs out of flow in the panel's top padding, lit by
+// the panel's glow.
 const LabelledGroup = ({
 	label,
 	style,
@@ -507,9 +457,7 @@ const LabelledGroup = ({
 					userSelect: 'none',
 				}}
 			>
-				{/* Two copies side by side rather than one inside the other: an
-				    opacity on the faint one would cap whatever sat within it, and
-				    the lit one has to be able to reach the glow's full colour. */}
+				{/* Two copies side by side, so the faint one's opacity doesn't cap the lit one. */}
 				<span style={{color: GUI_THEME.dim, opacity: 0.6}}>{label}</span>
 				{/* The lit copy over the faint one, the glow's gradient clipped to
 				    its letters, fading in and out on the border's own clock. */}
@@ -533,11 +481,8 @@ const LabelledGroup = ({
 	);
 };
 
-// The board narrowed to the tickets with activity in the timeline's window.
-// Wears the funnel, the same mark the ticket panel's narrowing wears: both are
-// filters, they are never on one row, and this one goes flat while that one is
-// on. Drawn once, since the collapsed header puts the same one up when the
-// rest of the row is not on screen.
+// Narrows the board to tickets active in the window. Goes flat while the
+// ticket narrowing is on.
 export const SpotlightToggle = ({
 	on,
 	disabled = false,
@@ -561,13 +506,8 @@ export const SpotlightToggle = ({
 	</IconButton>
 );
 
-// The board's text query, beside the other narrowings. Worn like the selects
-// on this row — the same fill, no border — so the bar reads as one family of
-// controls; lit in the accent while it holds a query, since unlike its
-// neighbours it has no box to show it is on, and a word typed a while ago
-// reads as a board missing its tickets. The tickets it keeps are the ones the
-// columns show and the ones the chart plots; Escape empties it and lets go of
-// the focus.
+// The board's text query, styled like the row's selects and lit while it holds
+// one. Escape clears it and blurs.
 export const TextFilterInput = ({
 	value,
 	onChange,
@@ -597,10 +537,7 @@ export const TextFilterInput = ({
 					held ? GUI_THEME.accent : GUI_THEME.primary,
 					false,
 				),
-				// Also the one thing on this row that can give, down to the short
-				// width, should the row run out of room before the narrow-bar
-				// breakpoint folds the scope buttons: a query is readable at that
-				// size, and the transport would otherwise be pushed off the edge.
+				// The one control that shrinks, so the transport isn't pushed off the edge.
 				width: 110,
 				minWidth: 70,
 				flexShrink: 1,
@@ -630,13 +567,7 @@ export const ScrubberHeader = ({
 			whiteSpace: 'nowrap',
 		}}
 	>
-		{/* First, and marked with what it opens rather than with a chevron: the
-		    panel beside the board is a thing in its own right, where the chevron
-		    next to it only shows and hides the bar it sits on.
-
-		    Here rather than in the controls row so it survives that bar being
-		    collapsed, and it asks the socket for nothing — the window it lists is
-		    already on screen — so it stays usable offline. */}
+		{/* Opens the side panel. Here so it survives the bar collapsing; needs no socket. */}
 		<IconButton
 			testId="log-toggle"
 			title={logOpen ? 'Hide the event log' : 'Show the event log'}
@@ -646,9 +577,7 @@ export const ScrubberHeader = ({
 			<IconLog size={ICON_SIZE} />
 		</IconButton>
 
-		{/* Marked with the thing it opens, as its neighbour is, and lit the same
-		    way while it is open — a chevron said only "there is more here", which
-		    is true of every disclosure on the page. */}
+		{/* Marked with what it opens, and lit while open. */}
 		<IconButton
 			testId="timeline-toggle"
 			title={collapsed ? 'Show time travel' : 'Hide time travel'}
@@ -661,15 +590,8 @@ export const ScrubberHeader = ({
 	</div>
 );
 
-// The way back from history, standing at the end of the track — which is where
-// pressing it puts the needle. On the bar it was a button that described a
-// place; here it *is* the place, and the press reads as "put it back there"
-// rather than as a command to be taken on trust.
-//
-// Only while the board is parked. Live it would sit over the newest bars saying
-// nothing, and the needle is already at that end. The other case it stays out
-// of — a movie playing — is the layout's: it is the whole bar that stands down
-// there, not this button on its own.
+// Back to the present, standing at the track's end where it puts the needle.
+// Only while the board is parked.
 export const ReturnToNowButton = ({
 	isScrubbing,
 	onReturnToLive,
@@ -682,13 +604,7 @@ export const ReturnToNowButton = ({
 	return (
 		<button
 			onClick={onReturnToLive}
-			// The track beneath owns pointer capture and reads a press as the
-			// start of a scrub. Without this the button both returns to now and
-			// scrubs to where it sits, which is a press that undoes itself.
-			//
-			// And it reads a move as "say what is under the pointer", which put the
-			// timeline's own hint over the button instead of the button's. Both are
-			// stopped here, the way the pager arrows on this chart already do.
+			// Stops the track behind from scrubbing or hinting on this press.
 			onPointerDown={event => event.stopPropagation()}
 			onMouseMove={event => event.stopPropagation()}
 			title="Put the board back at now"
@@ -709,9 +625,7 @@ export const ReturnToNowButton = ({
 				color: GUI_THEME.bg,
 				display: 'inline-flex',
 				alignItems: 'center',
-				// The mark alone. On the bar the word did the work of saying where
-				// the press led; standing at that place, it only takes width from
-				// the chart it is sitting on.
+				// The mark alone; the word only took width from the chart.
 				padding: '3px 4px',
 				cursor: 'pointer',
 			}}
@@ -721,14 +635,7 @@ export const ReturnToNowButton = ({
 	);
 };
 
-// The live half of the transport, beside the play button that is the other
-// half: play walks through what already happened, this rides what is happening.
-// A reader asking "am I watching the present or the past" looks in one place
-// for the answer, which is the argument for the two being neighbours.
-//
-// Lit, it is filled with the accent — a mode that moves the board on its own
-// has to be legible across a room, not inferred from a pressed box. Its group
-// is named Live, so the button carries no word of its own.
+// Follow live, beside play. Lit with an accent fill; its group's name is its label.
 export const LiveToggle = ({
 	following,
 	disabled,
@@ -742,9 +649,7 @@ export const LiveToggle = ({
 	title: string;
 	onChange: (next: boolean) => void;
 }) => (
-	// A plain `IconButton`, the size of every other single icon on the row: a
-	// well around it made it the largest thing there. The accent fill is a tone
-	// on the shared component, so hover and size come with it.
+	// The accent fill is a tone of the shared IconButton.
 	<IconButton
 		testId="live-toggle"
 		title={title}
@@ -758,9 +663,7 @@ export const LiveToggle = ({
 	</IconButton>
 );
 
-// The transport, wherever it is put: among the controls while the bar is open,
-// and beside the collapsed row's own box when it is not — it must not go out of
-// reach just because the charts are shut.
+// The transport: in the controls while open, beside the collapsed row when shut.
 export const ScrubberPlayButton = ({
 	canPlay,
 	playTitle,
@@ -785,6 +688,4 @@ export const ScrubberPlayButton = ({
 	</IconButton>
 );
 
-// Deliberately one block spanning both charts and the gap: hovering a commit
-// lights up the same day in the issue track above, which is what makes the two
-// halves read as one time grid.
+// One block across both charts and the gap, so the two read as one time grid.

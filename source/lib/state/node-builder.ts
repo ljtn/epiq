@@ -156,12 +156,8 @@ export const nodes = {
 		title: name,
 		rank,
 		isDeleted: false,
-		// One flag rather than the free `props` bag this used to take. That bag
-		// was accepted and then dropped on the floor — every caller passed a
-		// `value` that was silently discarded — and it could not simply be
-		// honoured, because every node's `props.value` is swept into the command
-		// line's autocomplete corpus (`collectText`), which would have put every
-		// line of an open diff and of the event log into the vocabulary.
+		// One flag, not a `props` bag: every `props.value` feeds the autocomplete
+		// corpus (`collectText`).
 		props: disabled ? {disabled: true} : {},
 		context: NavNodeCtx.TEXT,
 		childRenderAxis: 'vertical',

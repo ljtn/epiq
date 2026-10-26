@@ -113,14 +113,7 @@ type Validator = ({
 	inputString: string;
 }) => ValidationResult;
 
-/**
- * The addresses the viewer currently holds, straight from the board.
- *
- * Synchronous, unlike the scan that finds unclaimed ones, so there is nothing
- * to cache and nothing to go stale. It was read from a list the identity screen
- * filled, which made `:config emails-unclaim` refuse everything until that
- * screen had been opened at least once.
- */
+/** The addresses the viewer currently holds, read straight from the board. */
 const heldEmails = (): string[] => {
 	const {userId} = getSettingsState();
 	const stateResult = getSafeState();
@@ -133,10 +126,7 @@ const heldEmails = (): string[] => {
 const valid = (
 	message: string = '',
 	completionWordList: string[] = [],
-	// Dimmed by default, which is right for plain prose. A message that already
-	// carries its own styling — an options hint's chips — must opt out: dimming
-	// it a second time washes the chip out, so the same suggestion would look
-	// different depending on whether the input happened to be valid yet.
+	// A message with its own styling opts out, or dimming washes it out.
 	dim = true,
 ): ValidationResult => ({
 	message: dim ? hintDefault(message) : message,
@@ -158,9 +148,7 @@ const invalid = ({
 
 const isBlank = (value: string) => value.length === 0;
 
-// Reject a peek/replay target that predates the board's own creation (there is
-// nothing to show before it existed). Returns an `invalid` result to surface, or
-// null when the date is in range. `verb` tailors the wording for each command.
+// An `invalid` result for a peek/replay target before the board existed, else null.
 const validateAgainstBoardHorizon = (
 	date: Date,
 	verb: 'peek' | 'replay',
@@ -361,10 +349,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			const remaining = wordList.filter(word => word.startsWith(typed));
 			const isComplete = remaining.length === 1 && remaining[0] === typed;
 
-			// Narrowed as it is typed, like the editor's list. Unlike the editor
-			// this is free text, so the hint has to survive a valid input rather
-			// than only appearing while one is refused — otherwise the suggestion
-			// vanishes at the first keystroke, which is when it is most wanted.
+			// Free text, so the narrowed hint stays on a valid input too.
 			const hint = isComplete
 				? ''
 				: buildOptionsHint({
@@ -384,21 +369,15 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				});
 			}
 
-			// The chip keeps the styling `buildOptionsHint` gave it, and only the
-			// confirm text is dimmed, so the suggestion looks the same before and
-			// after the first keystroke.
+			// Only the confirm text is dimmed; the chip keeps its own styling.
 			return hint
 				? valid(`${hint}  ${hintDefault(CONFIRM_MSG)}`, wordList, false)
 				: valid(CONFIRM_MSG, wordList);
 		}
 
 		case ConfigModifiers.EMAILS: {
-			// The addresses drawn on the setup screen, plus the way out. Completing
-			// on the address rather than only on its number means the list can be
-			// taken from the screen without counting rows.
-			// Whatever the screen last drew, and this repository's own git address
-			// as a floor: the scan is asynchronous, so the first keystrokes can
-			// land before it answers, and an empty list would complete nothing.
+			// The addresses the screen last drew, plus this repo's own as a floor while
+			// the async scan runs, and the way out.
 			const gitEmail = getSettingsState().gitEmail;
 			const scanned = getOfferedEmails();
 			const offered = scanned.length > 0 || !gitEmail ? scanned : [gitEmail];
@@ -418,9 +397,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 					completionWordList: wordList,
 				});
 
-			// Confirmable while empty, because bare opens the screen that lists the
-			// addresses. The completions ride along, so the list is one keystroke
-			// away without having to open anything.
+			// Confirmable while empty: bare opens the address screen.
 			if (!typed) {
 				return valid(
 					`${CONFIRM_MSG} to see your addresses, or name one`,
@@ -434,9 +411,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			const known = (part: string): boolean =>
 				part === 'none' || offered.includes(part.toLowerCase());
 
-			// Half-typed is not wrong. Anything the offered list still begins with
-			// is on its way to being valid, and calling it "not on the list" while
-			// somebody is mid-word made every keystroke read as an error.
+			// Half-typed is not wrong: a prefix of an offered value is still valid.
 			const reachable = (part: string): boolean =>
 				wordList.some(word => word.startsWith(part.toLowerCase()));
 
@@ -815,9 +790,7 @@ const validators: Record<CmdKeyword, Validator> = {
 			});
 		}
 
-		// Only suggest durations once the user has moved past the date onto the
-		// second argument; offering them while typing the date would compete with
-		// the offset hints.
+		// Durations only once past the date, so they don't compete with offset hints.
 		return valid(
 			'<ENTER> to replay board history',
 			durationInput ? REPLAY_DURATION_HINTS : [],

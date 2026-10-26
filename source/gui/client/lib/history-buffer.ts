@@ -14,10 +14,8 @@ export type HistoryHalf = {
 };
 
 /**
- * Publishes the event timeline and commit log of one history window together,
- * since the scrubber derives its coordinate system from both at once. Pairing
- * is by request id, not by "both slots are full", or a reply from an abandoned
- * request gets filed against the current window's other half.
+ * Publishes one window's event timeline and commit log together. Paired by
+ * request id, so an abandoned request's reply is never filed against this one.
  */
 export const createHistoryBuffer = (
 	publish: (window: HistoryWindow) => void,

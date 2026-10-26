@@ -1,23 +1,5 @@
-// The wiring following exists for: a write from somewhere else moves the
-// board. Everything in `log-follow.pw.ts` passes with the feature deleted —
-// this is the case that does not.
-//
-// The write comes from a socket of the test's own, so the board under test is
-// not the client that made it. An ordinary mutation is answered by
-// `sendStateAfterMutation` to the mutating socket alone — only time travel
-// broadcasts — so a follower hears about it when the autosync pass next
-// broadcasts, which is the path an agent's write takes too.
-//
-// The seed leaves autosync off, since a suite that only exercises the interface
-// wants no background git work behind it. This one case turns it on for itself
-// and puts it back: `queueSync` re-reads the config on every call and a
-// mutation is what calls it, so the flag can be flipped under a running server.
-//
-// The config is the worker's, shared with every other file assigned to it, so
-// the window it is on for is kept as short as the case allows — flipped
-// immediately before the write and restored in a `finally`. A hard worker
-// crash would skip that and leave it on for whatever runs next, which is the
-// one hole here; an assertion failure would not.
+// A write from another socket moves a following board. A mutation's reply goes
+// only to its own socket, so this turns autosync on (restored in a `finally`).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,9 +7,7 @@ import {expect, readHandoff, test} from './fixtures.js';
 import {trackWithWindow} from './track.js';
 import {returnToLive} from './live-board.js';
 
-// Passed as a string, not a typed callback: the root tsconfig has no DOM lib,
-// so `window` inside `page.evaluate` does not typecheck — which is why every
-// other file here that opens a socket from the page does the same.
+// A string, not a typed callback: the root tsconfig has no DOM lib.
 const FILE_FROM_ELSEWHERE = `
 new Promise(async (resolve, reject) => {
 	const socket = new WebSocket('ws://' + window.location.host + '/ws');
@@ -123,10 +103,7 @@ test('a ticket filed by somebody else opens on a followed board', async ({
 	}
 });
 
-// The second-monitor case: the log on a screen of its own, opening each ticket
-// on the board as it arrives. Following is decided on the board's side for
-// both panels, so popping the log out must not stop it — it did, before
-// `VC8X5Q5`, because the effect lived in whichever panel happened to be drawn.
+// A popped-out log keeps following and moves the board.
 test('a popped-out log keeps following, and moves the board', async ({
 	page,
 	appUrl,
@@ -140,9 +117,7 @@ test('a popped-out log keeps following, and moves the board', async ({
 	let popout: import('@playwright/test').Page | undefined;
 
 	try {
-		// Short, so the seeded log overflows its pane and can actually be read
-		// back through: at the default height it does not scroll at all, and the
-		// step below would be a no-op that proved nothing.
+		// Short, so the seeded log overflows and can be scrolled back.
 		await page.setViewportSize({width: 1100, height: 300});
 
 		await page.goto(appUrl);
@@ -161,20 +136,11 @@ test('a popped-out log keeps following, and moves the board', async ({
 		await live.click();
 		await expect(live).toHaveAttribute('aria-pressed', 'true');
 
-		// Read back first, which pauses following and leaves the board holding a
-		// pin that belongs to a pane about to be unmounted. The popped-out panel
-		// opens at its foot, and has to say so — from its own point of view
-		// nothing changed, so it reports on the way in or following sits dead
-		// behind the old pane's answer.
-		// The pane counts itself pinned within two rows of its foot
-		// (`PINNED_SLACK_PX` in EventLog, two 18px rows), so the room to scroll
-		// has to exceed that — or reading back changes nothing and this case
-		// quietly stops testing what it says it does.
+		// Read back first, pausing following; the popped-out panel must report its own
+		// pin. The scroll must exceed `PINNED_SLACK_PX` (two 18px rows).
 		const pinnedSlackPx = 36;
 
-		// As strings, for the same reason the write above is one: the root
-		// tsconfig carries no DOM lib, so a typed callback cannot touch an
-		// element's scroll geometry.
+		// Strings again: no DOM lib.
 		const PANE = `document.querySelector('[data-testid="event-log"] .epiq-log-pane')`;
 
 		// The pane mounts a beat after the toggle reports pressed, and an
@@ -223,18 +189,14 @@ test('a popped-out log keeps following, and moves the board', async ({
 
 		expect(pageErrors).toEqual([]);
 	} finally {
-		// In the finally, not after the assertions: a failure above would
-		// otherwise leak the window into the rest of the worker, where a stray
-		// `/log` page can satisfy a later `waitForEvent('page')`.
+		// In the finally, so a stray `/log` page never leaks into later tests.
 		await popout?.close();
 		fs.writeFileSync(configPath, original);
 	}
 });
 
-// The other way a pane gets pinned without the reader scrolling: moving the
-// board's moment snaps the log to its foot. That is a programmatic scroll, so
-// `onScroll` sees the pin already true and reports nothing — and a board still
-// holding the reader's earlier `false` would never follow again.
+// A scrub snaps the log to its foot programmatically, so `onScroll` reports
+// nothing; the board must not keep an earlier unpinned state.
 test('scrubbing and coming back leaves the log able to follow', async ({
 	page,
 	appUrl,

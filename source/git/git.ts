@@ -38,20 +38,8 @@ import {
 } from './git-utils.js';
 
 /**
- * Creates the one commit a repository needs before it can carry a branch, for
- * the case where epiq is initialized in a repo that has none.
- *
- * Only ever called from `:init`. This writes in the user's own repository,
- * which may hold unrelated or confidential work, so it is deliberately hard to
- * fire and incapable of taking anything with it:
- *
- * - It fails closed. `rev-parse --verify --quiet HEAD` exits non-zero both for
- *   an unborn HEAD and for a command that simply failed — a timeout is 124, a
- *   spawn error 1 — so only the unmistakable signal counts: exit 1 with no
- *   output at all. Anything else and we leave the repo alone.
- * - It never reads the index. `commit-tree` over the empty tree cannot pick up
- *   staged files, so even a caller that gets the check wrong cannot commit
- *   somebody's work.
+ * Creates the first commit in a repo that has none, on `:init`. Fails closed
+ * (only exit 1 with no output means unborn), and commits the empty tree, never the index.
  */
 export const INITIAL_COMMIT_MESSAGE = '[epiq:init-repo]';
 
@@ -302,10 +290,7 @@ const createStateBranchWorktree = async ({
 		fs.existsSync(stateBranchRoot) &&
 		!fs.existsSync(path.join(stateBranchRoot, '.git'))
 	) {
-		// A worktree missing its `.git` pointer is broken, but broken is not the
-		// same as empty: the event logs are still sitting in it, and without
-		// `.git` there is no committed copy here to recover them from. `rm -rf`
-		// would be the one deletion in this codebase that no git object survives.
+		// Broken but not empty: its event logs may have no other copy, so never `rm -rf` it.
 		const strandedResult = findStrandedEventLogs(stateBranchRoot);
 		if (isFail(strandedResult)) return failed(strandedResult.message);
 
@@ -345,10 +330,8 @@ const createStateBranchWorktree = async ({
 };
 
 /**
- * The state branch checked out where this project expects it, and the branch
- * and the checkout agreeing on which project that is. A branch from before
- * branches carried an identity takes this checkout's, which the next sync
- * publishes; a mismatch is refused with the way out.
+ * Checks out the state branch where expected, and refuses a project-id mismatch
+ * between branch and checkout; an unstamped branch takes this checkout's.
  */
 export const ensureStateBranchWorktree = async ({
 	repoRoot,
@@ -380,10 +363,7 @@ export const ensureStateBranchWorktree = async ({
 	return placed;
 };
 
-// Two worktree roots under the same global directory differ only in the
-// project id in their last segment: two ids for one branch, which is a
-// checkout that minted a second identity for an existing board (JQS9XDR),
-// not a process with another EPIQ_GLOBAL_DIR.
+// Same global dir, different last segment: two project ids for one branch.
 const isProjectIdDrift = (existing: string, expected: string): boolean => {
 	const worktrees = normalizeExistingPath(getWorktreesRoot());
 
@@ -441,15 +421,8 @@ const placeStateBranchWorktree = async ({
 	}
 
 	if (existing && existing !== expected) {
-		// `worktreeRemove` passes `--force`, which is exactly what overrides
-		// git's refusal to delete a worktree holding uncommitted work — and the
-		// state worktree nearly always holds some, because every `persist`
-		// appends to the log and nothing commits until the next sync.
-		//
-		// The paths disagree whenever two processes resolve `EPIQ_GLOBAL_DIR`
-		// differently: a dev server, a test run, an agent with its own
-		// environment. Relocating then threw away every event the other process
-		// had written since its last sync, silently, and reported success.
+		// `worktreeRemove` forces, and the old worktree may hold another process's
+		// unsynced events, so a dirty one is refused.
 		const dirtyResult = await hasUncommittedChanges(existing);
 		if (isFail(dirtyResult)) return failed(dirtyResult.message);
 
@@ -666,16 +639,8 @@ export const stageStateBranchOwnEventFile = async ({
 };
 
 /**
- * Stages the content-addressed attachment blobs so they land in the same
- * commit as the events that reference them. Blobs are immutable and unique
- * per content, so staging the whole directory is always conflict-free.
- *
- * `--ignore-removal`, so a blob missing from the worktree is not committed as
- * deleted. Nothing removes one on purpose — `delete.issue.attachment` writes a
- * tombstone and keeps the bytes, precisely so a historical checkout can still
- * render them — so a gap here is damage, and the same reasoning that makes
- * `assertLogOnlyGrew` refuse a shrunken log applies: the last thing to do with
- * a damaged worktree is publish it.
+ * Stages attachment blobs with the events that reference them. `--ignore-removal`:
+ * blobs are never deleted on purpose, so a missing one is damage, not a removal.
  */
 export const stageStateBranchMediaFiles = async ({
 	stateBranchRoot,
@@ -713,11 +678,7 @@ export const stageStateBranchEventConfig = async ({
 }: {
 	stateBranchRoot: string;
 }): Promise<Result<string[]>> => {
-	// All carry what a clone needs before it can behave correctly: the merge
-	// attribute, without which concurrent logs conflict; the ignore, without
-	// which a pending log can be staged and so stop being protected; and the
-	// project's identity, without which a clone cannot tell which project the
-	// branch is.
+	// Committed, since every clone needs them: merge attribute, ignore, project identity.
 	const relativePaths = [
 		getRelativeEventAttributesPath(),
 		getRelativeEventIgnorePath(),

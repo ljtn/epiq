@@ -139,17 +139,11 @@ export type GuiEventTimelineEntry = {
 	// The comment the event happened to, where it happened to one, so a log
 	// line about a comment can lead to the comment and not just its tab.
 	target: string | null;
-	// The board the event belongs to. Null means *every* board rather than none
-	// — a contributor claim decides who the commits on all of them belong to —
-	// so a reader filtering by board keeps the nulls.
-	//
-	// Carried because the client cannot otherwise tell a foreign line from a
-	// local one: under the All-boards toggle the window holds both, and a
-	// ticket's route is built from the board on screen.
+	// The event's board. Null means every board (a contributor claim), so a
+	// board filter keeps the nulls.
 	board: string | null;
-	// The swimlane that ticket is in once the event has happened, and the one a
-	// move, close or reopen took it out of. Null where the event is under no
-	// ticket, and `laneBefore` null where the ticket stayed put.
+	// The ticket's lane after the event, and the one a move took it out of.
+	// Null under no ticket; `laneBefore` null where it stayed put.
 	lane: string | null;
 	laneBefore: string | null;
 };
@@ -157,9 +151,8 @@ export type GuiEventTimelineEntry = {
 export type GuiEventTimeline = {
 	bucketMs: number;
 	buckets: GuiEventTimelineBucket[];
-	// The window held more events than the server will list, so `events` is
-	// empty and the buckets are all there is. Distinct from a window that was
-	// simply quiet, which the empty array alone cannot say.
+	// The window held more events than the server lists: `events` is empty and
+	// the buckets are all there is.
 	capped: boolean;
 	// Empty when the server capped the window; the scatter falls back to buckets.
 	events: GuiEventTimelineEntry[];
@@ -190,10 +183,7 @@ export type GuiCommitEntry = {
 	/** The raw git author name. Shown only where nothing has claimed the address. */
 	author: string;
 	authorEmail: string;
-	/**
-	 * Who the author is on this board. Resolved on the server, because matching
-	 * needs the event log the client cannot import.
-	 */
+	/** Who the author is on this board; resolved on the server from the event log. */
 	authorIdentity?: GuiCommitAuthor;
 	subject: string;
 	/** Refs named by `Epiq-Ref:` lines in the body. */
@@ -203,9 +193,8 @@ export type GuiCommitEntry = {
 	deletions: number;
 };
 
-// The Code tab's shape: a matched commit whose immediate predecessor in
-// the *unfiltered* history is also a matched commit (no other ticket's
-// commit sits between them) — that's what a connecting line in the rail means.
+// A connecting line in the rail: this matched commit's predecessor in the
+// unfiltered history is also matched.
 export type GuiRefCommitEntry = GuiCommitEntry & {
 	precedingSha: string | null;
 	/** The message below the subject, where there is one. */
@@ -220,12 +209,8 @@ export type GuiCommitDiffFile = {
 	after: string;
 	insertions: number;
 	deletions: number;
-	// A file git will not diff. Both sides arrive empty — see CommitDiffFile —
-	// so a view that draws this one anyway draws nothing, and a view that drew
-	// it before this field existed drew the bytes.
-	//
-	// Optional because a reply is not always this build's: the log window and a
-	// tab left open across an upgrade both read state a older server sent.
+	// A file git will not diff; both sides arrive empty. Optional, since an older
+	// server may have sent the reply.
 	isBinary?: boolean;
 };
 
@@ -308,10 +293,8 @@ export type GuiSquashedDiff = {
 	to: string;
 	commits: number;
 	files: GuiSquashedDiffFile[];
-	// False when another ticket's commit landed between two of this one's, so
-	// the range compared is not this ticket's work alone. `overlappingPaths`
-	// then names the files where that actually shows; empty means the
-	// interleaving missed every file this ticket touched.
+	// False when another ticket's commit landed between this one's.
+	// `overlappingPaths` names the files where that shows.
 	contiguous: boolean;
 	overlappingPaths: string[];
 };

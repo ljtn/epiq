@@ -43,19 +43,8 @@ const bootstrapped = async (): Promise<{
 };
 
 /**
- * A genuine rebase, abandoned in the shape that actually wedges a board.
- *
- * Shape matters here, and it took a killed process to find out why. A rebase
- * stopped on a conflict leaves HEAD detached, and `ensureStateBranchCheckedOut`
- * has always recovered *that* one: it aborts whenever HEAD is not on the state
- * branch. What it returns early on — "already checked out" — is a rebase whose
- * state git has written before it detached anything, which is exactly what a
- * process killed in the first milliseconds of its replay leaves behind. Nothing
- * downstream cleared it, so every later sync met it and refused.
- *
- * So the conflict makes the state real — `git rebase --abort` only unwinds a
- * rebase git itself started, which is why the directory is not faked — and the
- * symbolic-ref puts HEAD back where a kill that early would have left it.
+ * A real rebase left in progress with HEAD still on the state branch, as a kill
+ * early in replay leaves it; `rebase --abort` needs a rebase git started.
  */
 const leaveRebaseInProgress = async (cwd: string): Promise<void> => {
 	const file = path.join(cwd, 'conflict.txt');
@@ -120,10 +109,8 @@ const operationIn = async (cwd: string): Promise<string | null> => {
 };
 
 /**
- * Sync clears a rebase nobody is running any more, and this is where that is
- * allowed to be true: under the lock, where "nobody is running it" is something
- * the operating system has answered rather than something git was asked to
- * guess. The first test is the one that keeps the second honest.
+ * Sync clears an abandoned rebase only under the lock, where liveness comes from
+ * the OS, not from git.
  */
 describe('a rebase left in the state worktree', () => {
 	it('is left alone while a live process holds the lock', async () => {
@@ -171,11 +158,7 @@ describe('a rebase left in the state worktree', () => {
 		expect(await operationIn(stateBranchRoot)).toBe(null);
 	});
 
-	// The one case liveness cannot settle, and the one place this change could
-	// have made things worse: a lock is breakable on age alone after ten
-	// minutes, holder alive or not. Before, the process that broke in met the
-	// rebase and refused. It must still refuse — breaking a claim is not the
-	// same as being told the holder is gone, and a live rebase is not ours.
+	// A lock broken on age may still have a live holder, so its rebase isn't ours.
 	it('is left alone when the lock was broken on age from a live holder', async () => {
 		const {repoRoot, stateBranchRoot} = await bootstrapped();
 		await leaveRebaseInProgress(stateBranchRoot);
@@ -199,11 +182,7 @@ describe('a rebase left in the state worktree', () => {
 		expect(await operationIn(stateBranchRoot)).toBe('rebase in progress');
 	});
 
-	// A lock file that parses to nothing is what a holder mid-acquisition used
-	// to look like for an instant, and what a truncated one looks like for good.
-	// Neither says anybody is gone. Found in review of this change: read as
-	// "dead", an empty lock let a racing process unwind the rebase of the very
-	// holder that was writing it.
+	// An empty lock file doesn't say its holder is gone; it may be mid-write.
 	it('is left alone when the lock says nothing at all', async () => {
 		const {repoRoot, stateBranchRoot} = await bootstrapped();
 		await leaveRebaseInProgress(stateBranchRoot);
@@ -271,10 +250,8 @@ describe('a merge in the state worktree', () => {
 	});
 });
 
-// Git takes `<file>.lock` before writing `<file>` and removes it after. A
-// process killed in between leaves it, and the next git refuses to write the
-// file it guards — which for `index.lock` is the checkout that every sync
-// begins with.
+// A process killed mid-write leaves git's `<file>.lock`, and the next git
+// refuses that file: for `index.lock`, every sync's checkout.
 describe('lock files a killed git left behind', () => {
 	it('are cleared, and the state they guard is not', async () => {
 		const {stateBranchRoot} = await bootstrapped();
@@ -309,11 +286,8 @@ describe('lock files a killed git left behind', () => {
 		expect(cleared.value).toEqual([]);
 	});
 
-	// epiq's own claim over the worktree lives in this directory and ends in
-	// `.lock` like git's. Swept away with the rest, the sync that was holding it
-	// would carry on — bootstrap, fetch, rebase, commit, push — with nothing on
-	// disk saying so, and the next process along would be free to read the
-	// worktree as abandoned and unwind the rebase in it. Found in review.
+	// epiq's own lock lives here and ends in `.lock` like git's; sweeping it
+	// would leave a running sync unclaimed.
 	it('never takes the sync lock the caller is holding', async () => {
 		const {stateBranchRoot} = await bootstrapped();
 
@@ -344,14 +318,8 @@ describe('lock files a killed git left behind', () => {
 	});
 
 	/**
-	 * The one that matters, and the one the two above cannot make: that the
-	 * sweep *as the sync calls it* spares the sync's own claim.
-	 *
-	 * Watched rather than inspected afterwards, because by the time a sync
-	 * returns it has released the lock either way. A sweep that took it would
-	 * show up here as the file going missing while the work carried on — and the
-	 * work carrying on unheld is the whole problem: the next process along reads
-	 * an unclaimed worktree and is free to unwind the rebase in it.
+	 * Watched during the sync, since the lock is released by the time it returns:
+	 * the sync's own sweep must spare its claim.
 	 */
 	it('keeps the sync holding its lock for the whole of a sync', async () => {
 		const {repoRoot, stateBranchRoot} = await bootstrapped();
@@ -384,9 +352,7 @@ describe('lock files a killed git left behind', () => {
 		).toBe(false);
 	});
 
-	// A process killed between writing its holder and publishing it leaves that
-	// half of the acquisition behind. Named to be swept, so the next process to
-	// hold the worktree tidies it rather than leaving it there for good.
+	// A half-finished acquisition, named so the next holder sweeps it.
 	it('take an acquisition that never finished with them', async () => {
 		const {stateBranchRoot} = await bootstrapped();
 
@@ -427,14 +393,8 @@ describe('lock files a killed git left behind', () => {
 });
 
 /**
- * Refs live in the *common* git directory, not in a linked worktree's own, so
- * nothing the sweep of the worktree gitdir does can reach them. A `git commit`
- * killed while updating the state branch leaves `refs/heads/<branch>.lock`
- * there, and from then on every sync fails with "cannot lock ref" — the same
- * permanent wedge as TATEM5B, by a narrower path.
- *
- * That directory is shared with the user's own repository and every other
- * worktree, so the clearing is one named ref and never a walk.
+ * A killed commit leaves `refs/heads/<branch>.lock` in the common git dir,
+ * shared with the user's repo, so the clear removes one named ref, never a walk.
  */
 describe('a ref lock in the common git directory', () => {
 	const headsDirOf = async (stateBranchRoot: string): Promise<string> => {

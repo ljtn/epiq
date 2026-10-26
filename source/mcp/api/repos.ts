@@ -1,8 +1,5 @@
-// The other repos whose commits count as this board's, kept as board events
-// so they sync like any other change. Connecting one is two calls: the first
-// clones it into a stage and previews it, writing nothing; the second, with
-// `confirm`, writes the event. The network is touched by that preview and by
-// `fetchRepos`, which a caller runs on purpose.
+// Other repos whose commits count as this board's, kept as board events.
+// Connecting previews first (a clone, no write), then writes on `confirm`.
 
 import {
 	cancelRepoPreview,
@@ -124,10 +121,7 @@ export const cancelRepoConnect = (
 	return succeeded('Cancelled', null);
 };
 
-/**
- * A board sync's answer, with the other repos fetched after it — outside the
- * lock the sync was run under, which the caller has already let go of.
- */
+/** A board sync, then the other repos fetched once its lock is released. */
 export const syncThenFetchRepos = async <T extends object>(
 	syncResult: Result<T>,
 	input: RepoRootInput = {},

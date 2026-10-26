@@ -71,13 +71,7 @@ export const IdentityStats = ({state}: {state: PersonalStatsState}) => {
 				/>
 			</div>
 
-			{/* The zero that is this panel's own subject. A bare 0 reads as "you
-			    have written none"; the reason is that no address resolves to you,
-			    and the fix is the section under this one.
-
-			    Only where the scan actually ran. Said on a failed one it would
-			    tell somebody holding several claims that they hold none, and
-			    contradict the scan error the panel shows a few rows down. */}
+			{/* No address resolves to you; only said when the scan ran. */}
 			{stats.scanned && stats.claimedEmails === 0 && (
 				<div style={{...META, marginTop: 8}}>
 					No git address is yours yet, so no commit counts as one — claim one

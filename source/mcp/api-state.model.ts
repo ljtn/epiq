@@ -29,10 +29,7 @@ export type ApiIssue = {
 	description: string;
 	/** Decoded from the issue's own ULID. */
 	createdAt: number;
-	/**
-	 * When it last arrived in the swimlane it is in, from its own log. Equal to
-	 * `createdAt` for a ticket that has never moved.
-	 */
+	/** When it last entered its current swimlane; `createdAt` if never moved. */
 	enteredLaneAt: number;
 	/** When anything last happened to it, by anyone: the board's state only. */
 	lastEventAt?: number;
@@ -45,10 +42,8 @@ export type ApiIssue = {
 	parentNodeId: string;
 	isClosed: boolean;
 	/**
-	 * Every board this ticket has lived on, its current one included, from its
-	 * own log. A board-scoped view of the past asks whether a ticket was ever
-	 * this board's, not whether it is now: closing moves it to the global Closed
-	 * board, and a move can take it to another board outright.
+	 * Every board this ticket has lived on, current one included. Closing or
+	 * moving takes it off a board, so past views ask "ever", not "now".
 	 */
 	boardIds: string[];
 };
@@ -104,18 +99,15 @@ export type ApiSwimlane = {
 	doneByName: boolean;
 };
 
-// One line of a ticket's own event log. `label` is the same phrasing the TUI
-// history uses; the colour is resolved here because getStringColor pulls in
-// chalk, which the GUI bundle cannot take.
+// One line of a ticket's own event log. The colour is resolved here because
+// getStringColor pulls in chalk, which the GUI bundle cannot take.
 export type ApiIssueHistoryEntry = {
 	id: string;
 	t: number;
 	action: string;
 	label: string;
 	actor: {id: string; name: string; color: string};
-	// Where a move put the ticket, for the move events only. The label already
-	// says it in prose; this says it in a form something can count — which lane
-	// a ticket went to, and so whether it went forwards or back.
+	// The lane a move put the ticket in, for move events only.
 	parentId?: string;
 };
 

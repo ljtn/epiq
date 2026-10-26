@@ -44,12 +44,8 @@ export {
 	type ResolvedRepos,
 } from '../board/board-repos.js';
 
-// Other repositories whose commits count as this board's. They are board
-// events (see `board-repos.ts`), so they sync with the board and can never
-// conflict; this is where the rest of epiq reads and writes them.
-//
-// Read from the whole live log rather than the board state, which a time
-// travel checkout rewinds: the repos a board reads are the ones it reads now.
+// Other repositories whose commits count as this board's. Read from the whole
+// live log, not the time-travelled state.
 
 /** The answer to a connect that names a repo already connected just so. */
 export const REPO_UNCHANGED = 'Unchanged';
@@ -75,9 +71,8 @@ const liveRegistry = (root: string, signature: string): RepoRegistry | null => {
 };
 
 /**
- * The connected repos as the whole log has them, on every call: another
- * process's write shows on the next read. Never throws; a log that cannot be
- * read is a failure the caller must not take for "no repos".
+ * The connected repos from the whole log, read fresh on every call. A read
+ * failure is returned, never taken for "no repos".
  */
 export const readConnectedRepos = (repoRoot: string): Result<ResolvedRepos> => {
 	try {
@@ -137,12 +132,7 @@ export type RepoChange = {
 	label?: string;
 };
 
-/**
- * What a connect comes to, before anything is written: a new repo (which
- * needs a pre-flight and a confirm), a change to a connected one, or nothing.
- * Checked against the list as this machine has it; a pull can still put an
- * earlier connect ahead of it, which readers settle.
- */
+/** What a connect comes to: a new repo, a change, or nothing. */
 export type RepoPlan =
 	| {
 			kind: 'connect';
@@ -340,10 +330,7 @@ export const findConnectedRepo = (
 	);
 };
 
-/**
- * Outside the checkout, keyed by project: every worktree of one board shares a
- * clone, and nothing epiq fetches can ever show up in `git status`.
- */
+/** Outside the checkout, keyed by project, shared by every worktree. */
 export const getRepoClonesDir = (projectId: string): string =>
 	path.join(
 		getGlobalConfigDir(),
@@ -367,10 +354,7 @@ export const cloneStatusPath = (clonePath: string) => `${clonePath}.json`;
 /** A state branch as a clone's own project.json may name it: a plain ref name. */
 export const STATE_BRANCH_NAME = /^(?!-)[A-Za-z0-9._/-]{1,100}$/;
 
-/**
- * The state branch the clone's last fetch found its project.json naming: a
- * connected repo that is an epiq board keeps its event log there, not its work.
- */
+/** The state branch named by the clone's project.json, if it is an epiq board. */
 export const readCloneStateBranch = (clonePath: string): string | null => {
 	try {
 		const raw = JSON.parse(

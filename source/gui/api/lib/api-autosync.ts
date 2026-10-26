@@ -21,11 +21,7 @@ const REPO_FETCH_INTERVAL_MS = 60_000;
 export const startGuiAutoSync = (input: {
 	project: GuiProject;
 	publisher: LogPublisher;
-	/**
-	 * Fetches the other registered repos, after the board has synced. Leaves
-	 * alone a repo fetched less than `minIntervalMs` ago: a pass can run every
-	 * few seconds, and each fetch is a round trip.
-	 */
+	/** Fetches the other repos after a board sync, skipping any fetched within `minIntervalMs`. */
 	onReposFetch?: (minIntervalMs: number) => Promise<void>;
 }) => {
 	let timer: NodeJS.Timeout | undefined;
@@ -47,10 +43,7 @@ export const startGuiAutoSync = (input: {
 		const settings = config();
 		if (!settings) return false;
 
-		// Resolved, not the raw config: a machine that only has an environment
-		// actor has a user to sync as even though `config.json` names nobody.
-		// `autoSyncBlockedReason` reads the settings store this fills, and is
-		// the same answer the identity panel shows beside the toggle.
+		// Resolved, not raw config: an environment-only actor still has a user to sync as.
 		const resolved = loadSettingsFromConfig();
 		if (isFail(resolved)) return false;
 
@@ -73,9 +66,7 @@ export const startGuiAutoSync = (input: {
 	const runSync = async (): Promise<void> => {
 		if (disposed || syncing) return;
 
-		// Re-read rather than trusted to the arming: the preference can be
-		// switched off from the identity panel while this pass is already on the
-		// clock, and `queueSync` only declines to arm the *next* one.
+		// Re-read: autosync may have been switched off while this pass was armed.
 		if (!isAutoSyncConfigured()) return;
 
 		syncing = true;
@@ -95,9 +86,7 @@ export const startGuiAutoSync = (input: {
 				return !isFail(result);
 			});
 
-			// Outside the lock, and not awaited: the other repos are not board
-			// state, and a first clone must hold up neither an edit nor the
-			// board's next pass. Overlapping passes share one fetch.
+			// Outside the lock and not awaited: a first clone must not hold up the board.
 			if (synced) void input.onReposFetch?.(REPO_FETCH_INTERVAL_MS);
 		} finally {
 			syncing = false;
@@ -122,14 +111,7 @@ export const startGuiAutoSync = (input: {
 
 	return {
 		queueSync,
-		/**
-		 * Re-arms against the interval as it now stands.
-		 *
-		 * The delay is worked out when a timer is set, so a cadence shortened
-		 * from an hour to three seconds would otherwise not be felt for an hour.
-		 * Dropping the pending timer and asking again is the whole of it — a pass
-		 * already running finishes and re-arms itself from the new value.
-		 */
+		/** Re-arms against the current interval; an armed timer holds the old delay. */
 		reschedule: () => {
 			if (timer) {
 				clearTimeout(timer);

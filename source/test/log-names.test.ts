@@ -10,15 +10,8 @@ import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getState} from '../lib/state/state.js';
 
-// `projectLogNames` says what the board's registries would say, without booting
-// a board to ask. That is two implementations of one rule, which is how the
-// timeline came to be showing a name a rename had replaced and a name a
-// tombstone had cleared. These pin the second against the first.
-//
-// The fixture below exercises *every* action, and a test asserts that it does.
-// A naming event added to `EVENT_ACTIONS` and not to the log fails there; added
-// to the log and not to the projection, it fails the differential sweep. Listing
-// the naming actions by hand instead would have let a new one land in neither.
+// `projectLogNames` must agree with the board's registries without booting one.
+// The fixture covers every action, so a new naming action can't slip past both.
 
 const WORKSPACE = '01J000000000000000000WSPC';
 const WORKSPACE2 = '01J00000000000000000WSPC2';
@@ -88,9 +81,7 @@ const log = (): AppEvent[] => [
 	at('create.contributor', {id: ALICE, name: 'alice'}),
 	at('rename.contributor', {id: ALICE, name: 'Alice Cooper'}),
 	at('link.contributor.user', {contributor: ALICE}),
-	// Neither names anybody, so both sides must leave the registry alone. The
-	// unlink retracts the link above it, which is the pair a replay has to land
-	// on the same way whichever order it sees them in.
+	// Neither names anybody; the unlink retracts the link above it.
 	at('link.contributor.email', {
 		contributor: ALICE,
 		email: 'alice@example.com',
@@ -118,9 +109,7 @@ const log = (): AppEvent[] => [
 	at('tombstone.contributor', {id: CAROL}),
 	at('restore.contributor', {id: CAROL, name: 'Carol Restored'}),
 
-	// `name` is any string in the payload schema, so this is a real record the
-	// registry will go on to rename — and a projection reading "exists" off the
-	// name would refuse that rename.
+	// An empty `name` is still a real record the registry will rename.
 	at('create.contributor', {id: NAMELESS, name: ''}),
 	at('rename.contributor', {id: NAMELESS, name: 'Found A Name'}),
 
@@ -128,9 +117,8 @@ const log = (): AppEvent[] => [
 	at('tombstone.tag', {id: TAG}),
 	at('restore.tag', {id: TAG, name: 'defect'}),
 
-	// Renaming and restoring what was never created. `node-repo` refuses both,
-	// so the projection has to as well: a name it accepts here is a person or a
-	// tag the board has no record of.
+	// `node-repo` refuses renaming or restoring what was never created; so must
+	// the projection.
 	at('rename.contributor', {id: STRANGER, name: 'Nobody'}),
 	at('restore.tag', {id: STRANGER_TAG, name: 'Nothing'}),
 
@@ -187,13 +175,8 @@ const booted = () => {
 };
 
 describe('the fixture log', () => {
-	// Coverage is only worth having if the events actually land. A payload that
-	// stopped matching its handler would still count as covered below, and then
-	// be skipped, leaving the sweep comparing two answers neither side reached.
-	//
-	// At least one of each, not all of them: several events here are meant to be
-	// refused — a rename on a tombstoned contributor, a rename and a restore of
-	// records nothing created — and the refusal is what they pin.
+	// Every covered action must apply at least once; some are meant to be
+	// refused, and that refusal is what they pin.
 	it('applies every action it covers at least once', () => {
 		const events = log();
 		const results = materializeAll(events);
@@ -206,11 +189,7 @@ describe('the fixture log', () => {
 		expect(partitionMaterializeResults(results).fatal).toEqual([]);
 	});
 
-	// The pin this file exists for. `projectLogNames` handles a listed set of
-	// actions and ignores the rest, and nothing in the type system says which
-	// list a new action belongs on. This does: add one to `EVENT_ACTIONS` and
-	// this fails until the fixture exercises it, at which point the differential
-	// sweep decides whether the projection has to learn it.
+	// A new action in `EVENT_ACTIONS` fails here until the fixture exercises it.
 	it('exercises every action the build understands', () => {
 		const covered = new Set(log().map(event => event.action));
 
@@ -232,9 +211,7 @@ describe('names projected from the log', () => {
 		expect(registry.size).toBeGreaterThan(0);
 	});
 
-	// The other direction: a name the projection knows and the registry does not
-	// is a divergence too, and it is the one an over-eager case produces —
-	// dropping the "does this record exist" guard, say.
+	// The other direction: a name the projection knows and the registry doesn't.
 	it('names nobody the registry has never heard of', () => {
 		const {byId} = projectLogNames(log());
 		const {contributors, tags} = booted();
@@ -256,8 +233,7 @@ describe('names projected from the log', () => {
 		}
 	});
 
-	// The two cases 2BPYNWE was filed for, spelled out rather than left to the
-	// sweep above: these are what the timeline used to get wrong.
+	// The two key cases, spelled out rather than left to the sweep above.
 	it('carries a rename', () => {
 		expect(projectLogNames(log()).byId.get(ALICE)).toBe('Alice Cooper');
 	});
@@ -303,15 +279,8 @@ describe('names projected from the log', () => {
 	});
 });
 
-// Covering every action is not covering every order, and the projection carries
-// state between events — a tombstone sets a flag a later event has to clear.
-// Each of these is the same three or four events in a different sequence,
-// compared against a board booted from the same log, because the board is the
-// answer and this is only a way of reaching it without booting one.
-//
-// `tombstone, re-create, rename` is why: `createContributor` overwrites the
-// record, so the board drops the tombstone and takes the rename, while the
-// projection went on refusing it and the timeline kept the older name.
+// The projection carries state between events, so each naming sequence is
+// compared, in several orders, against a board booted from the same log.
 describe('a naming sequence, in any order', () => {
 	const SUBJECT = '01J000000000000000SUBJECT';
 

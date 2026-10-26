@@ -1,12 +1,7 @@
-// How a stretch of history is paced when it is played back as a movie. Shared
-// by the TUI's replay engine and the GUI's theatre player so a board's history
-// runs at the same tempo whichever one is watching it.
+// How history is paced when played back, shared by TUI and GUI.
 
-// Build the normalized [0..1] position at which each event should have played.
-// Inter-event gaps are weighted by their square root so long idle stretches
-// compress (a month-long gap costs far less than 30 day-long ones) while bursts
-// of rapid edits keep their relative spacing — quiet periods fast-forward,
-// crunch weeks burst. Falls back to even spacing when timestamps are identical.
+// Each event's [0..1] position, gaps weighted by their square root so idle
+// stretches compress; even spacing when timestamps tie.
 export const buildPlaybackFractions = (times: number[]): number[] => {
 	const cumulative: number[] = [];
 	let acc = 0;

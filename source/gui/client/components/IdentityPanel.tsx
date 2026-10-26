@@ -7,14 +7,8 @@ import {useArmed} from '../lib/use-armed';
 import {ContributorEmailsState} from '../lib/use-contributor-emails';
 import {actorDisplay} from '../lib/agent-identity';
 
-// Where somebody goes when the board is calling their commits by the wrong
-// name, or by no name at all: a section of the settings panel. Before this there was nowhere: an unresolved
-// commit showed a raw git string and nothing said why, or what would fix it.
-//
-// One list, not a section per state. An address was appearing in three of them
-// at once — under the addresses you hold, under the contested ones, and under
-// what git signs your commits as — which made a panel about four addresses read
-// as a panel about nine. Each row now carries its own state instead.
+// The settings section for addresses the board can't resolve to a person.
+// One row per address, each carrying its own state.
 
 type Row = {
 	email: string;
@@ -41,13 +35,7 @@ const name = (person: {name: string}) => actorDisplay(person.name).label;
 // How many unclaimed addresses show before the rest wait behind a button.
 const SHOWN = 8;
 
-/**
- * Every address the panel knows about, merged into one row each.
- *
- * Yours first, then whatever git signs commits as here, then the busiest. That
- * ordering puts the two rows somebody opened this panel to act on at the top
- * without giving either a heading of its own.
- */
+/** One row per known address: yours, then git's signing address here, then the busiest. */
 const rowsFrom = (state: ContributorEmailsState): Row[] => {
 	const mine = new Set(state.data?.mine ?? []);
 	const git = state.data?.git ?? null;
@@ -96,13 +84,9 @@ const Note = ({row}: {row: Row}) => {
 
 	if (row.signsHere) parts.push('Your Git identity here');
 
-	// Contested is the one state the board would otherwise show as a plain
-	// unresolved commit, and it is reachable with nobody doing anything wrong:
-	// two people sharing one git user.email.
+	// Contested: two people sharing one git user.email.
 	if (row.claimants.length > 1) {
-		// A label rather than a colour. The state matters, but colouring it made
-		// the warning the loudest thing in a panel whose subject is the person
-		// reading it, and every other marker in this GUI is a quiet uppercase word.
+		// A quiet uppercase label, like every other marker here.
 		parts.push(
 			<span key="contested">
 				<span style={{letterSpacing: 0.6}}>CONTESTED:</span> claimed by{' '}
@@ -114,9 +98,7 @@ const Note = ({row}: {row: Row}) => {
 	}
 
 	if (row.commits !== null) {
-		// The name only where it is news. On the address git is configured with it
-		// is whatever the viewer already calls themselves, and saying so pushed
-		// every one of these notes onto a second line.
+		// No name on git's own address: it is the viewer's.
 		const as = row.signsHere ? '' : ` as ${row.names.join(', ') || 'unknown'}`;
 
 		parts.push(`${row.commits} commit${row.commits === 1 ? '' : 's'}${as}`);
@@ -159,9 +141,7 @@ const Section = ({
 	);
 };
 
-// One address. Yours in the panel's own text; the rest held back as a list
-// is, and brought up under the pointer — still readable held back, since the
-// list is what somebody came here to read through.
+// One address: yours at full strength, the rest dimmed until hovered.
 const AddressRow = ({
 	row,
 	last,
@@ -188,9 +168,7 @@ const AddressRow = ({
 				style={{
 					flex: 1,
 					minWidth: 0,
-					// Held back to under half, both lines in the dim; under the
-					// pointer the note comes up to the dim and the address to a
-					// grey a little over half of the text colour — lit, not lit up.
+					// Dimmed under half; hovered, lifted but not full.
 					opacity: row.mine || hovered ? 1 : 0.45,
 					transition: 'opacity 120ms ease',
 				}}
@@ -251,18 +229,12 @@ export const IdentityAddresses = ({
 		);
 	};
 
-	// Claimed means claimed by anybody, not only by the viewer. An address
-	// somebody else holds is neither theirs to unlink nor free to take, and
-	// leaving it out of both sections would hide where their commits went.
+	// Claimed by anybody, so others' addresses still show where their commits went.
 	const claimed = rows.filter(row => row.claimants.length > 0);
 	const free = rows.filter(row => row.claimants.length === 0);
 
-	// Every one of them, never a subset by likeness. Which address somebody came
-	// to claim is not something this panel can guess: an old job's is unlike
-	// anything they are called now, so a rule that hid the unlikely ones would
-	// hide exactly that. On a long history the list is long, so it is found
-	// through rather than read through: a filter on the address or the name,
-	// and past a handful the rest wait behind one button.
+	// Every unclaimed address, never filtered by likeness: an old job's address
+	// looks like nothing current. Found by a filter, the rest behind one button.
 	const [query, setQuery] = useState('');
 	const [showAll, setShowAll] = useState(false);
 	const needle = query.trim().toLowerCase();
@@ -312,9 +284,7 @@ export const IdentityAddresses = ({
 				)}
 
 				{state.scanError ? (
-					// Not the empty state: claiming from this list is the only way to
-					// link an address, so a history that could not be read has to say
-					// so rather than look like one with nothing left in it.
+					// Not the empty state: an unreadable history must say so.
 					<div style={{...META, paddingTop: 16, color: GUI_THEME.red}}>
 						{state.scanError}
 					</div>
@@ -330,12 +300,8 @@ export const IdentityAddresses = ({
 										Unclaim
 									</Button>
 								) : (
-									// Offered even though somebody else holds it, and named for
-									// what it does rather than "This is me". Without it,
-									// unclaiming an address a colleague also claims was a one-way
-									// door: the row moved up here and offered nothing. It is also
-									// the only answer to somebody claiming an address of yours —
-									// co-claiming is what stops it resolving to them.
+									// Offered on addresses others hold too: co-claiming is the only way back from
+									// an unclaim, or from someone claiming yours.
 									claimButton(
 										row,
 										'Claim too',

@@ -31,10 +31,8 @@ type RowAnnotation =
 	| {kind: 'comment'; entry: DiffComment}
 	| {kind: 'composer'; selection: SelectedLineRange};
 
-// Rendered by MultiFileDiff at the line a diff-selection comment is anchored
-// to. Just the author and note — the full body (including the requoted
-// snippet, redundant here since the diff itself is right above it) lives in
-// the Comments tab.
+// Drawn at a diff-selection comment's anchor line: author and note only; the
+// full body is in the Comments tab.
 const DiffCommentAnnotation = ({
 	entry,
 	onHover,
@@ -84,10 +82,8 @@ const DiffCommentAnnotation = ({
 	);
 };
 
-// The one header a file gets, open or shut. Open, the highlighter renders it
-// in its sticky slot in place of its own (change icon, name, counts), so the
-// name that stays in view while the diff scrolls is also the one that folds
-// it; shut, FileRow stands it in the same box by itself.
+// A file's one header, open or shut. Open, it takes the highlighter's sticky
+// header slot; shut, it stands alone in the same box.
 const FileHeader = ({
 	file,
 	repo,
@@ -227,10 +223,8 @@ export const FileRow = ({
 	shared = false,
 	additionsOnly = false,
 }: {
-	// The commit these lines belong to, and what a comment, a filed ticket and
-	// a review tick anchor to. In the compacted diff it is the last of the
-	// ticket's commits to touch this file, which is the one whose diff still
-	// holds the content shown here (TCYD699).
+	// The commit comments, filed tickets and review ticks anchor to. In the
+	// compacted diff, the ticket's last commit to touch this file.
 	sha: string;
 	file: GuiCommitDiffFile;
 	// The registered repo the file is in, where a diff mixes repos.
@@ -246,17 +240,12 @@ export const FileRow = ({
 	// Set when a comment permalink points at this file: seeds the highlight
 	// and scrolls the diff into view.
 	focusRange?: SelectedLineRange | null;
-	// False where nothing written here could be anchored truthfully — a file
-	// in the compacted diff that a commit from outside the ticket also touched,
-	// so the content shown is not what any of the ticket's commits left behind.
+	// False where an anchor would lie: a compacted file another ticket's commit touched.
 	selectable?: boolean;
-	// Another ticket's commit also changed this file inside the compacted
-	// range, so the diff shown is not this ticket's alone: marked on the row,
-	// where the reader decides whether to go and read it commit by commit.
+	// Another ticket's commit also changed this file in the compacted range.
 	shared?: boolean;
-	// The deletions side of the compacted diff is numbered against the oldest
-	// commit's parent, which is no commit's own old side, so a selection there
-	// would record a line belonging to nothing. The additions side is exact.
+	// The compacted diff's deletions side belongs to no commit, so only additions
+	// are selectable.
 	additionsOnly?: boolean;
 }) => {
 	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
@@ -265,9 +254,7 @@ export const FileRow = ({
 	const [note, setNote] = useState('');
 	const rowRef = useRef<HTMLDivElement | null>(null);
 
-	// The title being typed for a ticket filed off the selection; null while
-	// the prompt is closed. Asked for rather than inferred from the note, so
-	// the note stays a note.
+	// The title of a ticket filed off the selection; null while the prompt is closed.
 	const [ticketTitle, setTicketTitle] = useState<string | null>(null);
 	// The range of the comment under the pointer, lit up so the reader can
 	// see which lines it is about.
@@ -276,9 +263,7 @@ export const FileRow = ({
 	);
 
 	const acceptSelection = (range: SelectedLineRange | null) => {
-		// Cleared rather than ignored: the composer for a previous selection
-		// would otherwise sit there through a drag that looks like it did
-		// something, describing lines the reader is no longer pointing at.
+		// Clears the old selection's composer once a new drag starts.
 		if (
 			range &&
 			additionsOnly &&
@@ -311,9 +296,7 @@ export const FileRow = ({
 		clearSelection();
 	};
 
-	// Keyed on the range's own values, not object identity — the parent
-	// rebuilds it from URL params on every render, and depending on identity
-	// would re-scroll (and re-select) forever.
+	// Keyed by value: the range is rebuilt from URL params every render.
 	const focusKey = focusRange
 		? `${focusRange.start}-${focusRange.end}-${focusRange.side}-${focusRange.endSide}`
 		: null;
@@ -345,10 +328,8 @@ export const FileRow = ({
 		});
 	}
 
-	// Everything the two render props below read that is not handed to them by
-	// the diff itself. FileDiffView is memoized on this, so a value the header
-	// or the composer draws from and that is missing here would freeze on
-	// screen — see its own note.
+	// Everything the render props read beyond what the diff hands them; FileDiffView
+	// is memoized on it, so a missing value freezes on screen.
 	const renderKey = [
 		expanded,
 		reviewed,
@@ -376,17 +357,8 @@ export const FileRow = ({
 		/>
 	);
 
-	// A file git will not diff keeps its header — the name, the count, the tick
-	// that says it has been looked at — and says what it is where the diff
-	// would be. Expanding it is still allowed, because the row reads the same
-	// as every other one; there is simply nothing underneath.
-	//
-	// Its comments come with it. They are anchored to lines this view no longer
-	// draws, so they cannot sit beside one — but the header counts them, and a
-	// count that leads nowhere is worse than a list. This is reachable for a
-	// text file too: `-diff` in .gitattributes is how a minified bundle or a
-	// generated file is marked, and git reports one exactly as it reports a
-	// jpeg.
+	// A file git won't diff (binary or `-diff` in .gitattributes) keeps its header
+	// and comments, with a notice in place of the diff.
 	if (file.isBinary) {
 		return (
 			<div ref={rowRef} data-testid="file-row">
@@ -463,9 +435,7 @@ export const FileRow = ({
 					)}
 				</>
 			) : (
-				// No diff mounted while shut — a large file left collapsed is
-				// meant to cost nothing — so the header stands in the same box
-				// by itself.
+				// No diff mounted while shut, so the header stands alone.
 				<div style={DIFF_BOX_STYLE}>{header()}</div>
 			)}
 		</div>

@@ -1,9 +1,6 @@
 /**
- * The writer and the syncer are the same person, so they share one log file and
- * the rebase must rewrite exactly the file being appended to.
- *
- * Its own file for the reason the other half of this pair is: see
- * `write-during-sync.helper.ts`, which holds what they both measure with.
+ * The writer and the syncer share one log file, which the rebase rewrites while
+ * it is appended to. See `write-during-sync.helper.ts`.
  */
 import {afterEach, describe, expect, it} from 'vitest';
 import {

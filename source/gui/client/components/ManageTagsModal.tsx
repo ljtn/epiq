@@ -72,11 +72,8 @@ export const ManageTagsModal = ({tags, onDelete, onClose}: Props) => {
 									alignItems: 'center',
 									gap: 6,
 									color: armed ? GUI_THEME.red : GUI_THEME.dim,
-									// The whole shorthand, and only when armed: Button sets
-									// `border` itself, and React warns that an element given
-									// both it and `borderColor` can drop whichever loses the
-									// race. Spreading `border: undefined` is not the other
-									// branch — that reads as "remove this style".
+									// The whole shorthand, only when armed: Button sets `border`, and mixing in
+									// `borderColor` makes React warn. `border: undefined` would remove the style.
 									...(armed ? {border: `1px solid ${GUI_THEME.red}`} : {}),
 								}}
 							>

@@ -26,9 +26,7 @@ const MAX_ASIDE_RATIO = 0.9;
 export const ASIDE_HEIGHT = 380;
 const MIN_ASIDE_HEIGHT = 160;
 
-// Below this, a diff's before/after columns don't have room to stay legible
-// side by side; above it, they do. Exported so DiffPanel picks the same
-// split/unified boundary the panel itself resizes around.
+// Below this width a diff stacks its before/after columns.
 export const STACKED_DIFF_WIDTH = 760;
 
 const WIDTH_STORAGE_KEY = 'epiq.aside.width';
@@ -46,9 +44,7 @@ export const readStoredAsideWidth = (): number => {
 		: ASIDE_WIDTH;
 };
 
-// No upper bound here: the ceiling is the board row's live height, which this
-// cannot see. The drag clamps against it, so a stored value can only ever be
-// one a drag already allowed.
+// No upper bound: the drag clamps against the board row's live height.
 export const readStoredAsideHeight = (): number => {
 	const stored = Number(localStorage.getItem(HEIGHT_STORAGE_KEY));
 
@@ -62,13 +58,8 @@ export type AsideRenderApi = {
 	toggleFullscreen: () => void;
 };
 
-// Where a panel's header is drawn, which is not where it is written. A panel
-// builds its header from the same values as its body — the ticket's ref, the
-// lane's title, whether the panel is fullscreen — so hoisting it to a prop on
-// this component would mean computing all of that twice. Instead FormHeader
-// stays where it reads, in the panel, and lands through here in the band above
-// the pane. Null until the band is mounted, on which one render it draws in
-// place.
+// Where a panel's FormHeader is portalled, in the band above the pane.
+// Null until the band mounts.
 export const AsideHeaderSlot = createContext<HTMLDivElement | null>(null);
 
 export const Aside = forwardRef<
@@ -90,14 +81,9 @@ export const Aside = forwardRef<
 	const [dragging, setDragging] = useState(false);
 	const bottom = dock === 'bottom';
 
-	// Mirrors the sizes synchronously: handlePointerMove/handleDragEnd are
-	// memoized once (empty deps, so the pointermove/pointerup listeners stay
-	// stable across renders) and would otherwise close over a stale size
-	// from whichever render first attached them.
+	// The drag handlers are memoized once, so they read sizes from here.
 	const latestSize = useRef({width, height});
-	// `max` is measured once, at the moment the drag starts: the ceiling is the
-	// board row, whose height moves when the scrubber collapses, so reading it
-	// then is both cheaper and more accurate than any stored figure.
+	// `max` is read when the drag starts: the row's height moves with the scrubber.
 	const dragStart = useRef<{
 		pointer: number;
 		size: number;
@@ -116,9 +102,7 @@ export const Aside = forwardRef<
 		const start = dragStart.current;
 		if (!start) return;
 
-		// The panel is on the far edge either way, so the handle travels toward
-		// the middle of the screen to grow it: left when docked right, up when
-		// docked bottom. Same sign, different axis.
+		// Growing moves toward the middle: left when docked right, up when docked bottom.
 		const delta = start.bottom
 			? start.pointer - event.clientY
 			: start.pointer - event.clientX;
@@ -149,9 +133,7 @@ export const Aside = forwardRef<
 		);
 	}, [handlePointerMove]);
 
-	// A drag left in progress when the panel unmounts (e.g. closing it mid-drag)
-	// would otherwise leave the document-level listeners and cursor override
-	// permanently attached.
+	// Detaches the document listeners if the panel unmounts mid-drag.
 	useEffect(() => {
 		return () => {
 			if (dragStart.current) handleDragEnd();
@@ -160,15 +142,10 @@ export const Aside = forwardRef<
 
 	const handlePointerDown = (event: React.PointerEvent) => {
 		event.preventDefault();
-		// A manual resize is a clear signal the user wants a specific size,
-		// not the fullscreen one — drop out of fullscreen first so the drag
-		// starts from the panel's normal (pre-fullscreen) size.
+		// A manual resize leaves fullscreen first.
 		if (isFullscreen) setIsFullscreen(false);
 
-		// handle -> aside -> the row holding the board and this panel. That row
-		// is exactly the space between the timeline and the bottom of the
-		// window, so it is the ceiling for a bottom dock without anyone having
-		// to know the header's or the scrubber's height.
+		// handle -> aside -> the row holding board and panel: the ceiling for a bottom dock.
 		const row = event.currentTarget.parentElement?.parentElement;
 		const rowSize = row?.getBoundingClientRect();
 
@@ -200,11 +177,7 @@ export const Aside = forwardRef<
 		});
 	}, []);
 
-	// window.innerWidth is only read at render time, so without this the panel
-	// would stay pinned to whatever width the browser happened to be when
-	// fullscreen was toggled on, ignoring a resize of the window itself while
-	// it's active. Tracked for a bottom dock too, which is window-wide by
-	// construction rather than by its own stored size.
+	// Tracks the window width for fullscreen and a bottom dock.
 	const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
 
 	useEffect(() => {
@@ -218,14 +191,8 @@ export const Aside = forwardRef<
 
 	const effectiveWidth = isFullscreen || bottom ? windowWidth : width;
 
-	// Reports the width the panel is actually drawn at — in fullscreen or
-	// docked to the bottom the window's, not the stored one — so layout
-	// decisions track what is on screen. Fires on mount too, not just on drag,
-	// so a caller that only reads this (rather than also calling
-	// readStoredAsideWidth itself) sees the persisted width immediately. A
-	// layout effect so the caller's re-render lands before the browser paints:
-	// a passive effect would let a frame through with the panel at its new
-	// width but the content still laid out for the old one.
+	// Reports the drawn width (the window's in fullscreen or a bottom dock), on mount
+	// too. A layout effect, so the caller re-lays out before paint.
 	useLayoutEffect(() => {
 		onWidthChange?.(effectiveWidth);
 	}, [effectiveWidth]);
@@ -235,19 +202,13 @@ export const Aside = forwardRef<
 			ref={ref}
 			style={{
 				boxSizing: 'border-box',
-				// Fullscreen overlays the row rather than growing inside it: the
-				// board next to it can't shrink below its own padding, so a
-				// window-wide flex item would overflow the row and be clipped
-				// on the right. Overlaying also leaves the board's scroll alone.
+				// Fullscreen overlays the row: a window-wide flex item would overflow it.
 				...(isFullscreen
 					? {position: 'absolute', top: 0, right: 0, bottom: 0, left: 0}
 					: bottom
 					? {position: 'relative', height, minHeight: height}
 					: {position: 'relative', width, minWidth: width}),
-				// The border faces the board, which is above it in one dock and
-				// beside it in the other. It carries a shadow cast the same way,
-				// so the panel reads as a surface in front of the board rather
-				// than as more of it.
+				// The border and shadow face the board.
 				...(bottom && !isFullscreen
 					? {
 							borderTop: `1px solid ${GUI_THEME.asideEdge}`,
@@ -265,9 +226,7 @@ export const Aside = forwardRef<
 				// The band and the pane stack, and the pane takes what is left.
 				display: 'flex',
 				flexDirection: 'column',
-				// The panel frames the scrolling, it does not do it — see the pane
-				// below. Its own overflow only has the resize handle to clip, which
-				// it clipped before too.
+				// The pane below scrolls; this only clips the resize handle.
 				overflow: 'hidden',
 			}}
 		>
@@ -276,23 +235,14 @@ export const Aside = forwardRef<
 				active={dragging}
 				onPointerDown={handlePointerDown}
 			/>
-			{/* Where FormHeader lands, whichever panel drew it — above the pane
-			    rather than in it, as the log's header is. A header inside the
-			    scroller would have the scrollbar running up beside it, and would
-			    need to pin itself against content passing behind. Outside, it
-			    simply stays, and the bar belongs to the body it scrolls. */}
+			{/* FormHeader lands here, above the scrolling pane. */}
 			<div
 				data-testid="aside-header"
 				ref={setHeaderSlot}
 				style={{flexShrink: 0}}
 			/>
 
-			{/* The pane that scrolls, inside the panel's padding rather than around
-			    it. Padding on a scroll container lies inside its scrollport, so
-			    content scrolls through it and shows in the gap above anything
-			    pinned to the top — a diff's file header included. Here the gap is
-			    the panel's, the scrolling is the pane's, and nothing can be drawn
-			    above what the pane pins. */}
+			{/* The pane scrolls inside the panel's padding, so nothing shows above what it pins. */}
 			<div
 				data-testid="aside-pane"
 				style={{

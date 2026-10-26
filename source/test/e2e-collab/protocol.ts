@@ -35,11 +35,7 @@ export type ActorJob = {
 	// Spreads the actions out, so a writer stays writing for as long as the
 	// sync it is racing takes.
 	pauseMs?: number;
-	// Touched the moment the sync begins, for a caller that has to act while it
-	// runs. A sync takes a few hundred milliseconds, and a process takes its own
-	// time to reach one, so "so long after it started" is the only way to aim at
-	// a point inside it — counting from the spawn aims at the boot as well, and
-	// hits nothing once the boot gets faster.
+	// Touched when the sync begins, so a caller can aim at a point inside it.
 	syncStartedPath?: string;
 };
 
@@ -52,9 +48,7 @@ export type ActorReport = {
 	authoredEventIds: string[];
 	// Every id in this actor's state worktree, its own and everyone else's.
 	seenEventIds: string[];
-	// The same events in the order the loader derives — parent edge first,
-	// concurrent siblings by ulid. Two actors holding the same events must
-	// derive the same order, or they materialize different boards.
+	// The same events in the order the loader derives, which must match across actors.
 	orderedEventIds: string[];
 	// `id\ttitle` per issue, sorted, for comparing boards between actors.
 	issues: string[];

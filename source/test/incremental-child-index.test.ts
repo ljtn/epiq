@@ -8,11 +8,8 @@ import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState, patchState} from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
 
-// A write inside a batch rebuilds the child lists of the parents it touched
-// and no others: regrouping every node per write is what made a write on a
-// large board cost most of a second. The untouched lists keep their identity
-// — which is what a full rebuild cannot give — and the whole index still
-// equals a full regrouping, whatever the write did.
+// A write in a batch rebuilds only the touched parents' child lists; the rest
+// keep their identity, and the whole still equals a full regrouping.
 
 const IDS = {
 	root: '01H00000000000000000000000',

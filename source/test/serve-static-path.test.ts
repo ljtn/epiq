@@ -1,14 +1,8 @@
 import {describe, expect, it} from 'vitest';
 import {decodePath} from '../gui/api/api-server.js';
 
-// `GET /%` used to end the GUI server: `decodeURIComponent` throws a URIError
-// on a stray percent, the request handler is an async function, and node
-// answers an unhandled rejection by exiting. One curl from anything on the
-// machine and the board server was gone.
-//
-// A path that will not decode names nothing, which is a 404 — so the decode
-// says so rather than throwing. (The handler is wrapped as well, so nothing
-// below it can end the process either; this is the specific input that did.)
+// A path that won't decode, like `GET /%`, is a 404 rather than a thrown
+// URIError that would end the server.
 
 describe('decodePath', () => {
 	it('decodes an ordinary path', () => {

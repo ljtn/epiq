@@ -1,9 +1,5 @@
-// The auto sync preference as the identity panel and `:config` both change
-// it: what it refuses, what it leaves alone, and what an unset interval means.
-//
-// Against a real config file in a temp global dir, because the whole point of
-// the module is the round trip through one — a mocked file manager would pin
-// the calls rather than the file that survives a restart.
+// The auto sync preference as the panel and `:config` change it, against a real
+// config file, since the round trip through it is the point.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -64,11 +60,8 @@ describe('readAutoSyncSettings', () => {
 		expect(result.value.blockedReason).toBeNull();
 	});
 
-	// The GUI's loop gives up outright when the identity will not resolve, so a
-	// read that fell back to the raw config would find a name and an editor
-	// there and report all-clear — leaving somebody watching a toggle that is
-	// on while nothing syncs, which is the silence this field exists to break.
-	// An id in the environment with no name beside it reaches exactly that.
+	// An unresolvable actor (an id with no name) blocks auto sync, whatever the
+	// raw config holds.
 	it('is blocked when the actor will not resolve, however complete the file looks', () => {
 		const originalId = process.env['EPIQ_USER_ID'];
 		const originalName = process.env['EPIQ_USER_NAME'];
@@ -104,10 +97,7 @@ describe('writeAutoSyncSettings', () => {
 		expect(isFail(writeAutoSyncSettings({intervalMs: 3000.5}))).toBe(true);
 	});
 
-	// Past 2^31-1 ms `setTimeout` clamps the delay to 1ms, so an interval set
-	// too long turns into a sync loop running flat out. The two fields make it
-	// reachable: `:config autosync-duration` takes milliseconds and the panel
-	// takes seconds, so 3600000 pasted into the panel asks for 3.6e9 ms.
+	// Past 2^31-1 ms `setTimeout` clamps the delay to 1ms.
 	it('refuses an interval long enough to overflow a timer', () => {
 		expect(
 			isFail(
@@ -135,9 +125,7 @@ describe('writeAutoSyncSettings', () => {
 		expect(configOnDisk().autoSyncDebounceMs).toBe(MIN_AUTO_SYNC_INTERVAL_MS);
 	});
 
-	// The panel's toggle and its interval field are two controls over one file.
-	// A write that carried both would have each of them overwriting whatever
-	// the other had just done.
+	// Two controls over one file must not overwrite each other.
 	it('changes only what it was given', () => {
 		writeAutoSyncSettings({intervalMs: 45_000});
 		writeAutoSyncSettings({enabled: true});
@@ -158,9 +146,7 @@ describe('writeAutoSyncSettings', () => {
 	it('reaches the settings store, not only the file', () => {
 		writeAutoSyncSettings({enabled: true, intervalMs: 20_000});
 
-		// Read back through the store rather than the file: this is what the
-		// running process syncs on until something re-reads config, and a write
-		// that only landed on disk would keep the old cadence until a restart.
+		// Read back through the store, which the running process syncs on.
 		expect(patchSettingsState({})).toMatchObject({
 			autoSync: true,
 			autoSyncIntervalMs: 20_000,
@@ -168,9 +154,7 @@ describe('writeAutoSyncSettings', () => {
 	});
 });
 
-// The loops read the config file, which is hand-editable and predates these
-// bounds, so what they wait has to be corrected at the point of use too —
-// otherwise a value nobody could type through either door still runs.
+// The loops read a hand-editable file, so bounds apply at the point of use too.
 describe('effectiveAutoSyncIntervalMs', () => {
 	it('caps a stored value that would overflow the timer', () => {
 		expect(effectiveAutoSyncIntervalMs(3_600_000 * 1000)).toBe(

@@ -12,16 +12,8 @@ const BRANCH = 'epiq/state';
 const LOG = '.epiq/events/01h0000000000000000000000a.alice.jsonl';
 
 /**
- * `ensureStateBranchWorktree` relocates the state worktree with
- * `git worktree remove --force` whenever the path it resolves differs from
- * where the branch is currently checked out — which is what happens the moment
- * two processes disagree about `EPIQ_GLOBAL_DIR`.
- *
- * `--force` is precisely the flag that overrides git's refusal to delete a
- * worktree with uncommitted changes, and the state worktree is *always*
- * carrying uncommitted changes: every `persist` appends to the log and nothing
- * commits until the next sync. So relocating it throws away every event
- * written since the last sync, with no stash and no reflog to recover from.
+ * Relocating the state worktree must not `--force` remove it: it always holds
+ * events written since the last sync.
  */
 describe('relocating the state worktree must not discard unsynced events', () => {
 	let repoRoot: string;
@@ -79,9 +71,7 @@ describe('relocating the state worktree must not discard unsynced events', () =>
 		expect(fs.readFileSync(logPath(), 'utf8')).toContain('UNSYNCED EVENT');
 	});
 
-	// An append lands in the pending log, which the committed layout ignores —
-	// so `git status`, which is what the guard asks, does not list it. It is
-	// still every event written since the last sync.
+	// The pending log is ignored by git, so `git status` can't see it.
 	it('refuses over a pending log that git status cannot see', async () => {
 		const layout = ensureStateBranchLayout(repoRoot, originalRoot);
 		if (isFail(layout)) throw new Error(layout.message);
@@ -111,10 +101,8 @@ describe('relocating the state worktree must not discard unsynced events', () =>
 		expect(fs.readFileSync(pendingPath, 'utf8')).toContain('PENDING EVENT');
 	});
 
-	// The other deletion on this path: a directory with no `.git` is treated as
-	// a broken worktree and `rm -rf`'d. Broken is not empty — the logs are
-	// still in it, and with no `.git` there is no committed copy here to
-	// recover them from. That is the one deletion no git object survives.
+	// A directory without `.git` is treated as broken and removed, but its logs
+	// have no committed copy to recover from.
 	it('refuses to delete a broken worktree that still holds event logs', async () => {
 		// Its own repo with no worktree registered yet, so this reaches the
 		// delete rather than the relocation guard above.

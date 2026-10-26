@@ -21,20 +21,11 @@ export const getEpiqDirPath = (root: string): string =>
 export const getProjectFilePath = (root: string): string =>
 	path.join(getEpiqDirPath(root), PROJECT_FILE_NAME);
 
-/**
- * Authoritative event logs live in the state branch worktree.
- *
- * Pass `stateBranchRoot` here for normal app persistence/loading.
- * Do not pass the user repo root unless explicitly working with legacy cache data.
- */
+/** The authoritative event logs, in the state branch worktree (not the user repo root). */
 export const getEventsDirPath = (stateRoot: string): string =>
 	path.join(getEpiqDirPath(stateRoot), EVENTS_DIR_NAME);
 
-/**
- * Content-addressed attachment blobs live next to the event logs in the
- * state branch worktree, so an attachment event and its blob always travel
- * in the same commit.
- */
+/** Attachment blobs, beside the logs so an attachment and its blob share a commit. */
 export const getMediaDirPath = (stateRoot: string): string =>
 	path.join(getEpiqDirPath(stateRoot), MEDIA_DIR_NAME);
 
@@ -53,12 +44,7 @@ export const hasLocalProjectFile = (dir: string): boolean => {
 	return fs.existsSync(candidate) && fs.statSync(candidate).isFile();
 };
 
-/**
- * Resolves the closest directory containing `.epiq`.
- *
- * This remains useful for state branch worktrees and legacy paths, but project
- * discovery should prefer `resolveClosestEpiqProjectRoot`.
- */
+/** The closest directory containing `.epiq`; project discovery prefers `resolveClosestEpiqProjectRoot`. */
 export const resolveClosestEpiqRoot = (startDir: string): Result<string> => {
 	let dir = path.resolve(startDir);
 

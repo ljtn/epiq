@@ -13,10 +13,8 @@ import {isFail} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
 
 /**
- * The distinction this exists to make: a lock held by a process that is still
- * running must be respected, and one left behind by a process that is gone must
- * not wedge the worktree forever. Git cannot tell those apart, which is why
- * `rebase --abort` recovered from a crash by destroying a live sync.
+ * A lock held by a live process is respected; one left by a dead process must
+ * not wedge the worktree.
  */
 describe('sync lock', () => {
 	let worktree: string;
@@ -207,9 +205,8 @@ describe('sync lock', () => {
 });
 
 describe('a lock whose holder pid now belongs to another process', () => {
-	// A crashed holder's pid, reused by whatever started next, must not hold
-	// a connected repo's lock until it goes stale: that blocked a clone for two
-	// hours. The board's sync lock is left judging by the pid alone.
+	// A crashed holder's reused pid must not hold a connected repo's lock until
+	// stale; the board's sync lock still judges by pid alone.
 	const holdWith = (holder: Record<string, unknown>) => {
 		const dir = makeTempDir();
 		const lockPath = path.join(dir, 'x.lock');

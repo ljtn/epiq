@@ -1,8 +1,5 @@
-// S021YSM: the log lists only what the board on screen can act on.
-//
-// A line's route is built from the board being looked at (`openIssueTab`
-// defaults `board = boardSlug`), so a line belonging to another board's ticket
-// leads somewhere that board does not hold.
+// The log lists only what the board on screen can act on: a line's route is
+// built from that board.
 
 import {expect, test} from './fixtures.js';
 import {addTicket, addTicketForRef} from './ticket.js';
@@ -11,11 +8,7 @@ import {commitLinkedFile} from './linked-commit.js';
 
 const QA_TICKET = 'A ticket that lives on QA';
 
-// The All-boards flag has no control on the bar today — its checkbox is
-// commented out — so the only way a reader holds it is a value left in this
-// origin's storage by a build where it had one. That is the case under test:
-// the window then returns other boards' events and the log has to leave them
-// out.
+// The All-boards flag has no control, so it is set through storage.
 test('a ticket filed on another board is left out of this board’s log', async ({
 	page,
 	appUrl,
@@ -60,10 +53,7 @@ test('a ticket filed on another board is left out of this board’s log', async 
 	expect(pageErrors).toEqual([]);
 });
 
-// 89HF7NW: the Code series' lines answer to the same rule. A commit's line is
-// linked to a ticket, and a ticket on another board leads the same way nowhere
-// — so under `Linked` a board lists the commits naming its own tickets, not the
-// repository's.
+// Under `Linked`, the log lists commits naming this board's tickets only.
 test('a commit linked to another board’s ticket is left out of this board’s log', async ({
 	page,
 	appUrl,
@@ -100,11 +90,8 @@ test('a commit linked to another board’s ticket is left out of this board’s 
 	await switchToBoard(page, 'Default');
 	await expect(line).toHaveCount(1);
 
-	// Closing takes the ticket to the global Closed board, which is every
-	// board's. The work was still this board's, and a board whose finished
-	// tickets took their commits with them would list almost none.
-	//
-	// The card rather than the log line below it, which carries the same title.
+	// Closed tickets keep their commits on their board. The card, not the
+	// same-titled log line.
 	await page
 		.locator('div[draggable="true"]')
 		.filter({hasText: `Default ticket ${stamp}`})
@@ -122,9 +109,7 @@ test('a commit linked to another board’s ticket is left out of this board’s 
 		.getByRole('option')
 		.first();
 	await expect(closeRow).toContainText('Close ticket');
-	// A command it cannot run yet is listed with its reason rather than hidden,
-	// and Enter on one does nothing at all — so wait for the ticket just opened
-	// to reach the palette's context rather than typing into the gap.
+	// Enter on a disabled palette row does nothing, so wait for it to enable.
 	await expect(closeRow).not.toHaveAttribute('aria-disabled', 'true');
 	await page.keyboard.press('Enter');
 	await expect(page.getByTestId('command-palette')).toBeHidden();

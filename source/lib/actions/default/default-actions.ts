@@ -30,12 +30,8 @@ import {PaletteActions} from '../palette/palette-actions.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
 /**
- * Opens `:comment lines:4-9 ` for whatever the cursor (and any mark) covers.
- *
- * The range is resolved here so an impossible one is refused where the reader
- * is looking, rather than after they have typed a note — but it is written
- * into the command line as text, so what will be attached is on screen and can
- * be edited before it is sent.
+ * Opens `:comment lines:4-9 ` for the cursor (and any mark), validating the
+ * range first; the range stays editable text in the command line.
  */
 const proposeDiffComment = (): Result => {
 	const sha = openPagerSha();
@@ -119,10 +115,7 @@ export const DefaultActions: ActionEntry[] = [
 					return openAttachment(attachment);
 				}
 
-				// A line of a patch has nothing to enter, so enter offers the one
-				// thing there is to do with it, the way it does for a description
-				// or a tag — and the range goes into the command line where it can
-				// be read and corrected rather than kept somewhere invisible.
+				// A patch line has nothing to enter, so enter starts a comment on it.
 				if (openPagerSha()) return proposeDiffComment();
 
 				if (selectedNode?.title === FieldNames.DESCRIPTION) {
@@ -161,19 +154,13 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.OpenInEditor,
 		mode: Mode.DEFAULT,
-		// No description, and likewise for the two below: the shortcut bar shows
-		// every described DEFAULT-mode action on every screen, and these three
-		// answer "nothing to do that to here" everywhere but the diff. The
-		// commit list and the pager name them in their own headers instead.
+		// No description here or on the two below, so the shortcut bar hides them
+		// outside the diff.
 		action: () => {
 			const {selectedNode, contextNode} = getState();
 
-			// A commit node carries its sha as its id, and sits under the ticket's
-			// Diff field. `o` works both from the commit list, where the commit is
-			// the selection, and from inside its patch, where it is the context.
-			//
-			// The list is identified by the field's own id rather than its title,
-			// which a ticket called "Diff" would also answer to.
+			// A commit node's id is its sha. The list is matched by the field's id, not
+			// its title, which a ticket called "Diff" would share.
 			const ticketId = contextNode.parentNodeId;
 			const isCommitList =
 				!!ticketId && contextNode.id === virtualNodeId(ticketId, 'diff');
@@ -225,9 +212,8 @@ export const DefaultActions: ActionEntry[] = [
 		action: () => {
 			const {selectedNode} = getState();
 
-			// Yank the field under the cursor when one is selected; otherwise
-			// default to the ref. Fall back to ref when the preferred target has
-			// nothing to yank (e.g. the tags field of an untagged issue).
+			// Yank the selected field, else the ref; fall back to the ref when the field
+			// is empty.
 			const preferred =
 				selectedNode?.title === FieldNames.DESCRIPTION
 					? YankModifiers.DESCRIPTION

@@ -1,11 +1,6 @@
 /**
- * A git author address bound to a contributor, so a commit and a board event
- * written by one person read as one person.
- *
- * The rules here are pure and depend only on links, never on who is asking or
- * on anything off disk. `board-materialize` applies them during replay, where a
- * predicate that is not a function of the ordered log would let two replicas
- * derive different boards.
+ * A git author address bound to a contributor. Pure over links only, since
+ * replay applies these rules and every replica must agree.
  */
 
 export type EmailLink = {
@@ -18,15 +13,8 @@ export type EmailLink = {
 };
 
 /**
- * FROZEN. The stored form of an address is whatever this returns, so every
- * link ever written is matched through it. Changing it stops existing links
- * matching, silently and everywhere, with no error and nothing to migrate —
- * the same trap the log file name's grammar is, for the same reason.
- *
- * Lowercasing the local part is lossy: RFC 5321 leaves it case-sensitive. It
- * is right for git and the forges people actually use, where addresses are
- * compared case-insensitively, and it is a deliberate trade rather than an
- * oversight.
+ * FROZEN: every stored link is matched through this, so a change silently
+ * unmatches them all. Lowercasing the local part is a deliberate trade.
  */
 export const normalizeEmail = (raw: string): string => raw.trim().toLowerCase();
 
@@ -39,11 +27,8 @@ export const isValidEmail = (value: string): boolean => {
 };
 
 /**
- * A space separates the two halves, and cannot appear in either: a stored
- * address has been through `isValidEmail`, which rejects whitespace, and a
- * contributor id is Crockford base32. A control character would be the obvious
- * separator and is not worth it — one in a source file makes it binary to git,
- * so `diff`, `blame` and `grep` all quietly stop working on it.
+ * A space can't appear in either half; a control character would make source
+ * files binary to git.
  */
 export const emailLinkKey = (email: string, contributor: string): string =>
 	`${normalizeEmail(email)} ${contributor}`;
@@ -80,9 +65,8 @@ export const emailsOf = (
 };
 
 /**
- * Address to sole owner, for matching a batch of commits without walking every
- * link per commit. Contested addresses are absent rather than present-and-null,
- * so a caller that forgets the distinction falls back to the raw author string.
+ * Address to sole owner. Contested addresses are absent, not null, so a caller
+ * that forgets falls back to the raw author.
  */
 export const emailOwnerIndex = (
 	links: Readonly<Record<string, EmailLink>>,
@@ -108,11 +92,8 @@ export const emailOwnerIndex = (
 };
 
 /**
- * Whether this contributor has retracted this address before.
- *
- * Separate from "does anyone claim it", which ignores tombstones. The auto-link
- * needs both: a retraction is a decision, and re-making the link on the next
- * write would undo it silently and append an event every time.
+ * Whether this contributor retracted this address before, tombstones included,
+ * so the auto-link never silently undoes a retraction.
  */
 export const wasRetractedBy = (
 	links: Readonly<Record<string, EmailLink>>,
@@ -121,17 +102,8 @@ export const wasRetractedBy = (
 ): boolean => links[emailLinkKey(email, contributor)]?.tombstoned === true;
 
 /**
- * Who may retract a link: whoever wrote it, or whoever it points at.
- *
- * Deliberately not "anybody", which would let one writer strip every link on
- * the board as often as they liked. Deliberately not "the author alone", which
- * would leave somebody stuck with a link a colleague made for them.
- *
- * It does not let the owner of an address remove somebody else's claim on it,
- * so a squatted address cannot be reclaimed — only co-claimed, which makes it
- * contested and stops it resolving to the squatter. Reclaiming and stripping
- * are the same capability, and separating them needs proof that an address is
- * yours, which means signed commits. `4NENX8W` has the reasoning.
+ * Who may retract a link: whoever wrote it, or whoever it points at. An
+ * address's owner can't strip another's claim, only co-claim it.
  */
 export const canRemoveEmailLink = (actorId: string, link: EmailLink): boolean =>
 	actorId === link.authorId || actorId === link.contributor;

@@ -5,34 +5,13 @@ import {failed, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
 
 /**
- * Where an append actually lands.
- *
- * The tracked log is a file git owns. To rebase, git stashes the working copy,
- * checks out the remote's version and puts the stash back — and a line written
- * while that is happening was in no stash, so the checkout writes over it. It
- * is not a merge going wrong: `*.jsonl merge=union` handles concurrent appends
- * correctly, but only for lines that are *committed*. An uncommitted line is
- * invisible to the merge and is simply overwritten.
- *
- * So appends go to a file git does not track. Git resets around it, and a sync
- * folds it into the tracked log once git is done with the worktree.
- *
- * The marker sits on the *id* segment, which is the one part of the name that
- * cannot contain a `.` — names can ("J. Lampa" becomes `<id>.j.-lampa`), so a
- * `.pending` suffix there would be indistinguishable from an actor actually
- * called "pending". `~` survives no sanitising (`sanitizeFilePart`
- * maps everything outside `[a-z0-9._-]` to `-`), so no real id can end in one.
- *
- * The name still ends in `.jsonl`, which is what every reader globs for. That
- * is deliberate and load-bearing: `mintEventId` derives an event's causal
- * parent from the same directory, and an append it could not see would mint an
- * id sorting before its own parent.
+ * Appends go to an untracked file a sync folds in, as a rebase overwrites
+ * uncommitted lines. The marker sits on the id segment, which never holds `.`
+ * or `~`; the name still ends in `.jsonl` so readers see it.
  */
 const PENDING_MARKER = '~pending';
 
-// The id segment of a pending file is one of three shapes, all still read and
-// all resolving to the same actor:
-//
+// Pending id segments, all the same actor:
 //   <id>~pending                 live: what `persist` appends to
 //   <id>~pending-<ulid>          rotated: a flush has renamed it and is reading it
 //   <id>~pending-<ulid>-f<bytes> folded: the first <bytes> are in the tracked log
@@ -69,27 +48,14 @@ export const trackedFileNameFor = (fileName: string): string | null => {
 	return idSegment.replace(PENDING_SEGMENT, '') + rest;
 };
 
-/**
- * The actor id a segment names, with any pending marker removed.
- *
- * The id is the one thing read off a log's file name — a display name never is,
- * since the name segment is a sanitized storage key that a rename leaves stale.
- * So this has to come off before the id is used, or a pending line resolves to
- * an actor who does not exist.
- */
+/** The actor id a segment names, with any pending marker removed. */
 export const stripPendingMarker = (idSegment: string): string =>
 	idSegment.replace(PENDING_SEGMENT, '');
 
 export const isPendingFileName = (fileName: string): boolean =>
 	fileName.endsWith('.jsonl') && trackedFileNameFor(fileName) !== null;
 
-/**
- * The actor a log file name belongs to: its id segment, marker stripped.
- *
- * The one part of a log's name that ZFZFW9D did not move. A log written before
- * it carries a name segment after the id and one written since carries none,
- * so two files an actor owns share this and nothing else.
- */
+/** The actor a log file name belongs to: its id segment, marker stripped. */
 export const actorSegmentOf = (fileName: string): string =>
 	stripPendingMarker(splitName(fileName)[0]);
 
@@ -124,13 +90,8 @@ const unfoldedBytes = (filePath: string, name: string): number =>
 	Math.max(0, fs.statSync(filePath).size - (foldedBytesOf(name) ?? 0));
 
 /**
- * Whether any pending log holds lines that are in no tracked log yet.
- *
- * Pending logs are ignored, so `git status` does not list them — but they hold
- * every event written since the last sync, and a guard that asks git whether a
- * worktree still has unpublished work has to ask this too. Any actor's: the
- * worktree is shared, and the lines are somebody's either way. Unreadable
- * counts as held, for the same reason `findStrandedEventLogs` refuses.
+ * Whether any actor's pending log holds lines in no tracked log yet; git status
+ * cannot see them. Unreadable counts as held.
  */
 export const hasPendingLines = (eventsRoot: string): boolean => {
 	const dir = getEventsDirPath(eventsRoot);
@@ -152,20 +113,8 @@ export const hasPendingLines = (eventsRoot: string): boolean => {
 const MAX_APPEND_ATTEMPTS = 3;
 
 /**
- * Appends one line to a pending log, and makes sure it stays reachable.
- *
- * A flush rotates the pending file by renaming it. An append is open, write,
- * close, in a process holding no lock — and O_APPEND follows the inode, so a
- * writer preempted between its open and its write lands the line in a file the
- * flush has already read. So after writing, check that the path still leads to
- * the file written to; if not, write again to whatever is there now. A line
- * that lands in both is deduped by id.
- *
- * This is a belt, not the braces. The comparison is by inode number, and that
- * is not a sound oracle on its own: ext4 hands a freed number to the next file
- * created, and APFS can resolve a just-renamed path to the old inode for a
- * moment under concurrent lookups. What keeps the line safe is the flush never
- * deleting a file a writer could still reach — see `flushPendingLogs`.
+ * Appends a line, rewriting it if a flush rotated the file meanwhile (deduped
+ * by id). Only a belt: inode checks are unsound, see `flushPendingLogs`.
  */
 export const appendPendingLine = (filePath: string, line: string): void => {
 	for (let attempt = 1; ; attempt++) {
@@ -190,12 +139,7 @@ export const appendPendingLine = (filePath: string, line: string): void => {
 	}
 };
 
-/**
- * Whether the log can take an appended line as a line of its own. A file that
- * is missing or empty can; one whose last byte is not a newline ends in a
- * partial line — a crash mid-append, or a git truncation — and a line spliced
- * onto it would be lost with it. Reads one byte, not the file.
- */
+/** Whether the log ends in a newline (or is empty), so an append starts a fresh line. */
 const endsCleanly = (filePath: string): boolean => {
 	let fd: number;
 	try {
@@ -220,12 +164,8 @@ const endsCleanly = (filePath: string): boolean => {
 const NEWLINE = 0x0a;
 
 /**
- * Appends the whole lines in `bytes` to the tracked log and returns how many
- * bytes that covered. A trailing fragment with no newline is a write still in
- * flight or a crash remnant; it is not a line yet, so it is left for the next
- * pass rather than spliced onto the log — unless this is the file's last pass
- * (`final`), when it is appended terminated: a fragment that old is a remnant,
- * and the loader's quarantine is the right place for it, not the bin.
+ * Appends the whole lines in `bytes` and returns the bytes covered. A trailing
+ * fragment waits for the next pass, unless `final`.
  */
 const foldLines = (
 	trackedPath: string,
@@ -257,37 +197,9 @@ const foldLines = (
 };
 
 /**
- * Folds one actor's pending file(s) into the log they write now.
- *
- * Only the syncing actor's own. A sync commits only its own file, so folding
- * somebody else's pending lines would leave them dirty in a tracked file for
- * the whole rebase — in no commit and, since the snapshot skips pending logs,
- * in no snapshot either — which is the loss this file exists to prevent. Theirs
- * stay pending, out of git's reach, until they sync.
- *
- * Each pass moves a file one step along: live → rotated → folded → gone.
- *
- * Rotating first means an append landing after the rename creates a fresh live
- * file rather than being erased. Folding appends the whole lines read and
- * records how many bytes that was in the name, so the next pass can fold only
- * what arrived after. Deleting waits for that next pass, and that is the
- * load-bearing part: a writer can still reach a file that was just rotated — one
- * preempted between opening it and writing, or one whose path lookup resolved
- * to the old inode after the rename (measured on APFS under contention) — and
- * a file deleted while it is reachable takes those lines with it, on ext4 past
- * the writer's own inode check too, since the freed number goes to the next
- * file created. The rename to the folded name purges the stale lookup, the
- * file stays readable and attributed to the actor meanwhile, and by the next
- * sync nothing has held it open for seconds.
- *
- * Appending before renaming or deleting means a crash leaves lines in both
- * files, and `getSortedEvents` dedupes by id, so a duplicate costs nothing
- * while a loss cannot be undone. A crash therefore leaves a rotated or folded
- * file behind, which is why this picks up every pending file of the actor's
- * rather than only the live one.
- *
- * Must run while this process holds the state worktree — it writes the tracked
- * log, which is exactly what a sync must not have happening underneath it.
+ * Folds this actor's pending files into its log (holding the state worktree),
+ * one step per pass: live → rotated → folded → gone. Deletion waits a pass,
+ * since a writer may still hold a just-rotated file.
  */
 export const flushPendingLogs = (
 	eventsRoot: string,
@@ -298,13 +210,7 @@ export const flushPendingLogs = (
 	if (!fs.existsSync(dir)) return succeeded('No events directory', 0);
 
 	try {
-		// Matched by actor, not by the whole tracked name. A machine upgraded
-		// across ZFZFW9D can still hold `<id>~pending.<name>.jsonl`, whose
-		// tracked name is the old `<id>.<name>.jsonl` — matching on that left
-		// its lines in no tracked log, so in no commit and in no peer's clone,
-		// while `hasPendingLines` reported unpublished work for good. They fold
-		// into the log this actor writes now, and the old name is gone with
-		// them.
+		// Matched by actor, so an older `<id>~pending.<name>.jsonl` folds into the current log.
 		const own = actorSegmentOf(ownFileName);
 		const pending = fs
 			.readdirSync(dir)

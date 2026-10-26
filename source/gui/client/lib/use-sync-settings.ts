@@ -1,7 +1,5 @@
-// This machine's auto sync preference, as the identity panel reads and writes
-// it. A preference rather than board state: it is in `~/.epiq/config.json` and
-// reaches no other clone, so nothing here goes through the mutation gate and
-// no broadcast carries it.
+// This machine's auto sync preference, from `~/.epiq/config.json`: not board
+// state, so no mutation gate or broadcast.
 
 import {useCallback, useEffect, useState} from 'react';
 import {getResultValue} from './gui-state-helper';
@@ -16,20 +14,9 @@ export type SyncSettings = {
 export type SyncSettingsState = {
 	loading: boolean;
 	data: SyncSettings | null;
-	/**
-	 * Why the last change was refused, when it was. Only a failure: a change
-	 * that landed shows in the controls themselves.
-	 */
+	/** Why the last change was refused; a change that landed shows in the controls. */
 	lastError: string | null;
-	/**
-	 * Bumped on every answer from the server, whether it changed anything or
-	 * not.
-	 *
-	 * A refused write comes back with the settings unaltered, so a field
-	 * watching only the value would never hear about it and would sit showing
-	 * the number that was turned down. This is what says "the server has
-	 * spoken" when what it said is "no".
-	 */
+	/** Bumped on every server answer, so a refused write is heard too. */
 	answeredAt: number;
 };
 
@@ -56,13 +43,8 @@ export const useSyncSettings = ({
 		sendRaw({type: 'settings:get'});
 	}, [open, sendRaw]);
 
-	// Deliberately deaf to `failed`, unlike the hook beside it that reads the
-	// addresses. That frame is the read-only gate refusing a *mutating*
-	// message, and a preference on this machine is not one — so the only
-	// `failed` that could arrive here belongs to somebody else's write, and
-	// reporting it would put a board error under the auto sync toggle. A
-	// refused settings write comes back as a `settings` reply carrying its own
-	// `lastAction`.
+	// Ignores `failed`: that is the read-only gate refusing a board mutation,
+	// never this preference.
 	const onMessage = useCallback((message: any) => {
 		if (message.type !== 'settings') return;
 

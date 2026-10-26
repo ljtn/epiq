@@ -3,18 +3,8 @@ import {commandLineIsIdle, commandLineShows, setupTui} from './e2e.helper.js';
 import {execSync} from 'child_process';
 
 /**
- * Empties the command line, then types a command into it and confirms it.
- *
- * Setup opens each step with its command already typed, so a whole command
- * written on top of one lands as `:config editor :config editor vim`.
- * Backspace rather than escape: an escape written alone is still pending when
- * the next character arrives and the two are read as one alt-modified
- * keypress, so the line never opens and the characters fall through to the
- * board's own keys.
- *
- * Every step waits on a frame rather than a timer. Under a full container the
- * render lags far enough behind the keystrokes that a fixed pause sends the
- * command into a line still holding the last one.
+ * Empties the command line, then types and confirms a command. Backspace, not
+ * escape: a lone escape merges with the next key as alt.
  */
 export const typeCommand = async (
 	tui: {
@@ -36,13 +26,8 @@ export const typeCommand = async (
 };
 
 /**
- * Files an issue into Todo and does not come back until the lane says so.
- *
- * A submit can be dropped when the suite runs under load — the command then
- * sits typed in a line nothing is waiting on. The lane's count is what says
- * whether it ran: the typed command is echoed in the line, and the issue's
- * title is in that echo, so waiting on the title alone passes before Enter
- * has been handled at all.
+ * Files an issue into Todo and waits for the lane count: the title also shows
+ * in the typed command's echo, so waiting on it proves nothing.
  */
 export const fileIssue = async (
 	tui: {
@@ -86,14 +71,8 @@ export const commonSteps = {
 	},
 
 	/**
-	 * Answers the claiming step, when there is one.
-	 *
-	 * Declined: a fixture that claimed an address would put a link in every
-	 * seeded board and change what the commit track says for every test.
-	 *
-	 * Asked once per machine, not once per project, and a file's tests share a
-	 * `HOME`. So the second project on the same one goes straight to the board,
-	 * and waiting for the step unconditionally hangs there.
+	 * Declines the claiming step, when there is one: a claim would change every
+	 * seeded board. Asked once per HOME, so a later project may skip it.
 	 */
 	declineEmails: async (tui: {
 		input: (...values: string[]) => void;

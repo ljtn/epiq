@@ -22,14 +22,8 @@ export const materializeFail = (msg: string, event: Identified): ReturnFail =>
 	);
 
 /**
- * A precondition failure: the event lost a race, or names state this replay
- * never applied — the ordinary result of a merge, or of skipping an action
- * this build does not know. Replay skips these so it converges; failing the
- * whole boot instead means one concurrent edit can leave state that never
- * opens again, for whoever's build understands the most.
- *
- * Still a failure, so a live write rejects it: there the precondition is the
- * answer the caller asked for.
+ * A precondition failure: the event lost a race or names unapplied state.
+ * Replay skips it to converge; a live write still fails on it.
  */
 export type ConvergenceFail = ReturnFail & {convergence: true};
 
@@ -41,10 +35,7 @@ export const materializeSkip = (
 export const isConvergenceFail = (result: Result): boolean =>
 	isFail(result) && (result as Partial<ConvergenceFail>).convergence === true;
 
-/**
- * Splits replay results into a log that is actually broken and events that
- * merely lost. Every replay path aborts on the first and skips the second.
- */
+/** Splits replay results into a broken log (abort) and events that merely lost (skip). */
 export const partitionMaterializeResults = (
 	results: readonly Result[],
 ): {fatal: ReturnFail[]; skipped: ReturnFail[]} => {
@@ -78,11 +69,8 @@ const validateActor = (
 		: materializeFail('Invalid user ID format', event);
 
 /**
- * Applies events through the catalog's handlers, with the guards every
- * product needs and none of them should have to write: an unknown action
- * fails, anything ahead of genesis or a second genesis is a convergence skip,
- * and a handler that throws is fenced into a skip rather than taking the
- * process down on load.
+ * Applies events through the catalog's handlers: an unknown action fails;
+ * anything before genesis, a second genesis, or a throwing handler is skipped.
  */
 export const createMaterializer = <M extends EventMap>(
 	catalog: EventCatalog<M>,
@@ -104,10 +92,7 @@ export const createMaterializer = <M extends EventMap>(
 			);
 		}
 
-		// Anything ordered ahead of genesis — a forged root, or an id that does
-		// not decode and so sorts before every real ULID — reaches its handler
-		// with no state to read. Replay is total: this is a precondition the
-		// replay never met, which is exactly what `materializeSkip` is for.
+		// Anything ordered before genesis has no state to read: a convergence skip.
 		if (!catalog.replay.isInitialized() && event.action !== catalog.genesis) {
 			return materializeSkip(
 				`${event.action} arrived before the state was initialized`,
@@ -115,11 +100,7 @@ export const createMaterializer = <M extends EventMap>(
 			);
 		}
 
-		// Genesis initializes state from scratch, so a second one part-way
-		// through a replay discards everything applied before it. A forged root
-		// carrying a lone genesis satisfies the root filter, and a high ULID
-		// anchors it after real history — one such line would empty the state
-		// on every clone that pulled it.
+		// A second genesis mid-replay would wipe the state; a forged root could carry one.
 		if (event.action === catalog.genesis && batch) {
 			if (batch.genesisApplied) {
 				return materializeSkip('the state is already initialized', event);
@@ -128,11 +109,7 @@ export const createMaterializer = <M extends EventMap>(
 			batch.genesisApplied = true;
 		}
 
-		// Last line of defence. Payloads are validated on load and every
-		// precondition in a handler is a `materializeSkip`, but a handler this
-		// build gets wrong must still not stop the state loading: a throw escapes
-		// every `isFail` on the boot path, and the log that caused it is
-		// append-only and already in every clone.
+		// A throwing handler is skipped: the line is already in every clone.
 		let result: MaterializeResult<M, A>;
 		try {
 			result = handler(event);
@@ -159,10 +136,7 @@ export const createMaterializer = <M extends EventMap>(
 		return result;
 	}
 
-	// One batch for the whole replay rather than one per event. What the
-	// product derives from state is otherwise rebuilt per event, which made
-	// replay quadratic: 1.4k events took 905ms, and each doubling of the log
-	// quadrupled it.
+	// One batch for the whole replay; per-event batches make replay quadratic.
 	const materializeAll = <const T extends readonly Event<M>[]>(
 		events: T,
 	): MaterializeResults<M, T> => {

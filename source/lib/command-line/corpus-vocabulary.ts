@@ -4,17 +4,8 @@ import {getSafeState} from '../state/state.js';
 import {DEFAULT_WORDS} from './default-word-list.js';
 
 /**
- * Corpus-based auto-completion vocabulary.
- *
- * Instead of guessing useful words up front, we derive them from the text the
- * user has actually written into the board — node titles, ticket descriptions,
- * field values, tags, contributors and comments — read straight from the
- * in-memory materialized state (never from the .jsonl event files). The static
- * DEFAULT_WORDS list is kept only as a cold-start fallback for an empty board.
- *
- * Ordering matters: getPrefixMatches() returns matches in insertion order and
- * the completion layer picks hints[0], so we emit corpus words first, ranked by
- * frequency, then the leftover defaults.
+ * Completion vocabulary from the board's own text, by frequency, then DEFAULT_WORDS.
+ * Order matters: the completion layer picks the first match.
  */
 
 const MIN_WORD_LENGTH = 3;
@@ -121,16 +112,7 @@ export const buildCorpusVocabulary = (state: AppState): string[] => {
 	return [...corpusWords, ...fallback];
 };
 
-// ---------------------------------------------------------------------------
-// Lazy cache
-//
-// getVocabulary() is hit on every keystroke, so we memoize and only rebuild
-// when the board's text could have changed. eventLog.length is a cheap,
-// monotonic fingerprint: every content edit (title/description/tag/comment/…)
-// appends an event, so a change in length means the corpus may have changed.
-// getPrefixIndex() memoizes by array identity, so returning a fresh array on
-// rebuild transparently re-indexes downstream.
-// ---------------------------------------------------------------------------
+// Memoized per keystroke, keyed on eventLog.length; a fresh array re-indexes downstream.
 
 let _vocabulary: string[] = DEFAULT_WORDS;
 let _fingerprint = -1;

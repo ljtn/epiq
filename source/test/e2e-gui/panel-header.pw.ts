@@ -73,9 +73,7 @@ test('the header row reads ref, title, then age against the right edge', async (
 	expect(pageErrors).toEqual([]);
 });
 
-// The age stands next to the panel's buttons, so it has to sit on their line:
-// it used to belong to the group that aligns the ref and the title on their
-// baseline, which left it off by a few pixels against everything beside it.
+// The age sits on the panel buttons' line.
 test('the age is centred on the line the panel buttons keep', async ({
 	page,
 	appUrl,
@@ -170,12 +168,8 @@ test('a long title gives up what does not fit rather than growing the row', asyn
 	expect(pageErrors).toEqual([]);
 });
 
-// Two rows run across the top of the window — the log's fields and the ticket
-// panel's buttons — and they are read as one line. The log's used to sit flush
-// against the top edge while the other kept a twenty-pixel inset, which put it
-// thirteen pixels above it. The board between them keeps no row of its own
-// since the switcher went to the topbar: its columns start on the same top
-// edge the panes do, and each lane's header carries its own gap.
+// The log's field row and the ticket panel's buttons share one line, and the
+// board's columns start on the same top edge.
 test('the rows across the top of the window sit on one line', async ({
 	page,
 	appUrl,
@@ -201,9 +195,7 @@ test('the rows across the top of the window sit on one line', async ({
 	expect(Math.abs(logButton.y - close.y)).toBeLessThanOrEqual(1);
 	expect(Math.abs(logButton.height - close.height)).toBeLessThanOrEqual(1);
 
-	// And the board starts where the panes either side of it do: with its goal
-	// strip, which the worker's shared board shows once a test has made a goal,
-	// or else with its lanes.
+	// The board starts where the panes do, with its goal strip or its lanes.
 	const pane = await page.getByTestId('event-log').boundingBox();
 	const strip = page.getByTestId('goal-strip');
 	const top = await ((await strip.count()) > 0

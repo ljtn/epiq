@@ -40,10 +40,8 @@ export const resolveMoveRank = (
 		return finish(rankBetween(undefined, undefined));
 	}
 
-	// The sibling is an ordering hint from whatever the caller last saw. It goes
-	// missing whenever that view is behind — the ticket was moved or closed
-	// elsewhere first. Landing at the end of the lane is a worse guess than the
-	// caller asked for, but refusing would drop the move entirely.
+	// A sibling missing from a stale view lands the node at the lane's end,
+	// rather than dropping the move.
 	const appendToLane = () =>
 		finish(rankBetween(siblings[siblings.length - 1]?.rank, undefined));
 
@@ -84,19 +82,8 @@ export const resolveMoveRank = (
 	}
 };
 
-// A parent's children, in rank order.
-//
-// `derive` has already grouped every node by parent, and with no filter applied
-// its index skips exactly what this skips — deleted nodes — in exactly this
-// order. So where that index is current, it *is* the answer, and scanning the
-// board again to rebuild one lane's worth of it is the cost of a write on a
-// large board: filing a ticket resolves its rank this way, and on ninety-six
-// thousand nodes that was 2.5 of the 3.4 seconds it took.
-//
-// Not while a replay batch is open, when the derived half of the state is by
-// design out of date, and not while a filter is on, when the index is a subset
-// of the children rather than all of them. Both fall back to the scan, which is
-// always right and only ever slow.
+// A parent's children in rank order: from the derived index when current, else
+// by scan (during a replay batch, or with a filter on).
 export const getOrderedChildren = (parentId: string) => {
 	const state = getState();
 

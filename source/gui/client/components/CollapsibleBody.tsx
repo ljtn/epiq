@@ -1,9 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 
-// Room for a couple of paragraphs. Past it the body is clipped rather than
-// given a scrollbar of its own: the aside already scrolls, and a second bar
-// inside it is what this replaces.
+// Past this the body is clipped, not scrolled: the aside already scrolls.
 export const COLLAPSED_BODY_HEIGHT = 320;
 
 const FADE_HEIGHT = 64;
@@ -31,9 +29,7 @@ export const CollapsibleBody = ({
 		const content = contentRef.current;
 		if (!content) return;
 
-		// Measured, not guessed from the text's length: markdown reflows as
-		// images load and as the aside is resized, and either can carry the
-		// content across the clamp on its own.
+		// Measured, since markdown reflows as images load and the aside resizes.
 		const measure = () =>
 			setOverflows(content.scrollHeight > COLLAPSED_BODY_HEIGHT);
 
@@ -49,11 +45,8 @@ export const CollapsibleBody = ({
 
 	const toggledAt = useRef(0);
 
-	// Toggling moves the button out from under the pointer, so the second click
-	// of a double-click on it lands on the body text that took its place — and
-	// that click's target is what the browser reports for the pair. Nothing in
-	// the event says the first click was the toggle; how recently the toggle
-	// ran is the only thing that does.
+	// Toggling moves the button, so a double-click's second click lands on the text.
+	// Only the toggle's recency tells the two apart.
 	const handleDoubleClick: React.MouseEventHandler<HTMLDivElement> = event => {
 		if (Date.now() - toggledAt.current < DOUBLE_CLICK_MS) return;
 
@@ -62,10 +55,7 @@ export const CollapsibleBody = ({
 
 	return (
 		<div data-testid={testId}>
-			{/* The double-click belongs to the content, so the toggle below is
-			    outside this element. The fade is inside it, which is what puts
-			    the gradient over the last lines of text rather than over the
-			    toggle. */}
+			{/* The double-click belongs to the content, so the toggle sits outside it. */}
 			<div
 				onDoubleClick={handleDoubleClick}
 				style={{

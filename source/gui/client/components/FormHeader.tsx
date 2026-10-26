@@ -4,15 +4,8 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {PANE_HEADER_INSET} from '../lib/pane-header.style';
 import {AsideHeaderSlot} from './Aside';
 
-// The row at the top of the panel on the right, whichever panel that is: a
-// ticket, a commit's diff, a lane's figures, a bulk selection. One band for all
-// four, so the ref and the buttons sit where the eye already learned they are,
-// on the line the board's switcher and the log's fields keep.
-//
-// Written inside its panel, drawn above the pane: the band it lands in is the
-// Aside's, outside the scrolling (see AsideHeaderSlot). That is what the log
-// does on the other side of the board, and it is why the scrollbar here belongs
-// to the body and stops at this row rather than running up beside it.
+// The header row of whichever panel is open on the right. Portalled into the
+// Aside's band above the scrolling pane (see AsideHeaderSlot).
 export const FormHeader = ({
 	children,
 	testId,

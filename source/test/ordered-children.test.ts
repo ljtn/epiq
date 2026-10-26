@@ -14,16 +14,8 @@ import {
 } from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
 
-// Placing a new ticket asks for its parent's children and ranks it after the
-// last of them. That answer is served from the index the board's derivation
-// already built, rather than scanning every node again — which is only right
-// where the index means the same thing as the scan.
-//
-// It does not always. The index is the *rendered* board: a filter narrows it,
-// and inside a replay batch it is deliberately out of date. Ranking against
-// either would put a ticket after the last visible sibling instead of the last
-// one, landing it in the middle of the lane — and once written, the rank is
-// what everyone else replays.
+// A new ticket ranks after its parent's last child via the index, but the index
+// is the rendered board: filtered or stale mid-batch, so ranking must not trust it there.
 
 const IDS = {
 	root: '01H00000000000000000000000',
@@ -101,9 +93,8 @@ describe('a parent’s children, as rank resolution asks for them', () => {
 		expect(getOrderedChildren(IDS.lane)).toHaveLength(3);
 	});
 
-	// The case the index cannot answer: it holds the one ticket the filter
-	// leaves on screen, and a rank taken from that would sit before the two it
-	// hid.
+	// The index holds only the filtered ticket; ranking from it would land
+	// before the two hidden ones.
 	it('are every one of them while a filter narrows the board', () => {
 		const patched = patchState({
 			filters: [{target: 'tag', operator: '=', value: 'bug'}],

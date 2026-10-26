@@ -16,9 +16,7 @@ import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {RepoEntry} from './board-repos.js';
 
-/**
- * All string references in event payloads are IDs unless otherwise noted.
- */
+/** All string references in event payloads are IDs unless otherwise noted. */
 
 export type MovePosition =
 	| {at: 'start'}
@@ -59,9 +57,7 @@ export type AppEventMap = {
 		result: NavNode<'TICKET'>;
 	};
 
-	/**
-	 * Custom field definition/value node.
-	 */
+	/** Custom field definition/value node. */
 	'add.field': {
 		payload: PayloadBase &
 			Position & {
@@ -86,28 +82,19 @@ export type AppEventMap = {
 		result: Tag;
 	};
 
-	/**
-	 * Hides a tag everywhere, keeping the id and every ticket reference. A
-	 * forward event: earlier tag events still replay unchanged.
-	 */
+	/** Hides a tag everywhere, keeping the id and every ticket reference. */
 	'tombstone.tag': {
 		payload: PayloadBase;
 		result: Tag;
 	};
 
-	/**
-	 * Undoes a `tombstone.tag`. Carries the name so replay never has to read
-	 * it back off earlier events.
-	 */
+	/** Undoes a `tombstone.tag`, carrying the name so replay needn't look back for it. */
 	'restore.tag': {
 		payload: PayloadBase & {name: string};
 		result: Tag;
 	};
 
-	/**
-	 * A goal in the project: a name tickets on any board can belong to, its
-	 * progress read off them.
-	 */
+	/** A goal tickets on any board can belong to. */
 	'create.goal': {
 		payload: PayloadBase & {name: string};
 		result: Goal;
@@ -129,31 +116,21 @@ export type AppEventMap = {
 		result: Contributor;
 	};
 
-	/**
-	 * Changes a contributor's display name. The registry is the only name
-	 * source, so this is how a rename reaches anybody else: nothing on disk
-	 * carries a name, and a log written before ZFZFW9D carries a stale one.
-	 */
+	/** Changes a contributor's display name; the registry is the only name source. */
 	'rename.contributor': {
 		payload: PayloadBase & {name: string};
 		result: Contributor;
 	};
 
-	/**
-	 * Clears a contributor's display name, keeping the id and its references.
-	 * A forward event: the log is never rewritten, so earlier events still carry
-	 * the name and replay unchanged.
-	 */
+	/** Clears a contributor's display name, keeping the id and its references. */
 	'tombstone.contributor': {
 		payload: PayloadBase;
 		result: Contributor;
 	};
 
 	/**
-	 * Undoes a `tombstone.contributor`, which is recoverable because the guard on
-	 * removal only sees the log this machine has pulled. Carries the name
-	 * explicitly: reading it back off earlier events would make replay depend on
-	 * which of them happen to be present.
+	 * Undoes a `tombstone.contributor`. Carries the name, so replay never depends
+	 * on which earlier events are present.
 	 */
 	'restore.contributor': {
 		payload: PayloadBase & {name: string};
@@ -266,10 +243,8 @@ export type AppEventMap = {
 	};
 
 	/**
-	 * References a content-addressed blob at `.epiq/media/<hash>.<ext>` in
-	 * the state branch worktree. The blob is written in the same commit as
-	 * this event; blobs are immutable and never deleted so peek/replay can
-	 * always render historical states.
+	 * References a blob at `.epiq/media/<hash>.<ext>`, committed with the event.
+	 * Blobs are never deleted, so time travel can render them.
 	 */
 	'add.issue.attachment': {
 		payload: PayloadBase & {
@@ -287,10 +262,7 @@ export type AppEventMap = {
 		};
 	};
 
-	/**
-	 * Removes the attachment reference from the issue. The underlying blob
-	 * stays on disk for time travel.
-	 */
+	/** Removes the attachment reference; the blob stays for time travel. */
 	'delete.issue.attachment': {
 		payload: PayloadBase & {
 			issue: string;
@@ -325,35 +297,23 @@ export type AppEventMap = {
 	};
 
 	/**
-	 * Binds a git author address to a contributor, so commits and board events
-	 * by one person read as one person.
-	 *
-	 * Names its target rather than taking the author, so somebody can link a
-	 * colleague who does not use epiq — without it their commits never resolve.
-	 * Two contributors claiming one address makes it contested and it resolves
-	 * to nobody; see `4NENX8W` for why that is preferred to refusing the second.
+	 * Binds a git author address to a contributor, who may be someone else.
+	 * An address two contributors claim resolves to nobody.
 	 */
 	'link.contributor.email': {
 		payload: {contributor: string; email: string};
 		result: EmailLink;
 	};
 
-	/**
-	 * Retracts a link. Forward-only, like every other removal here: the address
-	 * stops resolving and the line stays in the log.
-	 *
-	 * Allowed to the link's author and to the contributor it names, and to
-	 * nobody else — open removal would let one writer strip the whole board.
-	 */
+	/** Retracts a link; allowed only to its author and the contributor it names. */
 	'unlink.contributor.email': {
 		payload: {contributor: string; email: string};
 		result: EmailLink;
 	};
 
 	/**
-	 * Another repository whose commits count as this board's, named by URL; its
-	 * id is derived from that URL. Of a live repo, merges the fields it carries.
-	 * Fields it leaves out keep their value, or take the default on a new one.
+	 * Another repo whose commits count as this board's; its id derives from the URL.
+	 * On a live repo, merges the fields it carries.
 	 */
 	'connect.repo': {
 		payload: {
@@ -396,11 +356,7 @@ export type AppEventMap = {
 
 export type EventAction = keyof AppEventMap;
 
-/**
- * Runtime registry of every action this version understands. Events with
- * actions outside this list (written by a newer epiq) are skipped on load
- * instead of failing replay.
- */
+/** Every action this build understands; others (from a newer epiq) are skipped on load. */
 export const EVENT_ACTIONS = [
 	'init.workspace',
 	'add.workspace',
@@ -473,8 +429,6 @@ export type MaterializeResult<A extends EventAction> = MaterializeResultOf<
 	A
 >;
 
-// Re-exported so that board code reaches the core through this module alone,
-// like everything else it borrows from it. Who wrote an event is the log's
-// question, not the board's, so the answer is defined there.
+// Re-exported so board code reaches the core through this module alone.
 export type EventActor = Actor;
 export {actorOf};

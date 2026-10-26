@@ -2,14 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {failed, succeeded} from '../lib/model/result-types.js';
 import {emailLinkKey} from '../lib/model/email-link.js';
 
-/**
- * Where the command line goes after a setup answer lands.
- *
- * Setup is four commands, and its whole shape is that answering one opens the
- * next already typed. That broke once because the commands closed the line
- * themselves before the hook that chains them ran, so every step had to be
- * typed out again. The hook owns the mode now, and these hold it to that.
- */
+/** Where the command line goes after a setup answer: the next step, already typed. */
 
 // Setup writes to disk and asks the repository whether a board exists yet.
 // Neither is what is under test here.
@@ -24,9 +17,7 @@ vi.mock('../lib/config/user-config.js', () => ({
 			preferredEditor: '',
 		}),
 	),
-	// What the real one does with the config above: it refuses to resolve an
-	// actor with no name. `:config autosync` reads back what it wrote, and
-	// that read asks whether auto sync could actually run.
+	// As the real one does with this config: no name, no actor.
 	loadSettingsFromConfig: vi.fn(() => failed('User name not configured')),
 }));
 
@@ -145,9 +136,7 @@ describe('once setup is done', () => {
 			autoSync: false,
 		});
 
-		// The claiming step is answered by the board, not by a flag — so this is
-		// what "answered" looks like, whether it was the GUI or `:config emails`
-		// that wrote it.
+		// The claiming step is answered by the board's links, whoever wrote them.
 		patchState({
 			emailLinks: {
 				[emailLinkKey('jola@example.com', 'USER')]: {
@@ -182,9 +171,7 @@ describe('the commands leave the mode to the hook', () => {
 		expect(getState().mode).toBe(Mode.COMMAND_LINE);
 	});
 
-	// `:init` rebuilds the whole workspace state, mode included, so after it the
-	// mode is the board's. That is a reset, not a destination, and the sequence
-	// has a step left to ask for.
+	// `:init` resets the mode; setup still has a step left to ask.
 	it('carries on when the answer rebuilt the state under it', () => {
 		patchSettingsState({
 			userName: 'Jonatan',

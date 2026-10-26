@@ -1,17 +1,6 @@
 /**
  * `commit-msg` hook: refuse a commit whose subject starts with a broken ticket
- * ref, or that would point this checkout at a project other than the one the
- * state branch is.
- *
- * Linking a commit to a ticket is an exact `<REF> ` prefix match, so a ref one
- * character short matches nothing and says nothing — the ticket shows no
- * commits for ever. This is the only place that failure becomes visible.
- *
- * Fails open on every question it cannot answer: no project, no state worktree,
- * an unreadable log, a thrown anything. A commit must never be blocked because
- * the board was hard to read; it is blocked only when a ref-shaped token is
- * demonstrably wrong, or a staged project id demonstrably disagrees with the
- * branch.
+ * ref, or that stages a project file from another project. Fails open.
  */
 import fs from 'node:fs';
 import {getStateBranch} from '../git/git-constants.js';
@@ -60,11 +49,8 @@ const collectNodeIds = (): string[] => {
 	});
 };
 
-// A staged project file whose id is not the state branch's: the commit that
-// started JQS9XDR, refused where it is made. The branch's identity comes from
-// git, not from a worktree path derived off the checkout's own file — that
-// file is the one in question. Silent unless the file is staged and the
-// branch has an identity to disagree with.
+// A staged project file whose id is not the state branch's. The branch's
+// identity comes from git, not from the staged file.
 const refuseIdentityDrift = async (): Promise<void> => {
 	const repoRoot = resolveClosestEpiqProjectRoot(process.cwd());
 	if (isFail(repoRoot)) return;

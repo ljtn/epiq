@@ -37,10 +37,8 @@ beforeEach(() => {
 const idFor = (index: number) => `${PARENT}::line::${index}`;
 
 describe('the nodes a long read is navigated by', () => {
-	// By id rather than by content: a text node deliberately does not carry
-	// what it displays, because every node's `props.value` is swept into the
-	// command line's autocomplete corpus. The caller renders from its own list
-	// and uses these only to put the cursor somewhere.
+	// By id: text nodes don't carry their content, since every `props.value`
+	// feeds the autocomplete corpus.
 	it('are one per line, in the order the lines came in', () => {
 		attachLineNodes(PARENT, 3, idFor);
 
@@ -70,15 +68,7 @@ describe('the nodes a long read is navigated by', () => {
 		expect(nodeRepo.getNode(PARENT)).toBeDefined();
 	});
 
-	/**
-	 * Both halves used to be quadratic: creating derived the whole board per
-	 * node, and deleting copied the whole node map per node. Opening a
-	 * 4000-line diff cost 2.3s and leaving it 3.1s, which is a frozen TUI.
-	 *
-	 * The budget is deliberately loose — this is a guard against the quadratic
-	 * shape coming back, not a benchmark. The measured cost after the fix is
-	 * single-digit milliseconds; before it, 2000 lines took ~1.8s.
-	 */
+	/** A loose budget guarding against a quadratic build or teardown, not a benchmark. */
 	it('do not cost more than linear to build and tear down', () => {
 		const started = performance.now();
 		detachLineNodes(attachLineNodes(PARENT, 2000, idFor));

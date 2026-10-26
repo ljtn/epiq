@@ -5,15 +5,8 @@ import {
 } from '../lib/event/event-envelope.js';
 import {isFail} from '../lib/model/result-types.js';
 
-// `parsePersistedEnvelope` is the hand-written twin of
-// `PersistedEnvelopeSchema`: the schema stays as the place the shape is
-// written down, and the load path reads the two fields itself rather than
-// paying zod's loose-object copy of every payload on every event.
-//
-// So what has to hold is that the two agree. They are compared here on
-// acceptance, not on the message — a hand-written check has no reason to
-// reproduce zod's wording — plus the one behaviour the fast path adds: it
-// hands back the value it was given rather than a copy of it.
+// `parsePersistedEnvelope` must accept exactly what `PersistedEnvelopeSchema`
+// does (messages aside), and return its input rather than a copy.
 
 const accepts = (
 	parse: typeof parsePersistedEnvelope,
@@ -79,8 +72,7 @@ describe('parsePersistedEnvelope', () => {
 		});
 	}
 
-	// The reason it exists: the caller spreads the result and reads the payload
-	// off it, and a copy of every payload on every event was 20 % of a load.
+	// No copy: copying every payload is a large share of a load.
 	it('hands back the line itself rather than a copy of it', () => {
 		const line = {v: 1, id: ['A', null], 'add.issue': {id: 'X'}};
 
@@ -90,9 +82,8 @@ describe('parsePersistedEnvelope', () => {
 		expect(result.value).toBe(line);
 	});
 
-	// `JSON.parse` makes `__proto__` an ordinary own key, and the schema drops
-	// it. Kept, it would be a second key beside the action — so an event every
-	// build shipped so far applies, this one would refuse.
+	// `JSON.parse` makes `__proto__` an own key, which the schema drops; kept, it
+	// would refuse events every build applies.
 	it('drops an own __proto__ key, as the schema does', () => {
 		const line = JSON.parse(
 			'{"__proto__":{"x":1},"v":1,"id":["A",null],"add.issue":{"id":"X"}}',

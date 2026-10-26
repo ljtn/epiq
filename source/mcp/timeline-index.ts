@@ -1,18 +1,6 @@
-// The timeline's derived view of the log: every event as the entry a client
-// receives, in the order their effective times put them, each carrying the
-// board it belongs to.
-//
-// Built once per state of the log and held, because deriving it is O(the whole
-// history) and answering a window off it is O(the window). A board that twenty
-// people have worked on for five years is around half a million events; at that
-// size the derivation is most of a second and the answer is a hundredth of a
-// millisecond.
-//
-// Rebuilt rather than appended to. `toEffectiveUlidTimes` is a forward scan and
-// looks appendable, but the order comes from the causal forest — an event
-// synced from another actor lands wherever its `refId` puts it, which is
-// routinely in the middle. Appending would be wrong in exactly the case this
-// exists for.
+// The timeline's view of the log: every event as a client entry, in effective
+// time order, with its board. Held per log state and rebuilt, never appended:
+// a synced event can land mid-order.
 
 import {getEventTime, toEffectiveUlidTimes} from '../lib/event/date-utils.js';
 import {AppEvent, EventAction} from '../lib/board/board-events.model.js';
@@ -46,27 +34,16 @@ export type EventTimelineEntry = {
 	// The ticket the event happened to, where it happened to one. Null for
 	// board- and swimlane-level events, which belong to no ticket.
 	issue: string | null;
-	// The thing inside that ticket the event happened to, where it happened to
-	// one: today a comment, which is the only part of a ticket with an id of
-	// its own. Null everywhere else, including on the ticket's own events,
-	// where `issue` already names what happened.
+	// The comment the event happened to, or null.
 	target: string | null;
-	// The swimlane that ticket sits in once this event has happened, and the
-	// one it left where this event moved it out of another — a move, a close or
-	// a reopen. Null for an event under no ticket, and `laneBefore` null for one
-	// that left the ticket where it was. What lets a window place a ticket
-	// without the moves outside it.
+	// The ticket's lane after this event, and the one a move, close or reopen
+	// took it from; lets a window place a ticket without the moves outside it.
 	lane: string | null;
 	laneBefore: string | null;
 };
 
-// Where each node sat before the move an event describes, keyed by that event's
-// id — which is what separates "moved to another lane" from "reordered inside
-// the one it was in".
-//
-// Over the whole log and in causal order, the order loadMergedEvents already
-// returns: a move inside the window is only tellable apart from a reorder by
-// what came before it, which is routinely outside the window.
+// Each node's parent before an event's move, keyed by event id: tells a lane
+// change from a reorder. Over the whole log, since the context precedes the window.
 const buildPreviousParentIndex = (
 	events: AppEvent[],
 ): Map<string, string | undefined> => {
@@ -102,9 +79,7 @@ const tagOf = (event: AppEvent): string | undefined => {
 		: payload?.tag;
 };
 
-// Which ids are tickets, and what hangs off what: a payload's `id` names a node
-// of some kind, and nothing else in it says which kind. Built as the scan
-// proceeds, like filterEventsForBoard's.
+// Which ids are tickets, and what hangs off what, built as the scan proceeds.
 type IssueIndex = {
 	issueIds: Set<string>;
 	parentById: Map<string, string>;
@@ -126,10 +101,8 @@ const buildIssueIndex = (events: AppEvent[]): IssueIndex => {
 	return {issueIds, parentById};
 };
 
-// Which ticket an event is about. Comments and attachments name it as `issue`,
-// their own `id` being the comment's; anything else that happened under a
-// ticket — the ticket itself, or a field node hanging off it — is found by
-// walking up from the id the event carries.
+// Which ticket an event is about: `issue` for comments and attachments,
+// otherwise found by walking up from the event's id.
 const issueOf = (
 	event: AppEvent,
 	{issueIds, parentById}: IssueIndex,
@@ -151,18 +124,14 @@ const issueOf = (
 	return null;
 };
 
-// The events about a comment rather than about the ticket holding it. All
-// three carry the comment's id as their payload id — an add mints it, an edit
-// and a delete name the one they act on.
+// The events about a comment; each carries the comment's id as its payload id.
 const COMMENT_ACTIONS = new Set<EventAction>([
 	'add.issue.comment',
 	'edit.issue.comment',
 	'delete.issue.comment',
 ]);
 
-// What inside the ticket the event happened to. Read off the payload rather
-// than derived: the id is already there, and no other kind of event has a
-// target the reader could be sent to.
+// The comment inside the ticket the event happened to, read off the payload.
 const targetOf = (event: AppEvent): string | null => {
 	if (!COMMENT_ACTIONS.has(event.action)) return null;
 
@@ -171,9 +140,7 @@ const targetOf = (event: AppEvent): string | null => {
 	return payload?.id ?? null;
 };
 
-// The events that put a ticket in a swimlane. A close is a move to the closed
-// lane and a reopen a move back out of it, so both carry a `parent` like a move
-// does.
+// The events that put a ticket in a swimlane; close and reopen are moves too.
 const LANE_ACTIONS = new Set<EventAction>([
 	'add.issue',
 	'move.node',
@@ -183,10 +150,8 @@ const LANE_ACTIONS = new Set<EventAction>([
 
 type LanePlacement = Pick<EventTimelineEntry, 'lane' | 'laneBefore'>;
 
-// Where each ticket sits after each event, positionally, and where a lane
-// change took it from. Over the whole log in order, like the previous-parent
-// index: a ticket's lane at any event is set by whichever move came last,
-// which is routinely outside the window being asked for.
+// Each ticket's lane after each event, and where a lane change took it from.
+// Over the whole log, since the last move is often outside the window.
 const lanesForEvents = (
 	events: AppEvent[],
 	// Each event's ticket, positionally — resolved once by the caller, which
@@ -219,10 +184,8 @@ const lanesForEvents = (
 	});
 };
 
-// What a lane or board event is about, as it stood when the event was
-// written: its kind, and the name it had just before. Such an event has no
-// ticket for the line to sit under, so the line has to name it. Positional,
-// over the whole log, so a rename reads from the name it replaced.
+// A lane or board event's subject as it stood when written: its kind and its
+// previous name, tracked over the whole log so a rename reads from the old name.
 type Subject = {kind: 'board' | 'swimlane'; name: string | undefined};
 
 const subjectsForEvents = (events: AppEvent[]): (Subject | null)[] => {
@@ -248,11 +211,8 @@ const subjectsForEvents = (events: AppEvent[]): (Subject | null)[] => {
 	});
 };
 
-// The TUI's phrasing minus the details that need state. A renamed tag reads
-// under its original name, which is what the log itself says happened.
-// How much of a comment the timeline carries. A window can hold twenty
-// thousand events and every one of them is shipped to the browser, so the whole
-// body is not on offer — enough to recognise which comment it was.
+// How much of a comment the timeline ships: every event in a window goes to
+// the browser.
 const COMMENT_PREVIEW_CHARS = 90;
 
 // The first line of a comment, flattened. A body is markdown and often several
@@ -268,9 +228,8 @@ const commentPreview = (md: string): string => {
 const subjectOf = ({kind, name}: Subject): string =>
 	name === undefined ? kind : `${kind} "${name}"`;
 
-// A lane's or board's own line: the kind and the name first, since nothing
-// else on the line says what it was about. Null where the generic wording
-// already says enough — its creation names what it made.
+// A lane's or board's own line, naming kind and name first. Null where the
+// generic wording says enough.
 const describeSubjectEvent = (
 	event: AppEvent,
 	subject: Subject,
@@ -344,10 +303,8 @@ const describeTimelineEvent = (
 		return preview ? `${head}: ${preview}` : head;
 	}
 
-	// A move says which lane, and whether it changed lanes at all — "Moved
-	// issue" answers neither, and reordering within a lane is the commoner of
-	// the two. Falls back to the bare action where the lane has no create event
-	// in the log to take a name from.
+	// A move names its lane and whether it changed lanes; bare action when the
+	// lane has no create event to name it.
 	if (subject && !issue) {
 		const described = describeSubjectEvent(
 			event,
@@ -388,9 +345,7 @@ const describeTimelineEvent = (
 			? names.get(tag) ?? ''
 			: payload?.assignee !== undefined
 			? names.get(payload.assignee) ?? ''
-			: // The address a claim is about. Two claims on one address by two
-			// people is what a contested address looks like from the log, and
-			// without naming it every claim line reads identically.
+			: // The address a claim is about, so two claims on one address are visible.
 			payload?.email !== undefined
 			? payload.email
 			: payload?.name !== undefined
@@ -414,26 +369,15 @@ const identitiesFor = (
 	const payload = event.payload as {assignee?: string} | undefined;
 
 	return {
-		// Through the same name index the tag and the assignee go through. The
-		// name on a loaded event is not a name: it is parsed back out of the log
-		// file, which `sanitizeFilePart` lowercased and stripped, so an actor read
-		// straight off it turns up as `claude-adolph` beside the `claude/adolph`
-		// they are assigned under — in a different colour, since the colour is
-		// hashed from whichever spelling is in hand. The file's copy is the
-		// fallback and nothing more: an id the log has no `create.contributor`
-		// for, from a board written before renames were events.
+		// Resolved by id through the name index; the log file's sanitized name is
+		// only a fallback for actors the log never names.
 		actor: identityFor(event.userId, names),
 		tag: identityFor(tagOf(event), names),
 		assignee: identityFor(payload?.assignee, names),
 	};
 };
 
-// Which board each event belongs to, positionally. The id -> parent map is
-// built as the scan proceeds, so each event is attributed using the hierarchy
-// as it stood then.
-//
-// Resolved once here rather than per request: walking every event's parent
-// chain is O(the whole history), and a window needs it for its own events only.
+// Which board each event belongs to, using the hierarchy as it stood then.
 const boardsForEvents = (events: AppEvent[]): (string | null)[] => {
 	const parentById = new Map<string, string>();
 	const boardIds = new Set<string>();
@@ -463,15 +407,11 @@ const boardsForEvents = (events: AppEvent[]): (string | null)[] => {
 		// Before resolving, so a board's own add event is attributed to it.
 		if (event.action === 'add.board') boardIds.add(id);
 
-		// A close moves the ticket into the closed lane, which hangs off the
-		// Closed board — so read where it stood first, or the close belongs to
-		// the board nobody was looking at and the ticket's own board never sees
-		// it leave.
+		// A close moves the ticket under the Closed board, so read where it stood
+		// first, or its own board never sees it leave.
 		const closedFrom = event.action === 'close.issue' ? resolveBoard(id) : null;
 
-		// Comments and attachments hang off `issue`: their `id` is the comment's
-		// or attachment's own, so without this they resolve to no board at all
-		// and drop out of every board-scoped view.
+		// Comments and attachments hang off `issue`; their own `id` resolves to no board.
 		const parent = payload.parent ?? payload.issue;
 		if (parent) parentById.set(id, parent);
 
@@ -483,18 +423,9 @@ const boardsForEvents = (events: AppEvent[]): (string | null)[] => {
 	});
 };
 
-// Events with no board are dropped, as they always were.
 /**
- * Actions about the workspace — a person, a repo, a tag — rather than about
- * anything on one board.
- *
- * They resolve to no board, and the timeline's board narrowing drops anything
- * whose board is not the one asked for — so a claim, which decides who every
- * commit in the repository belongs to, appeared on no board at all. No board
- * means every board for these, not none.
- *
- * Deliberately not applied to `filterEventsForBoard`, which answers who has
- * worked on a board: a contributor event is not work on one.
+ * Actions about the workspace (a person, repo, tag), shown on every board.
+ * Not applied to `filterEventsForBoard`: a contributor event is no work on a board.
  */
 export const isWorkspaceAction = (action: string): boolean =>
 	WORKSPACE_ACTIONS.has(action);
@@ -531,14 +462,10 @@ export type TimelineEntry = EventTimelineEntry & {board: string | null};
 // Every event the log holds, in effective-time order.
 export const buildTimelineEntries = (
 	events: AppEvent[],
-	// Names a pre-ZFZFW9D log carries in its file names, for an actor the log's
-	// own naming events never covered. An event carries no name, so without
-	// this such an actor would read as their id on an old board.
+	// Names old `<id>.<name>.jsonl` file names carry, for actors the log never names.
 	fileNames: ReadonlyMap<string, string> = new Map(),
 ): TimelineEntry[] => {
-	// The log's own naming events win: a `create.contributor`, a rename or a
-	// tombstone is later truth than whatever a file name was called when it was
-	// made.
+	// The log's own naming events win over file names.
 	const names = new Map([...fileNames, ...projectLogNames(events).byId]);
 	const previousParents = buildPreviousParentIndex(events);
 	const issueIndex = buildIssueIndex(events);
@@ -588,9 +515,8 @@ export const buildTimelineEntries = (
 // the next change.
 type LaneChange = {t: number; lane: string; board: string | null};
 
-// One ticket's lane over time, in time order, with the two moments that
-// settle most questions without a search: when it first had a lane, and when
-// it was closed for good — null while it is open, or was reopened after.
+// One ticket's lane over time, with when it first had a lane and when it was
+// closed for good (null while open or reopened).
 export type LaneHistory = {
 	changes: readonly LaneChange[];
 	from: number;
@@ -652,11 +578,8 @@ const changeBefore = (
 	return changes[low - 1];
 };
 
-// The lane of every ticket open at a moment, by ticket id — what lets a window
-// draw the tickets that sat still through it. Closed tickets are left out: the
-// flow chart ends a line at its close, and a ticket closed before the window
-// has no line in it. Narrowed to a board where one is named, by the board the
-// ticket was on at that moment.
+// The lane of every ticket open at a moment, by id, so a window draws tickets
+// that sat still; narrowed to a named board by where each ticket was then.
 export const lanesOpenAt = (
 	index: LaneIndex,
 	t: number,
@@ -680,9 +603,8 @@ export const lanesOpenAt = (
 	return lanes;
 };
 
-// Every swimlane the log ever created, under its last known name — renamed
-// where it was renamed — so a lane the board has since deleted can still be
-// named on a chart drawn from its history.
+// Every swimlane the log ever created, under its last name, so deleted lanes
+// can still be named on a chart.
 export const buildLaneNames = (events: AppEvent[]): Record<string, string> =>
 	projectLogNames(events).lanes;
 
@@ -692,24 +614,17 @@ export type TimelineIndex = {
 	laneNames: Record<string, string>;
 };
 
-// Held for the life of the process, and only ever for one root: the GUI server
-// serves one project, and a second entry would be a second copy of a history
-// this large.
+// One root only, for the life of the process: the GUI server serves one project.
 let cache: {root: string; signature: string; index: TimelineIndex} | null =
 	null;
 
-// The whole log as timeline entries, with the lane index over them, rebuilt
-// only when the log has moved. The raw events are dropped on the way out —
-// they are three times the weight of what is derived from them, and nothing
-// downstream of here reads them.
+// The whole log as timeline entries plus lane index, rebuilt only when the log
+// moves. Raw events are dropped; nothing downstream reads them.
 export const getTimelineIndex = (
 	stateBranchRoot: string,
 ): Result<TimelineIndex> => {
-	// Read before the log, never after. Any file can gain lines from another
-	// machine between two reads, sync included: taken first, a write that lands
-	// in the gap is cached under the older signature and rebuilt on the next
-	// request. Taken afterwards, those same entries would be stored under the
-	// signature of a log they do not match, and nothing would ever rebuild them.
+	// Read before the log, never after: a write landing between is then rebuilt
+	// next time rather than cached under a signature it doesn't match.
 	const signature = logSignature(stateBranchRoot);
 
 	if (

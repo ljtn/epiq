@@ -1,10 +1,5 @@
 // The identity panel: who the board thinks you are, which git addresses are
-// yours, and the states nothing else on the board reports.
-//
-// It matters more than its size suggests. Nothing links an address on its own
-// any more, so this panel and `:config emails` are the only two ways a commit
-// ever comes to carry a board name — and it is the only surface that names a
-// contested address at all.
+// yours, and the states nothing else reports.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,9 +8,7 @@ import {expect, readHandoff, test} from './fixtures.js';
 import {addTicket} from './ticket.js';
 import {commitLinkedFile, linkedFileName} from './linked-commit.js';
 
-// Whoever the seeded TUI configured, and the address `commitLinkedFile` signs
-// its commits with. Neither resembles the other, which is the point: the panel
-// has to offer an address that matches nothing the viewer is called.
+// The seeded user and `commitLinkedFile`'s address, deliberately unalike.
 const BOARD_NAME = 'claude/tester';
 // What the panel draws: a board name is shown from its last slash, so the two
 // `claude/...` sessions on a board are told apart without the prefix repeating.
@@ -99,18 +92,14 @@ test('the avatar opens settings, names who you are, and Escape closes it', async
 	expect(pageErrors).toEqual([]);
 });
 
-// The panel is its own root, not a descendant of the avatar that opens it, so
-// a click inside it has to be told apart from one outside. Without that it
-// closed the moment anybody used it.
+// The panel is its own root, not inside the avatar, so inside clicks must be told apart.
 test('a click inside the panel does not dismiss it', async ({
 	page,
 	pageErrors,
 }) => {
 	const panel = await openPanel(page);
 
-	// The figures, because they are inside the panel and do nothing when
-	// clicked: a button would prove the click landed but not that the panel
-	// survived it.
+	// The inert figures, so the click lands but triggers nothing.
 	await panel.getByTestId('identity-stats').click();
 	await expect(panel).toBeVisible();
 
@@ -140,14 +129,8 @@ test('the panel stays put as the follow notice comes and goes', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// It draws every address in the history on purpose, so on any real repository
-// the list is taller than the window. Without a cap it ran off the bottom: the
-// panel's own edge went over the fold and the rows below it were unreachable.
-//
-// The seeded history holds too few addresses to overflow anything, so this
-// pins the structure that makes overflow survivable rather than an overflowing
-// list: the panel stays inside the window, the addresses sit in a region that
-// scrolls, and the panel's title sits outside it.
+// The panel stays in the window, the addresses scroll, the title sits outside
+// them. The seed has too few addresses to overflow, so this pins the structure.
 test('the addresses scroll inside a panel that stays in the window', async ({
 	page,
 	pageErrors,
@@ -191,14 +174,8 @@ test('the addresses scroll inside a panel that stays in the window', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The two settings that were the TUI's alone.
-//
-// The config is restored through the filesystem rather than the panel, as
-// `follow-arrival.pw.ts` does. A worker runs several files over its life and
-// they all share this one `config.json`, so the restore has to be one that
-// cannot quietly decline: putting a sub-floor value back through the field
-// would be refused by the field, and the 37s written here would leak into
-// every later file on the worker.
+// Config is restored via the filesystem: the worker shares one `config.json`,
+// and the field refuses a sub-floor value.
 test('auto sync and its interval are editable, and survive a reload', async ({
 	page,
 	pageErrors,
@@ -218,9 +195,7 @@ test('auto sync and its interval are editable, and survive a reload', async ({
 		await interval.fill('37');
 		await interval.press('Enter');
 
-		// Reopening is what proves the server took it: the panel asks again on
-		// open, and frames on one socket are answered in order, so that reply
-		// cannot overtake the write. Reloading straight away would race it.
+		// Reopening asks again on the same socket, answered after the write.
 		await page.keyboard.press('Escape');
 		await openPanel(page);
 		await expandSync(page);
@@ -233,9 +208,7 @@ test('auto sync and its interval are editable, and survive a reload', async ({
 		await expandSync(page);
 		await expect(page.getByTestId('autosync-interval')).toHaveValue('37');
 
-		// The floor, refused in the field rather than after a round trip, and
-		// the field falls back to what is configured rather than keeping a
-		// value nothing accepted.
+		// The floor is refused in the field, which falls back to the configured value.
 		const reopened = page.getByTestId('autosync-interval');
 		await reopened.fill('1');
 		await expect(page.getByTestId('settings-panel')).toContainText(
@@ -266,10 +239,7 @@ test('auto sync and its interval are editable, and survive a reload', async ({
 	}
 });
 
-// A stored value below the floor is a state the loops keep on purpose, and
-// the suites write one. The panel has to draw it without calling it an error:
-// flagging it on sight opened with a red message against a number nobody
-// typed, and `commit` wrote the same number back, so it could not be cleared.
+// A stored sub-floor interval is legitimate, so it shows without an error.
 test('a configured interval under the floor is shown, not flagged', async ({
 	page,
 	pageErrors,
@@ -311,13 +281,7 @@ test('a configured interval under the floor is shown, not flagged', async ({
 	}
 });
 
-// Four figures about the person reading, not about a ticket or a lane.
-//
-// Measured as a difference rather than against a number. The seeded board
-// carries whatever the seed and the files before this one left on it, so the
-// only honest assertion is that filing a ticket moves the figure that counts
-// tickets — which is also the one that proves the row is counting rather than
-// drawing whatever it was handed.
+// Measured as a difference: the shared board carries earlier files' tickets.
 const ticketsOpened = async (page: Page): Promise<number> => {
 	const figure = page.getByTestId('identity-stat-tickets-value');
 
@@ -370,9 +334,7 @@ test('claiming an address makes its commits read as you, and unlinking undoes it
 	let panel = await openPanel(page);
 	await expandAddresses(page);
 
-	// The address matches nothing the viewer is called, so it sits behind the
-	// disclosure rather than among the likely ones — which is the case somebody
-	// with an old job's address actually meets.
+	// The address matches nothing the viewer is called, so it sits behind the disclosure.
 	const more = panel.getByRole('button', {name: /more address/});
 	if (await more.count()) await more.click();
 

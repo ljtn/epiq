@@ -1,13 +1,6 @@
-// Ten years of a twenty-person board, replayed through the real loader and the
-// real materializer, then served so it can be used rather than only measured.
-//
-// Opt-in at full size; CI runs `npm run stress:ci`, smaller and against budgets.
-//
-//   npm run stress                      # in a container, the default
-//   npx tsx source/test/stress/run.ts  # on this machine, if you insist
-//
-// Env: STRESS_EVENTS, STRESS_ACTORS, STRESS_YEARS, STRESS_GOALS, STRESS_COMMITS, STRESS_SERVE, STRESS_DIR,
-// STRESS_CHECK (fail over the budgets below; what CI runs).
+// Ten years of a twenty-person board, replayed and served. `npm run stress`
+// (CI: `stress:ci`). Env: STRESS_EVENTS, STRESS_ACTORS, STRESS_YEARS,
+// STRESS_GOALS, STRESS_COMMITS, STRESS_SERVE, STRESS_DIR, STRESS_CHECK.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -15,9 +8,7 @@ import path from 'node:path';
 import {execSync} from 'node:child_process';
 import {generateLog} from './generate-log.js';
 
-// Empty is unset, not zero: the container passes every variable through
-// whether or not it was given one, so `?? fallback` sees '' and Number('') is
-// 0 — which ran the whole thing over an empty board and reported it happily.
+// Empty is unset, not zero: the container passes every variable through.
 const number = (name: string, fallback: number) => {
 	const raw = process.env[name];
 	const parsed = raw ? Number(raw) : Number.NaN;
@@ -33,19 +24,13 @@ const EVENTS = number('STRESS_EVENTS', ACTORS * YEARS * 12 * 400);
 const SERVE = process.env['STRESS_SERVE'] !== 'false';
 const CHECK = process.env['STRESS_CHECK'] === 'true';
 
-// About 8x what a GitHub runner takes at CI's 400k events (0.25 s and 35 ms),
-// which is still under what a cost growing faster than the log costs there:
-// a quadratic read took 3 s on an M3, more on a runner.
+// About 8x a CI runner's time at 400k events, still under a quadratic cost.
 const BUDGET_READ_MS = 2000;
 const BUDGET_TIMELINE_WARM_MS = 300;
 // The board panel walks every ticket's log once, on opening.
 const BUDGET_BOARD_OVERVIEW_MS = 1000;
-// A goal's Stats and Code tabs read every commit of every ticket in it: the
-// biggest goal, against STRESS_COMMITS commits on its tickets. The history is
-// read once first, under its own budget: that read is git's, about 0.7 s for
-// CI's 50,000 on an M3 and twice that on a loaded runner, and counted inside a
-// tab it made the tab's budget flaky. What is left is the tabs' own work,
-// 0.4 s here; a read per ticket or a git spawn per 200 bodies took 3.5.
+// A goal's Stats and Code tabs over STRESS_COMMITS commits. The git history
+// read is timed separately, so it can't make the tabs' budget flaky.
 const COMMITS = number('STRESS_COMMITS', 5000);
 const BUDGET_COMMIT_HISTORY_MS = 5000;
 const BUDGET_GOAL_TAB_MS = 2000;
@@ -54,9 +39,8 @@ const ROOT =
 	process.env['STRESS_DIR'] ??
 	fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-stress-'));
 
-// The checkout, remembered before anything changes directory into the scratch
-// project: the GUI server resolves its assets against the working directory,
-// so serving from inside the project would look for dist/gui in there.
+// The checkout, kept before changing into the scratch project: the GUI
+// server resolves assets against the cwd.
 const CHECKOUT = process.cwd();
 
 const REPO = path.join(ROOT, 'repo');
@@ -138,10 +122,8 @@ materializeAll(defaults.value ?? []);
 const init = await initCommand();
 if (init.status === 'fail') throw new Error(`init: ${init.message}`);
 
-// What the GUI and the MCP server both do before replaying anything: nothing
-// they send reads a ticket's virtual fields, and building them is most of the
-// cost of a replay. Left on, this measures a path neither of them takes — the
-// TUI's. STRESS_VIRTUAL=on measures that one instead.
+// As the GUI and MCP do: skip virtual fields (STRESS_VIRTUAL=on for the TUI's
+// path).
 const {setVirtualNodesEnabled} = await import(
 	'../../lib/virtual-nodes/virtual-nodes.js'
 );
@@ -233,9 +215,7 @@ const materialized = await step('replay it (materializeAll)', () =>
 	materializeAll(loaded),
 );
 
-// The number that decides whether any of this counts. An event the replay
-// skipped never became board state, so a run that reports a fast timeline over
-// a log it could not apply has measured nothing.
+// Skipped events never became state, so a run with any measured nothing.
 const {fatal, skipped} = partitionMaterializeResults(materialized ?? []);
 
 console.log(
@@ -303,12 +283,8 @@ console.log(
 		`${perRequest.toFixed(1).padStart(6)} ms`,
 );
 
-// The flow layout, which is the client's own derivation over a reply: a line
-// per ticket open in the window, stacked into strands. Timed over a year,
-// where the reply still names its events, and over the month a drag steps
-// through — the pure builder the GUI runs, on the same replies it would get.
-// By a path the root typecheck does not follow: the client tree resolves its
-// imports the browser bundle's way, not this tsconfig's. tsx runs it fine.
+// The client's flow layout over a year and a month of replies. Imported by a
+// path the root typecheck skips; tsx runs it.
 const FLOW_MODULE: string = '../../gui/client/lib/scrubber/flow.js';
 const {buildFlowChart} = (await import(FLOW_MODULE)) as {
 	buildFlowChart: (
@@ -456,10 +432,8 @@ const steadyAt = performance.now();
 ok(await api.getGuiState({repoRoot: REPO}));
 const steady = performance.now() - steadyAt;
 
-// The first write is the fixture's cost, not a user's: the generator wrote the
-// log outside boot's knowledge, so that boot has to read it once however fast
-// the code is. The second is the one a person would feel — a board this
-// process has already derived, edited again.
+// The first write pays to read the generated log; the second is what a user
+// would feel.
 const secondAt = performance.now();
 ok(
 	await api.createIssue({
@@ -519,10 +493,8 @@ if (CHECK) {
 
 if (!SERVE) process.exit(0);
 
-// Back to the checkout before the import, not after: the server resolves its
-// asset root once, in a top-level const, as the module is evaluated. Changing
-// directory afterwards leaves it looking for dist/gui inside the scratch
-// project, where it answers every request with a 404.
+// Back to the checkout before the import: the server fixes its asset root at
+// module evaluation.
 process.chdir(CHECKOUT);
 
 const {startGuiServer} = await import('../../gui/api/api-server.js');

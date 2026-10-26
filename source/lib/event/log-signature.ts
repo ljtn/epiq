@@ -1,33 +1,13 @@
-// Whether the log has moved.
-//
-// Deriving anything from the log — the state, a timeline — costs a pass over
-// all of it, and between two reads it has usually not changed at all. This is
-// what lets a reader answer "is what I built still true?" without reading the
-// log to find out.
-//
-// Every actor writes its own file, so it covers the directory rather than one
-// file: a teammate's events arriving is their file growing, or appearing for the
-// first time, and either moves the signature. Append-only means a size that has
-// not moved is content that has not moved; mtime catches a file a sync replaced
-// wholesale rather than appended to.
-//
-// Read it BEFORE the log, never after. Any file can gain lines from another
-// machine between two reads, sync included: taken first, a write landing in the
-// gap is cached under the older signature and rebuilt on the next request.
-// Taken afterwards, that write would be stored under the signature of a log it
-// does not match, and nothing would ever rebuild it.
+// Whether the log has moved: sizes and mtimes of every actor's file.
+// Read it BEFORE the log, so a write landing in between is rebuilt next time.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import {getEventsDirPath} from '../storage/paths.js';
 
 /**
- * A file listed a moment ago and gone now. Nothing holds the events directory
- * still between a listing and the reads that follow it: a sync in another
- * process renames a pending log twice and deletes it, and git rewrites a
- * tracked log while it rebases. So a scan that meets one of these lists again
- * rather than failing — and, having listed a few times, treats what is still
- * gone as absent, which the next read will find out about for itself.
+ * A file listed a moment ago and gone now, as a sync renames pending logs.
+ * Scans relist a few times, then treat it as absent.
  */
 export const isVanished = (error: unknown): boolean =>
 	(error as NodeJS.ErrnoException | null)?.code === 'ENOENT';
@@ -66,18 +46,8 @@ export const logSignature = (stateBranchRoot: string): string => {
 	}
 };
 
-// The signature that follows an append this process made itself, or null when
-// anything else moved.
-//
-// A write is the one change a process does not have to discover: it wrote the
-// line, and — since materializing comes before persisting — it had already
-// applied the event when the file grew. So the new signature can be adopted
-// rather than paid for with a re-read of the whole log.
-//
-// Only when this actor's file is the one that moved. Another log growing,
-// appearing or vanishing means someone else's events arrived, which this
-// process has *not* applied, and adopting a signature that covers them would
-// leave it certain of a state it never derived.
+// The signature after this process's own append, or null when anything else
+// moved: only our own write is already applied.
 const entries = (signature: string): Map<string, string> =>
 	new Map(
 		signature
@@ -100,9 +70,7 @@ export const signatureAfterOwnAppend = (
 	const next = logSignature(stateBranchRoot);
 	const after = entries(next);
 
-	// The same actor's file is written by every process it runs: the TUI, the
-	// GUI and an agent's MCP alike. Grown by more than this append, it holds a
-	// line this process never applied.
+	// Every process of this actor writes this file; grown by more than this append, it holds unapplied lines.
 	const sizeOf = (entry: string | undefined) =>
 		entry === undefined ? 0 : Number(entry.slice(0, entry.indexOf(':')));
 	if (sizeOf(after.get(fileName)) !== sizeOf(before.get(fileName)) + bytes) {
@@ -122,9 +90,7 @@ export const signatureAfterOwnAppend = (
 	return next;
 };
 
-// What this process has both read and applied. Boot sets it once it has
-// derived the state; a write advances it, because it already applied what it
-// wrote. Anything else moving leaves it alone, and the next read derives.
+// What this process has read and applied: set at boot, advanced by its own writes.
 let accounted: {root: string; signature: string} | null = null;
 
 export const accountedSignature = (stateBranchRoot: string): string | null =>

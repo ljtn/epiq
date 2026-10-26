@@ -6,9 +6,7 @@ import {expect, test} from './fixtures.js';
 import {trackWithWindow} from './track.js';
 import {openBoard, returnToLive} from './live-board.js';
 
-// The log draws the commits the chart plots. A test reading the seeded
-// repository's own commits — none of which name a ticket — asks for the
-// repository itself rather than leaning on the opening choice.
+// The seeded commits name no ticket, so show the whole repository's.
 const showEveryCommit = async (page: Page) => {
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'All', exact: true}).click();
@@ -37,9 +35,7 @@ test('the log fills beside the board as the movie plays', async ({
 	await page.getByTestId('theatre-play').click();
 	await expect(page.getByTestId('theatre-player')).toBeVisible();
 
-	// Lines arrive as the movie plays. How many the panel holds at most is
-	// event-log.test.ts's job — a bound asserted here would only be a bound on
-	// the seeded window, which is smaller than the cap and so proves nothing.
+	// The panel's cap is event-log.test.ts's job.
 	const lines = page.getByTestId('log-line');
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(1);
 
@@ -47,19 +43,14 @@ test('the log fills beside the board as the movie plays', async ({
 	// than repeated on every line.
 	await expect(page.getByTestId('log-day').first()).toBeVisible();
 
-	// Every line is marked with its kind, commits included. The dot is a
-	// pseudo-element rather than a node of its own — the panel holds hundreds of
-	// these — so what is asserted is the colour each row hands it.
-	// Evaluated as a string, like the other DOM reads in this suite: these files
-	// are type-checked against the Node libs, which have no `HTMLElement`.
+	// Each row hands its kind's colour to a pseudo-element dot. Evaluated as a
+	// string: these files typecheck without the DOM lib.
 	const dotColours = (await page.evaluate(
 		`[...document.querySelectorAll('[data-testid="log-line"]')]` +
 			`.map(row => row.style.getPropertyValue('--epiq-log-dot').trim())`,
 	)) as string[];
 
-	// Against the rows that one read saw, not a count fetched separately: the
-	// movie is still running, and a line arriving between the two reads made
-	// this fail for saying nothing about the panel.
+	// Against the rows that one read saw: the movie is still adding lines.
 	expect(dotColours.length).toBeGreaterThan(0);
 	expect(dotColours.every(colour => colour.length > 0)).toBe(true);
 
@@ -120,9 +111,7 @@ test('the log stays on the board after the player leaves', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The log is drawn from the scrubber's window, which is fetched when the window
-// moves — not when the board changes. Without the log asking for it too, a
-// swimlane made while the panel is open never reaches the panel listing it.
+// The log must refetch when the board changes, not only when the window moves.
 test('the log picks up what happens on the board while it is open', async ({
 	page,
 	appUrl,
@@ -145,10 +134,7 @@ test('the log picks up what happens on the board while it is open', async ({
 
 	await expect(page.getByText(name, {exact: true}).first()).toBeVisible();
 
-	// Its line arrives without the window being touched. Asserted by what the
-	// line says rather than by the count going up: the log is capped, and on a
-	// board that has already filled it a new line pushes the oldest off the top
-	// instead of adding to the tally.
+	// By the line's text, not the count: a full log drops its oldest line.
 	await expect(page.getByTestId('event-log')).toContainText(name);
 
 	await box.click();
@@ -233,9 +219,7 @@ test('the log obeys the bar\u2019s own filters', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The row carries where it goes and one handler on the pane reads it back, so
-// what the unit tests cannot cover is exactly this: that a click on a line
-// lands on the view the line named.
+// A click on a line lands on the view it names.
 test('a line goes to where the thing it names is read', async ({
 	page,
 	appUrl,
@@ -244,9 +228,7 @@ test('a line goes to where the thing it names is read', async ({
 	await openBoard(page, appUrl);
 	const boardUrl = page.url();
 
-	// The seeded board is a bare project — its log is the two setup commits and
-	// the board and swimlanes, none of which happened to a ticket. So the line
-	// worth following has to be made here.
+	// The seeded log has no ticket events, so make one.
 	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('ticket name').fill(`Followed ${Date.now()}`);
 	await page.getByPlaceholder('ticket name').press('Enter');
@@ -263,9 +245,7 @@ test('a line goes to where the thing it names is read', async ({
 
 	await expect(page).toHaveURL(/\/issue\/[A-Z0-9]{7}\?tab=overview/);
 
-	// Board- and swimlane-level events happened to no ticket, and the setup
-	// commits link to none either. They carry no destination at all, which is
-	// what makes them inert without a second check.
+	// Board, lane and setup-commit lines carry no destination, so are inert.
 	await page.goto(boardUrl);
 	const inert = page.locator(
 		'[data-testid="log-line"]:not([data-log-issue]):not([data-log-sha])',
@@ -308,9 +288,7 @@ test('a line that leads somewhere says so under the pointer', async ({
 	await linking.hover();
 	await expect(arrow).toHaveCSS('opacity', '1');
 
-	// A layer of its own, or its opaque ground paints under the very text it is
-	// there to cut off: every row is positioned too, and they all come after
-	// the chip in the pane. jola saw a long title running across the word.
+	// Its own layer, or its opaque ground paints under the text it cuts off.
 	await expect(arrow).toHaveCSS('z-index', '1');
 
 	// On the hovered row, not merely somewhere in the panel: one arrow serves
@@ -341,10 +319,7 @@ test('a line that leads somewhere says so under the pointer', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Reading back through the log is reading the moment the board stands at.
-// Moving the timeline changes that moment, so the pane goes to the foot — a
-// scrub that shortened the log by hundreds of lines used to leave it scrolled
-// to where they had been, showing nothing.
+// Moving the timeline takes the log to its foot.
 test('moving the timeline takes the log to its foot, wherever it was', async ({
 	page,
 	appUrl,
@@ -389,15 +364,13 @@ test('moving the timeline takes the log to its foot, wherever it was', async ({
 	// overflow is at its foot whatever happens, and would prove nothing.
 	await expect.poll(async () => (await scrolled()).overflow).toBeGreaterThan(0);
 
-	// Read back to the top, which is the position a scrub used to keep.
+	// Read back to the top.
 	await page.evaluate(
 		`document.querySelector('[data-testid="event-log-scroll"]').scrollTop = 0`,
 	);
 	await expect.poll(async () => (await scrolled()).top).toBe(0);
 
-	// Into the past, but only just: the board stands at an earlier moment while
-	// the log stays longer than the pane. A scrub that shortened it to fit would
-	// leave the pane at its foot with nothing to prove — so that is asserted.
+	// Only just into the past, so the log still overflows the pane (asserted).
 	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
@@ -426,11 +399,8 @@ test('moving the timeline takes the log to its foot, wherever it was', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The hover arrow is positioned inside the scroll pane, and a positioned child
-// holds the pane's overflow open wherever it is left. Hovered onto a row deep
-// in a tall log and then orphaned by a movie emptying the column, it used to
-// leave the foot snap scrolled into a stretch of nothing until the log grew
-// back down to it.
+// The hover arrow is positioned in the scroll pane; orphaned deep in a log that
+// empties, it must not hold the pane's overflow open.
 test('an arrow left below the fold does not hold the pane open when the log empties', async ({
 	page,
 	appUrl,
@@ -470,9 +440,7 @@ test('an arrow left below the fold does not hold the pane open when the log empt
 	await expect(page.getByTestId('log-row-arrow')).toHaveCSS('opacity', '1');
 	await page.mouse.move(900, 300);
 
-	// A movie opens on the board before any of its events, with an empty log.
-	// The pane has nothing to overflow with then — unless the arrow is holding
-	// it open from where the last row used to be.
+	// A movie opens with an empty log, so only the arrow could overflow the pane.
 	await page.getByTestId('theatre-play').click();
 	await expect(page.getByTestId('theatre-player')).toBeVisible();
 	await page.getByTestId('theatre-toggle').click();
@@ -500,9 +468,7 @@ test('the log is dragged to size, and keeps its width', async ({
 
 	const log = page.getByTestId('event-log');
 	await expect(log).toBeVisible();
-	// The pane arrives on the board rather than appearing on it, and its edge
-	// is what this grabs: measured mid-arrival, the handle is at a place it has
-	// already left by the time the pointer gets there.
+	// Wait for the pane to settle, or its edge moves before the pointer arrives.
 	await expect(log).toHaveAttribute('data-settled', 'true');
 	const before = (await log.boundingBox())!;
 
@@ -533,9 +499,7 @@ test('the log is dragged to size, and keeps its width', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Dragged narrow, the five boxes used to run under the buttons at the far end
-// and off the pane with them. They fold into one control instead — the same
-// boxes, still reaching the rows.
+// Dragged narrow, the field boxes fold into one control.
 test('the field boxes fold into a menu when the pane is too narrow', async ({
 	page,
 	appUrl,
@@ -602,9 +566,7 @@ test('the field boxes fold into a menu when the pane is too narrow', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Each line is its clock, who did it, the dot for its kind, and the line
-// itself. The header at the top of the panel takes any of them away, all four
-// are on until then, and the choice outlives the page.
+// The header toggles clock, actor, dot and line; the choice persists.
 test('the header chooses what each line shows, and keeps the choice', async ({
 	page,
 	appUrl,
@@ -624,10 +586,8 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 		await expect(header.getByLabel(field, {exact: true})).toBeChecked();
 	}
 
-	// The boxes are in the order a row draws what they control, so the one you
-	// reach for is the column you meant. The clock, the dot and the name are
-	// placed by the stylesheet, so their order is measured rather than
-	// declared; the stat and the label follow in the row's own content order.
+	// The boxes follow a row's drawing order, which for clock, dot and name is set
+	// by the stylesheet and so measured.
 	const boxes = await header.locator('label').allInnerTexts();
 	const placed = (await page.evaluate(
 		`(() => {
@@ -662,10 +622,8 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	expect(await pseudoDisplay('::before')).not.toBe('none');
 	expect(await pseudoDisplay('::after')).not.toBe('none');
 
-	// The names are a column, as wide as the widest of them: every span is
-	// that width, whatever its own name's length. (The seeded names happen to
-	// be equally long, so the column's width is checked against the pane's own
-	// figure rather than between spans; which name sets it is unit-tested.)
+	// Names form a column as wide as the widest; the seeded names are equal, so it
+	// is checked against the pane's own figure.
 	const actorColumn = (await page.evaluate(
 		`(() => {
 			const spans = [...document.querySelectorAll('.epiq-log-actor')];
@@ -681,9 +639,7 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	expect(actorColumn.widths.length).toBeGreaterThan(1);
 	expect(actorColumn.cut).toBe(false);
 
-	// The seed's board events are signed claude/tester, which the log draws
-	// without its provider; the full name is kept in the title. The commits'
-	// author is a person and stays as written.
+	// An agent's name drops its provider (full name in the title); people's stay as written.
 	const agent = page.locator('.epiq-log-actor', {hasText: 'tester'}).first();
 	await expect(agent).toHaveText('/tester');
 	await expect(agent).toHaveAttribute('title', 'claude/tester');
@@ -693,9 +649,7 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	expect(actorColumn.chars).toContain(`${actorColumn.widest}ch`);
 	expect(new Set(actorColumn.widths).size).toBe(1);
 
-	// A commit's line carries what it did to the code; the seeded log opens
-	// with the setup commits, one of which added files. The stat is not a
-	// column: it pushes that row's label along and no other row's.
+	// A commit's diff stat pushes only its own row's label along.
 	const diff = page.locator('.epiq-log-diff').first();
 	await expect(diff).toBeVisible();
 	await expect(diff).toContainText('+');
@@ -752,9 +706,7 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Split, the panel stops being one interleaved column and becomes a lane per
-// actor: a line keeps its place in time and moves sideways into its own
-// actor's lane, which the heading above it names.
+// Split, each actor gets a lane, lines keeping their place in time.
 test('the header splits the log into a lane per actor', async ({
 	page,
 	appUrl,
@@ -774,9 +726,7 @@ test('the header splits the log into a lane per actor', async ({
 	await header.getByLabel('Split', {exact: true}).click();
 	await expect(heads).toBeVisible();
 
-	// The name column folds to nothing — the lane says who — and its box stands
-	// down rather than claiming to show a column that is not there. The names
-	// stay in the page for a reader who cannot see the lanes.
+	// The name column folds away and its box is disabled; names stay in the page.
 	await expect(header.getByLabel('Actor', {exact: true})).toBeDisabled();
 	await expect(page.locator('.epiq-log-actor').first()).toHaveText(/\S/);
 	expect(
@@ -786,9 +736,7 @@ test('the header splits the log into a lane per actor', async ({
 		),
 	).toBe('0px');
 
-	// Who signed each line and where the line was put, in one read: the board is
-	// live, so a name taken before the click and an inset taken after it would
-	// be two different columns paired by position.
+	// Names and insets in one read: the board is live.
 	const placed = (await page.evaluate(
 		`(() => {
 			const lanes = [...document.querySelectorAll('[data-testid="log-lane-heads"] > span')]
@@ -847,9 +795,7 @@ test('the header splits the log into a lane per actor', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The log goes into a window of its own and the panel leaves the board; the
-// window is fed by the board and hands its clicks back; closing it brings the
-// panel back.
+// Popped out, the log is fed by the board and hands clicks back; closing restores the panel.
 test('the log pops out into its own window, and comes back when it closes', async ({
 	page,
 	appUrl,
@@ -913,9 +859,7 @@ test('the log pops out into its own window, and comes back when it closes', asyn
 	expect(pageErrors).toEqual([]);
 });
 
-// WKK7PS0. The tab was as far as a comment line went: on a ticket with a
-// dozen comments the reader arrived among them and still had to find the one
-// the line was about.
+// A comment line lands on the comment itself, not just the tab.
 test('a comment line leads to the comment, not just its tab', async ({
 	page,
 	appUrl,
@@ -928,13 +872,8 @@ test('a comment line leads to the comment, not just its tab', async ({
 	await page.getByPlaceholder('ticket name').fill(`Commented ${Date.now()}`);
 	await page.getByPlaceholder('ticket name').press('Enter');
 
-	// Two of them, so landing on one is a different outcome from landing on
-	// the tab: with a single comment the tab and the comment are the same
-	// place, and the test would pass without the anchor.
-	//
-	// Stamped, because the log they are looked for in is the whole board's and
-	// this worker's repo is shared with every other spec file that ran before
-	// this one — `comments.pw.ts` and `insert-image.pw.ts` both write some.
+	// Two comments, so landing on one differs from landing on the tab. Stamped:
+	// the worker's repo holds other specs' comments.
 	await page.getByRole('button', {name: /^Comments/}).click();
 	const stamp = Date.now();
 	const older = `older ${stamp}`;
@@ -949,11 +888,7 @@ test('a comment line leads to the comment, not just its tab', async ({
 	await page.getByTestId('log-toggle').click();
 	await expect(page.getByTestId('event-log')).toBeVisible();
 
-	// This ticket's two comment lines, found by what they say rather than by
-	// counting the log: a comment's line is labelled `Commented: <the comment>`,
-	// and every other spec's comments are in here too. Counting them all was
-	// the same assertion only while this file happened to run first on its
-	// worker, which is a coin toss (YAXMFDF).
+	// Found by text: other specs' comment lines are in this log too.
 	const commentLines = page.locator('[data-log-tab="comments"]');
 	const olderLine = commentLines.filter({hasText: older});
 
@@ -967,9 +902,7 @@ test('a comment line leads to the comment, not just its tab', async ({
 	// Named in the URL, so the reader can hand the link on and come back to it.
 	await expect(page).toHaveURL(new RegExp(`comment=${commentId}`));
 
-	// And marked, on the older comment rather than on whichever is uppermost:
-	// the panel puts the newest first, so a mark that landed by position would
-	// be on the wrong one here.
+	// Marked on the older comment; the panel puts newest first.
 	const marked = page.getByTestId('comment-card-focused');
 	await expect(marked).toHaveCount(1);
 	await expect(marked).toContainText(older);

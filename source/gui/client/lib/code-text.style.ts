@@ -2,12 +2,8 @@ import {CSSProperties} from 'react';
 import {TEXT} from './gui-theme';
 
 /**
- * How code is set wherever the app shows it: the diff panel, a commit's files,
- * a snippet quoted into a comment. The highlighter's own defaults are a step
- * larger than the app's mono chrome and set in a sans stack, which reads as a
- * different app embedded in this one — these pin it to the surrounding text
- * instead. Everything is a CSS variable the highlighter reads, so it inherits
- * through its shadow root from whatever element carries this.
+ * How code is set across the app. CSS variables, so the highlighter inherits
+ * them through its shadow root.
  */
 export const CODE_FONT =
 	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';

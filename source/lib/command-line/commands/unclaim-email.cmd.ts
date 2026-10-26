@@ -9,13 +9,7 @@ import {getSettingsState} from '../../state/settings.state.js';
 import {getSafeState} from '../../state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../../storage/paths.js';
 
-/**
- * Gives an address back.
- *
- * Only your own, and only ones you hold: the event is refused for anyone else
- * anyway, so offering it here would be offering something that cannot work.
- * The address stops resolving to you; the record of the claim stays in the log.
- */
+/** Gives back an address you hold; the claim's record stays in the log. */
 export const unclaimEmailCommand = () => {
 	const answer = getCmdState().commandMeta.inputString.trim();
 

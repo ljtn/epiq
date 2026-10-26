@@ -10,11 +10,7 @@ import {getMediaDirPath} from '../storage/paths.js';
 
 export const DEFAULT_ATTACHMENT_MAX_KB = 500;
 
-/**
- * Content-addressed blob filename: sha256 hex + whitelisted extension.
- * The strict shape doubles as path-traversal protection wherever a
- * hash/ext pair is turned into a filesystem path.
- */
+/** Content-addressed blob filename; the strict shape also guards against path traversal. */
 const BLOB_FILE_PATTERN = /^[a-f0-9]{64}\.(png|jpg|gif|webp)$/;
 
 export const getAttachmentFileName = (
@@ -25,20 +21,14 @@ export const getAttachmentFileName = (
 export const isValidAttachmentFileName = (fileName: string): boolean =>
 	BLOB_FILE_PATTERN.test(fileName);
 
-// Re-exported, not defined here: the client needs them too and cannot import
-// this module, which reaches for node:crypto and node:fs. Callers already
-// importing them from here are unaffected.
+// Re-exported: the client needs them and can't import this Node-side module.
 export {
 	ATTACHMENT_URL_PREFIX,
 	getAttachmentUrl,
 	getAttachmentMarkdown,
 } from './attachment-url.js';
 
-/**
- * Determines the image type from the file's magic bytes. Extensions and
- * MIME types arriving over sync or an API are never trusted — synced blobs
- * come from anyone who can push to the repo.
- */
+/** The image type from its magic bytes; synced extensions and MIME types are untrusted. */
 export const sniffImageExt = (data: Buffer): Result<AttachmentExt> => {
 	if (
 		data.length >= 8 &&
@@ -118,11 +108,7 @@ export const validateAttachmentData = (
 	});
 };
 
-/**
- * Validates and writes an attachment blob into the state branch media dir.
- * Content addressing makes writes idempotent: identical images dedupe to
- * the same file and concurrent writers can never conflict.
- */
+/** Validates and writes a content-addressed blob, so writes are idempotent and never conflict. */
 export const writeAttachmentBlob = (
 	stateBranchRoot: string,
 	data: Buffer,
@@ -154,10 +140,8 @@ export const writeAttachmentBlob = (
 };
 
 /**
- * Resolves a blob path for reading/serving. Rejects anything that is not a
- * well-formed content-addressed filename, verifies the file exists, and —
- * because synced blobs are untrusted input — recomputes the hash and
- * requires it to match the filename.
+ * Resolves a blob path for serving: well-formed name, file exists, and its
+ * hash re-checked, since synced blobs are untrusted.
  */
 export const resolveAttachmentBlob = (
 	stateBranchRoot: string,

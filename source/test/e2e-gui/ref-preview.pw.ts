@@ -1,10 +1,7 @@
 import type {Locator, Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 
-// The hover is retried, not the assertion. A state broadcast re-lays the
-// panel out, and the panel can move out from under a pointer that is not
-// itself moving — which is a hover that ended, not a preview that failed to
-// open. Hovering again is what a reader does without noticing.
+// Retries the hover, not the assertion: a broadcast can move the panel from under the pointer.
 const hoverUntilPreviewed = async (page: Page, trigger: Locator) => {
 	await expect(async () => {
 		await trigger.hover();
@@ -24,12 +21,7 @@ const createTicket = async (
 	await page.getByPlaceholder('ticket name').fill(title);
 	await page.getByPlaceholder('ticket name').press('Enter');
 
-	// This ticket's own panel, not merely some `/issue/` url. Every test here
-	// creates two in a row, so on the second call the first ticket's url already
-	// satisfies a loose check — the edit below then opens on the *previous*
-	// panel, and the navigation lands a moment later and tears the editor down,
-	// leaving `getByRole('textbox')` waiting for a box that no longer exists.
-	// That is the whole of this file's place on the CI flaky list.
+	// This ticket's own panel: a loose `/issue/` check passes on the previous ticket.
 	await expect(page.locator('aside')).toContainText(title);
 
 	await page.getByRole('button', {name: 'edit'}).first().click();
@@ -88,9 +80,7 @@ test('hovering a ticket ref previews the ticket it names', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The card waits out a delay before it opens. Until then the ref itself is all
-// there is to say the word can be pressed, so it takes a wash of its own colour
-// the moment the pointer is on it.
+// A ref is washed in its colour under the pointer, before the card opens.
 test('a ref lights under the pointer', async ({page, appUrl, pageErrors}) => {
 	const stamp = Date.now();
 
@@ -105,9 +95,7 @@ test('a ref lights under the pointer', async ({page, appUrl, pageErrors}) => {
 	await createTicket(page, `Lit source ${stamp}`, `Blocked on ${targetRef}.`);
 
 	const description = page.getByTestId('description-box');
-	// The box before what is in it: the panel is still showing the ticket
-	// before this one for a moment after the save, and a description box that
-	// holds the wrong body reads here as a ref that failed to linkify.
+	// The body first: the previous ticket shows briefly after the save.
 	await expect(description).toContainText(targetRef);
 
 	const refLink = description.getByRole('button', {

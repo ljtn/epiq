@@ -1,10 +1,7 @@
 import {expect, test} from './fixtures.js';
 
-// Passed as source strings, not closures: the root tsconfig has no DOM lib, and
-// pulling one in for a test would let Node code reach for browser globals.
-//
-// Every repaint clears the canvas before redrawing, and every dot is an arc, so
-// these two count repaints and drawn dots without the component reporting them.
+// Source strings (no DOM lib). Every repaint clears the canvas and every dot is
+// an arc, so these count both.
 const WATCH_CANVAS = `
 	window.__paints = 0;
 	window.__dots = 0;
@@ -25,9 +22,7 @@ const READ_DOTS = 'window.__dots';
 const READ_PAINTS = 'window.__paints';
 const RESET_PAINTS = 'window.__paints = 0';
 
-// Hovering only reads the chart — it moves a highlight and opens a hint. The
-// dots are unchanged, so redrawing them is pure waste, and at a window's worth
-// of events it is enough waste to make the track stutter under the pointer.
+// Hovering only reads the chart, so it must not repaint the dots.
 test('hovering the scatter never repaints it', async ({
 	page,
 	appUrl,

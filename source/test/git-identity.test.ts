@@ -1,12 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-/**
- * `boot()` runs on every MCP call and every socket message, above the fast path
- * that exists to avoid redundant work. A read here that is not cached is a git
- * subprocess per request, which no test notices and every user pays for. The
- * address read was cached for exactly that reason and the name read, added
- * later, was not.
- */
+/** `boot()` runs per request, so both git reads must be cached. */
 vi.mock('../git/git-utils.js', () => ({execGitAllowFail: vi.fn()}));
 
 const {execGitAllowFail} = await import('../git/git-utils.js');
@@ -72,9 +66,7 @@ describe('reading the git identity', () => {
 });
 
 describe('a configured value is whatever the file says', () => {
-	// A name is one line of anything, and every caller treats it as a string to
-	// show or to tokenize. What must not happen is a name being read as a key,
-	// or a value with spaces losing its tail.
+	// A name is one line of anything; spaces must survive intact.
 	it('keeps a name that contains spaces', async () => {
 		config('user.name  Jonatan  van der Lampa ');
 

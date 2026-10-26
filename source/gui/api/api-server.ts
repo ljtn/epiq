@@ -63,10 +63,8 @@ const sendReadOnlyWhileTimeTravelingError = (res: http.ServerResponse) =>
 	});
 
 /**
- * The live check must stay *inside* the lock; checking then awaiting is
- * check-then-act. `runExclusive` is not re-entrant, so `mutate` must not take
- * it again. Read request bodies *before* calling this, or a client-paced
- * upload holds a server-wide lock and stalls scrubbing for everyone.
+ * The live check stays inside the lock (`runExclusive` is not re-entrant, so
+ * `mutate` must not retake it). Read request bodies before calling this.
  */
 const runMutation = <T>(res: http.ServerResponse, mutate: () => Promise<T>) =>
 	runExclusive(async () => {
@@ -82,9 +80,7 @@ const readJsonBody = async <T>(
 	maxBytes = 1024 * 1024,
 ): Promise<T> =>
 	new Promise((resolve, reject) => {
-		// Buffers, decoded once at the end: `body += chunk` decodes each chunk on
-		// its own, so a character whose bytes straddle two socket reads came out
-		// as replacement characters — silently, and then straight into the log.
+		// Decoded once at the end, so a character split across two reads survives.
 		const chunks: Buffer[] = [];
 		let received = 0;
 
@@ -134,14 +130,8 @@ const getContentType = (filePath: string) => {
 	return 'application/octet-stream';
 };
 
-// A served file's identity, so a browser that already has it can be told so
-// rather than sent it again. The client bundle is over a megabyte and a reload
-// was refetching all of it every time.
-//
-// Kept by path, and only trusted while the file it was taken from has not
-// moved: appends and rebuilds both change size or mtime. Under SEA there is no
-// file to stat — the assets are fixed for the binary's lifetime — so the tag
-// stands until the process ends.
+// ETags by path, trusted while the file's size and mtime hold; under SEA the
+// assets are fixed, so a tag stands for the process's lifetime.
 const etagCache = new Map<string, {stamp: string; etag: string}>();
 
 const etagOf = (bytes: Buffer): string =>
@@ -157,11 +147,7 @@ const fileStamp = async (filePath: string): Promise<string | null> => {
 	}
 };
 
-// A path with a stray `%` in it — `decodeURIComponent` throws `URIError` on
-// `/%`, and the request handler is an unwrapped async function, so the throw
-// became an unhandled rejection and node ended the process. One curl and the
-// board server is gone. A malformed path is a 404, like any other path that
-// names nothing.
+// `decodeURIComponent` throws on a stray `%`; a malformed path is a 404.
 export const decodePath = (urlPathname: string): string | null => {
 	try {
 		return decodeURIComponent(urlPathname);
@@ -225,10 +211,8 @@ const serveStatic = async (
 		res.writeHead(200, {
 			'content-type': getContentType(filePath),
 			etag,
-			// Revalidate rather than expire: `main.js` and `index.html` keep their
-			// names across builds, so anything that let a browser skip the ask
-			// would serve a stale client after an upgrade. A conditional GET over
-			// loopback costs a round trip and saves the transfer.
+			// Revalidate, never expire: `main.js` and `index.html` keep their names
+			// across builds.
 			'cache-control': 'no-cache',
 		});
 
@@ -284,9 +268,7 @@ export const startGuiServer = async (input: {
 	repoRoot: string;
 	boardId: string;
 }): Promise<Result<{url: string; server: http.Server}>> => {
-	// Nothing this server sends reads a ticket's virtual fields, and building
-	// them is most of the cost of a replay. Set here rather than in the CLI
-	// wrapper so the tests run the same configuration.
+	// Nothing this server sends reads virtual fields, the costliest part of replay.
 	setVirtualNodesEnabled(false);
 
 	// Known only after `listen`, and the handler below closes over it.
@@ -296,10 +278,7 @@ export const startGuiServer = async (input: {
 	const project: GuiProject = {repoRoot: input.repoRoot};
 
 	const server = http.createServer((req, res) => {
-		// Nothing below may end the process. The handler is async, so a throw in
-		// it is an unhandled rejection, which node answers by exiting — and every
-		// request here is one a browser on this machine can send. A malformed
-		// percent-escape in a path did exactly that.
+		// Nothing below may throw: an unhandled rejection here ends the process.
 		void handleRequest(req, res).catch(error => {
 			logger.error(
 				`[gui] ${req.method} ${req.url}: ${
@@ -338,10 +317,7 @@ export const startGuiServer = async (input: {
 			});
 		}
 
-		// Who is on this port. Answered before anything expensive, so a probe
-		// costs a socket and nothing else — and deliberately without reading the
-		// board, since the asker may well be a different epiq that only wants to
-		// know whether to hand this one the browser.
+		// Answered before reading the board, so a probe from another epiq is cheap.
 		if (req.method === 'GET' && url.pathname === INSTANCE_PATH) {
 			return sendJson(res, 200, {
 				app: INSTANCE_APP,
@@ -439,10 +415,7 @@ export const startGuiServer = async (input: {
 						});
 					}
 
-					// The state, plus the attachment just made. Its markdown is
-					// built here anyway, and the client needs it to leave a
-					// reference at the cursor — finding it again on the client would
-					// mean picking the new one out of the whole state.
+					// The state, plus the new attachment, so the client can insert its reference.
 					return sendJson(res, 200, {
 						...(await getGuiState({repoRoot: project.repoRoot})),
 						attachment: result.value,

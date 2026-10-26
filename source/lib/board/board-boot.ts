@@ -37,9 +37,7 @@ export function getBootNavigationTarget(): Result<{
 		node => node.context === 'WORKSPACE',
 	);
 
-	// A replay that skipped `init.workspace` — unreadable, or cut off by a
-	// historical checkout — reaches here. Thrown, this escaped every `isFail`
-	// on the boot path and took the TUI down instead of showing the error.
+	// Reached when replay skipped `init.workspace`.
 	if (!workspace) {
 		return failed('No workspace found in event log');
 	}
@@ -117,10 +115,8 @@ export function createDefaultEvents({
 				rank: workspaceRank.value,
 			},
 		},
-		// `init` persists these directly, bypassing `ensureContributorExists`, so
-		// the author registers themselves here or not at all. Second, not first:
-		// `init.workspace` is what initializes the state every other
-		// materializer reads.
+		// `init` bypasses `ensureContributorExists`, so the author registers here;
+		// after `init.workspace`, which initializes the state.
 		{
 			id: ulid(),
 			userId: userId,
@@ -211,10 +207,7 @@ export function createDefaultEvents({
 	] as const satisfies readonly AppEvent[]);
 }
 
-// Booting resets `timeMode` to 'live' and `readOnly` to false, so re-booting
-// while checked out in the past would silently discard the checkout and reopen
-// the mutation guards. Only an explicit non-live mode skips, so an
-// uninitialized state still boots normally.
+// Booting resets `timeMode` and `readOnly`, so re-booting in the past would drop the checkout.
 const isCheckedOutInThePast = (): boolean => {
 	const stateResult = getSafeState();
 	if (isFail(stateResult)) return false;
@@ -223,11 +216,8 @@ const isCheckedOutInThePast = (): boolean => {
 	return timeMode === 'peek' || timeMode === 'replay';
 };
 
-// Replay converges over events it cannot apply, so an unreadable one no longer
-// makes the board a stale view worth locking — it makes some of it out of date,
-// which is the same position any unsynced client is in. Reported, not enforced:
-// locking instead left a board permanently unopenable whenever the action came
-// from a build that never shipped.
+// Reported, not locked: an unreadable event leaves part of the board out of
+// date, like any unsynced client.
 const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
 	if (unreadable.length === 0) return;
 

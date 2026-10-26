@@ -22,10 +22,7 @@ let syncAndReloadPromise: Promise<Result<boolean>> | null = null;
 export const syncAndReloadState = async ({
 	reposMinIntervalMs = 0,
 }: {
-	/**
-	 * Leave alone another repo fetched less than this long ago. Autosync passes
-	 * one; a `:sync` somebody typed fetches every repo.
-	 */
+	/** Skip a linked repo fetched less than this long ago. */
 	reposMinIntervalMs?: number;
 } = {}): Promise<Result<boolean>> => {
 	logger.debug('[sync] syncAndReloadState enter', {
@@ -199,11 +196,7 @@ const syncAndReloadStateUnsafe = async (
 	return succeeded('Synced', true);
 };
 
-/**
- * The other repos, once the board is synced and on screen: not awaited, since
- * a first clone can take minutes and the board's status must not wait on it.
- * A repo that did not fetch is said beside that status, not instead of it.
- */
+/** Syncs linked repos after the board, unawaited, since a first clone can take minutes. */
 const fetchReposAfterSync = async (repoRoot: string, minIntervalMs: number) => {
 	const result = await fetchCommitRepos({repoRoot, minIntervalMs});
 	const note = isFail(result) ? null : describeFetchFailures(result.value);
@@ -215,13 +208,8 @@ const fetchReposAfterSync = async (repoRoot: string, minIntervalMs: number) => {
 };
 
 /**
- * Re-materialises the board from the event log on disk without losing the
- * user's place: filters are view state the replay would reset, and navigation
- * is anchored before and restored after. Refused while editing, so a reload
- * never drops half-typed input.
- *
- * Shared by the sync and by the boot-time pull: both leave new lines on disk
- * that the board has to show.
+ * Re-materialises the board from disk, keeping filters and navigation.
+ * Refused while editing, so half-typed input is never dropped.
  */
 export const reloadStateFromEventLog = (
 	stateBranchRoot: string,
@@ -297,9 +285,7 @@ export const reloadStateFromEventLog = (
 			eventCount: allLoadedEventsResult.value.events.length,
 		});
 
-		// The same check `bootStateFromEventLog` makes, read off the same
-		// synchronous state: a 'succeeded' that skipped for a historical
-		// checkout materialised nothing, and must not mark the log applied.
+		// A boot skipped for a historical checkout applied nothing.
 		const liveState = getSafeState();
 		const materialisingLive =
 			!isFail(liveState) && liveState.value.timeMode === 'live';
@@ -342,9 +328,7 @@ export const reloadStateFromEventLog = (
 
 	logger.debug('[sync] booted state from synced events');
 
-	// Boot replays init.workspace, which re-initializes state with empty
-	// filters. Filters are view state, not event-log data, so re-apply the
-	// pre-sync filters before restoring navigation against the filtered view.
+	// Boot resets filters; re-apply them before restoring navigation.
 	patchState({filters: previousFilters});
 
 	logger.debug('[sync] restoreNavigationAnchor:start');

@@ -19,10 +19,8 @@ export type McpArgs =
 	| {kind: 'error'; message: string};
 
 /**
- * A flag is never a name. `isValidUserName` only measures length, so an
- * unchecked argument means `epiq-mcp --version` starts the server under the
- * identity `--version`, and the first write makes that a contributor the board
- * cannot be rid of.
+ * A flag is never a name, or `epiq-mcp --version` would write as a contributor
+ * called `--version`.
  */
 export const parseMcpArgs = (args: string[]): McpArgs => {
 	if (args.length > 1) {

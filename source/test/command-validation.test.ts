@@ -335,10 +335,7 @@ describe('cmdValidation', () => {
 			expect(result.message).toContain('provide a duration between');
 		});
 
-		// Past 2^31-1 ms `setTimeout` clamps the delay to 1ms, so a very long
-		// interval becomes a sync loop running flat out. The message names both
-		// bounds, because naming only the floor sent somebody over the ceiling
-		// looking in the wrong direction.
+		// Past 2^31-1 ms `setTimeout` clamps to 1ms; the message names both bounds.
 		it('rejects duration above maximum, and says which end', () => {
 			const result = cmdValidation[CmdKeywords.CONFIG].validate(
 				CmdKeywords.CONFIG,
@@ -455,11 +452,8 @@ describe('cmdValidation', () => {
 		});
 
 		it('recognizes a full date supplied via inputString', () => {
-			// Absolute dates (YYYY-MM-DD) are not in the modifier allow-list, so the
-			// parser surfaces them as `inputString`. They must still be accepted as a
-			// valid peek target rather than rejected as unrecognized input. (With no
-			// board in the breadcrumb the validator then stops at the context check,
-			// which proves the date itself was parsed and accepted.)
+			// An absolute date arrives as `inputString` and must be accepted; with no
+			// board in the breadcrumb, reaching the context check proves it parsed.
 			const result = cmdValidation[CmdKeywords.PEEK].validate(
 				CmdKeywords.PEEK,
 				'',

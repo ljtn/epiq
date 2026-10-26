@@ -1,8 +1,5 @@
-// How a board runs, read off its tickets' own logs: how fast work leaves it,
-// how often it goes back, and where its time goes.
-//
-// Pure: the caller hands over the tickets, so the answer is a function of the
-// state it was asked about.
+// How a board runs, from its tickets' logs: throughput, rework, and where time
+// goes. Pure.
 
 import {AppEvent} from '../board/board-events.model.js';
 import {clampUlidTime, getEventTime} from '../event/date-utils.js';
@@ -12,9 +9,8 @@ import {BoardOverview} from './board-overview.model.js';
 
 export const THROUGHPUT_WEEKS = 8;
 
-// Calendar weeks, Monday first, the last one holding now: what "week of"
-// means to a reader. Stepped by date rather than by 7×24h, which a daylight
-// saving change would knock off midnight.
+// Calendar weeks, Monday first, ending with this one; stepped by date so DST
+// can't shift midnight.
 const weekStarts = (now: number, count: number): number[] => {
 	const monday = new Date(now);
 	monday.setHours(0, 0, 0, 0);
@@ -78,9 +74,7 @@ export const deriveBoardOverview = ({
 		return t === null ? null : Math.min(clampUlidTime(t, now), now);
 	};
 
-	// A step to a lane earlier in the board's current order than the last of
-	// its lanes the ticket stood in, whatever it passed through between: a
-	// reopen into Todo after closing from Review went back.
+	// A move to a lane earlier than the last board lane it stood in.
 	const wentBack = (visits: ReturnType<typeof laneVisits>) => {
 		const positions = visits.flatMap(visit => {
 			const index = laneIndex.get(visit.laneId);

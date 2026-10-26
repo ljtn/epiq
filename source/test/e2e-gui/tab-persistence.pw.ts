@@ -40,13 +40,7 @@ test('the open tab carries across ticket selections', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Regression test: switching directly from one ticket to another while the
-// Code tab is already open used to leave the pane stuck on "Loading
-// commits…" forever — the fetch for the new ticket was silently dropped
-// because a same-render effect (recreating the websocket, keyed off an
-// unstable `navigate` reference) nulled the socket ref between this effect's
-// setup and its own send call. Re-clicking the tab was the only way to
-// recover, since only *that* triggered a genuinely fresh effect run.
+// Switching tickets with the Code tab open must load the new ticket's commits.
 test('switching tickets with the Code tab already open still loads the new ticket', async ({
 	page,
 	pageErrors,
@@ -64,9 +58,7 @@ test('switching tickets with the Code tab already open still loads the new ticke
 		.getByRole('button', {name: /^Code/})
 		.click();
 	await expect(page).toHaveURL(/tab=code/);
-	// Neither ticket has any linked commits, so the tab settles on the empty
-	// state — the interesting assertion is that it settles at all, not what
-	// it settles on.
+	// No linked commits: what matters is that the tab settles.
 	await expect(page.getByText(/no linked commits/i)).toBeVisible();
 
 	await openFromBoard(page, second);

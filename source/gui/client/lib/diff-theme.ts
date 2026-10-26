@@ -1,11 +1,5 @@
-// The diff's syntax theme: github-dark, with one thing changed.
-//
-// Every editor theme there is paints comments grey and recedes them, on the
-// premise that they are not the code. That is exactly backwards for reading
-// somebody else's change: a comment is the only part of a diff that says *why*,
-// and it is the part a reviewer most wants to find. So comments come forward in
-// the same yellow the Stats tab uses for them — if a line is worth writing in
-// prose, it is worth reading.
+// The diff's syntax theme: github-dark with comments brought forward in the
+// Stats tab's yellow, since they say why.
 
 import {registerCustomTheme, resolveTheme} from '@pierre/diffs';
 import {COMMENT_YELLOW} from './issue-stats.style';
@@ -18,10 +12,7 @@ export const EPIQ_DIFF_THEME = 'epiq-dark';
 // agree about which half is prose.
 const COMMENT_COLOR = COMMENT_YELLOW;
 
-// A tmTheme rule's scope is one selector or a list of them, and a comment is
-// scoped `comment` or `comment.line…`/`comment.block…` depending on the
-// grammar. Matching the prefix catches every shape without catching, say,
-// `constant`.
+// Comment scopes are `comment`, `comment.line…` or `comment.block…`.
 const isCommentScope = (scope: string | string[] | undefined): boolean =>
 	(Array.isArray(scope) ? scope : [scope ?? '']).some(
 		selector =>
@@ -33,10 +24,8 @@ const isCommentScope = (scope: string | string[] | undefined): boolean =>
 let registered = false;
 
 /**
- * Idempotent, and called for its side effect: the highlighter resolves a theme
- * by name, so the name has to be known before the first diff renders. Both
- * call sites (the ticket's Code tab and the scrubber's own diff panel) call
- * this at module load.
+ * Idempotent; must run before the first diff renders, since the highlighter
+ * resolves the theme by name.
  */
 export const registerEpiqDiffTheme = (): void => {
 	if (registered) return;

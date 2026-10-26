@@ -5,12 +5,8 @@ import path from 'node:path';
 import {afterAll, describe, expect, it} from 'vitest';
 import {isFail, Result} from '../lib/model/result-types.js';
 
-// A remote that keeps git's reasons to itself, as GitHub does over ssh: the
-// wrapper runs the command with its stderr dropped, so a refusal reaches the
-// client as only "the remote end hung up". With the drop file there, the
-// transfer after as many as it counts is cut off instead, which reads the
-// same. The environment is read when the module loads, so it is set before the
-// import.
+// A remote that hides git's stderr, as GitHub does over ssh. The environment is
+// read at module load, so it is set before the import.
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-quiet-'));
 const quietSsh = path.join(scratch, 'quiet-ssh.sh');

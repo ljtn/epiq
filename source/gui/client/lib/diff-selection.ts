@@ -13,21 +13,8 @@ export {extractSnippet};
 export type DiffComment = {comment: GuiComment; meta: DiffCommentMeta};
 
 /**
- * The comments whose selection was made in `sha`'s diff.
- *
- * A line number is only a place within the revision it was read from, so a
- * view that draws one revision can only place the comments belonging to it.
- * The compacted diff needs this because it shows a file at the ticket's end
- * state: a comment written against an earlier commit of the same file names
- * lines that later commits have since moved.
- */
-/**
- * Whether a comment's selection lies wholly on the additions side.
- *
- * An additions-side line number is a position in the newer file, which every
- * view of that revision agrees on. A deletions-side one is a position in
- * whichever older file the view was diffing against, and views disagree about
- * that.
+ * Whether a comment's selection lies wholly on the additions side, whose line
+ * numbers every view of the revision agrees on.
  */
 export const isAdditionsSideComment = (comment: GuiComment): boolean => {
 	const meta = parseDiffCommentMeta(comment.body);
@@ -60,9 +47,8 @@ export const findDiffCommentsForFile = (
 		return meta && meta.filePath === filePath ? [{comment, meta}] : [];
 	});
 
-// What a "File ticket" submission carries up to the caller that owns the
-// actual issues:create call and the origin-ticket back-comment — everything
-// needed to build both without the caller re-deriving any of it.
+// What a "File ticket" submission hands the caller that creates the issue and
+// its back-comment.
 export type FileTicketParams = {
 	sha: string;
 	filePath: string;
@@ -73,34 +59,21 @@ export type FileTicketParams = {
 };
 
 /**
- * Which of the Code tab's two views a link names.
- *
- * Follows the rule `use-board-selection` already states for the board's own
- * axes: the URL wins when it says anything, a link that says nothing falls
- * back to what was last used here, and what is on screen gets written into the
- * address bar so copying it hands over what the sender was looking at.
- *
- * `diff` rather than `view`, which the board selection has taken. Named rather
- * than a boolean, because `?diff=compacted` says what it means where
- * `?compacted=1` says it only to whoever wrote it.
+ * Which of the Code tab's two views a link names. The URL wins when it says
+ * anything, else the last view used here.
  */
 export const DIFF_VIEW_PARAM = 'diff';
 
 export type DiffViewName = 'commits' | 'flat';
 
-// `compacted` is what the flat view was called when the param shipped. Still
-// read, never written: an unrecognised value falls back to the reader's own
-// view, so dropping the old spelling would land an already-shared link in the
-// wrong one — the failure putting the view in the route exists to prevent.
+// `compacted` is the flat view's older name: still read, never written.
 const DIFF_VIEW_NAMES = new Map<string, DiffViewName>([
 	['commits', 'commits'],
 	['flat', 'flat'],
 	['compacted', 'flat'],
 ]);
 
-/** Null for absent *and* for unrecognised: a view nobody offers is no request
- * at all, so the reader's own choice stands rather than being overridden by a
- * typo. */
+/** Null for absent and for unrecognised, so the reader's own choice stands. */
 export const readDiffViewParam = (
 	params: URLSearchParams,
 ): DiffViewName | null =>
@@ -117,9 +90,7 @@ export const clearDiffViewParam = (params: URLSearchParams): void => {
 	params.delete(DIFF_VIEW_PARAM);
 };
 
-// A spot in a ticket's Code tab, deep-linkable from a comment. Lives in the
-// URL rather than in transient state so the link survives a reload and can be
-// handed to someone else.
+// A spot in a ticket's Code tab, kept in the URL so a link survives a reload.
 export type DiffLocation = {
 	sha: string;
 	filePath: string;
@@ -179,9 +150,7 @@ export const readCommitFocusParam = (
 	const sha = params.get('commit');
 	if (!sha) return null;
 
-	// `file` without a line range: what the Stats tab links with, since it
-	// names a file rather than a spot inside one. The Code tab already
-	// opens `focus.filePath` when it has one.
+	// `file` without a line range, as the Stats tab links.
 	const filePath = params.get('file');
 
 	return filePath ? {sha, filePath} : {sha};

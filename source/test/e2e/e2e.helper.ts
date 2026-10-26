@@ -23,12 +23,8 @@ const CLEAR_SCREEN = '\x1B[2J';
 const HIDE_CURSOR = '\x1B[?25l';
 const SHOW_CURSOR = '\x1B[?25h';
 
-// Every wait here is really a wait on the machine: the frames come from a real
-// pty. The container stage shares a box with the rest of the gate and with
-// whatever else is running on it, where a TUI that starts in two seconds idle
-// can take far longer — so the waits each file asks for are stretched there,
-// rather than written long everywhere and slowing down a failure on a quiet
-// machine. A wait still ends; it just ends later.
+// Stretches every wait on a loaded machine (the container stage) without
+// slowing failures on a quiet one.
 const TIMEOUT_SCALE = Number(process.env['EPIQ_E2E_TIMEOUT_SCALE'] ?? 1);
 
 let lastLoggedOutput = '';
@@ -82,12 +78,8 @@ const createTuiEnv = (extra: Record<string, string> = {}) => {
 const sleep = async (ms: number) =>
 	await new Promise(resolve => setTimeout(resolve, ms));
 
-// Text inside the bottom box: the rows under the last full-width top border,
-// joined, since a long input wraps onto a second row. The bottom border can
-// sit below the last screen row, so the box ends at it or at the frame's end.
-// Null while the box is not there, as when an external editor has the
-// terminal or a frame is only half drawn and still ends in swimlane columns,
-// whose top borders are several boxes wide rather than one.
+// Text inside the bottom box, its rows joined since long input wraps. Null
+// while the box isn't drawn, e.g. an external editor has the terminal.
 const commandLineContent = (frame: string): string | null => {
 	const lines = frame.split('\n').map(line => line.trim());
 	const top = lines.findLastIndex(line => /^╭─+╮$/.test(line));
@@ -107,10 +99,6 @@ const commandLineContent = (frame: string): string | null => {
 	return rows.length ? rows.join(' ').trim() : null;
 };
 
-/**
- * True when the command line holds no typed command: the bottom row is then
- * the shortcut bar rather than an input.
- */
 // `destroy()` waits for the TUI and kills its process group first, so by now
 // nothing should be writing here; the retries cover a git that escaped anyway.
 export const removeTempRepo = (dir: string): void => {
@@ -122,18 +110,13 @@ export const removeTempRepo = (dir: string): void => {
 	});
 };
 
-// An input opens with `:` or `?` and runs straight into the text or the
-// cursor; the shortcut bar's leading `?` shortcut is followed by a space.
-//
-// Or with an ellipsis: the command line is one row and scrolls to keep the
-// cursor in view, so a command longer than the terminal has its opening `:`
-// off the left. Without this a line being typed reads as an idle one.
+// An input opens with `:` or `?` and no space (the shortcut bar has one), or
+// with an ellipsis once a long command scrolls its `:` off the left.
 const isCommandInput = (content: string): boolean =>
 	/^[:?](\S|$)/.test(content) || content.startsWith('…');
 
-// The typed command as echoed in the command line, and only there: the
-// shortcut bar repeats command names (`e edit description`), so a match
-// anywhere on screen can fire before a keystroke has landed.
+// The typed command as echoed in the command line only: the shortcut bar
+// repeats command names.
 export const commandLineShows =
 	(text: string) =>
 	(frame: string): boolean => {
@@ -150,26 +133,13 @@ export const commandLineIsIdle = (frame: string): boolean => {
 
 const ESCAPE = '\x1B';
 
-// How long the keypress listener holds a lone `ESC` before deciding it was an
-// Escape rather than the start of a sequence — `getDataListener` in
-// `source/lib/listeners/keypress-listener.ts`. Anything sent inside that
-// window is racing a keystroke the app has not resolved yet.
+// How long the keypress listener holds a lone `ESC` before reading it as
+// Escape (`getDataListener`); input inside that window races it.
 const ESCAPE_SETTLE_MS = 60;
 
 /**
- * Steps back through the command line's history, and starts the walk over
- * when a step loses the line.
- *
- * `ARROW_UP` is `ESC [ A`, and the keypress listener reads a lone `ESC` byte
- * as Escape once 25ms pass with nothing after it — which in command-line mode
- * closes the line (`YTPEXEF`). The sequence goes out as a single pty write, so
- * nothing on this side tears it; the pty under load can still hand the TUI the
- * `ESC` on its own, and then the recall lands on a closed line. Waiting longer
- * for the rest of a sequence would make a real Escape sluggish for a person,
- * so the harness absorbs the split rather than the app.
- *
- * One expectation per press, in the order they are pressed, so a walk says
- * what it expects to find at every step rather than only at the end.
+ * Steps back through command history, one expectation per press, restarting the
+ * walk when a pty splits `ESC [ A` and the lone `ESC` closes the line.
  */
 export const recallFromHistory = async (
 	tui: TuiSession,
@@ -193,11 +163,8 @@ export const recallFromHistory = async (
 		} catch (error) {
 			failures.push(`attempt ${attempt}: ${String(error)}`);
 
-			// Back to the board before trying again: a walk cannot be resumed
-			// from halfway. Only when something is open, because the usual way a
-			// walk fails is the line having closed under it — and an Escape sent
-			// onto an already-idle board is a timer still counting when the next
-			// colon arrives, which would close the line this is reopening.
+			// Back to the board before retrying, but only if something is open:
+			// an Escape on an idle board would close the line being reopened.
 			if (!commandLineIsIdle(tui.output())) {
 				tui.input(ESCAPE);
 				await tui.waitFor(commandLineIsIdle);
@@ -323,10 +290,8 @@ export const setupTui = (
 		renderOutput();
 	};
 
-	// Removing the repo while the TUI or a git it spawned is still writing to
-	// it fails with ENOTEMPTY, so the process goes first: wait for it to exit,
-	// then kill its whole group — the pty made it a session leader, so the
-	// group is exactly the children it left behind.
+	// The process goes first, or removing the repo hits ENOTEMPTY: wait, then
+	// kill its group (the pty made it a session leader).
 	const EXIT_WAIT_MS = 5_000;
 
 	const destroy = async () => {
@@ -381,9 +346,7 @@ export const setupTui = (
 				if (matches(getOutput())) {
 					await settle();
 
-					// Re-checked after settling: the frame that matched may have been
-					// a partial one, and the completed frame is the truthful answer
-					// either way.
+					// Re-checked after settling: the match may have been a partial frame.
 					if (matches(getOutput())) return getOutput();
 				}
 
@@ -392,10 +355,7 @@ export const setupTui = (
 
 			await flushOutput();
 
-			// Throws rather than returning the last frame. Returning it made every
-			// timeout surface as whatever assertion the caller ran next — "expected
-			// '   …' to contain 'This folder is not…'" — which reads like a content
-			// bug in the app instead of a wait that never came true.
+			// Throws on timeout, so it isn't misread as a content assertion failing.
 			throw new Error(
 				`Timed out after ${deadline}ms waiting for ${describeWaitTarget(
 					text,

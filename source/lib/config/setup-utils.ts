@@ -28,27 +28,8 @@ export const getUserSetupStatus = (): {
 	const isSetAutoSync =
 		settings.autoSync === true || settings.autoSync === false;
 
-	// Answered by the board, or refused on it. Nothing links itself any more, so
-	// without a step here a person would never be told that their commits are
-	// showing a git name rather than their board name.
-	//
-	// The claim is read from the log rather than from a flag, so it counts
-	// however it was made — the GUI's identity panel writes the same event as
-	// `:config emails`, and a flag only the command wrote left the step asking
-	// forever on a board where the question had been answered in the GUI.
-	//
-	// Only once there is a project to ask about. The other three answers are
-	// facts about this machine and can be given before any board exists; this
-	// one offers the addresses in a repository's own history, so it has nothing
-	// to show until `:init` has run. It is also what makes the step appear again
-	// for somebody already set up, which is the whole prompt.
-	// Claims first, because it costs no disk read and is the answer for anybody
-	// already set up.
-	//
-	// Then one read of `.epiq/project.json`, not two: this runs on every render
-	// from `EpiqApp`, and a board's id existing is the same fact as the project
-	// file parsing — `projectId` is required by its schema, so a file without
-	// one does not parse at all.
+	// Answered by a claim on the board's log, or declined; asked only once a
+	// project exists. Claims first, since they need no disk read.
 	const claimedEmails = claimedEmailsForUser();
 	const boardId = claimedEmails.length > 0 ? null : currentBoardId();
 
@@ -80,9 +61,7 @@ export const currentBoardId = (): string | null => {
 	const projectIdResult = readProjectId(repoRootResult.value);
 	if (isFail(projectIdResult)) return null;
 
-	// A project file without an id is not a board this can answer for, and
-	// keying a decline on `undefined` would silence every such repository at
-	// once.
+	// Never key a decline on `undefined`: it would silence every such repository.
 	return projectIdResult.value || null;
 };
 
@@ -95,21 +74,12 @@ const claimedEmailsForUser = (): string[] => {
 export const hasClaimedAnEmail = (): boolean =>
 	claimedEmailsForUser().length > 0;
 
-/**
- * Whether this machine has refused the question on this board.
- *
- * A refusal is remembered per board, so declining in one repository says
- * nothing about the next — the addresses offered are a repository's own
- * history, and the answer is only about those.
- */
+/** Whether this machine declined the question on this board; a refusal is per board. */
 export const isEmailSetupDeclined = (): boolean => {
 	const boardId = currentBoardId();
 	if (!boardId) return false;
 
-	// Defaulted rather than assumed present. This runs on the path that decides
-	// whether to draw the setup screen at all, so throwing here is a TUI that
-	// will not boot — and a settings store assembled without this field is not
-	// hypothetical, several suites stand one in with three fields.
+	// Defaulted: some settings stores lack this field, and throwing here stops the TUI booting.
 	const {declinedEmailBoards} = getSettingsState();
 
 	return (declinedEmailBoards ?? []).includes(boardId);
@@ -144,14 +114,8 @@ export const yesNoToBoolean = (
 };
 
 /**
- * The command the setup screen is asking for next, or null once it is done.
- *
- * Setup is a sequence of four commands, and typing `:config ` before each of
- * them is four keystrokes nobody chose. Answering one opens the next, so the
- * flow is answer, answer, answer rather than type-and-answer four times.
- *
- * Only while setup is unfinished: afterwards `:config` is an ordinary command
- * and chaining it would hijack the command line.
+ * The setup command to open next, so answering one step opens the next; null
+ * once setup is done, when `:config` is an ordinary command again.
  */
 export const nextSetupCommand = (): string | null => {
 	const status = getUserSetupStatus();
@@ -161,17 +125,12 @@ export const nextSetupCommand = (): string | null => {
 	if (!status.isSetAutoSync) return 'config autoSync ';
 	if (!isRepositoryInitialized()) return 'init';
 
-	// Seeded with an address, like every other step arrives ready to answer. The
-	// one git signs this repository's commits with is the answer nearly always,
-	// and it is known at boot — the scanned list is not, since the screen that
-	// scans has not drawn yet when this runs.
+	// Seeded with git's `user.email` for this repository, known at boot.
 	if (!status.isSetEmails) {
 		const {gitEmail} = getSettingsState();
 		const suggestion = getOfferedEmails()[0] ?? gitEmail;
 
-		// Checked before it is typed for somebody. A git `user.email` is
-		// whatever the machine says it is, and a seeded line is the one place
-		// a value reaches the command line without a person putting it there.
+		// Validated: a git `user.email` is whatever the machine says.
 		return suggestion && isValidEmail(suggestion)
 			? `config emails ${suggestion}`
 			: 'config emails ';
