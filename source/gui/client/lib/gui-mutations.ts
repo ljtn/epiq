@@ -14,6 +14,7 @@ export const MUTATING_MESSAGE_TYPES = new Set<string>([
 	'board:edit:description',
 	'swimlane:edit:description',
 	'swimlane:rule:set',
+	'goal:edit:description',
 	'swimlane:delete',
 	'swimlane:move',
 	'issues:move',

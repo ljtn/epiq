@@ -838,6 +838,21 @@ export const nodeRepo = {
 		return succeeded('Renamed goal', renamed);
 	},
 
+	setGoalDescription(goalId: string, md: string): Result<{md: string}> {
+		const goal = this.getGoal(goalId);
+		if (!goal) return failed('Goal not found');
+
+		const {description: _previous, ...rest} = goal;
+		const described: Goal = md ? {...rest, description: md} : rest;
+		const result = updateState(s => ({
+			...s,
+			goals: {...s.goals, [goalId]: described},
+		}));
+
+		if (isFail(result)) return failed('Unable to describe goal');
+		return succeeded('Described goal', {md});
+	},
+
 	tombstoneGoal(goalId: string): Result<Goal> {
 		const goal = getState().goals[goalId];
 		if (!goal) return failed('Goal not found');

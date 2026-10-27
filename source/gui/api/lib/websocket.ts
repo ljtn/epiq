@@ -16,6 +16,7 @@ import {
 	editBoardTitle,
 	editBoardDescription,
 	editSwimlaneDescription,
+	editGoalDescription,
 	setSwimlaneRule,
 	createIssue,
 	createSwimlane,
@@ -1051,6 +1052,22 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'swimlane:rule:set:result',
+						result,
+					);
+				}
+
+				if (type === 'goal:edit:description') {
+					const result = await editGoalDescription({
+						repoRoot,
+						goal: message.payload.goalId,
+						description: message.payload.description,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'goal:edit:description:result',
 						result,
 					);
 				}

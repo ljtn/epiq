@@ -1,5 +1,5 @@
-// A board's or a lane's description, saved from its panel: applied to the
-// board on screen before the server answers.
+// A board's, lane's or goal's description, saved from its panel: applied to
+// the board on screen before the server answers.
 
 import {Dispatch, SetStateAction} from 'react';
 import {normalizeDescription} from '../../../lib/utils/text.limits.js';
@@ -7,7 +7,7 @@ import {updateSwimlaneInGuiState} from './gui-state-helper';
 import {GuiState} from './gui-state.model';
 import {BoardSocketActions} from './use-board-socket';
 
-export type DescribedNode = {kind: 'board' | 'swimlane'; id: string};
+export type DescribedNode = {kind: 'board' | 'swimlane' | 'goal'; id: string};
 
 export const useDescriptionEditing = ({
 	send,
@@ -19,6 +19,22 @@ export const useDescriptionEditing = ({
 	const saveNodeDescription = ({kind, id}: DescribedNode, text: string) => {
 		const description = normalizeDescription(text);
 		const next = description || undefined;
+
+		if (kind === 'goal') {
+			// The panel reads the project's goals; a board's copy shows no description.
+			setState(prev =>
+				prev
+					? {
+							...prev,
+							goals: prev.goals.map(goal =>
+								goal.id === id ? {...goal, description: next} : goal,
+							),
+					  }
+					: prev,
+			);
+			send('goal:edit:description', {goalId: id, description});
+			return;
+		}
 
 		setState(prev => {
 			if (!prev) return prev;

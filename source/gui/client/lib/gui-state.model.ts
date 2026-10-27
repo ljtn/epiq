@@ -56,7 +56,12 @@ export type GuiIssue = {
 export type GuiGoalRef = {id: string; name: string; color: string};
 
 /** A goal, and how far along its tickets are, on every board. */
-export type GuiGoal = GuiGoalRef & {done: number; total: number};
+export type GuiGoal = GuiGoalRef & {
+	done: number;
+	total: number;
+	// What the goal is for, as markdown; absent when it says nothing.
+	description?: string;
+};
 
 /** A goal a board shows, and which of its tickets that board shows. */
 export type GuiBoardGoal = GuiGoal & {members: {id: string; done: boolean}[]};

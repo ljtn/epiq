@@ -127,6 +127,7 @@ const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 	'remove.issue.goal': 'tagging',
 	'create.goal': 'tagging',
 	'rename.goal': 'tagging',
+	'edit.goal.description': 'tagging',
 	'tombstone.goal': 'tagging',
 	'create.tag': 'tagging',
 	'tombstone.tag': 'tagging',

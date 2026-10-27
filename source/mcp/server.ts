@@ -45,6 +45,7 @@ import {
 	editSwimlaneTitle,
 	editBoardDescription,
 	editSwimlaneDescription,
+	editGoalDescription,
 	setSwimlaneRule,
 	getEpiqState,
 	getIssue,
@@ -448,6 +449,20 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(renameGoal),
+	);
+
+	server.registerTool(
+		'epiq_goal_description_edit',
+		{
+			description:
+				"Edit a goal's markdown description: what it is for and when it is done. Empty clears it. epiq_goal_list returns it.",
+			inputSchema: z.object({
+				goal: z.string().min(1),
+				description: z.string().max(descriptionLimitOf('goal')),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(editGoalDescription),
 	);
 
 	server.registerTool(

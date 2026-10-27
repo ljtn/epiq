@@ -33,7 +33,13 @@ export type ViewMode = 'wide' | 'dense';
 export type Tag = {id: string; name: string; tombstoned?: boolean};
 // A goal belongs to the project, its tickets to any board. Tombstoned, it
 // keeps its record and every ticket's link to it, and reads as absent.
-export type Goal = {id: string; name: string; tombstoned?: boolean};
+export type Goal = {
+	id: string;
+	name: string;
+	// What the goal is for, as markdown; absent when it says nothing.
+	description?: string;
+	tombstoned?: boolean;
+};
 // A placeholder, not an empty name, so a tombstoned assignee still reads as one.
 export const REMOVED_CONTRIBUTOR_NAME = 'removed';
 

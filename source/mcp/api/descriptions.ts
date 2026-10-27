@@ -28,6 +28,7 @@ import {
 	getStateResult,
 } from './boot.js';
 import {findWritableBoard, findWritableSwimlane} from './node-targets.js';
+import {findGoal} from '../../lib/utils/goal.utils.js';
 
 type EditBoardDescriptionInput = ToolInput & {
 	boardId: string;
@@ -79,7 +80,7 @@ export const descriptionOf = (
 };
 
 /**
- * The one write of a node's description, for tickets, lanes and boards. Holds
+ * The one write of a description, for tickets, lanes, boards and goals. Holds
  * the cap, the scrub guard and the no-op on unchanged text.
  */
 export const writeDescription = ({
@@ -89,13 +90,16 @@ export const writeDescription = ({
 	description: given,
 	actor,
 	stateBranchRoot,
+	action = 'edit.description',
 }: {
-	node: Ticket | Board | Swimlane;
+	node: Ticket | Board | Swimlane | {id: string; props: {description?: string}};
 	label: string;
 	max: number;
 	description: string;
 	actor: Actor;
 	stateBranchRoot: string;
+	// A goal's has its own event, as its name does.
+	action?: 'edit.description' | 'edit.goal.description';
 }): Result<DescriptionEdit> => {
 	const description = normalizeDescription(given);
 	const overLong = tooLong(label, description, max);
@@ -117,9 +121,9 @@ export const writeDescription = ({
 	const event = {
 		id: ulid(),
 		...actorOf(actor),
-		action: 'edit.description',
+		action,
 		payload: {id: node.id, md: description},
-	} satisfies AppEvent<'edit.description'>;
+	} satisfies AppEvent<'edit.description' | 'edit.goal.description'>;
 
 	const results = materializeAndPersistAll([event], stateBranchRoot);
 	if (isFail(results)) return failed(results.message);
@@ -159,6 +163,27 @@ export const editSwimlaneDescription = async (
 		node: laneResult.value,
 		label: 'Swimlane description',
 		max: descriptionLimitOf('swimlane'),
+		description: input.description,
+		actor: ready.value.actor,
+		stateBranchRoot: ready.value.boot.stateBranchRoot,
+	});
+};
+
+/** A goal's description, by its id or name. */
+export const editGoalDescription = async (
+	input: ToolInput & {goal: string; description: string},
+): Promise<Result<DescriptionEdit>> => {
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+
+	const goal = findGoal(input.goal);
+	if (!goal) return failed(`No goal called or with the id "${input.goal}"`);
+
+	return writeDescription({
+		node: {id: goal.id, props: {description: goal.description}},
+		label: 'Goal description',
+		action: 'edit.goal.description',
+		max: descriptionLimitOf('goal'),
 		description: input.description,
 		actor: ready.value.actor,
 		stateBranchRoot: ready.value.boot.stateBranchRoot,
