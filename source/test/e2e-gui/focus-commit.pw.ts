@@ -84,3 +84,47 @@ test('opening a commit from the log folds the others and brings it into view', a
 
 	expect(pageErrors).toEqual([]);
 });
+
+test('a ticket opened at one commit can still switch to the whole diff', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const ref = await addTicketForRef(page, `Flatten ${Date.now()}`);
+	commitPlainFile(
+		repoRoot,
+		`flatten-${ref}.txt`,
+		`flatten of ${ref}`,
+		lines(3, 'flat'),
+		new Date(),
+		[`Epiq-Ref: ${ref}`],
+	);
+
+	await page.reload();
+	await page.getByTestId('log-toggle').click();
+	await page.getByTestId('commit-select').click();
+	await page.getByRole('radio', {name: 'Linked', exact: true}).click();
+
+	await page
+		.getByTestId('log-line')
+		.filter({hasText: `flatten of ${ref}`})
+		.click();
+	await expect(page).toHaveURL(/[?&]commit=/);
+
+	const flat = page.getByTestId('diff-view-flat');
+	await expect(flat).toBeEnabled();
+	await flat.click();
+
+	await expect(page).not.toHaveURL(/[?&]commit=/);
+	await expect(page).toHaveURL(/[?&]diff=flat/);
+	await expect(page.getByTestId('commit-card')).toHaveCount(0);
+	await expect(page.getByTestId('file-row')).toContainText(
+		`flatten-${ref}.txt`,
+	);
+
+	expect(pageErrors).toEqual([]);
+});

@@ -935,7 +935,6 @@ export const IssueDetails = ({
 							// The same count the tab wears, which is undefined until the
 							// commits have actually arrived.
 							commitCount={commitsCount}
-							pinnedToCommits={Boolean(diffFocus)}
 						/>
 						{/* With no commits, the per-commit view's empty state says how to link one. */}
 						{diffView.compacted && commits.length > 0
