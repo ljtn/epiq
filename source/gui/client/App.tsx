@@ -351,6 +351,9 @@ export const App = () => {
 	// URL so the deep link survives a reload rather than living in state.
 	const diffFocus =
 		readDiffLocationParams(searchParams) ?? readCommitFocusParam(searchParams);
+	// Bumped on every commit opened, so opening the one already in the URL
+	// folds and scrolls again.
+	const [commitOpenCount, setCommitOpenCount] = useState(0);
 	const navigate = useNavigate();
 
 	// Route params carry shorthand refs. `boards` may be missing before a project exists.
@@ -1575,6 +1578,7 @@ export const App = () => {
 				// A bare panel left open by an earlier unlinked commit would sit in
 				// front of the ticket this one opens, still showing that older diff.
 				setCommitDiff(null);
+				setCommitOpenCount(count => count + 1);
 				void navigate(
 					`/board/${boardSlug}/issue/${ref}?tab=code&commit=${sha}`,
 					{replace},
@@ -2433,6 +2437,7 @@ export const App = () => {
 										onFileTicket={fileTicketFromSelection}
 										onOpenDiffLocation={openDiffLocation}
 										diffFocus={diffFocus}
+										diffFocusRequest={commitOpenCount}
 										focusedCommentId={focusedCommentId}
 										attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
 										attachmentUploadStatus={attachmentUploadStatus}

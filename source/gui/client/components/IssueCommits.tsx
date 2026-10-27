@@ -33,6 +33,7 @@ export const IssueCommits = ({
 	onFileTicket,
 	comments,
 	focus,
+	focusRequest,
 }: {
 	// A ticket's list; a goal's has none, as each commit names its tickets.
 	issueRef?: string;
@@ -49,6 +50,8 @@ export const IssueCommits = ({
 	comments: GuiComment[];
 	// Where a comment permalink points, read from the URL by the caller.
 	focus?: CommitFocus | null;
+	// Changes on every request to open `focus`, even the same one again.
+	focusRequest?: number;
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
@@ -130,7 +133,7 @@ export const IssueCommits = ({
 						[focus.sha]: new Set(prev[focus.sha] ?? []).add(filePath),
 				  },
 		);
-	}, [focusKey]);
+	}, [focusKey, focusRequest]);
 
 	// Separate from the expand effect above: the diff has to be fetched too,
 	// and only when it isn't already loading or loaded.
@@ -139,7 +142,7 @@ export const IssueCommits = ({
 
 		const existing = diffsBySha[focus.sha];
 		if (!existing || existing.error) onLoadDiff(focus.sha);
-	}, [focusKey]);
+	}, [focusKey, focusRequest]);
 
 	// After the others have folded, so the row is where it will stay.
 	useEffect(() => {
