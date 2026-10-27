@@ -39,7 +39,10 @@ export const destinationOf = (entry: LogEntry): LogDestination | null => {
 
 	const tab = tabFor(entry.action);
 
-	return tab === 'comments' && entry.target
+	// A deleted comment is no longer there to land on.
+	return tab === 'comments' &&
+		entry.target &&
+		entry.action !== 'delete.issue.comment'
 		? {kind: 'ticket', issueId: entry.issue, tab, comment: entry.target}
 		: {kind: 'ticket', issueId: entry.issue, tab};
 };

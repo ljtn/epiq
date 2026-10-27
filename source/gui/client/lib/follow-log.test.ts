@@ -206,6 +206,76 @@ describe('followStep', () => {
 		expect(step.open).toMatchObject({tab: 'comments'});
 	});
 
+	// A new comment on the ticket being watched is a new place to stand.
+	it('moves to a newer comment on the ticket the reader is already on', () => {
+		const step = followStep({
+			entries: [
+				line('a', {
+					issue: 'ISSUE_2',
+					action: 'add.issue.comment',
+					target: 'COMMENT_2',
+				}),
+			],
+			newestId: 'a',
+			mark: {line: 'z'},
+			pinned,
+			at: {
+				kind: 'ticket',
+				issueId: 'ISSUE_2',
+				tab: 'comments',
+				comment: 'COMMENT_1',
+			},
+		});
+
+		expect(step.open).toMatchObject({comment: 'COMMENT_2'});
+	});
+
+	it('stays put when another comment on the ticket is deleted', () => {
+		const step = followStep({
+			entries: [
+				line('a', {
+					issue: 'ISSUE_2',
+					action: 'delete.issue.comment',
+					target: 'COMMENT_3',
+				}),
+			],
+			newestId: 'a',
+			mark: {line: 'z'},
+			pinned,
+			at: {
+				kind: 'ticket',
+				issueId: 'ISSUE_2',
+				tab: 'comments',
+				comment: 'COMMENT_1',
+			},
+		});
+
+		expect(step.open).toBeNull();
+	});
+
+	it('stays put when the comment the reader is on is edited', () => {
+		const step = followStep({
+			entries: [
+				line('a', {
+					issue: 'ISSUE_2',
+					action: 'edit.issue.comment',
+					target: 'COMMENT_1',
+				}),
+			],
+			newestId: 'a',
+			mark: {line: 'z'},
+			pinned,
+			at: {
+				kind: 'ticket',
+				issueId: 'ISSUE_2',
+				tab: 'comments',
+				comment: 'COMMENT_1',
+			},
+		});
+
+		expect(step.open).toBeNull();
+	});
+
 	it('does not re-open a commit diff the reader is already reading', () => {
 		const step = followStep({
 			entries: [line('a', {sha: 'abc123', issue: null, action: null})],
