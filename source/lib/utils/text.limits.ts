@@ -11,7 +11,7 @@ export const MAX_DESCRIPTION_LENGTH = 20_000;
 // there, so it stays a page of conventions, not a document.
 export const MAX_SWIMLANE_DESCRIPTION_LENGTH = 2000;
 export const MAX_BOARD_DESCRIPTION_LENGTH = 4000;
-// Handed to agents with every ticket in the goal.
+// What a goal is for, listed with every goal: a page, as a board's is.
 export const MAX_GOAL_DESCRIPTION_LENGTH = 4000;
 
 export const descriptionLimitOf = (

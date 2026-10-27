@@ -379,3 +379,37 @@ test("a goal's description is written in its panel, and kept", async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+test("a goal's description can't be edited while the board is offline", async ({
+	page,
+	appUrl,
+}) => {
+	// Proxied so the live socket can be cut and retries refused, as offline.pw.ts does.
+	let refuse = false;
+	let cut: (() => void) | null = null;
+	await page.routeWebSocket(/\/ws/, ws => {
+		if (refuse) {
+			ws.close();
+			return;
+		}
+
+		const server = ws.connectToServer();
+		ws.onMessage(message => server.send(message));
+		server.onMessage(message => ws.send(message));
+		cut = () => ws.close();
+	});
+
+	await openBoard(page, appUrl);
+	const goal = `Offline ${Date.now()}`;
+	await addTicket(page, `Part of ${goal}`);
+	await startGoal(page, goal);
+	await pill(page, goal).click();
+	await expect(page.getByTestId('goal-description-edit')).toBeVisible();
+
+	refuse = true;
+	cut!();
+	// The board stands down, its panel still on screen.
+	await expect(page.getByTestId('add-issue').first()).toBeDisabled();
+	await expect(page.getByTestId('goal-details')).toContainText(goal);
+	await expect(page.getByTestId('goal-description-edit')).toHaveCount(0);
+});

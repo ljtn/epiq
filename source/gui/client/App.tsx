@@ -2309,7 +2309,7 @@ export const App = () => {
 										commitDiffsBySha={issueCommitDiffs}
 										onLoadCommitDiff={loadIssueCommitDiff}
 										stats={goalStats}
-										readonly={state.timeTravel?.mode === 'scrub'}
+										readonly={selectedBoard.readonly || offline}
 										onSaveDescription={text =>
 											saveNodeDescription(
 												{kind: 'goal', id: detailedGoal.id},

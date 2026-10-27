@@ -65,8 +65,10 @@ export const listGoals = async (input: ToolInput = {}) => {
 
 /** The goals a board shows, and which of each one's tickets it shows. */
 export const apiBoardGoals = (boardId: string): ApiBoardGoal[] =>
+	// Without the description: it would go out once per board in every state.
 	boardGoals(boardId).map(goal => ({
-		...apiGoal(goal),
+		...goalRef(goal),
+		...goalProgress(goal.id),
 		members: goalMembersOn(goal.id, boardId).map(ticket => ({
 			id: ticket.id,
 			done: isGoalTicketDone(ticket),

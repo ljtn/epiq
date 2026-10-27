@@ -226,7 +226,7 @@ describe("a goal's description", () => {
 		expect(isFail(long)).toBe(true);
 	});
 
-	it("shares its event with a lane's description without either reaching the other", async () => {
+	it("keeps a goal's description and a lane's apart", async () => {
 		const {repoRoot, boardId} = await seed();
 		const {id} = unwrap(await createGoal({repoRoot, name: 'Apart'}));
 		const lane = unwrap(await listSwimlanes({repoRoot, boardId}))[0]!;

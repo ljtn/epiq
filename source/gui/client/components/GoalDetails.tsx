@@ -231,7 +231,7 @@ export const GoalDetails = ({
 	commitDiffsBySha: Record<string, CommitDiffState>;
 	onLoadCommitDiff: (sha: string, repo?: string) => void;
 	stats: GoalAnswer<IssueStatsValue> | null;
-	// While the board shows the past, as a lane's description is.
+	// While the board is readonly or offline, as a lane's description is.
 	readonly: boolean;
 	onSaveDescription: (description: string) => void;
 	onOpenIssue: (issueId: string, boardRef: string) => void;
