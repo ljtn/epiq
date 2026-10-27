@@ -96,3 +96,6 @@
 {"v":1,"id":["01M5Y4R0M6ZA7P1S3YGB4AT1SJ","01M5Y4R0M5ZVRTKJZ0Q6WN0VGB"],"add.issue.tag":{"id":"01M5Y4R0M3SSCT8RN47FPY6KV1","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
 {"v":1,"id":["01M5Y4R0M77E1VYA4PYJFCVHVJ","01M5Y4R0M6ZA7P1S3YGB4AT1SJ"],"add.issue.tag":{"id":"01M5Y4R0M3SSCT8RN47FPY6KV1","tag":"01KVD6SFWQ044YNBB4GBSK45YB"}}
 {"v":1,"id":["01M5Y5HKAVWA5YEW7DR5D6NZWC","01M5Y5AGXFECZGS9HGVDXJWBR0"],"move.node":{"id":"01M5Y4R0M3SSCT8RN47FPY6KV1","parent":"01KS22YK95S3336MFSE44MY70T","rank":"bfffffffffffffffffffffff"}}
+{"v":1,"id":["01M5Y5XMBYG0VWDZATDBXRETRM","01M5Y5SXVQP9CN9YNPHP3QS3PR"],"add.issue":{"id":"01M5Y5XMBXV89N657JCPT8QFDG","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","name":"The skill tells agents to start bigger work with a goal","rank":"7fffffffffffffffffffffff"}}
+{"v":1,"id":["01M5Y5XMCPGJPNCTY9VRMWDS45","01M5Y5XMBYG0VWDZATDBXRETRM"],"edit.description":{"id":"01M5Y5XMBXV89N657JCPT8QFDG","md":"jola: for a bigger task or feature, an agent creates a goal, describes its intent and expectations (not its implementation) in a few lines, and breaks the work into tickets in that goal. Added to .claude/skills/epiq/SKILL.md after the Goals line, and skill-content.ts regenerated."}}
+{"v":1,"id":["01M5Y5XMCQGXY69WZ36BD1K0MT","01M5Y5XMCPGJPNCTY9VRMWDS45"],"add.issue.tag":{"id":"01M5Y5XMBXV89N657JCPT8QFDG","tag":"01KVD6SFWQ044YNBB4GBSK45YB"}}
