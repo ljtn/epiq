@@ -640,12 +640,15 @@ describe('mcp tools', () => {
 				md,
 			}));
 
-		it('carries earlier comments by their first three lines, and says so', async () => {
+		// A short earlier comment is whole, so it carries no marker.
+		it('carries earlier comments by their first three lines, and marks a cut', async () => {
+			const cut =
+				' … [cut: call epiq_issue_get with allComments: true to read the rest]';
 			const long = `Decided: no approval step\nWhy: one\nHow: two\n${'x'.repeat(
 				3000,
 			)}`;
 			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
-				thread(['y'.repeat(500), long, '3', '4', '5']),
+				thread(['y'.repeat(500), long, '3', '4', '5', 'short']),
 			);
 
 			const result = await tools.getIssue({
@@ -656,13 +659,14 @@ describe('mcp tools', () => {
 			expect(isFail(result)).toBe(false);
 			if (isFail(result)) return;
 			expect(result.value.comments.map(c => c.body)).toEqual([
-				`${'y'.repeat(400)}…`,
-				'Decided: no approval step\nWhy: one\nHow: two…',
+				`${'y'.repeat(400)}${cut}`,
+				`Decided: no approval step\nWhy: one\nHow: two${cut}`,
 				'3',
 				'4',
 				'5',
+				'short',
 			]);
-			expect(result.value.olderComments).toMatch(/^The first 2 .*allComments/);
+			expect(result.value.olderComments).toMatch(/^The first 3 .*allComments/);
 		});
 
 		it('reads every comment whole with allComments', async () => {
