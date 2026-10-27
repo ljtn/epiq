@@ -632,6 +632,73 @@ describe('mcp tools', () => {
 			expect(result.value.comments[0]?.author).toBe('Unknown');
 		});
 
+		const thread = (bodies: string[]) =>
+			bodies.map((md, i) => ({
+				id: fixtureId(`comment-${i + 1}`),
+				issue: fixtureId('issue-1'),
+				authorId: 'contributor-1',
+				md,
+			}));
+
+		// A comment the cut would barely shorten stays whole, without a marker.
+		it('carries earlier comments by their first three lines, and marks a cut', async () => {
+			const cut =
+				' … [cut: call epiq_issue_get with allComments: true to read the rest]';
+			const long = `Decided: no approval step\nWhy: one\nHow: two\n${'x'.repeat(
+				3000,
+			)}`;
+			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
+				thread([
+					'y'.repeat(700),
+					long,
+					`a\nb\nc\n${'d'.repeat(150)}`,
+					'4',
+					'5',
+					'short',
+				]),
+			);
+
+			const result = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: fixtureId('issue-1'),
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.comments.map(c => c.body)).toEqual([
+				`${'y'.repeat(400)}${cut}`,
+				`Decided: no approval step\nWhy: one\nHow: two${cut}`,
+				`a\nb\nc\n${'d'.repeat(150)}`,
+				'4',
+				'5',
+				'short',
+			]);
+			expect(result.value.olderComments).toMatch(/^The first 3 .*allComments/);
+		});
+
+		it('reads every comment whole with allComments', async () => {
+			const long = 'x'.repeat(4000);
+			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
+				thread([long, '2', '3', long]),
+			);
+
+			const result = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: fixtureId('issue-1'),
+				allComments: true,
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.comments.map(c => c.body)).toEqual([
+				long,
+				'2',
+				'3',
+				long,
+			]);
+			expect(result.value.olderComments).toBeUndefined();
+		});
+
 		// The inverse of the commit-prefix convention: ref in, ticket out.
 		it('finds an issue by its ref', async () => {
 			const result = await tools.getIssue({
