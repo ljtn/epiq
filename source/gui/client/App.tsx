@@ -353,7 +353,13 @@ export const App = () => {
 		readDiffLocationParams(searchParams) ?? readCommitFocusParam(searchParams);
 	// Bumped on every commit opened, so opening the one already in the URL
 	// folds and scrolls again.
-	const [commitOpenCount, setCommitOpenCount] = useState(0);
+	const [commitOpen, setCommitOpen] = useState({sha: '', count: 0});
+	// Passed on only once the URL names the same commit: the navigation is a
+	// transition, and the count alone would land a render early.
+	const commitOpenRequest = useRef(0);
+	if (commitOpen.sha === diffFocus?.sha) {
+		commitOpenRequest.current = commitOpen.count;
+	}
 	const navigate = useNavigate();
 
 	// Route params carry shorthand refs. `boards` may be missing before a project exists.
@@ -1578,7 +1584,7 @@ export const App = () => {
 				// A bare panel left open by an earlier unlinked commit would sit in
 				// front of the ticket this one opens, still showing that older diff.
 				setCommitDiff(null);
-				setCommitOpenCount(count => count + 1);
+				setCommitOpen(prev => ({sha, count: prev.count + 1}));
 				void navigate(
 					`/board/${boardSlug}/issue/${ref}?tab=code&commit=${sha}`,
 					{replace},
@@ -2437,7 +2443,7 @@ export const App = () => {
 										onFileTicket={fileTicketFromSelection}
 										onOpenDiffLocation={openDiffLocation}
 										diffFocus={diffFocus}
-										diffFocusRequest={commitOpenCount}
+										diffFocusRequest={commitOpenRequest.current}
 										focusedCommentId={focusedCommentId}
 										attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
 										attachmentUploadStatus={attachmentUploadStatus}
