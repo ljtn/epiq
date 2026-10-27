@@ -277,6 +277,7 @@ export const IssueDetails = ({
 	onFileTicket,
 	onOpenDiffLocation,
 	diffFocus,
+	diffFocusRequest,
 	focusedCommentId,
 	attachments,
 	attachmentUploadStatus,
@@ -340,6 +341,8 @@ export const IssueDetails = ({
 	// hands back where it currently points so the Code tab can open there.
 	onOpenDiffLocation?: (location: DiffLocation) => void;
 	diffFocus?: CommitFocus | null;
+	// Changes on every request to open `diffFocus`, even the same one again.
+	diffFocusRequest?: number;
 	// The one comment a link points at, for the Comments tab to scroll to and
 	// mark. Passed straight through: the tab owns what it looks like.
 	focusedCommentId?: string | null;
@@ -900,6 +903,7 @@ export const IssueDetails = ({
 								: params => onFileTicket?.(issue.id, issue.ref, params)
 						}
 						focus={diffFocus}
+						focusRequest={diffFocusRequest}
 					/>
 				);
 

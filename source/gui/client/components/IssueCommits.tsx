@@ -33,6 +33,7 @@ export const IssueCommits = ({
 	onFileTicket,
 	comments,
 	focus,
+	focusRequest,
 }: {
 	// A ticket's list; a goal's has none, as each commit names its tickets.
 	issueRef?: string;
@@ -49,6 +50,8 @@ export const IssueCommits = ({
 	comments: GuiComment[];
 	// Where a comment permalink points, read from the URL by the caller.
 	focus?: CommitFocus | null;
+	// Changes on every request to open `focus`, even the same one again.
+	focusRequest?: number;
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
@@ -104,15 +107,20 @@ export const IssueCommits = ({
 		}
 	}, [commits, diffsBySha]);
 
-	// Opens the commit and file a permalink names, additively. Keyed by value.
+	const rowsBySha = useRef(new Map<string, HTMLDivElement>());
+	// The commit still to be brought into view, once its row is drawn.
+	const pendingScroll = useRef<string | null>(null);
+
+	// The commit a link names becomes the only one open. Keyed by value.
 	const focusKey = focus ? `${focus.sha}:${focus.filePath ?? ''}` : null;
 
 	useEffect(() => {
 		if (!focus) return;
 
-		setExpandedShas(prev =>
-			prev.has(focus.sha) ? prev : new Set(prev).add(focus.sha),
-		);
+		setExpandedShas(new Set([focus.sha]));
+
+		// A line range is scrolled to by its file row; two scrolls would fight.
+		pendingScroll.current = focus.start === undefined ? focus.sha : null;
 
 		const filePath = focus.filePath;
 		if (filePath === undefined) return;
@@ -125,7 +133,7 @@ export const IssueCommits = ({
 						[focus.sha]: new Set(prev[focus.sha] ?? []).add(filePath),
 				  },
 		);
-	}, [focusKey]);
+	}, [focusKey, focusRequest]);
 
 	// Separate from the expand effect above: the diff has to be fetched too,
 	// and only when it isn't already loading or loaded.
@@ -134,7 +142,19 @@ export const IssueCommits = ({
 
 		const existing = diffsBySha[focus.sha];
 		if (!existing || existing.error) onLoadDiff(focus.sha);
-	}, [focusKey]);
+	}, [focusKey, focusRequest]);
+
+	// After the others have folded, so the row is where it will stay.
+	useEffect(() => {
+		const sha = pendingScroll.current;
+		if (!sha || expandedShas.size !== 1 || !expandedShas.has(sha)) return;
+
+		const row = rowsBySha.current.get(sha);
+		if (!row) return;
+
+		pendingScroll.current = null;
+		row.scrollIntoView({block: 'start'});
+	}, [focusKey, expandedShas, commits, loading]);
 
 	const toggleCommit = (sha: string) => {
 		const alreadyExpanded = expandedShas.has(sha);
@@ -222,7 +242,14 @@ export const IssueCommits = ({
 	return (
 		<div>
 			{ordered.map((commit, index) => (
-				<div key={commit.sha} style={{display: 'flex', marginBottom: ROW_GAP}}>
+				<div
+					key={commit.sha}
+					ref={row => {
+						if (row) rowsBySha.current.set(commit.sha, row);
+						else rowsBySha.current.delete(commit.sha);
+					}}
+					style={{display: 'flex', marginBottom: ROW_GAP}}
+				>
 					{/* The rail: a dot per commit, joined solid to the next only when adjacent
 					    in history (precedingSha). Stretches with the row, so no measuring. */}
 					<div style={{width: RAIL_WIDTH, flexShrink: 0, position: 'relative'}}>
