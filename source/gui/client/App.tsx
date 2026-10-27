@@ -560,13 +560,15 @@ export const App = () => {
 	// A commit deep link holds the tab on the commits, which compacted cannot show.
 	const compactedDiff = compactedDiffPreferred && !diffFocus;
 
-	// Both URL and stored preference; replaced rather than pushed.
+	// Both URL and stored preference; replaced rather than pushed. The flat view
+	// has no one commit to stand on, so it drops a commit link.
 	const chooseDiffView = (next: boolean) => {
 		setCompactedDiffStored(next);
 		setSearchParams(
 			prev => {
 				const params = new URLSearchParams(prev);
 				writeDiffViewParam(params, next);
+				if (next) clearDiffLocationParams(params);
 
 				return params;
 			},
@@ -579,7 +581,7 @@ export const App = () => {
 	useEffect(() => {
 		if (selectedTab !== 'code' || !selectedIssue) return;
 		if (readDiffViewParam(searchParams)) return;
-		// The switch is disabled under a commit link, so there is no choice to write.
+		// A commit link shows the commits whatever the choice, so none is written.
 		if (diffFocus) return;
 
 		setSearchParams(

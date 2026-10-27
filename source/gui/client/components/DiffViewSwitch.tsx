@@ -10,14 +10,10 @@ export const DiffViewSwitch = ({
 	onChange,
 	// Shown on the Commits segment; undefined while still fetching.
 	commitCount,
-	// A deep link into a commit holds the per-commit view without changing the
-	// remembered choice.
-	pinnedToCommits = false,
 }: {
 	compacted: boolean;
 	onChange: (next: boolean) => void;
 	commitCount?: number;
-	pinnedToCommits?: boolean;
 }) => {
 	const [wrap, setWrap] = useDiffWrap();
 
@@ -26,23 +22,14 @@ export const DiffViewSwitch = ({
 			data-testid="diff-view-switch"
 			style={{display: 'flex', gap: 2, marginBottom: 10}}
 		>
-			{/* Both segments go flat while a deep link holds the view. */}
 			{/* Flat first: it is the whole change at once, and the commits are how
 			    it got there. */}
 			<button
 				data-testid="diff-view-flat"
 				aria-pressed={compacted}
-				disabled={pinnedToCommits}
-				title={
-					pinnedToCommits
-						? 'Following a link into a commit — clear it to flatten'
-						: 'Every commit as one diff'
-				}
+				title="Every commit as one diff"
 				onClick={() => onChange(true)}
-				style={{
-					...segmentedButtonStyle(compacted),
-					...(pinnedToCommits ? {opacity: 0.35, cursor: 'default'} : {}),
-				}}
+				style={segmentedButtonStyle(compacted)}
 			>
 				Diff
 			</button>
@@ -50,17 +37,9 @@ export const DiffViewSwitch = ({
 			<button
 				data-testid="diff-view-commits"
 				aria-pressed={!compacted}
-				disabled={pinnedToCommits}
-				title={
-					pinnedToCommits
-						? 'Following a link into a commit'
-						: 'Each commit and the files it changed'
-				}
+				title="Each commit and the files it changed"
 				onClick={() => onChange(false)}
-				style={{
-					...segmentedButtonStyle(!compacted),
-					...(pinnedToCommits ? {cursor: 'default'} : {}),
-				}}
+				style={segmentedButtonStyle(!compacted)}
 			>
 				{commitCount === undefined ? 'Commits' : `Commits (${commitCount})`}
 			</button>
