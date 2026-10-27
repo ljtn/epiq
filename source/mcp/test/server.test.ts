@@ -1,9 +1,9 @@
 import {describe, expect, it} from 'vitest';
-import {failed, Result, succeeded} from '../../lib/model/result-types.js';
+import {failed, succeeded} from '../../lib/model/result-types.js';
 import {resultJson} from '../server.js';
 
 describe('mcp server helpers', () => {
-	it('marks successful Result as non-error MCP response', () => {
+	it('answers a success with its message and value, compactly', () => {
 		const result = resultJson(
 			succeeded('Listed issues', [{id: 'issue-1', title: 'Fix bug'}]),
 		);
@@ -11,23 +11,17 @@ describe('mcp server helpers', () => {
 		expect(result.isError).toBe(false);
 		expect(result.content).toHaveLength(1);
 		expect(result.content[0]?.type).toBe('text');
-
-		const parsed = JSON.parse(result.content[0]?.text ?? '{}') as Result;
-
-		expect(parsed.status).toBe('success');
-		expect(parsed.message).toBe('Listed issues');
-		expect(parsed.value).toEqual([{id: 'issue-1', title: 'Fix bug'}]);
+		expect(result.content[0]?.text).toBe(
+			'{"message":"Listed issues","value":[{"id":"issue-1","title":"Fix bug"}]}',
+		);
 	});
 
-	it('marks failed Result as MCP error response', () => {
+	it('answers a failure with its message, as an MCP error', () => {
 		const result = resultJson(failed('Unable to locate issue'));
 
 		expect(result.isError).toBe(true);
-		expect(result.content).toHaveLength(1);
-
-		const parsed = JSON.parse(result.content[0]?.text ?? '{}') as Result;
-
-		expect(parsed.status).toBe('fail');
-		expect(parsed.message).toBe('Unable to locate issue');
+		expect(JSON.parse(result.content[0]?.text ?? '{}')).toEqual({
+			message: 'Unable to locate issue',
+		});
 	});
 });

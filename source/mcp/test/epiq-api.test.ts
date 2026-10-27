@@ -632,6 +632,61 @@ describe('mcp tools', () => {
 			expect(result.value.comments[0]?.author).toBe('Unknown');
 		});
 
+		const thread = (bodies: string[]) =>
+			bodies.map((md, i) => ({
+				id: fixtureId(`comment-${i + 1}`),
+				issue: fixtureId('issue-1'),
+				authorId: 'contributor-1',
+				md,
+			}));
+
+		it('carries the latest three comments and says how many came before', async () => {
+			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
+				thread(['1', '2', '3', '4', '5']),
+			);
+
+			const result = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: fixtureId('issue-1'),
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.comments.map(c => c.body)).toEqual(['3', '4', '5']);
+			expect(result.value.olderComments).toMatch(
+				/^2 earlier comments: .*allComments/,
+			);
+		});
+
+		it('cuts a long comment, and allComments reads the thread whole', async () => {
+			const long = 'x'.repeat(5000);
+			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue)
+				.mockReturnValueOnce(thread(['1', '2', '3', long]))
+				.mockReturnValueOnce(thread(['1', '2', '3', long]));
+
+			const recent = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: fixtureId('issue-1'),
+			});
+			const whole = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: fixtureId('issue-1'),
+				allComments: true,
+			});
+
+			if (isFail(recent) || isFail(whole)) throw new Error('getIssue failed');
+			const cut = recent.value.comments.at(-1)?.body ?? '';
+			expect(cut.length).toBeLessThan(2100);
+			expect(cut).toMatch(/allComments reads it whole]$/);
+			expect(whole.value.comments.map(c => c.body)).toEqual([
+				'1',
+				'2',
+				'3',
+				long,
+			]);
+			expect(whole.value.olderComments).toBeUndefined();
+		});
+
 		// The inverse of the commit-prefix convention: ref in, ticket out.
 		it('finds an issue by its ref', async () => {
 			const result = await tools.getIssue({

@@ -67,7 +67,11 @@ export type ApiGoal = ApiGoalRef & {
 /** A goal a board shows, and which of its tickets that board shows. */
 export type ApiBoardGoal = ApiGoal & {members: {id: string; done: boolean}[]};
 
-export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};
+export type ApiIssueDetail = ApiIssue & {
+	comments: ApiIssueComment[];
+	/** Set when `comments` holds only the latest few. */
+	olderComments?: string;
+};
 
 // One write over many tickets: which went through and which did not, and
 // why. A failure is per ticket, not per call.

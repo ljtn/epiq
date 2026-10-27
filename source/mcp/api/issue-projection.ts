@@ -6,7 +6,7 @@ import {
 	getTicketAssignees,
 	getTicketTags,
 } from '../../lib/utils/ticket.utils.js';
-import {ApiIssue, ApiIssueComment} from '../api-state.model.js';
+import {ApiIssue, ApiIssueComment, ApiIssueDetail} from '../api-state.model.js';
 
 // The lib helpers answer which tags and assignees a ticket has; these add the
 // colour the API surface carries and nothing else.
@@ -33,3 +33,38 @@ export const getIssueAssignees = (ticket: Ticket) =>
 		({id, name}) =>
 			identityOf(id, name) satisfies ApiIssue['assignees'][number],
 	);
+
+const RECENT_COMMENTS = 3;
+const COMMENT_CUT = 2000;
+
+// A thread reads latest first: the last few, a long body cut, and a hint
+// naming what is left out, so the rest stays one call away.
+export const getIssueThread = (
+	issueId: string,
+	all = false,
+): Pick<ApiIssueDetail, 'comments' | 'olderComments'> => {
+	const comments = getIssueComments(issueId);
+	if (all) return {comments};
+
+	const recent = comments.slice(-RECENT_COMMENTS).map(comment =>
+		comment.body.length > COMMENT_CUT
+			? {
+					...comment,
+					body: `${comment.body.slice(
+						0,
+						COMMENT_CUT,
+					)}… [cut: allComments reads it whole]`,
+			  }
+			: comment,
+	);
+	const older = comments.length - recent.length;
+
+	return older
+		? {
+				comments: recent,
+				olderComments: `${older} earlier comment${
+					older === 1 ? '' : 's'
+				}: pass allComments to read the whole thread`,
+		  }
+		: {comments: recent};
+};

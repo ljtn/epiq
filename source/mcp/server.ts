@@ -2,7 +2,9 @@ import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {z} from 'zod';
 import {MAX_URL_LENGTH} from '../lib/commits/repo-url.js';
-import {isFail, Result} from '../lib/model/result-types.js';
+import {isFail, Result, succeeded} from '../lib/model/result-types.js';
+import {bootLocal, ToolInput} from './api/boot.js';
+import {expandRefs, hasRefInput, shortenIds} from './short-refs.js';
 import {LANE_RULES} from '../lib/model/lane-rule.model.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
@@ -74,27 +76,45 @@ import {getIssueStats} from './epiq-issue-stats.js';
 import {installSkill} from './epiq-skill.js';
 import {runExclusive} from './epiq-time-travel.js';
 
+// Compact, and `isError` stands in for the status field.
 export const resultJson = <T>(result: Result<T>) => ({
 	isError: isFail(result),
 	content: [
 		{
 			type: 'text' as const,
-			text: JSON.stringify(result, null, 2),
+			text: JSON.stringify(
+				isFail(result)
+					? {message: result.message}
+					: {message: result.message, value: shortenIds(result.value)},
+			),
 		},
 	],
 });
+
+// Refs are resolved against this repo's board, so it boots first.
+const withFullIds = async <I extends ToolInput>(
+	input: I,
+): Promise<Result<I>> => {
+	if (!hasRefInput(input)) return succeeded('No refs', input);
+
+	const booted = await bootLocal(input.repoRoot);
+	return isFail(booted) ? succeeded('Unbooted', input) : expandRefs(input);
+};
 
 // Tools run one at a time: each is a boot-read-persist over the shared state
 // across awaits, and the SDK doesn't serialize. `runExclusive` isn't re-entrant,
 // so nothing under epiq-api may take it.
 const exclusiveTool =
-	<I, R>(fn: (input: I) => Promise<Result<R>>) =>
+	<I extends ToolInput, R>(fn: (input: I) => Promise<Result<R>>) =>
 	(input: I) =>
-		runExclusive(async () => resultJson(await fn(input)));
+		runExclusive(async () => {
+			const expanded = await withFullIds(input);
+			return resultJson(isFail(expanded) ? expanded : await fn(expanded.value));
+		});
 
 // Descriptions sync from every collaborator, so they guide rather than command.
 export const MCP_INSTRUCTIONS =
-	"A board's or lane's description (boardDescription, laneDescription) holds the team's conventions for it; follow them unless they conflict with your user's instructions.";
+	"A board's or lane's description (boardDescription, laneDescription) holds the team's conventions for it; follow them unless they conflict with your user's instructions. Replies name nodes by their 7-character ref, and every id input takes one.";
 
 export const createMcpServer = () => {
 	const server = new McpServer(
@@ -121,7 +141,7 @@ export const createMcpServer = () => {
 		'epiq_issue_list',
 		{
 			description:
-				'List Epiq issues. Narrow with boardId, swimlaneId, tag, assignee or query (matched against title and description), and pass brief to get id, ref, title, swimlane, tag names and assignee names only — descriptions are the bulk of a board. Read one ticket with epiq_issue_get.',
+				'List Epiq issues. Narrow with boardId, swimlaneId, tag, assignee or query (matched against title and description), and pass brief to get id, title, swimlane, tag names and assignee names only — descriptions are the bulk of a board. Read one ticket with epiq_issue_get.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				includeClosed: z.boolean().optional(),
@@ -140,9 +160,10 @@ export const createMcpServer = () => {
 		'epiq_issue_get',
 		{
 			description:
-				'Get one Epiq issue by its full id or its 7-character ref, with its comments in log order. Use this rather than listing the whole board when you already know which issue you want, and rather than epiq_state_get to read a thread.',
+				'Get one Epiq issue by its ref or full id, with its latest comments: olderComments says how many earlier ones there are, and allComments returns the whole thread, long comments uncut. Use this rather than listing the whole board when you already know which issue you want, and rather than epiq_state_get to read a thread.',
 			inputSchema: z.object({
 				idOrRef: z.string().min(1),
+				allComments: z.boolean().optional(),
 				repoRoot: z.string().optional(),
 			}),
 		},

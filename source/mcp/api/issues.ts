@@ -56,7 +56,7 @@ import {
 } from './boot.js';
 import {
 	getIssueTags,
-	getIssueComments,
+	getIssueThread,
 	getIssueAssignees,
 } from './issue-projection.js';
 import {boardsEverOnOf} from '../../lib/utils/ticket-boards.js';
@@ -113,6 +113,7 @@ type EditIssueTitleInput = ToolInput & {
 
 type GetIssueInput = ToolInput & {
 	idOrRef: string;
+	allComments?: boolean;
 };
 
 /** One issue, by full id or by its 7-character ref. */
@@ -166,7 +167,7 @@ export const getIssue = async (input: GetIssueInput) => {
 		tags: getIssueTags(issue),
 		assignees: getIssueAssignees(issue),
 		...goalFields(issue),
-		comments: getIssueComments(issue.id),
+		...getIssueThread(issue.id, input.allComments),
 		...laneDescriptionOf(issue.parentNodeId),
 	} satisfies ApiIssueDetail & {laneDescription?: string});
 };
