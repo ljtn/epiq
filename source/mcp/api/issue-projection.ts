@@ -37,14 +37,18 @@ export const getIssueAssignees = (ticket: Ticket) =>
 const RECENT_COMMENTS = 3;
 const GIST_LINES = 3;
 const GIST_LENGTH = 400;
+// A cut that would hide less than this costs more than it saves.
+const MIN_HIDDEN = 200;
 const CUT_MARKER =
 	' … [cut: call epiq_issue_get with allComments: true to read the rest]';
 
 const gistOf = (body: string) => {
-	const lines = body.split('\n').slice(0, GIST_LINES).join('\n');
-	return lines.length > GIST_LENGTH || lines.length < body.length
-		? `${lines.slice(0, GIST_LENGTH)}${CUT_MARKER}`
-		: lines;
+	const gist = body
+		.split('\n')
+		.slice(0, GIST_LINES)
+		.join('\n')
+		.slice(0, GIST_LENGTH);
+	return body.length - gist.length < MIN_HIDDEN ? body : `${gist}${CUT_MARKER}`;
 };
 
 // The latest comments whole, every earlier one by its first lines: a

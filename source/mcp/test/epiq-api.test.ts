@@ -640,7 +640,7 @@ describe('mcp tools', () => {
 				md,
 			}));
 
-		// A short earlier comment is whole, so it carries no marker.
+		// A comment the cut would barely shorten stays whole, without a marker.
 		it('carries earlier comments by their first three lines, and marks a cut', async () => {
 			const cut =
 				' … [cut: call epiq_issue_get with allComments: true to read the rest]';
@@ -648,7 +648,14 @@ describe('mcp tools', () => {
 				3000,
 			)}`;
 			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
-				thread(['y'.repeat(500), long, '3', '4', '5', 'short']),
+				thread([
+					'y'.repeat(700),
+					long,
+					`a\nb\nc\n${'d'.repeat(150)}`,
+					'4',
+					'5',
+					'short',
+				]),
 			);
 
 			const result = await tools.getIssue({
@@ -661,7 +668,7 @@ describe('mcp tools', () => {
 			expect(result.value.comments.map(c => c.body)).toEqual([
 				`${'y'.repeat(400)}${cut}`,
 				`Decided: no approval step\nWhy: one\nHow: two${cut}`,
-				'3',
+				`a\nb\nc\n${'d'.repeat(150)}`,
 				'4',
 				'5',
 				'short',
