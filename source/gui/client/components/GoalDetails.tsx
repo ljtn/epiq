@@ -26,7 +26,10 @@ import {GoalProgressLine} from './GoalMarks';
 import {IconCheck} from './IconCheck';
 import {IconChevronRight} from './IconChevronRight';
 import {CopyRef} from './CopyRef';
+import {DescriptionField} from './DescriptionField';
 import {DetailsHeader} from './NodeDetails';
+import {useEditDraft} from '../lib/ticket-drafts';
+import {descriptionLimitOf} from '../../../lib/utils/text.limits.js';
 import {Section} from './Section';
 import {Stat} from './StatRow';
 import {IssueCommits} from './IssueCommits';
@@ -212,6 +215,8 @@ export const GoalDetails = ({
 	commitDiffsBySha,
 	onLoadCommitDiff,
 	stats,
+	readonly,
+	onSaveDescription,
 	onOpenIssue,
 	onClose,
 }: {
@@ -226,10 +231,18 @@ export const GoalDetails = ({
 	commitDiffsBySha: Record<string, CommitDiffState>;
 	onLoadCommitDiff: (sha: string, repo?: string) => void;
 	stats: GoalAnswer<IssueStatsValue> | null;
+	// While the board shows the past, as a lane's description is.
+	readonly: boolean;
+	onSaveDescription: (description: string) => void;
 	onOpenIssue: (issueId: string, boardRef: string) => void;
 	onClose: () => void;
 }) => {
 	const [panelWidth, setPanelWidth] = useState(readStoredAsideWidth);
+	const descriptionEdit = useEditDraft(
+		goal.id,
+		'description',
+		goal.description ?? '',
+	);
 	const groups = groupsOf(goal.id, boards, boardId);
 	const share = goal.total > 0 ? goal.done / goal.total : 0;
 	const here =
@@ -294,7 +307,18 @@ export const GoalDetails = ({
 				/>
 			) : (
 				<>
-					<Section title="Progress" first>
+					<DescriptionField
+						draft={descriptionEdit}
+						current={goal.description ?? ''}
+						readonly={readonly}
+						maxLength={descriptionLimitOf('goal')}
+						onSave={onSaveDescription}
+						collapseKey={goal.id}
+						testId="goal-description"
+						placeholder="What this goal is for, and when it is done"
+					/>
+
+					<Section title="Progress">
 						<div style={statGrid(2, 2)}>
 							<Stat
 								size="compact"

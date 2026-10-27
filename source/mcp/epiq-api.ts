@@ -29,6 +29,7 @@ export {
 export {
 	editBoardDescription,
 	editSwimlaneDescription,
+	editGoalDescription,
 } from './api/descriptions.js';
 export {
 	createGoal,

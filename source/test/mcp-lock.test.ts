@@ -32,6 +32,7 @@ vi.mock('../mcp/epiq-api.js', () => ({
 	editSwimlaneTitle: vi.fn(),
 	editBoardDescription: vi.fn(),
 	editSwimlaneDescription: vi.fn(),
+	editGoalDescription: vi.fn(),
 	getEpiqState: vi.fn(),
 	getIssue: vi.fn(),
 	listBoards: vi.fn(),

@@ -22,6 +22,9 @@ import {
 	moveIssue,
 	deleteSwimlane,
 	listGoals,
+	editGoalDescription,
+	editSwimlaneDescription,
+	getIssue,
 } from '../mcp/epiq-api.js';
 import {deriveGuiState} from '../mcp/api/state.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
@@ -157,6 +160,121 @@ describe('a goal', () => {
 		expect(issueOf(part).goal).toBeUndefined();
 		expect(issueOf(part).title).toBe('Part');
 		expect(goalMark(nodeRepo.getNode(part) as Ticket, 20)).toBeNull();
+	});
+});
+
+describe("a goal's description", () => {
+	it('is set by name and listed with the goal, not repeated on its tickets', async () => {
+		const {repoRoot, file} = await seed();
+		const part = await file('Part');
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'Launch'}));
+
+		unwrap(
+			await editGoalDescription({
+				repoRoot,
+				goal: 'launch',
+				description: 'Ship **mobile** by spring',
+			}),
+		);
+
+		expect(unwrap(await listGoals({repoRoot}))[0]).toMatchObject({
+			name: 'Launch',
+			description: 'Ship **mobile** by spring',
+		});
+		expect(
+			unwrap(await getIssue({repoRoot, idOrRef: part})),
+		).not.toHaveProperty('goalDescription');
+	});
+
+	it('clears when emptied', async () => {
+		const {repoRoot, file} = await seed();
+		const part = await file('Part');
+		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'Quiet'}));
+		unwrap(
+			await editGoalDescription({repoRoot, goal: 'Quiet', description: 'x'}),
+		);
+
+		unwrap(
+			await editGoalDescription({repoRoot, goal: 'Quiet', description: '  '}),
+		);
+
+		expect(unwrap(await listGoals({repoRoot}))[0]).not.toHaveProperty(
+			'description',
+		);
+	});
+
+	it('refuses a goal that is gone or never was, and over the cap', async () => {
+		const {repoRoot} = await seed();
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Gone'}));
+		unwrap(await removeGoal({repoRoot, goalId: id}));
+
+		expect(
+			isFail(await editGoalDescription({repoRoot, goal: id, description: 'x'})),
+		).toBe(true);
+		expect(
+			isFail(
+				await editGoalDescription({repoRoot, goal: 'Never', description: 'x'}),
+			),
+		).toBe(true);
+
+		unwrap(await createGoal({repoRoot, name: 'Capped'}));
+		const long = await editGoalDescription({
+			repoRoot,
+			goal: 'Capped',
+			description: 'x'.repeat(4001),
+		});
+		expect(isFail(long)).toBe(true);
+	});
+
+	it("shares its event with a lane's description without either reaching the other", async () => {
+		const {repoRoot, boardId} = await seed();
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Apart'}));
+		const lane = unwrap(await listSwimlanes({repoRoot, boardId}))[0]!;
+
+		unwrap(
+			await editGoalDescription({repoRoot, goal: id, description: 'Goal text'}),
+		);
+		unwrap(
+			await editSwimlaneDescription({
+				repoRoot,
+				swimlaneId: lane.id,
+				description: 'Lane text',
+			}),
+		);
+
+		expect(getState().goals[id]?.description).toBe('Goal text');
+		expect(unwrap(await listSwimlanes({repoRoot, boardId}))[0]).toMatchObject({
+			description: 'Lane text',
+		});
+	});
+});
+
+describe('replaying a goal description', () => {
+	const describe_ = (actor: {userId: string}, id: string, at: string) =>
+		({
+			id: at,
+			...actor,
+			action: 'edit.goal.description',
+			payload: {id, md: 'Late'},
+		} as unknown as AppEvent);
+
+	it('skips one for a goal it never made, or one removed before it', async () => {
+		const {repoRoot, actor} = await seed();
+		const {id} = unwrap(await createGoal({repoRoot, name: 'Gone'}));
+		unwrap(await removeGoal({repoRoot, goalId: id}));
+
+		const [missing, removed] = materializeAll([
+			describe_(
+				actor,
+				'01M5Z0000000000000000000ZZ',
+				'01M5Z00000000000000000000A',
+			),
+			describe_(actor, id, '01M5Z00000000000000000000B'),
+		]);
+
+		expect(isFail(missing as Result)).toBe(true);
+		expect(isFail(removed as Result)).toBe(true);
+		expect(getState().goals[id]).not.toHaveProperty('description');
 	});
 });
 

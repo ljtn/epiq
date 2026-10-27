@@ -52,6 +52,7 @@ export const formatLogAction = (action: string): string => {
 		'restore.tag': 'Restored tag',
 		'create.goal': 'Created goal',
 		'rename.goal': 'Renamed goal',
+		'edit.goal.description': 'Described goal',
 		'tombstone.goal': 'Removed goal',
 		'create.contributor': 'Added contributor',
 		'rename.contributor': 'Renamed contributor',
@@ -149,6 +150,7 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'remove.swimlane.rule':
 			return `"${event.payload.rule}"`;
 
+		case 'edit.goal.description':
 		case 'tombstone.goal':
 			return `"${loggedGoalName(event.payload.id)}"`;
 
@@ -249,6 +251,7 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		case 'remove.swimlane.rule':
 			return `"${event.payload.rule}"`;
 
+		case 'edit.goal.description':
 		case 'tombstone.goal':
 			return `"${loggedGoalName(event.payload.id)}"`;
 

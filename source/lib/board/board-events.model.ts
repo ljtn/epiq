@@ -105,6 +105,12 @@ export type AppEventMap = {
 		result: Goal;
 	};
 
+	/** What a goal is for, as markdown; empty clears it. */
+	'edit.goal.description': {
+		payload: PayloadBase & {md: string};
+		result: {md: string};
+	};
+
 	/** Hides a goal, keeping its id and every ticket's link to it. */
 	'tombstone.goal': {
 		payload: PayloadBase;
@@ -371,6 +377,7 @@ export const EVENT_ACTIONS = [
 	'restore.tag',
 	'create.goal',
 	'rename.goal',
+	'edit.goal.description',
 	'tombstone.goal',
 	'create.contributor',
 	'rename.contributor',

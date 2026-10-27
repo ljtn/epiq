@@ -331,6 +331,23 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 		});
 	},
 
+	'edit.goal.description': event => {
+		const {id, md} = event.payload;
+		const result = nodeRepo.setGoalDescription(id, md);
+
+		if (isFail(result)) {
+			return materializeSkip(
+				result.message ?? 'Unable to describe goal',
+				event,
+			);
+		}
+
+		return succeeded('Goal described', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
 	'tombstone.goal': event => {
 		const result = nodeRepo.tombstoneGoal(event.payload.id);
 

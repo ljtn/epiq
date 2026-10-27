@@ -352,3 +352,30 @@ test('Manage goals adds a goal the board can then be put in', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+test("a goal's description is written in its panel, and kept", async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const goal = `Described ${Date.now()}`;
+	await addTicket(page, `Part of ${goal}`);
+	await startGoal(page, goal);
+
+	await pill(page, goal).click();
+	await expect(page.getByTestId('goal-details')).toContainText(goal);
+	await page.getByTestId('goal-description-edit').click();
+	await page.getByTestId('goal-description-input').fill('**Mobile** by spring');
+	await page.getByTestId('goal-description-save').click();
+
+	// Persisted, not just the optimistic copy.
+	await page.reload();
+	await expect(page.getByTestId('goal-details')).toContainText(goal);
+	await expect(
+		page.getByTestId('goal-description-body').locator('strong'),
+	).toHaveText('Mobile');
+
+	expect(pageErrors).toEqual([]);
+});

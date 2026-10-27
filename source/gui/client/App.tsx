@@ -2309,6 +2309,13 @@ export const App = () => {
 										commitDiffsBySha={issueCommitDiffs}
 										onLoadCommitDiff={loadIssueCommitDiff}
 										stats={goalStats}
+										readonly={state.timeTravel?.mode === 'scrub'}
+										onSaveDescription={text =>
+											saveNodeDescription(
+												{kind: 'goal', id: detailedGoal.id},
+												text,
+											)
+										}
 										onOpenIssue={(id, boardRef) => {
 											setPickedIssueIds([id]);
 											openIssueTab(id, 'overview', boardRef);

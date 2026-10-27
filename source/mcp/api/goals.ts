@@ -43,6 +43,7 @@ export const goalFields = (ticket: Ticket) => {
 const apiGoal = (goal: Goal): ApiGoal => ({
 	...goalRef(goal),
 	...goalProgress(goal.id),
+	...(goal.description && {description: goal.description}),
 });
 
 /** The project's goals, each with how far along its tickets are. */
