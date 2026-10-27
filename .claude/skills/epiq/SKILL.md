@@ -17,6 +17,7 @@ description: Workflow for working an epiq issue board through the epiq MCP — t
 - **Picking up a ticket:** assign yourself and move it to the in-progress lane. Ask before taking one assigned to someone else.
 - **Keep status, tags and description current**; reuse existing tags.
 - **Goals group tickets that serve one outcome, on any board.** Put a ticket in one with `epiq_issue_goal_set` (`goal`: its name, created if new, or null to take it out). A ticket has at most one goal; `epiq_goal_list` shows every goal and its progress. A ticket counts as done for its goal once closed, or in a lane named Done or marked done (`epiq_swimlane_rule_set`).
+- **Start bigger work with a goal.** Before a feature or larger task, create a goal (`epiq_goal_create`), describe its intent and expectations in a few lines, not its implementation (`epiq_goal_description_edit`), then break the work into tickets in that goal.
 - **Comment** on deviations, blockers, and the outcome when done.
 - **Prompt user for closing tickets and big decisions**
 - **Park decisions that are the user's to make.** A design fork, a change with blast radius beyond its ticket, anything you'd want a second opinion on — file a ticket tagged `human-input-needed` naming the options and the trade-offs, then carry on with whatever doesn't depend on the answer.
