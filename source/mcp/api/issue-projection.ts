@@ -35,17 +35,18 @@ export const getIssueAssignees = (ticket: Ticket) =>
 	);
 
 const RECENT_COMMENTS = 3;
-const GIST_LENGTH = 200;
+const GIST_LINES = 3;
+const GIST_LENGTH = 400;
 
 const gistOf = (body: string) => {
-	const line = body.split('\n', 1)[0] ?? '';
-	return line.length > GIST_LENGTH || line.length < body.length
-		? `${line.slice(0, GIST_LENGTH)}…`
-		: line;
+	const lines = body.split('\n').slice(0, GIST_LINES).join('\n');
+	return lines.length > GIST_LENGTH || lines.length < body.length
+		? `${lines.slice(0, GIST_LENGTH)}…`
+		: lines;
 };
 
-// The latest comments whole, every earlier one by its first line: a decision
-// is almost always that line, and the whole thread stays one call away.
+// The latest comments whole, every earlier one by its first lines: a
+// decision is almost always there, and the whole thread stays one call away.
 export const getIssueThread = (
 	issueId: string,
 	all = false,
@@ -58,6 +59,6 @@ export const getIssueThread = (
 		comments: comments.map((comment, index) =>
 			index < older ? {...comment, body: gistOf(comment.body)} : comment,
 		),
-		olderComments: `The first ${older} show their first line only: pass allComments to read them whole`,
+		olderComments: `The first ${older} show their first lines only: pass allComments to read them whole`,
 	};
 };

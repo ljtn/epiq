@@ -640,10 +640,12 @@ describe('mcp tools', () => {
 				md,
 			}));
 
-		it('carries earlier comments by their first line, and says so', async () => {
-			const long = `Decided: no approval step\n${'x'.repeat(3000)}`;
+		it('carries earlier comments by their first three lines, and says so', async () => {
+			const long = `Decided: no approval step\nWhy: one\nHow: two\n${'x'.repeat(
+				3000,
+			)}`;
 			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
-				thread(['y'.repeat(300), long, '3', '4', '5']),
+				thread(['y'.repeat(500), long, '3', '4', '5']),
 			);
 
 			const result = await tools.getIssue({
@@ -654,8 +656,8 @@ describe('mcp tools', () => {
 			expect(isFail(result)).toBe(false);
 			if (isFail(result)) return;
 			expect(result.value.comments.map(c => c.body)).toEqual([
-				`${'y'.repeat(200)}…`,
-				'Decided: no approval step…',
+				`${'y'.repeat(400)}…`,
+				'Decided: no approval step\nWhy: one\nHow: two…',
 				'3',
 				'4',
 				'5',

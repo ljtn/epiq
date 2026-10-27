@@ -160,7 +160,7 @@ export const createMcpServer = () => {
 		'epiq_issue_get',
 		{
 			description:
-				'Get one Epiq issue by its ref or full id, with its comments in log order: the latest three whole, earlier ones by their first line (olderComments says so), and allComments returns every one whole. Use this rather than listing the whole board when you already know which issue you want, and rather than epiq_state_get to read a thread.',
+				'Get one Epiq issue by its ref or full id, with its comments in log order: the latest three whole, earlier ones by their first three lines (olderComments says so), and allComments returns every one whole. Use this rather than listing the whole board when you already know which issue you want, and rather than epiq_state_get to read a thread.',
 			inputSchema: z.object({
 				idOrRef: z.string().min(1),
 				allComments: z.boolean().optional(),
