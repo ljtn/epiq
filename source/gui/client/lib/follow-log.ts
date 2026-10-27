@@ -20,7 +20,7 @@ const sameDestination = (
 		  left.sha === right.sha
 		: left.issueId === right.issueId &&
 		  left.tab === right.tab &&
-		  left.comment === right.comment;
+		  (right.comment === undefined || left.comment === right.comment);
 
 export type FollowStep =
 	// Nothing to do, but the mark may have moved on.

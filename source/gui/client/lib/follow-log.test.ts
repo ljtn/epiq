@@ -230,6 +230,29 @@ describe('followStep', () => {
 		expect(step.open).toMatchObject({comment: 'COMMENT_2'});
 	});
 
+	it('stays put when another comment on the ticket is deleted', () => {
+		const step = followStep({
+			entries: [
+				line('a', {
+					issue: 'ISSUE_2',
+					action: 'delete.issue.comment',
+					target: 'COMMENT_3',
+				}),
+			],
+			newestId: 'a',
+			mark: {line: 'z'},
+			pinned,
+			at: {
+				kind: 'ticket',
+				issueId: 'ISSUE_2',
+				tab: 'comments',
+				comment: 'COMMENT_1',
+			},
+		});
+
+		expect(step.open).toBeNull();
+	});
+
 	it('stays put when the comment the reader is on is edited', () => {
 		const step = followStep({
 			entries: [
