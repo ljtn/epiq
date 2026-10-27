@@ -69,7 +69,7 @@ export type ApiBoardGoal = ApiGoal & {members: {id: string; done: boolean}[]};
 
 export type ApiIssueDetail = ApiIssue & {
 	comments: ApiIssueComment[];
-	/** Set when `comments` holds only the latest few. */
+	/** Set when the earlier comments show their first line only. */
 	olderComments?: string;
 };
 

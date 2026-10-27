@@ -35,36 +35,29 @@ export const getIssueAssignees = (ticket: Ticket) =>
 	);
 
 const RECENT_COMMENTS = 3;
-const COMMENT_CUT = 2000;
+const GIST_LENGTH = 200;
 
-// A thread reads latest first: the last few, a long body cut, and a hint
-// naming what is left out, so the rest stays one call away.
+const gistOf = (body: string) => {
+	const line = body.split('\n', 1)[0] ?? '';
+	return line.length > GIST_LENGTH || line.length < body.length
+		? `${line.slice(0, GIST_LENGTH)}…`
+		: line;
+};
+
+// The latest comments whole, every earlier one by its first line: a decision
+// is almost always that line, and the whole thread stays one call away.
 export const getIssueThread = (
 	issueId: string,
 	all = false,
 ): Pick<ApiIssueDetail, 'comments' | 'olderComments'> => {
 	const comments = getIssueComments(issueId);
-	if (all) return {comments};
+	const older = comments.length - RECENT_COMMENTS;
+	if (all || older <= 0) return {comments};
 
-	const recent = comments.slice(-RECENT_COMMENTS).map(comment =>
-		comment.body.length > COMMENT_CUT
-			? {
-					...comment,
-					body: `${comment.body.slice(
-						0,
-						COMMENT_CUT,
-					)}… [cut: allComments reads it whole]`,
-			  }
-			: comment,
-	);
-	const older = comments.length - recent.length;
-
-	return older
-		? {
-				comments: recent,
-				olderComments: `${older} earlier comment${
-					older === 1 ? '' : 's'
-				}: pass allComments to read the whole thread`,
-		  }
-		: {comments: recent};
+	return {
+		comments: comments.map((comment, index) =>
+			index < older ? {...comment, body: gistOf(comment.body)} : comment,
+		),
+		olderComments: `The first ${older} show their first line only: pass allComments to read them whole`,
+	};
 };

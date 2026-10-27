@@ -59,6 +59,13 @@ describe('expandRefs', () => {
 		expect(result.message).toContain(TWIN_A);
 		expect(result.message).toContain(TWIN_B);
 	});
+
+	// `goal` takes a name or an id, so only a goal's ref resolves there.
+	it('resolves a goal by its ref, and leaves a name alone', () => {
+		expect(expandRefs({goal: 'zzzzzzz'}).value).toEqual({goal: TWIN_B});
+		expect(expandRefs({goal: '44MY70Q'}).value).toEqual({goal: '44MY70Q'});
+		expect(expandRefs({goal: 'Release'}).value).toEqual({goal: 'Release'});
+	});
 });
 
 describe('hasRefInput', () => {

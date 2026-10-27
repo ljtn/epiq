@@ -6,10 +6,10 @@ import {NODE_REF_LENGTH, nodeRef} from '../lib/utils/node-ref.js';
 // Agents name nodes by their 7-character ref; the log keeps full ids. A ref
 // shared by two ids is never guessed: an input fails, an output stays full.
 
-type RefIndex = Map<string, string[]>;
+type RefIndex = {byRef: Map<string, string[]>; goals: Set<string>};
 
 const indexRefs = (state: AppState): RefIndex => {
-	const index: RefIndex = new Map();
+	const byRef = new Map<string, string[]>();
 	const records = [
 		state.nodes,
 		state.contributors,
@@ -22,13 +22,13 @@ const indexRefs = (state: AppState): RefIndex => {
 	for (const record of records) {
 		for (const id of Object.keys(record ?? {})) {
 			const ref = nodeRef(id);
-			const ids = index.get(ref);
-			if (!ids) index.set(ref, [id]);
+			const ids = byRef.get(ref);
+			if (!ids) byRef.set(ref, [id]);
 			else if (!ids.includes(id)) ids.push(id);
 		}
 	}
 
-	return index;
+	return {byRef, goals: new Set(Object.keys(state.goals ?? {}))};
 };
 
 const currentIndex = (): RefIndex | null => {
@@ -36,8 +36,14 @@ const currentIndex = (): RefIndex | null => {
 	return isFail(state) ? null : indexRefs(state.value);
 };
 
+// `goal` takes a goal's name or its id.
+const GOAL_KEY = 'goal';
+
 const isIdKey = (key: string) =>
-	/(Id|Ids)$/.test(key) || key === 'sibling' || key === 'idOrRef';
+	/(Id|Ids)$/.test(key) ||
+	key === 'sibling' ||
+	key === 'idOrRef' ||
+	key === GOAL_KEY;
 
 const isRefShaped = (value: unknown): value is string =>
 	typeof value === 'string' && value.length === NODE_REF_LENGTH;
@@ -54,8 +60,14 @@ export const hasRefInput = (input: unknown): boolean => {
 };
 
 // A ref nothing matches passes through, so the tool says what wasn't found.
-const expandOne = (index: RefIndex, value: string): Result<string> => {
-	const ids = index.get(value.toUpperCase()) ?? [];
+const expandOne = (
+	index: RefIndex,
+	value: string,
+	goalOnly = false,
+): Result<string> => {
+	const ids = (index.byRef.get(value.toUpperCase()) ?? []).filter(
+		id => !goalOnly || index.goals.has(id),
+	);
 	if (ids.length > 1) {
 		return failed(`Ref ${value} is ambiguous: use one of ${ids.join(', ')}`);
 	}
@@ -93,9 +105,12 @@ const expandWith = (index: RefIndex, input: unknown): Result<unknown> => {
 
 	const out: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(input)) {
-		const result = isIdKey(key)
-			? expandId(index, value)
-			: expandWith(index, value);
+		const result =
+			key === GOAL_KEY && isRefShaped(value)
+				? expandOne(index, value, true)
+				: isIdKey(key)
+				? expandId(index, value)
+				: expandWith(index, value);
 		if (isFail(result)) return result;
 		out[key] = result.value;
 	}
@@ -113,7 +128,7 @@ export const expandRefs = <I>(input: I): Result<I> => {
 
 const shortenWith = (index: RefIndex, value: unknown): unknown => {
 	if (typeof value === 'string') {
-		const ids = index.get(nodeRef(value));
+		const ids = index.byRef.get(nodeRef(value));
 		return ids?.length === 1 && ids[0] === value ? nodeRef(value) : value;
 	}
 

@@ -640,9 +640,10 @@ describe('mcp tools', () => {
 				md,
 			}));
 
-		it('carries the latest three comments and says how many came before', async () => {
+		it('carries earlier comments by their first line, and says so', async () => {
+			const long = `Decided: no approval step\n${'x'.repeat(3000)}`;
 			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
-				thread(['1', '2', '3', '4', '5']),
+				thread(['y'.repeat(300), long, '3', '4', '5']),
 			);
 
 			const result = await tools.getIssue({
@@ -652,39 +653,37 @@ describe('mcp tools', () => {
 
 			expect(isFail(result)).toBe(false);
 			if (isFail(result)) return;
-			expect(result.value.comments.map(c => c.body)).toEqual(['3', '4', '5']);
-			expect(result.value.olderComments).toMatch(
-				/^2 earlier comments: .*allComments/,
-			);
+			expect(result.value.comments.map(c => c.body)).toEqual([
+				`${'y'.repeat(200)}…`,
+				'Decided: no approval step…',
+				'3',
+				'4',
+				'5',
+			]);
+			expect(result.value.olderComments).toMatch(/^The first 2 .*allComments/);
 		});
 
-		it('cuts a long comment, and allComments reads the thread whole', async () => {
-			const long = 'x'.repeat(5000);
-			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue)
-				.mockReturnValueOnce(thread(['1', '2', '3', long]))
-				.mockReturnValueOnce(thread(['1', '2', '3', long]));
+		it('reads every comment whole with allComments', async () => {
+			const long = 'x'.repeat(4000);
+			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
+				thread([long, '2', '3', long]),
+			);
 
-			const recent = await tools.getIssue({
-				repoRoot: '/repo',
-				idOrRef: fixtureId('issue-1'),
-			});
-			const whole = await tools.getIssue({
+			const result = await tools.getIssue({
 				repoRoot: '/repo',
 				idOrRef: fixtureId('issue-1'),
 				allComments: true,
 			});
 
-			if (isFail(recent) || isFail(whole)) throw new Error('getIssue failed');
-			const cut = recent.value.comments.at(-1)?.body ?? '';
-			expect(cut.length).toBeLessThan(2100);
-			expect(cut).toMatch(/allComments reads it whole]$/);
-			expect(whole.value.comments.map(c => c.body)).toEqual([
-				'1',
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.comments.map(c => c.body)).toEqual([
+				long,
 				'2',
 				'3',
 				long,
 			]);
-			expect(whole.value.olderComments).toBeUndefined();
+			expect(result.value.olderComments).toBeUndefined();
 		});
 
 		// The inverse of the commit-prefix convention: ref in, ticket out.
