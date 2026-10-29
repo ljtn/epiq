@@ -1068,8 +1068,8 @@ export const pullBranchRebaseIfPresent = async ({
 	return succeeded(moved ? 'Pulled with rebase' : 'Already up to date', moved);
 };
 
-// False when there is no upstream yet: the first push is gated on bootstrap.
-export const isAheadOfUpstream = async (
+/** No upstream counts as unpushed: the branch was never published. */
+export const hasUnpushedCommits = async (
 	cwd: string,
 ): Promise<Result<boolean>> => {
 	const result = await execGitAllowFail({
@@ -1078,7 +1078,7 @@ export const isAheadOfUpstream = async (
 	});
 
 	if (result.exitCode !== 0) {
-		return succeeded('No upstream to compare against', false);
+		return succeeded('No upstream: never pushed', true);
 	}
 
 	return succeeded(

@@ -23,7 +23,7 @@ import {
 	getInProgressGitOperation,
 	hasRemote,
 	hasStagedChanges,
-	isAheadOfUpstream,
+	hasUnpushedCommits,
 	isDetachedHead,
 	isNonFastForward,
 	isRemoteUnreachable,
@@ -474,13 +474,13 @@ const runSync = async (
 	pulled = pullResult.value;
 
 	// Push remote, checked apart from `createdCommit`: an earlier unpushed commit still goes.
-	const aheadResult = trace(
-		'isAheadOfUpstream',
-		await isAheadOfUpstream(stateBranchRoot),
+	const unpushedResult = trace(
+		'hasUnpushedCommits',
+		await hasUnpushedCommits(stateBranchRoot),
 	);
-	if (isFail(aheadResult)) return failSync(aheadResult.message);
+	if (isFail(unpushedResult)) return failSync(unpushedResult.message);
 
-	if (createdCommit || bootstrapped || aheadResult.value) {
+	if (createdCommit || bootstrapped || unpushedResult.value) {
 		logger.info('[sync] pushing state branch', {
 			createdCommit,
 			bootstrapped,
