@@ -1165,7 +1165,7 @@ describe('mcp tools', () => {
 
 		// A list is scanned, not read: the descriptions are most of a board's
 		// bytes and rarely what the caller came for.
-		it('brief drops the description and names tags, assignees and the lane', async () => {
+		it('brief drops the description and names tags, assignees and the lane by title and id', async () => {
 			const result = await tools.listIssues({
 				repoRoot: '/repo',
 				swimlaneId: 'swimlane-1',
@@ -1179,6 +1179,7 @@ describe('mcp tools', () => {
 				ref: nodeRef(fixtureId('issue-1')),
 				title: 'Fix bug',
 				swimlane: 'Todo',
+				swimlaneId: 'swimlane-1',
 				tags: ['bug'],
 				assignees: ['Alice'],
 			});
@@ -1251,7 +1252,6 @@ describe('mcp tools', () => {
 				ref: nodeRef(fixtureId('issue-created-1')),
 				title: 'New issue',
 				parentId: 'swimlane-1',
-				description: '',
 				tags: [],
 				assignees: [],
 			});
@@ -1387,7 +1387,6 @@ describe('mcp tools', () => {
 				ref: nodeRef(fixtureId('issue-created-1')),
 				title: 'New issue',
 				parentId: 'swimlane-1',
-				description: 'Some details',
 				tags: [
 					{id: 'tag-1', name: 'bug'},
 					{id: expect.any(String), name: 'urgent'},

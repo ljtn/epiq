@@ -87,8 +87,10 @@ export type ApiIssueBrief = {
 	ref: string;
 	title: string;
 	swimlane: string;
+	swimlaneId: string;
 	tags: string[];
 	assignees: string[];
+	goal?: ApiGoalRef;
 };
 
 export type ApiSwimlane = {
