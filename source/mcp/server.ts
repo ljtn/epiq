@@ -173,7 +173,7 @@ export const createMcpServer = () => {
 		'epiq_issue_list',
 		{
 			description:
-				'List Epiq issues: id, title, swimlane, tag and assignee names. Narrow with boardId, swimlaneId, tag, assignee or query (matched against title and description). brief: false adds descriptions and the rest; read one ticket with epiq_issue_get instead.',
+				'List Epiq issues: id, title, swimlane title and id, goal, tag and assignee names. Narrow with boardId, swimlaneId, tag, assignee or query (matched against title and description). brief: false adds descriptions and the rest; read one ticket with epiq_issue_get instead.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				includeClosed: z.boolean().optional(),
@@ -193,7 +193,7 @@ export const createMcpServer = () => {
 		'epiq_issue_get',
 		{
 			description:
-				'Get one Epiq issue by ref or id, with its comments in log order: the latest three whole, earlier ones by their first three lines (olderComments says so); allComments returns every one whole. Prefer it to listing the board or epiq_state_get.',
+				'Get one Epiq issue by ref or id, with its comments in log order: the latest three whole, earlier ones by their first three lines (olderComments says so); allComments returns every one whole. When you know which issue you want, prefer it to listing the board or epiq_state_get.',
 			inputSchema: z.object({
 				idOrRef: z.string().min(1),
 				allComments: z.boolean().optional(),
@@ -758,7 +758,7 @@ export const createMcpServer = () => {
 		'epiq_actor_assume',
 		{
 			description:
-				'Take a board identity for this session, so your writes are attributed to you, not the user: the name you announced, e.g. "claude/peter". Takes effect on the next write. A name the server was launched with wins; re-assuming is harmless. Reuse an existing agent identity (epiq_contributor_list) before inventing one: a name is permanent once it has authored anything.',
+				'Take a board identity for this session, so your writes are attributed to you, not the user: the name you announced: the model provider, a slash, then a short human first name, e.g. "claude/peter". Takes effect on the next write. A name the server was launched with wins; re-assuming is harmless. Reuse an existing agent identity (epiq_contributor_list) before inventing one: a name is permanent once it has authored anything.',
 			inputSchema: z.object({
 				name: z.string().min(1).max(80),
 				repoRoot: z.string().optional(),
@@ -834,7 +834,7 @@ export const createMcpServer = () => {
 		'epiq_skill_install',
 		{
 			description:
-				'Write the Epiq workflow skill to .claude/skills/epiq/SKILL.md in the repository, so agents there follow the board rules. Run it after epiq_project_init, which refuses the uncommitted file. A differing file is overwritten only with force: true.',
+				'Write the Epiq workflow skill to .claude/skills/epiq/SKILL.md in the repository, so agents there follow the board rules. In a new project, run it after epiq_project_init, which refuses the uncommitted file; on an existing board, any time. A differing file is overwritten only with force: true.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				force: z.boolean().optional(),
@@ -876,7 +876,7 @@ export const createMcpServer = () => {
 		'epiq_repo_connect',
 		{
 			description:
-				"Connect another repo to the board by URL (https://, ssh://, git:// or user@host:path; never a local path), so its commits prefixed with a ticket's ref link to it; or change a connected repo's options, which applies at once. Board-wide: every contributor's epiq downloads it on their next sync. The first call clones to staging and returns a preview (size, host, default branch, latest commit, commits naming this board's tickets — none suggests the wrong repo), writing nothing; show it to the user, and only once they agree call again with confirm: true and the same options. branches: default or all. since: board (default), all, or YYYY-MM-DD. label: its name on the board, the URL's basename unless set; empty resets it. Uses your git credentials: ssh-agent or a credential helper must already work.",
+				"Connect another repo to the board by URL (https://, ssh://, git:// or user@host:path; never a local path), so its commits prefixed with a ticket's ref link to it; or change a connected repo's options, which applies at once. Board-wide: every contributor's epiq downloads it on their next sync. The first call clones to staging and returns a preview (size, host, default branch, latest commit, commits naming this board's tickets — none suggests the wrong repo), writing nothing; show it to the user, and only once they agree call again with confirm: true and the same options. branches: default or all. since: how much history to clone, board (default), all, or YYYY-MM-DD. label: its name on the board, the URL's basename unless set; empty resets it. Uses your git credentials: ssh-agent or a credential helper must already work.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				url: z.string().min(1).max(MAX_URL_LENGTH),

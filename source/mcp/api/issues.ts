@@ -233,8 +233,10 @@ export async function listIssues(
 						ref: nodeRef(n.id),
 						title: sanitizeInlineText(n.title),
 						swimlane: swimlaneTitle(n),
+						swimlaneId: n.parentNodeId!,
 						tags: getIssueTags(n).map(tag => tag.name),
 						assignees: getIssueAssignees(n).map(a => a.name),
+						...goalFields(n),
 					} satisfies ApiIssueBrief),
 			),
 		);
