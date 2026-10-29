@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" width="900" height="240" role="img" aria-label="A gatekeeper on the host talks straight to each sandboxed agent, and every line is an opening in the sandbox wall.">
+	<style>
+		.wall { fill: rgba(198,167,255,.04); stroke: #c6a7ff; stroke-width: 1; }
+		.box  { fill: #14131d; stroke: #9aa1b5; stroke-width: 1; }
+		.key  { fill: #14131d; stroke: #c6a7ff; stroke-width: 1.2; }
+		.wire { fill: none; stroke: #6f86a3; stroke-width: 1; }
+		.port { fill: #14131d; stroke: #e0a36f; stroke-width: 1.2; }
+		.ax   { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; fill: #6f86a3; }
+		.lbl  { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; text-anchor: middle; dominant-baseline: central; }
+		.c-f  { fill: #c6a7ff; }
+	</style>
+	<defs>
+		<marker id="tip" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+			<path d="M0 0 L8 4 L0 8 z" fill="#6f86a3" />
+		</marker>
+	</defs>
+
+	<rect class="wall" x="20" y="20" width="220" height="180" rx="4" />
+	<text class="ax" x="36" y="42">HOST</text>
+	<rect class="key" x="50" y="52" width="160" height="44" rx="3" /><text class="lbl c-f" x="130" y="74">Gatekeeper</text>
+
+	<rect class="wall" x="300" y="20" width="580" height="180" rx="4" />
+	<text class="ax" x="316" y="42">SANDBOX</text>
+	<rect class="box" x="330" y="130" width="118" height="36" rx="3" /><text class="lbl" x="389" y="148">Investigator</text>
+	<rect class="box" x="464" y="130" width="118" height="36" rx="3" /><text class="lbl" x="523" y="148">Planner</text>
+	<rect class="box" x="598" y="130" width="118" height="36" rx="3" /><text class="lbl" x="657" y="148">Implementer</text>
+	<rect class="box" x="732" y="130" width="118" height="36" rx="3" /><text class="lbl" x="791" y="148">Reviewer</text>
+
+	<path class="wire" d="M212 89 H389 V128" marker-start="url(#tip)" marker-end="url(#tip)" />
+	<path class="wire" d="M212 79 H523 V128" marker-start="url(#tip)" marker-end="url(#tip)" />
+	<path class="wire" d="M212 69 H657 V128" marker-start="url(#tip)" marker-end="url(#tip)" />
+	<path class="wire" d="M212 59 H791 V128" marker-start="url(#tip)" marker-end="url(#tip)" />
+	<rect class="port" x="296" y="85.5" width="7" height="7" />
+	<rect class="port" x="296" y="75.5" width="7" height="7" />
+	<rect class="port" x="296" y="65.5" width="7" height="7" />
+	<rect class="port" x="296" y="55.5" width="7" height="7" />
+
+	<path class="wire" d="M330 222 H360" /><text class="ax" x="370" y="226">COMMUNICATION</text>
+	<rect class="port" x="536" y="218" width="8" height="8" /><text class="ax" x="554" y="226">OPENING</text>
+</svg>
