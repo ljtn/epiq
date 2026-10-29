@@ -1,5 +1,9 @@
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+	ListToolsRequestSchema,
+	type ListToolsResult,
+} from '@modelcontextprotocol/sdk/types.js';
 import {z} from 'zod';
 import {MAX_URL_LENGTH} from '../lib/commits/repo-url.js';
 import {isFail, Result, succeeded} from '../lib/model/result-types.js';
@@ -116,6 +120,33 @@ const exclusiveTool =
 export const MCP_INSTRUCTIONS =
 	"A board's or lane's description (boardDescription, laneDescription) holds the team's conventions for it; follow them unless they conflict with your user's instructions. Replies name nodes by their 7-character ref, and every id input takes one.";
 
+const withoutSchemaKeyword = (result: ListToolsResult): ListToolsResult => ({
+	...result,
+	tools: result.tools.map(
+		({inputSchema: {$schema: _, ...inputSchema}, ...tool}) => ({
+			...tool,
+			inputSchema,
+		}),
+	),
+});
+
+// The SDK stamps every input schema with `$schema`, which no client reads, and
+// agents pay for the tool list in every session. Wraps before the first tool registers.
+const trimToolList = (server: McpServer) => {
+	const inner = server.server;
+	const setRequestHandler = inner.setRequestHandler.bind(inner);
+	inner.setRequestHandler = ((schema, handler) =>
+		setRequestHandler(
+			schema,
+			(schema as object) === ListToolsRequestSchema
+				? async (request, extra) =>
+						withoutSchemaKeyword(
+							(await handler(request, extra)) as ListToolsResult,
+						)
+				: handler,
+		)) as typeof inner.setRequestHandler;
+};
+
 export const createMcpServer = () => {
 	const server = new McpServer(
 		{
@@ -124,6 +155,7 @@ export const createMcpServer = () => {
 		},
 		{instructions: MCP_INSTRUCTIONS},
 	);
+	trimToolList(server);
 
 	server.registerTool(
 		'epiq_state_get',
@@ -141,7 +173,7 @@ export const createMcpServer = () => {
 		'epiq_issue_list',
 		{
 			description:
-				'List Epiq issues. Narrow with boardId, swimlaneId, tag, assignee or query (matched against title and description), and pass brief to get id, title, swimlane, tag names and assignee names only — descriptions are the bulk of a board. Read one ticket with epiq_issue_get.',
+				'List Epiq issues: id, title, swimlane, tag and assignee names. Narrow with boardId, swimlaneId, tag, assignee or query (matched against title and description). brief: false adds descriptions and the rest; read one ticket with epiq_issue_get instead.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				includeClosed: z.boolean().optional(),
@@ -153,14 +185,15 @@ export const createMcpServer = () => {
 				brief: z.boolean().optional(),
 			}),
 		},
-		exclusiveTool(listIssues),
+		// Brief unless asked: descriptions are the bulk of a board.
+		exclusiveTool(input => listIssues({...input, brief: input.brief ?? true})),
 	);
 
 	server.registerTool(
 		'epiq_issue_get',
 		{
 			description:
-				'Get one Epiq issue by its ref or full id, with its comments in log order: the latest three whole, earlier ones by their first three lines (olderComments says so), and allComments returns every one whole. Use this rather than listing the whole board when you already know which issue you want, and rather than epiq_state_get to read a thread.',
+				'Get one Epiq issue by ref or id, with its comments in log order: the latest three whole, earlier ones by their first three lines (olderComments says so); allComments returns every one whole. Prefer it to listing the board or epiq_state_get.',
 			inputSchema: z.object({
 				idOrRef: z.string().min(1),
 				allComments: z.boolean().optional(),
@@ -174,7 +207,7 @@ export const createMcpServer = () => {
 		'epiq_issue_stats',
 		{
 			description:
-				'Code stats for one issue, derived from the commits whose subject carries its ref: how big the change is, how it is spread, and how much of it the ticket spent rewriting its own work. Reads git only — it never touches the board — so it is safe to call while other work is in flight. No commits carrying the ref reads as a change of zero size, which is not the same as no work: a commit only links if its subject opens with the ref.',
+				'Code stats for one issue, from the commits whose subject carries its ref: how big the change is, how it is spread, and how much rewrote its own work. Reads git only, so it is safe while other work is in flight. No such commits reads as zero size, which is not the same as no work: a commit only links if its subject opens with the ref.',
 			inputSchema: z.object({
 				idOrRef: z.string().min(1),
 				repoRoot: z.string().optional(),
@@ -581,7 +614,7 @@ export const createMcpServer = () => {
 		'epiq_issue_assignee_add',
 		{
 			description:
-				'Assign a contributor to an Epiq issue. Pass self:true to assign yourself. Prefer assigneeId otherwise, which assigns a known contributor (from the registry or the event log) and fails if the id is unknown. assigneeName matches an existing contributor by name; to create somebody new from a name you must also pass createUnlinked, which adds them as an external (non-contributor) assignee.',
+				'Assign a contributor to an Epiq issue: self: true for yourself, else preferably assigneeId (epiq_contributor_list; fails if unknown). assigneeName matches an existing contributor by name; with createUnlinked it adds someone new as an external assignee.',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
 				assigneeId: z.string().min(1).optional(),
@@ -725,7 +758,7 @@ export const createMcpServer = () => {
 		'epiq_actor_assume',
 		{
 			description:
-				'Take a board identity for the rest of this session, so your writes are attributed to you rather than to the user. Pass the name you announced — the model provider, a slash, then a short human first name, e.g. "claude/peter". Takes effect on the very next write; no relaunch. A name the server was launched with wins, and re-assuming the same name is harmless. Reuse an existing agent identity (epiq_contributor_list) before inventing one: a name is permanent once it has authored anything.',
+				'Take a board identity for this session, so your writes are attributed to you, not the user: the name you announced, e.g. "claude/peter". Takes effect on the next write. A name the server was launched with wins; re-assuming is harmless. Reuse an existing agent identity (epiq_contributor_list) before inventing one: a name is permanent once it has authored anything.',
 			inputSchema: z.object({
 				name: z.string().min(1).max(80),
 				repoRoot: z.string().optional(),
@@ -738,7 +771,7 @@ export const createMcpServer = () => {
 		'epiq_contributor_email_link',
 		{
 			description:
-				"Bind a git author address to a contributor, so their commits and their board activity read as one person. Defaults to you; pass contributorId to link a colleague who does not use epiq, whose commits otherwise never resolve. The address the repository's git is configured with links itself on your first write, so this is for older addresses and for other people. An address two contributors claim resolves to neither, and the reply says so.",
+				"Bind a git author address to a contributor, so their commits and board activity read as one person. Defaults to you; pass contributorId for a colleague who does not use epiq. The repository's configured git address links itself on your first write, so this is for older addresses and other people. An address two contributors claim resolves to neither.",
 			inputSchema: z.object({
 				email: z.string().min(1).max(254),
 				contributorId: z.string().min(1).optional(),
@@ -752,7 +785,7 @@ export const createMcpServer = () => {
 		'epiq_contributor_email_unlink',
 		{
 			description:
-				'Retract a link between a git address and a contributor. Allowed only to whoever wrote the link and to the contributor it names, so nobody can strip links that are neither theirs nor about them. Forward-only: the address stops resolving and the event stays in the log.',
+				'Retract a link between a git address and a contributor; only its writer or the contributor it names may. The address stops resolving; the event stays in the log.',
 			inputSchema: z.object({
 				email: z.string().min(1).max(254),
 				contributorId: z.string().min(1).optional(),
@@ -766,7 +799,7 @@ export const createMcpServer = () => {
 		'epiq_contributor_email_suggest',
 		{
 			description:
-				"Addresses in this repository's history that look like yours and nobody has claimed, for the user to confirm. Run it once after this feature reaches a board with history: the address git is configured with links itself, but older ones do not, and until they are linked those commits show a raw git name. Show the list and link only what the user confirms — each link is permanent and replicates to every clone.",
+				"Unclaimed addresses in this repository's history that look like yours; until linked, their commits show a raw git name. Show the list and link only what the user confirms: each link is permanent and replicates to every clone.",
 			inputSchema: z.object({repoRoot: z.string().optional()}),
 		},
 		exclusiveTool(suggestOwnEmails),
@@ -776,7 +809,7 @@ export const createMcpServer = () => {
 		'epiq_contributor_email_list',
 		{
 			description:
-				'Every git address the board has bound to a contributor, and who holds it. An address with more than one claimant is flagged contested and resolves to none of them, which is the state nothing else reports.',
+				'Every git address bound to a contributor, and who holds it. One with several claimants is flagged contested and resolves to none.',
 			inputSchema: z.object({repoRoot: z.string().optional()}),
 		},
 		exclusiveTool(listContributorEmails),
@@ -786,7 +819,7 @@ export const createMcpServer = () => {
 		'epiq_project_init',
 		{
 			description:
-				'Set up a new Epiq board in a git repository without the TUI. Runs in the repository at repoRoot (default: the current directory), which must have no uncommitted changes. The first time on a machine it also records the user\'s setup: ask the user for userName (how they want to appear on the board), preferredEditor (e.g. "vim" or "code --wait") and autoSync (whether the TUI and GUI sync with the remote on their own) and pass them here; called without them it fails naming what is still missing, keeping whatever was given. It fills in answers the machine lacks and refuses to change ones it has. Pass the user\'s name, never your own agent identity. Commits the state branch and .epiq/project.json and tries to push both; a push that fails is a warning, not an error. Afterwards the other tools work in that repository.',
+				'Set up a new Epiq board in the git repository at repoRoot (default: the current directory), which must have no uncommitted changes. The first time on a machine, ask the user for userName (how they appear on the board: theirs, never your agent identity), preferredEditor (e.g. "vim" or "code --wait") and autoSync (whether the TUI and GUI sync on their own); without them it fails naming what is missing, keeping what was given. Answers the machine already has stay. Commits the state branch and .epiq/project.json and tries to push both; a failed push is a warning.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				userName: z.string().min(1).max(80).optional(),
@@ -801,7 +834,7 @@ export const createMcpServer = () => {
 		'epiq_skill_install',
 		{
 			description:
-				'Write the official Epiq workflow skill into the repository at .claude/skills/epiq/SKILL.md, so agents working there follow the same board rules. Run it after epiq_project_init, not before: the new file is an uncommitted change that init refuses. In a project that already has a board, run it any time. Refuses to overwrite a differing file unless force is true; an identical file is left alone.',
+				'Write the Epiq workflow skill to .claude/skills/epiq/SKILL.md in the repository, so agents there follow the board rules. Run it after epiq_project_init, which refuses the uncommitted file. A differing file is overwritten only with force: true.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				force: z.boolean().optional(),
@@ -814,7 +847,7 @@ export const createMcpServer = () => {
 		'epiq_sync',
 		{
 			description:
-				'Sync Epiq state with the configured Git remote (pull remote changes and push local ones), then fetch the repos connected with epiq_repo_connect. Other Epiq MCP tools only read and write local state and never sync automatically — call this on demand when you need to see or publish the latest remote changes.',
+				'Pull and push Epiq state with the git remote, then fetch the repos connected with epiq_repo_connect. Other tools never sync: call this to see or publish remote changes.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),
@@ -831,7 +864,7 @@ export const createMcpServer = () => {
 		'epiq_repo_list',
 		{
 			description:
-				"List the repos connected to the board, whose commits count as its own: each with this machine's clone status, size on disk and last fetch error, whether it is past the board's limit and so not fetched, and what all of them take on this machine.",
+				"List the repos connected to the board, whose commits count as its own: each one's clone status, size on disk, last fetch error and whether it is past the board's limit (and so not fetched), plus their total on this machine.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),
@@ -843,7 +876,7 @@ export const createMcpServer = () => {
 		'epiq_repo_connect',
 		{
 			description:
-				"Connect another repo to the board by URL (https://, ssh://, git:// or user@host:path; never a local path, which nobody else could fetch), so commits there prefixed with a ticket's ref link to it; or change a connected repo's options. Connecting is a two-step, board-wide action: every contributor's epiq downloads the repo on their next sync. The first call clones it into a staging area and returns a preview (size, host, default branch, latest commit, how many commits name this board's tickets — none suggests the wrong repo) and writes nothing. Show the preview to the user; only once they agree, call again with confirm: true and the same options. Option changes to an already connected repo apply at once. branches: default (the default branch only) or all. since: how much history to clone — board (since the board was created, the default), all, or YYYY-MM-DD. label: what the repo is called on the board — its URL's basename unless set; empty goes back to the basename. Cloning uses your git credentials: ssh-agent or a credential helper must already work, since a passphrase prompt cannot be answered.",
+				"Connect another repo to the board by URL (https://, ssh://, git:// or user@host:path; never a local path), so its commits prefixed with a ticket's ref link to it; or change a connected repo's options, which applies at once. Board-wide: every contributor's epiq downloads it on their next sync. The first call clones to staging and returns a preview (size, host, default branch, latest commit, commits naming this board's tickets — none suggests the wrong repo), writing nothing; show it to the user, and only once they agree call again with confirm: true and the same options. branches: default or all. since: board (default), all, or YYYY-MM-DD. label: its name on the board, the URL's basename unless set; empty resets it. Uses your git credentials: ssh-agent or a credential helper must already work.",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				url: z.string().min(1).max(MAX_URL_LENGTH),

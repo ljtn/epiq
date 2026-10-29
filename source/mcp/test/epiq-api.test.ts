@@ -1251,7 +1251,6 @@ describe('mcp tools', () => {
 				ref: nodeRef(fixtureId('issue-created-1')),
 				title: 'New issue',
 				parentId: 'swimlane-1',
-				description: '',
 				tags: [],
 				assignees: [],
 			});
@@ -1387,7 +1386,6 @@ describe('mcp tools', () => {
 				ref: nodeRef(fixtureId('issue-created-1')),
 				title: 'New issue',
 				parentId: 'swimlane-1',
-				description: 'Some details',
 				tags: [
 					{id: 'tag-1', name: 'bug'},
 					{id: expect.any(String), name: 'urgent'},

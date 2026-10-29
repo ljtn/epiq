@@ -401,7 +401,6 @@ export const createIssue = async (input: CreateIssueInput) => {
 		ref: nodeRef(issueId),
 		title,
 		parentId: input.parentId,
-		description,
 		tags,
 		assignees,
 		...laneDescriptionOf(input.parentId),
