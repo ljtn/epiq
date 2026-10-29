@@ -65,7 +65,7 @@ I use [OpenShell](https://github.com/NVIDIA/OpenShell) for sandboxing agents, an
 Since the communication in this setup is passive (text rather than executed commands), one could add a layer of auditing agents without access before it is handed over to agents with privileges.
 
 ## Composable, sandboxable
-Building blocks that are repo native, standalone and distributed allow you to compose a myriad of setups, depending on organizational needs. Epiq can be used as an agent memory graph, a workflow manager, an audit trail, or all at once.
+Building blocks that are repo native, standalone and distributed allow you to compose a great variety of setups, depending on organizational needs. Epiq can be used as an agent memory graph, a workflow manager, an audit trail, or all at once.
 
 ---
 
