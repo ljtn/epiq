@@ -168,6 +168,67 @@ describe('unpushed commits', () => {
 
 		expect(remoteRefResult.value.stdout).toContain(head);
 	});
+
+	it('publishes a board made before the repo had a remote', async () => {
+		const {remoteRoot, repoRoot} = await setupRepo();
+		const ownEventFileName = 'u1.alice.jsonl';
+
+		const removeResult = await execGit({
+			args: ['remote', 'remove', 'origin'],
+			cwd: repoRoot,
+		});
+		if (isFail(removeResult)) throw new Error(removeResult.message);
+
+		const bootResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
+		if (isFail(bootResult)) throw new Error(bootResult.message);
+
+		const {stateBranchRoot} = bootResult.value;
+
+		writeFile(
+			getEventsFile({root: stateBranchRoot, fileName: ownEventFileName}),
+			eventLine('01H00000000000000000000001'),
+		);
+		const localResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
+		if (isFail(localResult)) throw new Error(localResult.message);
+		expect(localResult.value.createdCommit).toBe(true);
+
+		const addResult = await execGit({
+			args: ['remote', 'add', 'origin', remoteRoot],
+			cwd: repoRoot,
+		});
+		if (isFail(addResult)) throw new Error(addResult.message);
+
+		const syncResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
+		if (isFail(syncResult)) throw new Error(syncResult.message);
+
+		expect(syncResult.value.createdCommit).toBe(false);
+		expect(syncResult.value.pushed).toBe(true);
+
+		const headResult = await execGit({
+			args: ['rev-parse', 'HEAD'],
+			cwd: stateBranchRoot,
+		});
+		if (isFail(headResult)) throw new Error(headResult.message);
+
+		const remoteRefResult = await execGit({
+			args: ['ls-remote', 'origin', 'refs/heads/epiq/state'],
+			cwd: stateBranchRoot,
+		});
+		if (isFail(remoteRefResult)) throw new Error(remoteRefResult.message);
+
+		expect(remoteRefResult.value.stdout).toContain(
+			headResult.value.stdout.trim(),
+		);
+	});
 });
 
 describe('sync commit scope', () => {
