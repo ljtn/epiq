@@ -258,7 +258,7 @@ ${head}
 	<body>
 		<nav class="nav">
 			<div class="wrap nav-inner">
-				<a class="brand" href="${up}index.html" aria-label="Epiq home">
+				<a class="brand" href="${up}" aria-label="Epiq home">
 					<span><span class="accent">:</span>epiq</span>
 				</a>
 				<div class="links">
@@ -286,7 +286,7 @@ ${body}
 		<footer class="footer">
 			<div class="wrap footer-inner">
 				<div class="footer-brand">
-					<a class="brand" href="${up}index.html" aria-label="Epiq home"
+					<a class="brand" href="${up}" aria-label="Epiq home"
 						><span><span class="accent">:</span>epiq</span></a
 					>
 					<p>Git-native issue tracking.</p>
