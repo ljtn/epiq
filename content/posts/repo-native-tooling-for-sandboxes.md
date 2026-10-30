@@ -67,7 +67,7 @@ Note: Since agents can write to the workflow repo, it's wise to protect its bran
 ## Composable, sandboxable
 Building blocks that are repo-native, standalone and distributed allow you to compose a great variety of setups, depending on organizational needs. Epiq can be used as an agent memory graph, a workflow manager, an audit trail, or all at once.
 
-When I started Epiq a year and a half ago, agents weren't a priority of mine. But an append-only event log that lives in the repo and travels over Git turns out to be exactly what sandboxed agents need: a way to coordinate that crosses the wall without opening it.
+When I started Epiq a year and a half ago, agents weren't a priority. But an append-only event log that lives in the repo and travels over Git turns out to be what sandboxed agents need: a way to coordinate without opening another gap in the wall.
 
 ---
 
