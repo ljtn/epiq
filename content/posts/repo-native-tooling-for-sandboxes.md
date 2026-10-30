@@ -1,5 +1,5 @@
 ---
-title: Repo-native tooling suits sandboxed agents
+title: Sandboxes favor repo-native tooling
 date: 2026-10-30
 tags: ai, agents, security
 cover_alt: Out-of-focus lines of code glowing blue and amber on a dark screen
