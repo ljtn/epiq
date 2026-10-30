@@ -1,8 +1,7 @@
 ---
-title: Repo native tooling + sandboxes = true
-date: 2026-10-29
+title: Repo-native tooling suits sandboxed agents
+date: 2026-10-30
 tags: ai, agents, security
-draft: true
 ---
 
 Recent incidents [possibly involving rogue agents](https://www.euronews.com/2026/10/14/entire-swedish-reality-show-season-lost-weeks-before-premiere-amid-disputed-ai-claims) highlight the importance of sandboxing. A common setup is a privileged gatekeeper agent on your host machine whose sole responsibility is to delegate work to restricted peers in sandboxed containers.
@@ -15,9 +14,9 @@ This is not watertight, and as the saying goes: if there is a way in, there is a
 
 It also makes interactions with the sandboxed agents a pain. Agents without a way to communicate with peers, the gatekeeper, or humans are impractical. The common solution is to relax restrictions with tooling whitelists. This is not only an annoyance from a technical standpoint. In a large corporation, it takes real political skill to navigate security departments and corporate machinery.
 
-## Repo native tooling
+## Repo-native tooling
 
-A way around this is repo native tooling. Tools that work offline with only Git access have most of the allowances in place, as agents need Git anyway to deliver code.
+A way around this is repo-native tooling. Tools that work offline with only Git access have most of the allowances in place, as agents need Git anyway to deliver code.
 
 If, for instance, the control plane is part of the repository, we need fewer gates to the outside. We can use Git as a communication transport and a plain log in a repository as memory persistence.
 
@@ -27,7 +26,7 @@ If, for instance, the control plane is part of the repository, we need fewer gat
 
 Now, the sandbox itself is typically not what fails, but [the doors left open on purpose](https://labs.cloudsecurityalliance.org/research/csa-research-note-ai-coding-agent-sandbox-escapes-20260722-c/). Think of it as a drug lord in prison - the cartel is just as lethal as long as he can slip out notes to someone able to act on them, no matter how restricted he is.
 
-Repo native, Git-based tooling narrows the contact surface with the outside, but it does not limit information flow. An important question is who is reached by what information, with what privileges.
+Repo-native, Git-based tooling narrows the contact surface with the outside, but it does not limit information flow. An important question is who is reached by what information, with what privileges.
 
 ## The Lethal Trifecta
 
@@ -49,7 +48,7 @@ The gatekeeper, with no write access to the code, puts notes in the dedicated wo
 
 Git itself can be used in clever ways by attackers. [GitSpawn](https://adversa.ai/blog/top-ai-coding-agent-security-resources-october-2026/) used repository config to run code whenever Git was called.
 
-When Epiq links another repository, it reads it through a shallow, bare clone: no working tree, nothing checked out, hooks and `.gitattributes` switched off. Git only ever transfers content, never settings or hooks, so nothing the sandbox writes can make the host run anything.
+When Epiq links another repository, it reads it through a shallow, bare clone: no working tree, nothing checked out, hooks and `.gitattributes` switched off. Git only ever transfers content, never settings or hooks, so nothing the sandbox writes to a linked repository can make the host run anything.
 
 ## A recent setup
 A setup I am currently running looks something like this:
