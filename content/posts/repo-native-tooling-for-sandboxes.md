@@ -2,6 +2,7 @@
 title: Repo-native tooling suits sandboxed agents
 date: 2026-10-30
 tags: ai, agents, security
+cover_alt: A host box and a sandbox wrapped in a glowing proxy layer, sharing one workflow repo across the gap
 ---
 
 Recent incidents [possibly involving rogue agents](https://www.euronews.com/2026/10/14/entire-swedish-reality-show-season-lost-weeks-before-premiere-amid-disputed-ai-claims) highlight the importance of sandboxing. A common setup is a privileged gatekeeper agent on your host machine whose sole responsibility is to delegate work to restricted peers in sandboxed containers.
