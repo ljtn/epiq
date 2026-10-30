@@ -1,79 +1,45 @@
-# Epiq
+# Epiq - issue tracking as code
 
-Epiq is a self-hosted issue tracker that allows you to review workflows in real time or after the fact via replay. It persists state as an immutable event log, versioned and synchronized via Git.
+Epiq is a self-hosted issue tracker persisting state as an immutable event log in your repository, versioned and synchronized via Git.
 
-Most issue trackers live outside your workflow. Instead of a centralized, managed service, Epiq offers issue tracking as an integrated part of the development environment offering workflow replay and inline code-diffs, tackling the review bottleneck with time-travel, filtering, and a tight code integration.
+Epiq offers issue tracking as an integrated part of the development environment with workflow replay, inline code-diffs, filtering, and a tight code integration.
 
 **[Site →](https://ljtn.github.io/epiq/)**
-
-> All state is kept local, Git-backed, and versioned.
 
 ![The Epiq GUI: the event log, the board and a ticket's code diff, under the time travel timeline](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/time-travel.jpeg)
 
 ## Audit the workflow
 
-Agents now run whole sprints unattended. Because state is an event log, you can replay the board to find out what moved when, who moved it, and what changed along the way.
+Because state is an event log, you can replay the board to find out what happened when, who made the changes, and what what lead up to it.
 
 ## Code, linked to tickets
 
-Link a commit to a ticket with an `Epiq-Ref:` line in its body, naming the ticket's ref:
+Commits are linked to a ticket with an `Epiq-Ref:` line in its body, naming the ticket's ref:
 
 ```
 git commit -m "fix the parser" -m "Epiq-Ref: 1YRTG8T"
 ```
-
-One line can name several tickets (`Epiq-Ref: 1YRTG8T, 4KQ2M7D`), it can sit anywhere in the body, and its case does not matter. Prefixing the subject with the ref works too:
-
-```
-git commit -m "1YRTG8T fix the parser"
-```
-
-Linking makes a commit show up in the ticket's Code tab, with its message. You can comment on selected lines, and also file a new ticket straight from the selection. The MCP exposes the ref as a `ref` property agents can refer to.
-
 ![A ticket's Code tab, showing the diff of a linked commit](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/code-diff.jpeg)
-
-How you merge decides whether the link survives:
-
-- **Epiq-Ref lines** survive a squash merge that keeps the squashed messages in its body, as git's and GitHub's default messages do, so every ticket they name stays linked. A rebase or merge commit keeps them as they are.
-- **Subject prefixes** need the commits to land as they are: rebase-merge them. Squashing _within_ one ticket's commits is fine as long as the result keeps the prefix; do not squash commits carrying different prefixes into one.
 
 ### Commits from other repos
 
-A board can read commits from other repositories too — handy when the board lives in a repo of its own. Connect one from the GUI (the Repos section of the settings panel behind the gear, or **Connect repo** in the palette), the TUI (`:config repoConnect <url>`, `:config repoDisconnect <name>`) or the MCP (`epiq_repo_connect`, `epiq_repo_disconnect`).
-
-Connecting is a board-wide action: every contributor's epiq downloads the repo on their next sync. So it takes two steps. The first clones the repo into a staging area and shows what it is and what it costs — its size, host, default branch and latest commit, and how many of its commits name tickets on this board (none suggests the wrong repo) — and writes nothing. Only a confirm connects it: the TUI takes the same line again with `confirm`, the MCP a second call with `confirm: true`. Options of a connected repo change at once. `branches` is `default` (the default) or `all`; `since` is how much history to clone: `board` (since the board was created, the default), `all`, or a date; `label` is what the repo is called on the board — its URL's basename unless set, which is how a fork and its upstream are told apart.
-
-The list is part of the board: connecting, changing and disconnecting are board events, so they sync like any other change and never conflict — nothing to commit. Epiq keeps its own read-only bare clone of each repo under `~/.epiq-global/repos/`, fetched on sync with your usual git credentials (ssh-agent or a credential helper; a passphrase prompt cannot be answered) — never on startup. A commit shows once it is pushed and the board has synced.
-
-A board reads at most 20 repos; one connected past that is listed but not fetched until one ahead of it is disconnected. Each clone may take at most 2 GB of disk on your machine; `:config repoCloneMaxMb <MB>` changes that, in your own config. A fetch that would pass it is stopped and undone, and the repo says so. The Repos section shows what each clone takes on this machine, and the total. Autosync fetches each at most once a minute; a sync you ask for always fetches. Widening `since` fetches the older history, narrowing it keeps what is already cloned. Disconnecting a repo deletes its clone, on every machine as it syncs; worktrees of one board share a clone. A repo is something every contributor can fetch, so a local path is refused. A connected repo that is itself an epiq board lends its commits, never its board's event log.
-
-Since anyone on the board can connect a repo, URLs are read with care: only `https`, `http`, `ssh`, `git` and `user@host:path` URLs are accepted, never one carrying a password or a user before an http host, and git runs in the clones with none of your hooks, attribute drivers or command-running transports.
-
-## Goals
-
-A goal groups the tickets that serve one outcome, on any board. A ticket can be in one goal. Goals are not tickets: a board shows the goals its tickets are in as a strip above the lanes, each pill underlined as far as the goal's tickets are done (closed, or in a done lane), on every board. A lane named Done counts, and so does any lane ticked "Tickets here count as done" in its panel.
-
-- **GUI:** pick a goal in a ticket's Goal dropdown, or type a new name there to create one; from the keyboard, **Put in a goal** and **Take out of its goal** in the palette (⌘K, then `goal`). Click a pill to show only that goal's tickets and open its panel: a description of what it's for, progress and every ticket in it on any board, a Stats tab measuring the code of all of them together, and a Code tab listing every commit on them. **Manage goals** (the strip, the dropdown or the palette) adds, renames and removes them.
-- **TUI:** `:goal <name>` puts the selected ticket in that goal, creating it if needed; `:ungoal` takes it out; `:filter goal <name>` shows only its tickets. A ticket in a goal carries `◆` in the goal's colour. `:rule done` and `:unrule done` mark the selected lane done or not; a done lane shows `✓` after its count. Renaming and removing a goal is done in the GUI or the MCP, as with tags.
-- **MCP:** `epiq_issue_goal_set` with a goal's name (created if needed) or `null`; `epiq_goal_list` lists every goal with its progress and boards; `epiq_goal_stats` gives a goal's code stats; `epiq_goal_create`, `epiq_goal_rename`, `epiq_goal_description_edit`, `epiq_goal_remove`; `epiq_goal_list` carries each goal's description. `epiq_board_list` lists the goals each board shows. `epiq_swimlane_rule_set` marks a lane done; `epiq_swimlane_list` says which lanes count.
-
-A board shows a goal once one of its tickets is on it. Removing a goal leaves its tickets where they are, in no goal.
+A board can read commits from other repositories too. Connecting is a board-wide action: every contributor's epiq downloads the repo on their next sync.
 
 ## Terminal + Browser
 
-Epiq originated from the command line and offers a first-class terminal experience, but also features a browser interface powered by the same Git-backed event engine.
+Epiq originated from the command line and offers a first-class terminal experience, but also features a browser interface.
 
 ![The Epiq terminal UI: the same board rendered in a terminal, with the command palette along the bottom](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/tui.jpeg)
 
-## How it is different
+## What Epiq brings
 
 Fundamental design choices gives a system with:
 
-- **Workflow replay**, - inspect what happened while you were away, as if it happens now
+- **Repo-native** — issues live where the code lives, simplifying sandboxed setups
+- **Workflow replay**, - inspect what happened while you were away
 - **Simple setup** — no accounts, SaaS, or external services required
-- **Repo-native** — your issues can live where your code lives
 - **Offline-friendly** — works anywhere, with eventual consistency
-- **Fast** — local first, and eventual consistency makes Epiq edits instant
+- **Fast** — local first edits are instant
 - **Portable** — runs on your local machine, on a remote Linux server or your grandma’s connected toaster
 - **Command driven** — scriptable and automation-friendly, ready for the agentic era
 
@@ -265,6 +231,5 @@ Epiq follows a **local-first** model:
 
 ---
 
-[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-Epiq-pink?logo=github)](https://github.com/sponsors/ljtn)
 
-🫡 Never leave your editor!
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-Epiq-pink?logo=github)](https://github.com/sponsors/ljtn)
