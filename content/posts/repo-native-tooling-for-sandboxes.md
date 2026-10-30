@@ -71,4 +71,4 @@ When I started Epiq a year and a half ago, agents weren't a priority of mine. Bu
 
 ---
 
-Is a repo-native control plane the right way to run sandboxed agents? I'd like to hear your thoughts, or other setups, in the comments.
+Is a repo-native control plane the right way to run sandboxed agents? I'd like to hear your thoughts, or how you run yours, in the comments.
