@@ -4,7 +4,7 @@ Epiq is a self-hosted issue tracker persisting state as an immutable event log i
 
 Epiq offers issue tracking as an integrated part of the development environment with workflow replay, inline code-diffs, filtering, and a tight code integration.
 
-**[Site →](https://ljtn.github.io/epiq/)**
+**[Docs, blog, etc. →](https://ljtn.github.io/epiq/)**
 
 ![The Epiq GUI: the event log, the board and a ticket's code diff, under the time travel timeline](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/time-travel.jpeg)
 
