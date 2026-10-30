@@ -3,6 +3,7 @@ title: In Pursuit of the Ideal Developer Experience
 date: 2026-07-03
 tags: git, tui, productivity, devex
 cover_alt: The epiq board running in a terminal, four columns of issues on a dark ground
+guid: https://ljtn.github.io/epiq/blog/ideal-developer-experience.html
 ---
 
 It seemed like the ultimate developer experience - tracking issues in the terminal, editing them the editor of your choice. I contemplated the most appealing alternative workflow I could think of. This was it.
@@ -76,7 +77,7 @@ A compromise often gets you to the finish line twice as fast, but the destinatio
 
 ---
 
-_If you're curious, Epiq can be seen at: https://ljtn.github.io/epiq/_
+_If you're curious, Epiq can be seen at: https://epiq.sh/_
 
 ---
 

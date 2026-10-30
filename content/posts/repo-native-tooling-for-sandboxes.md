@@ -3,6 +3,7 @@ title: Sandboxes favor repo-native tooling
 date: 2026-10-30
 tags: ai, agents, security
 cover_alt: Out-of-focus lines of code glowing blue and amber on a dark screen
+guid: https://ljtn.github.io/epiq/blog/repo-native-tooling-for-sandboxes.html
 ---
 
 Recent incidents [possibly involving rogue agents](https://www.euronews.com/2026/10/14/entire-swedish-reality-show-season-lost-weeks-before-premiere-amid-disputed-ai-claims) highlight the importance of sandboxing. A common setup is a privileged gatekeeper agent on your host machine whose sole responsibility is to delegate work to restricted peers in sandboxed containers.
@@ -39,7 +40,7 @@ Sandboxed agents never see secrets, so they lack private data. The gatekeeper do
 
 ## Dead drop
 
-Separating the workflow repository from the code repositories keeps the host away from code writes. [Epiq](https://ljtn.github.io/epiq/) is an issue tracker and workflow manager that can operate as the control plane in this way.
+Separating the workflow repository from the code repositories keeps the host away from code writes. [Epiq](https://epiq.sh/) is an issue tracker and workflow manager that can operate as the control plane in this way.
 
 It persists an event log in your repo and can track work in other repositories, from a repository with or without a remote, online or offline.
 

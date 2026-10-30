@@ -3,6 +3,7 @@ title: Vision drift: workflow replay to the rescue
 date: 2026-07-15
 tags: ai, agents, productivity, tui
 cover_alt: The epiq board running in a terminal, four columns of issues on a dark ground
+guid: https://ljtn.github.io/epiq/blog/vision-drift.html
 ---
 
 Harness engineering has recently popularized the idea of containing **_architectural drift_** in agentic workflows. What might be missing in the discussion is a similar issue on a higher level - **_vision drift_**.
@@ -13,7 +14,7 @@ While Git solves this for code, issue trackers essentially lacks this capability
 
 ## Workflow audits
 
-When I set off to build [Epiq](https://ljtn.github.io/epiq/), this was not a concern on my radar. Agentic coding was something I had heard distant rumors of, and in fact I was just [pursuing the ideal developer experience](./ideal-developer-experience.html). This pursuit did however result in an issue tracker with some uncommon properties. One of these is the ability to inspect historical state by time-traveling, and replay historical board states.
+When I set off to build [Epiq](https://epiq.sh/), this was not a concern on my radar. Agentic coding was something I had heard distant rumors of, and in fact I was just [pursuing the ideal developer experience](./ideal-developer-experience.html). This pursuit did however result in an issue tracker with some uncommon properties. One of these is the ability to inspect historical state by time-traveling, and replay historical board states.
 
 
 Initially I thought of it as a gimmick feature, imagining the wow-factor of replaying board layout the past 2 weeks as a little movie. I thought it would help out with retros and reflection of how much (or little) work had been accomplished. Not until I set out to run my first fully autonomous agent workflow did I notice how board time-travel was going to be an essential feature for anyone serious about staying in control.
@@ -48,4 +49,4 @@ With agents getting more and more autonomy, the risk of potential vision drift c
 Git made the evolution of source code inspectable. I believe the next generation of project management tooling will need to make the evolution of intent inspectable.
 
 
-_In case you are interested 👉 [Explore Epiq](https://ljtn.github.io/epiq/)_
+_In case you are interested 👉 [Explore Epiq](https://epiq.sh/)_
