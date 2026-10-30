@@ -69,4 +69,4 @@ Building blocks that are repo-native, standalone and distributed allow you to co
 
 ---
 
-Do you agree with the sentiments expressed, or is this mostly mumbo jumbo? Leave a comment with your thoughts below, I'd love to hear 'em!
+Is a repo-native control plane the right way to run sandboxed agents? I'd like to hear your thoughts, or other setups, in the comments.
