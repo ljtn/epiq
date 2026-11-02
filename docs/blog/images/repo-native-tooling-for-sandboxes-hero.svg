@@ -14,7 +14,7 @@
 		<path stroke="#b98cf5" d="M159 429 H227 L241 443 V523 L227 537 H159 L145 523 V443 Z" />
 		<path stroke="#b98cf5" d="M169 357 H217 L231 371 V399 L217 413 H169 L155 399 V371 Z" />
 		<rect fill="#b98cf5" stroke="#8a5fd0" stroke-width="1.6" x="168" y="381" width="50" height="7.5" rx="3.5" />
-		
+		<path stroke="#b98cf5" stroke-width="2.6" d="M187 431 H199 L197 441 H189 Z" /><path stroke="#b98cf5" stroke-width="2.6" d="M189 441 H197 L201 486 L193 496 L185 486 Z" />
 		</g>
 		<rect stroke="#b98cf5" x="131" y="362" width="25" height="48" rx="5" transform="rotate(-14 143 386)" />
 		<path fill="none" stroke="#b98cf5" d="M117 371 q-11 17 0 34 M101 361 q-20 27 0 54" />
