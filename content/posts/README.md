@@ -1,7 +1,7 @@
 # Writing a post
 
 Posts are plain markdown in this folder. One file per post, named after its
-URL: `vision-drift.md` becomes `/blog/vision-drift.html`.
+URL: `vision-drift.md` is served at `/blog/vision-drift` (the file is `vision-drift.html`).
 
 Everything under `docs/blog/` is generated, including the RSS feed at
 `docs/blog/feed.xml`. Never edit it by hand.

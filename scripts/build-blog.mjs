@@ -262,16 +262,16 @@ ${head}
 					<span><span class="accent">:</span>epiq</span>
 				</a>
 				<div class="links">
-					<a class="cmd-link" href="${up}docs.html" aria-label="Documentation"
+					<a class="cmd-link" href="${up}docs" aria-label="Documentation"
 						><span class="accent">:</span>docs</a
 					>
 					<a
 						class="cmd-link active"
-						href="${up}blog.html"
+						href="${up}blog"
 						aria-label="Blog"
 						><span class="accent">:</span>blog</a
 					>
-					<a class="cmd-link" href="${up}releases.html" aria-label="Releases"
+					<a class="cmd-link" href="${up}releases" aria-label="Releases"
 						><span class="accent">v</span><span class="nav-version">${NAV_VERSION}</span></a
 					>
 					<a class="btn" href="https://github.com/ljtn/epiq" aria-label="Epiq on GitHub">
@@ -294,9 +294,9 @@ ${body}
 				<div class="footer-cols">
 					<div class="footer-col">
 						<div class="footer-head">Read</div>
-						<a href="${up}docs.html">Docs</a>
-						<a href="${up}blog.html">Blog</a>
-						<a href="${up}releases.html">Releases</a>
+						<a href="${up}docs">Docs</a>
+						<a href="${up}blog">Blog</a>
+						<a href="${up}releases">Releases</a>
 					</div>
 					<div class="footer-col">
 						<div class="footer-head">Project</div>
@@ -320,7 +320,7 @@ ${body}
 function renderIndex(posts) {
 	const cards = posts
 		.map((p) => {
-			const href = `./blog/${esc(p.slug)}.html`;
+			const href = `./blog/${esc(p.slug)}`;
 			const cover = p.cover
 				? `<a class="post-cover" href="${href}" tabindex="-1" aria-hidden="true">
 							<img src="./blog/${esc(p.cover.replace(/^\.\//, ""))}" alt="" loading="lazy" decoding="async" />
@@ -342,7 +342,7 @@ function renderIndex(posts) {
 	return shell({
 		title: "Epiq — blog",
 		description: BLOG_DESCRIPTION,
-		canonical: `${BASE_URL}/blog.html`,
+		canonical: `${BASE_URL}/blog`,
 		image: SITE_CARD,
 		depth: 0,
 		body: `		<main id="top">
@@ -401,10 +401,10 @@ function renderPost(post, older, newer) {
 
 	const nav = [
 		newer
-			? `<a class="article-nav-link" href="./${esc(newer.slug)}.html"><span>← Newer</span><span class="article-nav-title">${esc(newer.title)}</span></a>`
+			? `<a class="article-nav-link" href="./${esc(newer.slug)}"><span>← Newer</span><span class="article-nav-title">${esc(newer.title)}</span></a>`
 			: "<span></span>",
 		older
-			? `<a class="article-nav-link is-next" href="./${esc(older.slug)}.html"><span>Older →</span><span class="article-nav-title">${esc(older.title)}</span></a>`
+			? `<a class="article-nav-link is-next" href="./${esc(older.slug)}"><span>Older →</span><span class="article-nav-title">${esc(older.title)}</span></a>`
 			: "<span></span>",
 	].join("\n						");
 
@@ -415,13 +415,13 @@ function renderPost(post, older, newer) {
 		description: post.description,
 		datePublished: post.date,
 		author: { "@type": "Person", name: AUTHOR },
-		url: `${BASE_URL}/blog/${post.slug}.html`,
+		url: `${BASE_URL}/blog/${post.slug}`,
 	};
 
 	return shell({
 		title: `${post.title} — Epiq`,
 		description: post.description,
-		canonical: `${BASE_URL}/blog/${post.slug}.html`,
+		canonical: `${BASE_URL}/blog/${post.slug}`,
 		image: socialImage(post),
 		type: "article",
 		depth: 1,
@@ -432,7 +432,7 @@ ${JSON.stringify(jsonLd, null, 2)}
 		body: `		<main id="top">
 			<article class="article wrap">
 				<header class="article-head">
-					<a class="article-back" href="../blog.html">← Blog</a>
+					<a class="article-back" href="../blog">← Blog</a>
 					<h1>${esc(post.title)}</h1>
 					<div class="article-meta">${esc(metaLine(post))}</div>
 					${tagList(post)}
@@ -458,13 +458,13 @@ ${comments(post)}
 /* ---------- sitemap ---------- */
 
 /* The hand-written pages carry no date; a post's is the day it was published. */
-const STATIC_PAGES = ["", "docs.html", "releases.html", "blog.html"];
+const STATIC_PAGES = ["", "docs", "releases", "blog"];
 
 function renderSitemap(posts) {
 	const entries = [
 		...STATIC_PAGES.map((p) => `\t<url><loc>${BASE_URL}/${p}</loc></url>`),
 		...posts.map(
-			(p) => `\t<url><loc>${BASE_URL}/blog/${p.slug}.html</loc><lastmod>${p.date}</lastmod></url>`
+			(p) => `\t<url><loc>${BASE_URL}/blog/${p.slug}</loc><lastmod>${p.date}</lastmod></url>`
 		),
 	];
 	return `<?xml version="1.0" encoding="UTF-8"?>
@@ -481,7 +481,7 @@ const rfc822 = (iso) => new Date(iso + "T00:00:00Z").toUTCString();
 /* A feed reader has no page to resolve against, so every relative link and
  * image in a post points at the published site instead. */
 function absolutize(html, post) {
-	const page = `${BASE_URL}/blog/${post.slug}.html`;
+	const page = `${BASE_URL}/blog/${post.slug}`;
 	return html.replace(/\b(src|href)="([^"]*)"/g, (whole, attr, url) => {
 		if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return whole;
 		// The attribute arrives escaped; resolve the raw URL, then escape once.
@@ -497,13 +497,13 @@ function absolutize(html, post) {
 const cdata = (s) => `<![CDATA[${s.replace(/]]>/g, "]]]]><![CDATA[>")}]]>`;
 
 function renderRedirect(post) {
-	const url = `./${post.slug}.html`;
+	const url = `./${post.slug}`;
 	return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <title>${esc(post.title)}</title>
-<link rel="canonical" href="${BASE_URL}/blog/${post.slug}.html" />
+<link rel="canonical" href="${BASE_URL}/blog/${post.slug}" />
 <meta http-equiv="refresh" content="0; url=${url}" />
 </head>
 <body><a href="${url}">${esc(post.title)}</a></body>
@@ -514,7 +514,7 @@ function renderRedirect(post) {
 function renderFeed(posts) {
 	const items = posts
 		.map((post) => {
-			const url = `${BASE_URL}/blog/${post.slug}.html`;
+			const url = `${BASE_URL}/blog/${post.slug}`;
 			const cover = post.cover
 				? `<p><img src="${esc(post.cover)}" alt="${esc(post.coverAlt)}" /></p>\n`
 				: "";
@@ -539,7 +539,7 @@ function renderFeed(posts) {
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
 	<channel>
 		<title>Epiq blog</title>
-		<link>${BASE_URL}/blog.html</link>
+		<link>${BASE_URL}/blog</link>
 		<atom:link href="${FEED_URL}" rel="self" type="application/rss+xml" />
 		<description>${esc(BLOG_DESCRIPTION)}</description>
 		<language>en</language>${updated ? `\n\t\t<lastBuildDate>${updated}</lastBuildDate>` : ""}
@@ -756,6 +756,9 @@ function startServer(port) {
 	createServer((req, res) => {
 		const url = decodeURIComponent(req.url.split("?")[0]);
 		let path = join(DOCS, url === "/" ? "blog.html" : url);
+		// GitHub Pages serves /foo from foo.html; the preview does the same.
+		// That wins over a same-named folder, so /blog is blog.html, not blog/.
+		if (existsSync(path + ".html") && (!existsSync(path) || statSync(path).isDirectory())) path += ".html";
 		if (existsSync(path) && statSync(path).isDirectory()) path = join(path, "index.html");
 		if (!path.startsWith(DOCS) || !existsSync(path)) {
 			res.writeHead(404, { "Content-Type": "text/plain" });
@@ -767,7 +770,7 @@ function startServer(port) {
 		});
 		res.end(readFileSync(path));
 	}).listen(port, () => {
-		console.log(`preview:  http://localhost:${port}/blog.html`);
+		console.log(`preview:  http://localhost:${port}/blog`);
 	});
 }
 
