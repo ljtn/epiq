@@ -1,347 +1,81 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 630" width="1440" height="630" role="img" aria-label="Three small robots play in a sandbox walled in by a glowing amber proxy: one digs, one builds a castle out of code blocks, one carries a bucket. Outside the wall, a purple gatekeeper robot slips a note through the gap.">
-	<style>
-		.ax   { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; fill: #6f86a3; }
-		.bot  { fill: #14131d; stroke: #9aa1b5; stroke-width: 1.6; stroke-linejoin: round; }
-		.gk   { fill: #14131d; stroke: #c6a7ff; stroke-width: 1.6; stroke-linejoin: round; }
-		.limb { fill: none; stroke: #9aa1b5; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-		.glimb { fill: none; stroke: #c6a7ff; stroke-width: 1.6; stroke-linecap: round; }
-		.eye  { fill: #67d4e8; }
-		.blk  { fill: #14131d; stroke: #6f86a3; stroke-width: 1.2; }
-		.code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #67d4e8; text-anchor: middle; dominant-baseline: central; }
-		.proxy { fill: rgba(255,200,120,.12); }
-		.pedge { fill: none; stroke: #ffc878; stroke-width: 1.6; filter: url(#glow); }
-		.sand { fill: rgba(255,200,120,.07); stroke: rgba(255,200,120,.35); stroke-width: 1; }
-		.frag { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fill: #ffd9a0; }
-		.grain { fill: rgba(255,217,160,.28); }
-		.note { fill: #14131d; stroke: #67d4e8; stroke-width: 1.2; }
-		.thread { fill: none; stroke: #67d4e8; stroke-width: 1.2; stroke-dasharray: 4 5; }
-	</style>
-	<defs>
-		<filter id="glow" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-		<pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0 H0 V40" fill="none" stroke="rgba(255,255,255,.035)" stroke-width="1" /></pattern>
-		<radialGradient id="warm" cx="50%" cy="60%" r="60%"><stop offset="0" stop-color="rgba(255,200,120,.07)" /><stop offset="1" stop-color="rgba(255,200,120,0)" /></radialGradient>
-	</defs>
-	<rect width="1440" height="630" fill="#0b0b10" />
-	<rect width="1440" height="630" fill="url(#grid)" />
-	<g transform="translate(720 318) scale(1.17) translate(-720 -351)">
-
-	<rect x="420" y="186" width="840" height="344" fill="url(#warm)" />
-	<path class="proxy" fill-rule="evenodd" d="M425 186 H1255 Q1260 186 1260 191 V525 Q1260 530 1255 530 H425 Q420 530 420 525 V191 Q420 186 425 186 Z M440 206 V510 H1240 V206 Z" />
-	<rect class="pedge" x="440" y="206" width="800" height="304" />
-	<rect class="pedge" x="420.8" y="186.8" width="838.4" height="342.4" rx="5" />
-	<text class="ax" style="fill:#ffd9a0" x="420" y="172">SANDBOX</text>
-	<path class="sand" d="M440 510 V426 L440 431.8 L460 433.1 L480 431.9 L500 428.4 L520 424.1 L540 421.1 L560 420.4 L580 421.8 L600 423.5 L620 424.1 L640 423.3 L660 422.1 L680 422.1 L700 424.3 L720 428.2 L740 431.9 L760 433.7 L780 432.8 L800 429.9 L820 426.9 L840 425.3 L860 425.4 L880 426.2 L900 425.9 L920 424.0 L940 421.0 L960 418.7 L980 418.8 L1000 421.5 L1020 425.6 L1040 429.1 L1060 430.6 L1080 430.0 L1100 428.6 L1120 428.0 L1140 428.8 L1160 430.4 L1180 431.1 L1200 429.7 L1220 426.1 L1240 421.9 V510 Z" />
-	<text class="frag" x="698.1" y="449.7" font-size="9" opacity="0.20" transform="rotate(2 698.1 449.7)">++</text>
-	<text class="frag" x="730.1" y="443.7" font-size="10" opacity="0.19" transform="rotate(-3 730.1 443.7)">*</text>
-	<text class="frag" x="503.5" y="445.8" font-size="9" opacity="0.38" transform="rotate(-19 503.5 445.8)">fn</text>
-	<text class="frag" x="621.0" y="480.2" font-size="12" opacity="0.19" transform="rotate(-14 621.0 480.2)">}</text>
-	<text class="frag" x="876.4" y="448.5" font-size="10" opacity="0.31" transform="rotate(4 876.4 448.5)">fn</text>
-	<text class="frag" x="879.2" y="483.6" font-size="10" opacity="0.27" transform="rotate(2 879.2 483.6)">()</text>
-	<text class="frag" x="498.1" y="443.8" font-size="12" opacity="0.34" transform="rotate(-4 498.1 443.8)">&lt;/&gt;</text>
-	<text class="frag" x="690.6" y="477.5" font-size="11" opacity="0.25" transform="rotate(15 690.6 477.5)">if</text>
-	<text class="frag" x="985.4" y="455.6" font-size="11" opacity="0.31" transform="rotate(19 985.4 455.6)">let</text>
-	<text class="frag" x="1008.8" y="458.4" font-size="9" opacity="0.30" transform="rotate(-17 1008.8 458.4)">;</text>
-	<text class="frag" x="712.0" y="499.7" font-size="9" opacity="0.41" transform="rotate(-21 712.0 499.7)">fn</text>
-	<text class="frag" x="877.5" y="490.5" font-size="11" opacity="0.35" transform="rotate(5 877.5 490.5)">//</text>
-	<text class="frag" x="894.2" y="469.2" font-size="11" opacity="0.29" transform="rotate(8 894.2 469.2)">;</text>
-	<text class="frag" x="496.5" y="484.9" font-size="12" opacity="0.25" transform="rotate(-6 496.5 484.9)">++</text>
-	<text class="frag" x="962.2" y="441.4" font-size="11" opacity="0.22" transform="rotate(-19 962.2 441.4)">if</text>
-	<text class="frag" x="495.2" y="489.2" font-size="10" opacity="0.28" transform="rotate(21 495.2 489.2)">=></text>
-	<text class="frag" x="830.3" y="450.6" font-size="11" opacity="0.39" transform="rotate(16 830.3 450.6)">&amp;&amp;</text>
-	<text class="frag" x="1111.8" y="457.8" font-size="11" opacity="0.34" transform="rotate(-6 1111.8 457.8)">fn</text>
-	<text class="frag" x="626.8" y="445.3" font-size="10" opacity="0.34" transform="rotate(-24 626.8 445.3)">=></text>
-	<text class="frag" x="1086.6" y="451.7" font-size="9" opacity="0.21" transform="rotate(2 1086.6 451.7)">#</text>
-	<text class="frag" x="917.1" y="460.4" font-size="9" opacity="0.29" transform="rotate(19 917.1 460.4)">=></text>
-	<text class="frag" x="1179.1" y="483.6" font-size="12" opacity="0.28" transform="rotate(-5 1179.1 483.6)">.</text>
-	<text class="frag" x="818.8" y="465.6" font-size="9" opacity="0.42" transform="rotate(-3 818.8 465.6)">&lt;/&gt;</text>
-	<text class="frag" x="534.2" y="478.4" font-size="9" opacity="0.32" transform="rotate(2 534.2 478.4)">()</text>
-	<text class="frag" x="1176.9" y="479.3" font-size="10" opacity="0.33" transform="rotate(-18 1176.9 479.3)">;</text>
-	<text class="frag" x="643.2" y="462.2" font-size="12" opacity="0.21" transform="rotate(17 643.2 462.2)">=</text>
-	<text class="frag" x="1210.7" y="469.8" font-size="11" opacity="0.20" transform="rotate(-20 1210.7 469.8)">::</text>
-	<text class="frag" x="712.5" y="456.9" font-size="9" opacity="0.23" transform="rotate(23 712.5 456.9)">[]</text>
-	<text class="frag" x="727.1" y="484.2" font-size="11" opacity="0.41" transform="rotate(18 727.1 484.2)">{</text>
-	<text class="frag" x="983.3" y="456.7" font-size="10" opacity="0.27" transform="rotate(-14 983.3 456.7)">=</text>
-	<text class="frag" x="864.8" y="472.2" font-size="10" opacity="0.33" transform="rotate(14 864.8 472.2)">++</text>
-	<text class="frag" x="1030.9" y="452.5" font-size="12" opacity="0.36" transform="rotate(-14 1030.9 452.5)">0</text>
-	<text class="frag" x="846.5" y="462.8" font-size="9" opacity="0.37" transform="rotate(-1 846.5 462.8)">{</text>
-	<text class="frag" x="598.3" y="478.7" font-size="12" opacity="0.37" transform="rotate(11 598.3 478.7)">=</text>
-	<text class="frag" x="717.7" y="502.4" font-size="10" opacity="0.20" transform="rotate(-1 717.7 502.4)">;</text>
-	<text class="frag" x="708.7" y="470.9" font-size="9" opacity="0.30" transform="rotate(8 708.7 470.9)">!</text>
-	<text class="frag" x="1062.5" y="445.4" font-size="9" opacity="0.40" transform="rotate(14 1062.5 445.4)">?</text>
-	<text class="frag" x="1024.6" y="470.6" font-size="12" opacity="0.37" transform="rotate(-8 1024.6 470.6)">[]</text>
-	<text class="frag" x="1063.4" y="502.2" font-size="12" opacity="0.28" transform="rotate(22 1063.4 502.2)">&amp;&amp;</text>
-	<text class="frag" x="1005.2" y="450.9" font-size="9" opacity="0.22" transform="rotate(20 1005.2 450.9)">=></text>
-	<text class="frag" x="1067.8" y="449.4" font-size="12" opacity="0.34" transform="rotate(-7 1067.8 449.4)">!</text>
-	<text class="frag" x="870.3" y="448.4" font-size="9" opacity="0.31" transform="rotate(22 870.3 448.4)">{</text>
-	<text class="frag" x="782.3" y="495.8" font-size="9" opacity="0.24" transform="rotate(-10 782.3 495.8)">&lt;/&gt;</text>
-	<text class="frag" x="634.3" y="477.5" font-size="12" opacity="0.38" transform="rotate(-22 634.3 477.5)">1</text>
-	<text class="frag" x="1016.8" y="497.5" font-size="12" opacity="0.38" transform="rotate(19 1016.8 497.5)">?</text>
-	<text class="frag" x="550.2" y="449.7" font-size="9" opacity="0.39" transform="rotate(14 550.2 449.7)">*</text>
-	<text class="frag" x="916.2" y="489.7" font-size="10" opacity="0.21" transform="rotate(6 916.2 489.7)">=></text>
-	<text class="frag" x="542.2" y="444.0" font-size="12" opacity="0.37" transform="rotate(-20 542.2 444.0)">?</text>
-	<text class="frag" x="879.2" y="455.9" font-size="9" opacity="0.37" transform="rotate(0 879.2 455.9)">1</text>
-	<text class="frag" x="880.3" y="488.6" font-size="12" opacity="0.26" transform="rotate(24 880.3 488.6)">;</text>
-	<text class="frag" x="914.3" y="452.8" font-size="12" opacity="0.30" transform="rotate(15 914.3 452.8)">1</text>
-	<text class="frag" x="838.9" y="455.8" font-size="11" opacity="0.40" transform="rotate(20 838.9 455.8)">*</text>
-	<text class="frag" x="605.2" y="468.6" font-size="9" opacity="0.27" transform="rotate(-9 605.2 468.6)">fn</text>
-	<text class="frag" x="964.1" y="467.4" font-size="11" opacity="0.37" transform="rotate(20 964.1 467.4)">&lt;/&gt;</text>
-	<text class="frag" x="568.3" y="485.8" font-size="11" opacity="0.21" transform="rotate(19 568.3 485.8)">?</text>
-	<text class="frag" x="1191.1" y="454.1" font-size="12" opacity="0.39" transform="rotate(-17 1191.1 454.1)">()</text>
-	<text class="frag" x="961.6" y="454.3" font-size="12" opacity="0.26" transform="rotate(-15 961.6 454.3)">fn</text>
-	<text class="frag" x="694.0" y="486.2" font-size="11" opacity="0.31" transform="rotate(-3 694.0 486.2)">{</text>
-	<text class="frag" x="463.9" y="461.2" font-size="11" opacity="0.30" transform="rotate(-22 463.9 461.2)">!</text>
-	<text class="frag" x="1204.6" y="490.5" font-size="9" opacity="0.24" transform="rotate(-23 1204.6 490.5)">()</text>
-	<text class="frag" x="1046.7" y="457.3" font-size="12" opacity="0.38" transform="rotate(9 1046.7 457.3)">=></text>
-	<text class="frag" x="1174.6" y="466.0" font-size="12" opacity="0.35" transform="rotate(-21 1174.6 466.0)">.</text>
-	<text class="frag" x="494.1" y="484.0" font-size="9" opacity="0.24" transform="rotate(-24 494.1 484.0)">fn</text>
-	<text class="frag" x="517.8" y="456.7" font-size="10" opacity="0.20" transform="rotate(18 517.8 456.7)">!</text>
-	<text class="frag" x="797.6" y="461.7" font-size="12" opacity="0.40" transform="rotate(-12 797.6 461.7)">.</text>
-	<text class="frag" x="549.0" y="473.7" font-size="9" opacity="0.41" transform="rotate(-12 549.0 473.7)">0</text>
-	<text class="frag" x="588.8" y="499.7" font-size="11" opacity="0.31" transform="rotate(-15 588.8 499.7)">++</text>
-	<text class="frag" x="791.4" y="483.0" font-size="11" opacity="0.37" transform="rotate(25 791.4 483.0)">1</text>
-	<text class="frag" x="478.3" y="441.2" font-size="10" opacity="0.30" transform="rotate(-13 478.3 441.2)">*</text>
-	<text class="frag" x="792.4" y="482.1" font-size="12" opacity="0.34" transform="rotate(2 792.4 482.1)">++</text>
-	<text class="frag" x="1130.8" y="502.1" font-size="10" opacity="0.42" transform="rotate(-8 1130.8 502.1)">#</text>
-	<text class="frag" x="1087.5" y="485.2" font-size="10" opacity="0.28" transform="rotate(-8 1087.5 485.2)">++</text>
-	<text class="frag" x="491.7" y="448.3" font-size="11" opacity="0.28" transform="rotate(-22 491.7 448.3)">;</text>
-	<text class="frag" x="959.6" y="464.4" font-size="11" opacity="0.32" transform="rotate(10 959.6 464.4)">*</text>
-	<text class="frag" x="484.7" y="451.9" font-size="12" opacity="0.18" transform="rotate(-7 484.7 451.9)">1</text>
-	<text class="frag" x="702.0" y="503.0" font-size="10" opacity="0.19" transform="rotate(19 702.0 503.0)">//</text>
-	<text class="frag" x="616.9" y="451.7" font-size="12" opacity="0.20" transform="rotate(-11 616.9 451.7)">//</text>
-	<text class="frag" x="952.5" y="455.9" font-size="9" opacity="0.24" transform="rotate(-21 952.5 455.9)">{</text>
-	<text class="frag" x="756.0" y="442.7" font-size="11" opacity="0.25" transform="rotate(-13 756.0 442.7)">{</text>
-	<text class="frag" x="898.6" y="473.9" font-size="12" opacity="0.36" transform="rotate(11 898.6 473.9)">=></text>
-	<text class="frag" x="828.6" y="458.2" font-size="10" opacity="0.19" transform="rotate(17 828.6 458.2)">!</text>
-	<text class="frag" x="1133.2" y="480.1" font-size="10" opacity="0.40" transform="rotate(13 1133.2 480.1)">*</text>
-	<text class="frag" x="885.5" y="492.0" font-size="10" opacity="0.20" transform="rotate(-23 885.5 492.0)">{</text>
-	<text class="frag" x="938.0" y="501.4" font-size="12" opacity="0.31" transform="rotate(6 938.0 501.4)">&amp;&amp;</text>
-	<text class="frag" x="929.7" y="483.6" font-size="11" opacity="0.18" transform="rotate(15 929.7 483.6)">::</text>
-	<text class="frag" x="1023.2" y="472.2" font-size="9" opacity="0.34" transform="rotate(-22 1023.2 472.2)">.</text>
-	<text class="frag" x="1014.4" y="456.1" font-size="11" opacity="0.24" transform="rotate(13 1014.4 456.1)">;</text>
-	<text class="frag" x="626.7" y="481.6" font-size="12" opacity="0.38" transform="rotate(-21 626.7 481.6)">if</text>
-	<text class="frag" x="1147.4" y="458.4" font-size="10" opacity="0.20" transform="rotate(-18 1147.4 458.4)">}</text>
-	<text class="frag" x="644.5" y="487.6" font-size="10" opacity="0.18" transform="rotate(-22 644.5 487.6)">#</text>
-	<text class="frag" x="655.9" y="483.0" font-size="12" opacity="0.25" transform="rotate(1 655.9 483.0)">&lt;/&gt;</text>
-	<text class="frag" x="805.9" y="469.8" font-size="10" opacity="0.25" transform="rotate(-21 805.9 469.8)">()</text>
-	<text class="frag" x="812.3" y="458.5" font-size="12" opacity="0.42" transform="rotate(-6 812.3 458.5)">;</text>
-	<text class="frag" x="1152.1" y="499.6" font-size="9" opacity="0.21" transform="rotate(1 1152.1 499.6)">;</text>
-	<text class="frag" x="1179.8" y="448.5" font-size="11" opacity="0.39" transform="rotate(10 1179.8 448.5)">++</text>
-	<text class="frag" x="627.2" y="497.5" font-size="12" opacity="0.19" transform="rotate(-25 627.2 497.5)">::</text>
-	<text class="frag" x="826.6" y="468.8" font-size="10" opacity="0.28" transform="rotate(-6 826.6 468.8)">#</text>
-	<text class="frag" x="542.6" y="461.2" font-size="11" opacity="0.38" transform="rotate(-19 542.6 461.2)">//</text>
-	<text class="frag" x="1159.6" y="485.6" font-size="11" opacity="0.27" transform="rotate(-5 1159.6 485.6)">#</text>
-	<text class="frag" x="1215.1" y="477.7" font-size="12" opacity="0.36" transform="rotate(18 1215.1 477.7)">=</text>
-	<text class="frag" x="665.0" y="443.3" font-size="11" opacity="0.33" transform="rotate(-18 665.0 443.3)">?</text>
-	<text class="frag" x="1193.8" y="467.9" font-size="10" opacity="0.37" transform="rotate(14 1193.8 467.9)">//</text>
-	<text class="frag" x="777.7" y="441.9" font-size="12" opacity="0.40" transform="rotate(22 777.7 441.9)">++</text>
-	<text class="frag" x="870.7" y="486.1" font-size="12" opacity="0.29" transform="rotate(13 870.7 486.1)">}</text>
-	<text class="frag" x="943.7" y="458.3" font-size="10" opacity="0.22" transform="rotate(-4 943.7 458.3)">}</text>
-	<text class="frag" x="665.8" y="456.4" font-size="11" opacity="0.28" transform="rotate(-13 665.8 456.4)">++</text>
-	<text class="frag" x="820.1" y="482.8" font-size="10" opacity="0.33" transform="rotate(-21 820.1 482.8)">()</text>
-	<text class="frag" x="833.5" y="492.0" font-size="10" opacity="0.29" transform="rotate(-8 833.5 492.0)">.</text>
-	<text class="frag" x="1031.6" y="467.4" font-size="10" opacity="0.24" transform="rotate(-16 1031.6 467.4)">.</text>
-	<text class="frag" x="875.8" y="460.4" font-size="11" opacity="0.37" transform="rotate(-15 875.8 460.4)">=</text>
-	<text class="frag" x="465.4" y="495.7" font-size="12" opacity="0.36" transform="rotate(-14 465.4 495.7)">&amp;&amp;</text>
-	<text class="frag" x="657.0" y="488.1" font-size="11" opacity="0.32" transform="rotate(-7 657.0 488.1)">::</text>
-	<text class="frag" x="976.1" y="473.9" font-size="9" opacity="0.25" transform="rotate(-13 976.1 473.9)">&lt;/&gt;</text>
-	<text class="frag" x="756.2" y="468.5" font-size="9" opacity="0.21" transform="rotate(-4 756.2 468.5)">#</text>
-	<text class="frag" x="1035.0" y="491.5" font-size="12" opacity="0.18" transform="rotate(-5 1035.0 491.5)">let</text>
-	<text class="frag" x="1159.9" y="492.8" font-size="12" opacity="0.24" transform="rotate(-20 1159.9 492.8)">if</text>
-	<text class="frag" x="568.3" y="473.4" font-size="9" opacity="0.41" transform="rotate(11 568.3 473.4)">?</text>
-	<text class="frag" x="945.9" y="488.9" font-size="9" opacity="0.31" transform="rotate(-23 945.9 488.9)">if</text>
-	<text class="frag" x="1049.2" y="454.9" font-size="11" opacity="0.41" transform="rotate(6 1049.2 454.9)">}</text>
-	<text class="frag" x="854.6" y="468.0" font-size="9" opacity="0.20" transform="rotate(1 854.6 468.0)">()</text>
-	<text class="frag" x="896.5" y="464.8" font-size="9" opacity="0.18" transform="rotate(-10 896.5 464.8)">0</text>
-	<text class="frag" x="802.9" y="501.4" font-size="10" opacity="0.29" transform="rotate(-13 802.9 501.4)">++</text>
-	<text class="frag" x="639.2" y="501.5" font-size="11" opacity="0.19" transform="rotate(-15 639.2 501.5)">++</text>
-	<text class="frag" x="1127.8" y="481.4" font-size="11" opacity="0.23" transform="rotate(-4 1127.8 481.4)">;</text>
-	<text class="frag" x="733.6" y="471.5" font-size="12" opacity="0.27" transform="rotate(-5 733.6 471.5)">//</text>
-	<text class="frag" x="455.2" y="458.7" font-size="9" opacity="0.23" transform="rotate(23 455.2 458.7)">*</text>
-	<text class="frag" x="688.8" y="492.5" font-size="12" opacity="0.23" transform="rotate(13 688.8 492.5)">0</text>
-	<text class="frag" x="675.9" y="500.9" font-size="10" opacity="0.40" transform="rotate(-1 675.9 500.9)">::</text>
-	<text class="frag" x="1147.4" y="443.6" font-size="10" opacity="0.40" transform="rotate(-22 1147.4 443.6)">!</text>
-	<text class="frag" x="468.1" y="478.2" font-size="9" opacity="0.35" transform="rotate(-16 468.1 478.2)">fn</text>
-	<text class="frag" x="794.4" y="485.6" font-size="9" opacity="0.42" transform="rotate(22 794.4 485.6)">//</text>
-	<text class="frag" x="702.2" y="451.9" font-size="12" opacity="0.19" transform="rotate(8 702.2 451.9)">*</text>
-	<text class="frag" x="740.0" y="463.9" font-size="12" opacity="0.22" transform="rotate(-25 740.0 463.9)">//</text>
-	<text class="frag" x="664.3" y="462.5" font-size="10" opacity="0.27" transform="rotate(13 664.3 462.5)">()</text>
-	<text class="frag" x="686.5" y="491.5" font-size="9" opacity="0.35" transform="rotate(-15 686.5 491.5)">;</text>
-	<text class="frag" x="864.8" y="468.6" font-size="11" opacity="0.36" transform="rotate(-1 864.8 468.6)">//</text>
-	<text class="frag" x="933.9" y="455.9" font-size="12" opacity="0.19" transform="rotate(-23 933.9 455.9)">++</text>
-	<text class="frag" x="497.9" y="498.9" font-size="10" opacity="0.36" transform="rotate(20 497.9 498.9)">1</text>
-	<text class="frag" x="709.7" y="457.4" font-size="9" opacity="0.24" transform="rotate(11 709.7 457.4)">!</text>
-	<text class="frag" x="692.4" y="457.6" font-size="9" opacity="0.19" transform="rotate(-13 692.4 457.6)">{</text>
-	<text class="frag" x="814.0" y="501.2" font-size="11" opacity="0.40" transform="rotate(16 814.0 501.2)">&amp;&amp;</text>
-	<text class="frag" x="551.7" y="471.8" font-size="11" opacity="0.38" transform="rotate(14 551.7 471.8)">{</text>
-	<text class="frag" x="915.2" y="461.0" font-size="12" opacity="0.27" transform="rotate(14 915.2 461.0)">//</text>
-	<text class="frag" x="510.5" y="452.6" font-size="10" opacity="0.28" transform="rotate(7 510.5 452.6)">[]</text>
-	<text class="frag" x="819.0" y="474.9" font-size="12" opacity="0.39" transform="rotate(24 819.0 474.9)">[]</text>
-	<text class="frag" x="652.9" y="445.4" font-size="12" opacity="0.30" transform="rotate(10 652.9 445.4)">()</text>
-	<text class="frag" x="792.4" y="455.0" font-size="12" opacity="0.33" transform="rotate(9 792.4 455.0)">fn</text>
-	<text class="frag" x="1023.0" y="494.2" font-size="9" opacity="0.37" transform="rotate(-10 1023.0 494.2)">?</text>
-	<text class="frag" x="664.0" y="457.1" font-size="11" opacity="0.23" transform="rotate(-13 664.0 457.1)">1</text>
-	<text class="frag" x="637.9" y="449.8" font-size="10" opacity="0.26" transform="rotate(-5 637.9 449.8)">let</text>
-	<circle class="grain" cx="1228.0" cy="470.5" r="0.8" />
-	<circle class="grain" cx="957.9" cy="442.8" r="1" />
-	<circle class="grain" cx="1226.9" cy="443.0" r="1" />
-	<circle class="grain" cx="1141.7" cy="451.7" r="1" />
-	<circle class="grain" cx="1166.5" cy="438.7" r="1" />
-	<circle class="grain" cx="629.5" cy="439.4" r="1.2" />
-	<circle class="grain" cx="1212.7" cy="475.7" r="0.8" />
-	<circle class="grain" cx="739.3" cy="494.9" r="1" />
-	<circle class="grain" cx="921.2" cy="488.7" r="1.2" />
-	<circle class="grain" cx="1191.2" cy="443.2" r="1.2" />
-	<circle class="grain" cx="1005.2" cy="459.8" r="0.8" />
-	<circle class="grain" cx="736.5" cy="445.6" r="0.8" />
-	<circle class="grain" cx="1233.9" cy="438.6" r="1.2" />
-	<circle class="grain" cx="959.5" cy="449.8" r="0.8" />
-	<circle class="grain" cx="1091.2" cy="463.8" r="1" />
-	<circle class="grain" cx="591.9" cy="457.2" r="0.8" />
-	<circle class="grain" cx="470.8" cy="469.7" r="1" />
-	<circle class="grain" cx="495.9" cy="442.9" r="1" />
-	<circle class="grain" cx="969.3" cy="446.5" r="1.2" />
-	<circle class="grain" cx="517.8" cy="447.1" r="1.2" />
-	<circle class="grain" cx="659.7" cy="503.2" r="1.2" />
-	<circle class="grain" cx="688.4" cy="500.8" r="1" />
-	<circle class="grain" cx="1033.3" cy="496.1" r="1" />
-	<circle class="grain" cx="774.2" cy="494.8" r="1" />
-	<circle class="grain" cx="953.8" cy="462.6" r="1" />
-	<circle class="grain" cx="606.5" cy="436.4" r="0.8" />
-	<circle class="grain" cx="779.9" cy="491.8" r="1" />
-	<circle class="grain" cx="901.3" cy="460.8" r="0.8" />
-	<circle class="grain" cx="548.4" cy="439.5" r="0.8" />
-	<circle class="grain" cx="950.8" cy="497.9" r="0.8" />
-	<circle class="grain" cx="897.4" cy="499.1" r="1.2" />
-	<circle class="grain" cx="843.5" cy="445.9" r="1" />
-	<circle class="grain" cx="573.5" cy="447.7" r="0.8" />
-	<circle class="grain" cx="531.7" cy="469.4" r="0.8" />
-	<circle class="grain" cx="683.7" cy="492.9" r="0.8" />
-	<circle class="grain" cx="1214.7" cy="468.8" r="0.8" />
-	<circle class="grain" cx="924.8" cy="479.3" r="0.8" />
-	<circle class="grain" cx="1158.5" cy="478.2" r="0.8" />
-	<circle class="grain" cx="950.6" cy="494.2" r="1.2" />
-	<circle class="grain" cx="764.7" cy="493.6" r="1" />
-	<circle class="grain" cx="590.2" cy="450.8" r="1" />
-	<circle class="grain" cx="1185.6" cy="446.6" r="1" />
-	<circle class="grain" cx="543.0" cy="452.8" r="1.2" />
-	<circle class="grain" cx="1088.7" cy="449.1" r="1.2" />
-	<circle class="grain" cx="1109.9" cy="481.7" r="1.2" />
-	<circle class="grain" cx="1106.5" cy="444.0" r="1.2" />
-	<circle class="grain" cx="805.1" cy="493.7" r="1" />
-	<circle class="grain" cx="957.4" cy="457.0" r="0.8" />
-	<circle class="grain" cx="781.5" cy="480.8" r="1" />
-	<circle class="grain" cx="842.8" cy="448.2" r="0.8" />
-	<circle class="grain" cx="933.7" cy="469.3" r="0.8" />
-	<circle class="grain" cx="798.1" cy="478.1" r="1" />
-	<circle class="grain" cx="1105.2" cy="491.1" r="1" />
-	<circle class="grain" cx="530.4" cy="444.7" r="1" />
-	<circle class="grain" cx="733.9" cy="490.6" r="1.2" />
-	<circle class="grain" cx="848.0" cy="438.8" r="1.2" />
-	<circle class="grain" cx="548.7" cy="498.7" r="1" />
-	<circle class="grain" cx="1058.8" cy="470.8" r="0.8" />
-	<circle class="grain" cx="1038.6" cy="496.9" r="1.2" />
-	<circle class="grain" cx="1195.3" cy="445.3" r="0.8" />
-	<circle class="grain" cx="1230.9" cy="485.8" r="0.8" />
-	<circle class="grain" cx="598.6" cy="502.8" r="1" />
-	<circle class="grain" cx="672.9" cy="491.1" r="0.8" />
-	<circle class="grain" cx="986.7" cy="485.0" r="0.8" />
-	<circle class="grain" cx="497.6" cy="459.9" r="1" />
-	<circle class="grain" cx="571.1" cy="497.0" r="1" />
-	<circle class="grain" cx="1159.2" cy="467.0" r="1" />
-	<circle class="grain" cx="841.7" cy="498.6" r="0.8" />
-	<circle class="grain" cx="912.4" cy="477.9" r="0.8" />
-	<circle class="grain" cx="697.4" cy="438.5" r="0.8" />
-	<circle class="grain" cx="763.9" cy="479.3" r="1" />
-	<circle class="grain" cx="981.6" cy="496.9" r="0.8" />
-	<circle class="grain" cx="1070.2" cy="454.0" r="1.2" />
-	<circle class="grain" cx="484.3" cy="494.4" r="1" />
-	<circle class="grain" cx="883.5" cy="475.4" r="0.8" />
-	<circle class="grain" cx="644.6" cy="472.4" r="1" />
-	<circle class="grain" cx="1027.5" cy="461.3" r="1" />
-	<circle class="grain" cx="1226.5" cy="475.3" r="1" />
-	<circle class="grain" cx="706.7" cy="441.5" r="0.8" />
-	<circle class="grain" cx="585.3" cy="486.6" r="0.8" />
-	<circle class="grain" cx="679.6" cy="471.1" r="1" />
-	<circle class="grain" cx="949.7" cy="502.9" r="1.2" />
-	<circle class="grain" cx="1177.6" cy="496.9" r="1.2" />
-	<circle class="grain" cx="447.4" cy="438.3" r="0.8" />
-	<circle class="grain" cx="675.3" cy="478.5" r="1" />
-	<circle class="grain" cx="850.0" cy="496.9" r="0.8" />
-	<circle class="grain" cx="830.9" cy="477.7" r="0.8" />
-	<circle class="grain" cx="463.6" cy="436.2" r="1" />
-	<circle class="grain" cx="685.3" cy="471.6" r="1.2" />
-	<circle class="grain" cx="622.7" cy="475.7" r="1.2" />
-	<g transform="rotate(0 655 420)">
-		<path class="bot" d="M638 420 V384 H650 V420 Z M660 420 V384 H672 V420 Z" />
-		<path class="bot" d="M634 320 H676 L683 327 V377 L676 384 H634 L627 377 V327 Z" />
-		<path class="limb" style="stroke:#6f86a3;stroke-width:1.2" d="M643 346 H667 M643 353 H667 M643 360 H667" />
-		<rect class="bot" x="649" y="313" width="12" height="7" />
-		<path class="bot" d="M641 285 H669 L675 291 V307 L669 313 H641 L635 307 V291 Z" />
-		<rect class="eye" x="641" y="296" width="28" height="4" rx="1" />
-		<path class="limb" d="M663 285 V274" />
-		<path class="limb" d="M627 330 L619 354 L642.9 368.8" />
-		<path class="limb" d="M683 330 L695 356 L684.1 360.8" />
-		<g transform="rotate(-11 661.0 352.0)"><rect class="note" x="637" y="336" width="48" height="32" rx="2" />
-		<path class="thread" style="stroke-dasharray:none" d="M645 345 H663 M645 352 H675 M645 359 H669" /></g>
-	</g>
-	<path class="limb" style="stroke:#6f86a3" d="M920 366 H1036 M928 366 V425.8 M1028 366 V430.2" />
-	<path class="limb" style="stroke:#6f86a3" d="M990 366 V354" />
-	<rect class="note" style="stroke:#9aa1b5" x="956" y="294" width="78" height="58" rx="2" />
-	<path class="thread" style="stroke-dasharray:none;stroke-width:1.6" d="M964 304 H998 M972 312 H1012 M972 320 H998 M980 328 H1010 M972 336 H990 M964 344 H974 " />
-	<rect class="blk" x="926" y="360" width="46" height="5" rx="1" />
-	<g transform="rotate(0 880 420)">
-		<path class="bot" d="M863 420 V384 H875 V420 Z M885 420 V384 H897 V420 Z" />
-		<path class="bot" d="M859 320 H901 L908 327 V377 L901 384 H859 L852 377 V327 Z" />
-		<path class="limb" style="stroke:#6f86a3;stroke-width:1.2" d="M868 346 H892 M868 353 H892 M868 360 H892" />
-		<rect class="bot" x="874" y="313" width="12" height="7" />
-		<path class="bot" d="M866 285 H894 L900 291 V307 L894 313 H866 L860 307 V291 Z" />
-		<rect class="eye" x="866" y="296" width="28" height="4" rx="1" />
-		<path class="limb" d="M888 285 V274" />
-		<path class="limb" d="M852 330 L846 352 L856 362" />
-		<path class="limb" d="M908 330 L920 350 L934 358" />
-	</g>
-	<rect class="note" style="stroke:#9aa1b5" x="1104" y="302" width="46" height="64" rx="2" />
-	<path fill="none" stroke="#67d4e8" stroke-width="1.6" d="M1112 312 H1140" />
-	<path fill="none" stroke="#67d4e8" stroke-width="1.6" d="M1112 320 H1132" />
-	<path fill="none" stroke="#ffc878" stroke-width="1.6" d="M1112 328 H1136" />
-	<path fill="none" stroke="#ffc878" stroke-width="1.6" d="M1112 336 H1128" />
-	<path fill="none" stroke="#67d4e8" stroke-width="1.6" d="M1112 344 H1142" />
-	<path fill="none" stroke="#9aa1b5" stroke-width="1.6" d="M1112 352 H1130" />
-	<path fill="none" stroke="#67d4e8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M1086 312 l3 3 l6 -7" />
-	<path fill="none" stroke="#ffc878" stroke-width="1.8" stroke-linecap="round" d="M1087 325 l6 6 M1093 325 l-6 6" />
-	<path fill="none" stroke="#ffc878" stroke-width="1.8" stroke-linecap="round" d="M1087 341 l6 6 M1093 341 l-6 6" />
-	<g transform="rotate(0 1190 420)">
-		<path class="bot" d="M1173 420 V384 H1185 V420 Z M1195 420 V384 H1207 V420 Z" />
-		<path class="bot" d="M1169 320 H1211 L1218 327 V377 L1211 384 H1169 L1162 377 V327 Z" />
-		<path class="limb" style="stroke:#6f86a3;stroke-width:1.2" d="M1178 346 H1202 M1178 353 H1202 M1178 360 H1202" />
-		<rect class="bot" x="1184" y="313" width="12" height="7" />
-		<path class="bot" d="M1176 285 H1204 L1210 291 V307 L1204 313 H1176 L1170 307 V291 Z" />
-		<rect class="eye" x="1176" y="296" width="28" height="4" rx="1" />
-		<path class="limb" d="M1198 285 V274" />
-		<path class="limb" d="M1162 330 L1148 340 L1150 330" />
-		<path class="limb" d="M1218 330 L1226 354 L1224 374" />
-	</g>
-	<g transform="rotate(0 265 420)">
-		<path class="gk" d="M248 420 V384 H260 V420 Z M270 420 V384 H282 V420 Z" />
-		<path class="gk" d="M244 320 H286 L293 327 V377 L286 384 H244 L237 377 V327 Z" />
-		<path class="glimb" style="stroke:#6f86a3;stroke-width:1.2" d="M253 346 H277 M253 353 H277 M253 360 H277" />
-		<rect class="gk" x="259" y="313" width="12" height="7" />
-		<path class="gk" d="M251 285 H279 L285 291 V307 L279 313 H251 L245 307 V291 Z" />
-		<rect fill="#c6a7ff" x="251" y="296" width="28" height="4" rx="1" />
-		<path class="glimb" d="M273 285 V274" />
-		<path class="glimb" d="M237 330 L221 320 L235 304" />
-		<rect class="gk" x="231" y="284" width="12" height="28" rx="2" transform="rotate(-10 237 298)" />
-		<path class="glimb" style="stroke-width:1.2;opacity:.8" d="M221 286 q-7 8 0 16 M213 280 q-11 14 0 28" />
-		<path class="glimb" d="M293 330 L329 338" />
-	</g>
-	<text class="ax" style="fill:#c6a7ff" x="265" y="450" text-anchor="middle">GATEKEEPER</text>
-	<text class="ax" x="265" y="470" text-anchor="middle">HUMAN INTERACTIONS</text>
-	<path class="thread" d="M363 332 C441 314 400 234 474 332" />
-	<g transform="rotate(-8 346 334)"><rect class="note" x="331" y="324" width="32" height="24" rx="2" /><path class="thread" style="stroke-dasharray:none;opacity:.7" d="M337 332 H357 M337 338 H353" /></g>
-	<rect class="note" style="stroke:#6f86a3" x="510.0" y="360" width="12" height="70" />
-	<path class="limb" style="stroke:#67d4e8;stroke-width:2" d="M562 354 V286" /><path fill="#67d4e8" d="M562 286 H584 V302 H562 Z" />
-	<path class="note" style="fill:rgba(103,212,232,.10);stroke-width:1.6" d="M474 360 V328 Q474 308 494 308 H538 Q558 308 558 328 V360 Z" />
-	<path class="note" style="fill:none;opacity:.6" d="M480 356 V328 Q480 314 494 314" />
-	<text class="ax" style="fill:#67d4e8;font-size:10px;letter-spacing:.1em" x="519.0" y="345" text-anchor="middle">DEAD DROP</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 101 1672 731.5" width="1440" height="630" role="img" aria-label="Three robots at work inside a walled sandbox: one holds a plan drawn as a flowchart, one codes on a laptop at a desk, one reviews a document with two checks and a cross. Outside the wall, a purple gatekeeper robot on the phone passes a note along a dashed line into a mailbox inside the sandbox.">
+	<defs><pattern id="grid" x="24" y="29" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0 H0 V48" fill="none" stroke="rgba(255,255,255,.03)" stroke-width="1" /></pattern></defs>
+	<rect x="-20" y="81" width="1712" height="772" fill="#0a0a0f" />
+	<rect x="-20" y="81" width="1712" height="772" fill="url(#grid)" />
+	<g fill="#0a0a0f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+		<rect fill="none" stroke="#e7b765" stroke-width="2.6" x="378" y="256" width="1212" height="422" rx="14" />
+		<path fill="none" stroke="#a07c45" stroke-width="2.6" d="M380 606.0 L388 607.2 L396 608.3 L404 609.4 L412 610.4 L420 611.2 L428 611.9 L436 612.5 L444 612.9 L452 613.1 L460 613.1 L468 613.0 L476 612.8 L484 612.5 L492 612.0 L500 611.5 L508 611.0 L516 610.5 L524 610.0 L532 609.5 L540 609.1 L548 608.8 L556 608.6 L564 608.4 L572 608.4 L580 608.5 L588 608.6 L596 608.8 L604 609.0 L612 609.2 L620 609.3 L628 609.5 L636 609.5 L644 609.5 L652 609.3 L660 609.1 L668 608.6 L676 608.1 L684 607.4 L692 606.6 L700 605.7 L708 604.7 L716 603.7 L724 602.6 L732 601.6 L740 600.6 L748 599.6 L756 598.8 L764 598.1 L772 597.6 L780 597.3 L788 597.1 L796 597.1 L804 597.3 L812 597.7 L820 598.2 L828 598.9 L836 599.7 L844 600.5 L852 601.4 L860 602.3 L868 603.2 L876 604.0 L884 604.8 L892 605.5 L900 606.1 L908 606.5 L916 606.9 L924 607.1 L932 607.2 L940 607.3 L948 607.2 L956 607.1 L964 607.0 L972 606.9 L980 606.8 L988 606.7 L996 606.8 L1004 606.9 L1012 607.1 L1020 607.4 L1028 607.8 L1036 608.4 L1044 609.0 L1052 609.7 L1060 610.4 L1068 611.1 L1076 611.8 L1084 612.5 L1092 613.1 L1100 613.7 L1108 614.0 L1116 614.3 L1124 614.4 L1132 614.2 L1140 614.0 L1148 613.5 L1156 612.9 L1164 612.1 L1172 611.2 L1180 610.1 L1188 609.1 L1196 607.9 L1204 606.8 L1212 605.7 L1220 604.6 L1228 603.6 L1236 602.8 L1244 602.0 L1252 601.4 L1260 601.0 L1268 600.7 L1276 600.6 L1284 600.6 L1292 600.7 L1300 600.9 L1308 601.2 L1316 601.5 L1324 601.9 L1332 602.2 L1340 602.5 L1348 602.7 L1356 602.9 L1364 603.0 L1372 603.0 L1380 602.9 L1388 602.7 L1396 602.4 L1404 602.1 L1412 601.8 L1420 601.4 L1428 601.1 L1436 600.8 L1444 600.5 L1452 600.4 L1460 600.4 L1468 600.5 L1476 600.8 L1484 601.2 L1492 601.8 L1500 602.5 L1508 603.4 L1516 604.4 L1524 605.4 L1532 606.6 L1540 607.7 L1548 608.9 L1556 610.0 L1564 611.0 L1572 611.9 L1580 612.7 L1588 613.4" />
+		<rect stroke="#b98cf5" x="162" y="535" width="22" height="75.0" />
+		<rect stroke="#b98cf5" x="202" y="535" width="22" height="75.0" />
+		<g transform="rotate(0 193 537)">
+		<path fill="none" stroke="#b98cf5" d="M193 335 V357" />
+		<path fill="none" stroke="#b98cf5" d="M147 438 L117 418 L137 398" /><path fill="none" stroke="#b98cf5" d="M239 446 L290 460" />
+		<rect stroke="#b98cf5" x="181.0" y="411" width="24" height="20" />
+		<path stroke="#b98cf5" d="M159 429 H227 L241 443 V523 L227 537 H159 L145 523 V443 Z" />
+		<path stroke="#b98cf5" d="M169 357 H217 L231 371 V399 L217 413 H169 L155 399 V371 Z" />
+		<rect fill="#b98cf5" stroke="#8a5fd0" stroke-width="1.6" x="168" y="381" width="50" height="7.5" rx="3.5" />
+		
+		</g>
+		<rect stroke="#b98cf5" x="131" y="362" width="25" height="48" rx="5" transform="rotate(-14 143 386)" />
+		<path fill="none" stroke="#b98cf5" d="M117 371 q-11 17 0 34 M101 361 q-20 27 0 54" />
+		<g transform="rotate(-12 313 455)"><rect stroke="#4fd0e6" x="286" y="437" width="54" height="36" rx="3" /><path fill="none" stroke="#4fd0e6" d="M298 450 H326 M298 460 H320" /></g>
+		<path fill="none" stroke="#4fd0e6" stroke-dasharray="9 9" d="M344 446 C382 438 392 396 428 399 S468 422 474 436" />
+		<rect stroke="#a3abbe" x="528" y="490" width="20" height="119.2" />
+		<path fill="none" stroke="#4fd0e6" d="M590 415 V370" /><rect fill="#4fd0e6" stroke="#4fd0e6" x="590" y="369" width="33" height="24" />
+		<path fill="#101a22" stroke="#4fd0e6" d="M478 490 V453 A38 38 0 0 1 516 415 H564 A38 38 0 0 1 602 453 V490 Z" />
+		<rect stroke="#a3abbe" x="733" y="535" width="22" height="65.1" />
+		<rect stroke="#a3abbe" x="773" y="535" width="22" height="62.2" />
+		<g transform="rotate(0 764 537)">
+		<path fill="none" stroke="#a3abbe" d="M764 335 V357" />
+		<path fill="none" stroke="#a3abbe" d="M810 442 L826 466 L836 478" />
+		<rect stroke="#a3abbe" x="752.0" y="411" width="24" height="20" />
+		<path stroke="#a3abbe" d="M730 429 H798 L812 443 V523 L798 537 H730 L716 523 V443 Z" />
+		<path stroke="#a3abbe" d="M740 357 H788 L802 371 V399 L788 413 H740 L726 399 V371 Z" />
+		<rect fill="#4fd0e6" stroke="#2c9fb5" stroke-width="1.6" x="739" y="381" width="50" height="7.5" rx="3.5" />
+		<path fill="none" stroke="#a3abbe" d="M718 442 L700 486 L750 500" />
+		</g>
+		<g transform="rotate(-7 794 481)">
+			<rect stroke="#a3abbe" x="742" y="440" width="104" height="82" rx="2" />
+			<rect fill="none" stroke="#a3abbe" stroke-width="2.2" x="783" y="456" width="22" height="11" rx="1" />
+			<path fill="none" stroke="#a3abbe" stroke-width="2" d="M794 467 V478 M768 478 H820 M768 478 V490 M820 478 V490" />
+			<rect fill="none" stroke="#f0b955" stroke-width="2.4" x="757" y="490" width="22" height="12" rx="1" />
+			<rect fill="none" stroke="#f0b955" stroke-width="2.4" x="809" y="490" width="22" height="12" rx="1" />
+		</g>
+		<path fill="none" stroke="#f0b955" stroke-width="2.6" d="M822 356 L830 343 M832 370 L847 362 M836 384 L852 385" />
+		<rect stroke="#a3abbe" x="1011" y="535" width="22" height="72.5" />
+		<rect stroke="#a3abbe" x="1051" y="535" width="22" height="75.6" />
+		<g transform="rotate(0 1042 537)">
+		<path fill="none" stroke="#a3abbe" d="M1049 335 V357" />
+		
+		<rect stroke="#a3abbe" x="1033.5" y="411" width="24" height="20" />
+		<path stroke="#a3abbe" d="M1013.0 429 H1071.0 L1085.0 443 V523 L1071.0 537 H1037.0 L1023.0 523 L999.0 443 Z" />
+		<path stroke="#a3abbe" d="M1025 357 H1073 L1087 371 V399 L1073 413 H1025 L1011 399 V371 Z" />
+		<rect fill="#4fd0e6" stroke="#2c9fb5" stroke-width="1.6" x="1024" y="381" width="50" height="7.5" rx="3.5" />
+		<path fill="none" stroke="#a3abbe" d="M999 443 L993 500 L1016 505 L1058 507 L1074 516" /><path fill="none" stroke="#a3abbe" d="M1085 448 V492 L1104 504" />
+		</g>
+		<path stroke="#a3abbe" d="M1099 519 L1121 438 H1221 L1198 519 Z" />
+		<path fill="none" stroke="#4fd0e6" stroke-width="2.8" d="M1137 459 H1172 M1137 472 H1188 M1137 484 H1168 M1128 496 H1153" />
+		<rect stroke="#a3abbe" x="1050" y="515" width="46" height="7" rx="2" />
+		<rect stroke="#a3abbe" x="1098" y="515" width="122" height="7" rx="2" />
+		<rect stroke="#a3abbe" x="944" y="522" width="278" height="22" />
+		<rect stroke="#a3abbe" x="954" y="544" width="8" height="63.1" />
+		<rect stroke="#a3abbe" x="1206" y="544" width="8" height="61.9" />
+		<rect stroke="#a3abbe" x="1463" y="535" width="22" height="65.7" />
+		<rect stroke="#a3abbe" x="1503" y="535" width="22" height="69.1" />
+		<g transform="rotate(0 1494 537)">
+		<path fill="none" stroke="#a3abbe" d="M1494 335 V357" />
+		<path fill="none" stroke="#a3abbe" d="M1448 444 L1428 462" /><path fill="none" stroke="#a3abbe" d="M1540 446 L1562 484 L1534 516" />
+		<rect stroke="#a3abbe" x="1482.0" y="411" width="24" height="20" />
+		<path stroke="#a3abbe" d="M1460 429 H1528 L1542 443 V523 L1528 537 H1460 L1446 523 V443 Z" />
+		<path stroke="#a3abbe" d="M1470 357 H1518 L1532 371 V399 L1518 413 H1470 L1456 399 V371 Z" />
+		<rect fill="#4fd0e6" stroke="#2c9fb5" stroke-width="1.6" x="1469" y="381" width="50" height="7.5" rx="3.5" />
+		
+		</g>
+		<rect stroke="#a3abbe" x="1345" y="388" width="86" height="124" rx="3" />
+		<path fill="none" stroke="#4fd0e6" stroke-width="2.6" d="M1360 410 H1416 M1360 431 H1406" />
+		<path fill="none" stroke="#f0b955" stroke-width="2.6" d="M1360 452 H1412 M1360 472 H1396" />
+		<path fill="none" stroke="#a3abbe" stroke-width="2.6" d="M1360 492 H1410" />
+		<path fill="none" stroke="#4fd0e6" stroke-width="2.6" d="M1305 410 l7 7 l13 -14 M1305 450 l7 7 l13 -14" />
+		<path fill="none" stroke="#f0b955" stroke-width="2.6" d="M1308 482 l14 14 M1322 482 l-14 14" />
 	</g>
 </svg>

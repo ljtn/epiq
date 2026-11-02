@@ -3,7 +3,7 @@ title: Sandboxes favor repo-native tooling
 date: 2026-10-30
 tags: ai, agents, security
 cover: ./images/repo-native-tooling-for-sandboxes-hero.svg
-cover_alt: Three robots at work in a walled sandbox, planning, coding and reviewing; outside, a gatekeeper robot on the phone with a human drops a note in the dead-drop mailbox inside
+cover_alt: Three robots at work in a walled sandbox, planning, coding and reviewing; outside, a gatekeeper robot on the phone passes a note into a mailbox inside
 guid: https://ljtn.github.io/epiq/blog/repo-native-tooling-for-sandboxes.html
 ---
 
