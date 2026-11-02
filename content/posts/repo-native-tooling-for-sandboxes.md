@@ -2,7 +2,8 @@
 title: Sandboxes favor repo-native tooling
 date: 2026-10-30
 tags: ai, agents, security
-cover_alt: Out-of-focus lines of code glowing blue and amber on a dark screen
+cover: ./images/repo-native-tooling-for-sandboxes-hero.svg
+cover_alt: Three robots at work in a walled sandbox, planning, coding and reviewing; outside, a gatekeeper robot on the phone with a human drops a note in the dead-drop mailbox inside
 guid: https://ljtn.github.io/epiq/blog/repo-native-tooling-for-sandboxes.html
 ---
 
@@ -10,66 +11,62 @@ Recent incidents [possibly involving rogue agents](https://www.euronews.com/2026
 
 ![Every interaction with the gatekeeper is an opening in the wall.](./images/sandbox-gatekeeper-simple.svg)
 
-This is not watertight, and as the saying goes: if there is a way in, there is a way out, as we shall soon see. In any case, it is better than nothing at all, and most importantly it narrows the contact surface with the outside world.
+This is not watertight, and as the saying goes: if there is a way in, there is a way out, as we shall see. In any case, it is better than nothing at all, and most importantly it narrows the contact surface with the outside world.
 
 ## It's political
 
-It also makes interactions with the sandboxed agents a pain. Agents without a way to communicate with peers, the gatekeeper, or humans are impractical. The common solution is to relax restrictions with tooling whitelists. This is not only an annoyance from a technical standpoint. In a large corporation, it takes real political skill to navigate security departments and corporate machinery.
+It also makes interactions with the sandboxed agents a pain. Agents without a way to communicate with peers, the sandbox gatekeeper, or humans are impractical. The common solution is to relax restrictions with tooling whitelists. But this is not only an annoyance from a technical standpoint. In a large corporation, it takes real political skill to navigate security departments and corporate machinery.
 
 ## Repo-native tooling
 
-A way around this is repo-native tooling. Tools that work offline with only Git access have most of the allowances in place, as agents need Git anyway to deliver code.
+A way around this is _repo-native tooling_ - tools that work offline with only Git access. They have most of the allowances in place, as agents need Git anyway to deliver code.
 
-If, for instance, the control plane is part of the repository, we need fewer gates to the outside. We can use Git as a communication transport and a plain log in a repository as memory persistence.
+If, for instance, the agent control plane is part of the repository, we need fewer gates to the outside. We can use Git as a communication transport and a plain log in a repository as memory persistence.
 
-![What crosses the wall is Git, already allowed](./images/sandbox-repo-native.svg)
+![What crosses the wall is Git, already allowed](./images/sandbox-repo-only.svg)
 
-## Trusted channels are soft spots
+This simplifies our setup, but there is a problem: our gatekeeper, with access to the outside, also has access to the code. This is a security risk. In fact, the sandbox itself is typically not what fails, but [the doors left open on purpose](https://labs.cloudsecurityalliance.org/research/csa-research-note-ai-coding-agent-sandbox-escapes-20260722-c/).
 
-Now, the sandbox itself is typically not what fails, but [the doors left open on purpose](https://labs.cloudsecurityalliance.org/research/csa-research-note-ai-coding-agent-sandbox-escapes-20260722-c/). Think of it as a drug lord in prison - the cartel is just as lethal as long as he can slip out notes to someone able to act on them, no matter how restricted he is.
+To address this we can split the control plane into a workflow repo, and only give the gatekeeper read access to the code.
 
-Repo-native, Git-based tooling narrows the contact surface with the outside, but it does not limit information flow. An important question is who is reached by what information, with what privileges.
+![The workflow repo is shared; the code repo stays in the sandbox.](./images/sandbox-repo-native.svg)
 
-## The Lethal Trifecta
+## Slipping notes under bars
 
-The combination of _private data_, _a way out_, and _untrusted content_ is called [the Lethal Trifecta](https://cosmonic.com/ai-sandbox/principles/lethal-trifecta/). We can contain risk by cutting off one of its three legs.
+Repo-native, Git-based tooling does not limit information flow. An important question is who is reached by what information, with what privileges.
 
-![Remove one leg, and the circuit breaks.](./images/lethal-trifecta.svg)
+Think of it as a drug lord in prison - the cartel is just as lethal as long as he can slip out notes to someone able to act on them, no matter how restricted he is.
 
-Sandboxed agents never see secrets, so they lack private data. The gatekeeper does hold secrets, has a way out, and reads what sandboxed agents write, so it is supervised by a human, runs in manual mode and never executes commands.
+The combination of _private data_, _a way out_, and _untrusted content_ is called [the Lethal Trifecta](https://cosmonic.com/ai-sandbox/principles/lethal-trifecta/).
+
+![Remove one leg, and the lethal trifecta breaks.](./images/lethal-trifecta.svg)
+
+The idea is that we can contain the risk by not giving any agent all three components.
+
+In our setup the gatekeeper is the only agent that holds all three legs. It has secrets, it has a way out, and it reads untrusted agent notes. As such, we need to make it _human supervised_.
+
+Our current model still carries some risk: should external stakeholders get access to the control plane, their input would reach the agents unfiltered, and vice versa. We can stop our drug lord from slipping notes to the outside by adding a public issue tracker alongside the internal issue tracker:
+
+![One public and one internal issue tracker, operating as a workflow graph](./images/sandbox-public-tracker.svg)
 
 ## Dead drop
+Now the gatekeeper, with no write access to the code, reads instructions from stakeholders and puts notes in the dedicated workflow repo. The notes are picked up by sandboxed agents, with code write access. Think of a Cold War [dead drop](https://en.wikipedia.org/wiki/Dead_drop). In return, sandboxed agents drop notes back onto the workflow repository, leaving an audit trail behind. The gatekeeper reads them as untrusted content.
 
-Separating the workflow repository from the code repositories keeps the host away from code writes. [Epiq](https://epiq.sh/) is an issue tracker and workflow manager that can operate as the control plane in this way.
+This is starting to look a whole lot like a setup I am running. For me [Epiq](https://epiq.sh/) is the internal issue tracker and workflow manager operating as the _control plane_. It persists an event log in your repo and can track work in other repositories, online or offline. It gives me a way to peek into the machinery of the sandbox, and I can also time-travel via the timeline scrubber and inspect historical workflows.
 
-It persists an event log in your repo and can track work in other repositories, from a repository with or without a remote, online or offline.
+## Bunch of colored boxes
 
-The gatekeeper, with no write access to the code, puts notes in the dedicated workflow repo. The notes are picked up by sandboxed agents, with code write access. Think of a Cold War [dead drop](https://en.wikipedia.org/wiki/Dead_drop). In return, sandboxed agents drop notes back onto the workflow repository, read as untrusted content, leaving an audit trail behind.
-
-## Bare clones
-
-Git itself can be used in clever ways by attackers. [GitSpawn](https://adversa.ai/blog/top-ai-coding-agent-security-resources-october-2026/) used repository config to run code whenever Git was called.
-
-When Epiq links another repository, it reads it through a shallow, bare clone: no working tree, nothing checked out, hooks and `.gitattributes` switched off. Git only ever transfers content, never settings or hooks, so nothing the sandbox writes to a linked repository can make the host run anything.
-
-## A recent setup
-A setup I am currently running looks something like this:
+Now, we can make this even more colorful. If we use something like [OpenShell](https://github.com/NVIDIA/OpenShell) to run sandboxed agents, we can keep secrets out of the sandbox entirely, since they are appended by a proxy layer on requests leaving the sandbox.
 
 ![The proxy appends real secrets per binary, host and path.](./images/sandbox-openshell-setup.svg)
 
-I use [OpenShell](https://github.com/NVIDIA/OpenShell) to run sandboxed agents, keeping secrets out of the sandbox entirely, since they are appended by a proxy layer on requests leaving the sandbox.
+This is a lot of colored boxes, so let's not dive deeper. I think this is sufficient to illustrate a basic setup that addresses problems with the lethal trifecta, only requiring: a _Git repo_, _a sandbox_ (OpenShell), and _a memory graph_ (Epiq).
 
-Epiq works as the control plane in a separate repository, providing a way for agents to interact in a traceable way, and a way for humans to audit agent interactions.
+## Conclusion - repo-native is composable and sandboxable
+Using tooling primitives that are repo-native, standalone and distributed allows you to compose a range of setups, depending on organizational needs. Epiq can manage one, or both, of the two workflow management planes.
 
-One future improvement, since the communication is passive (text rather than executed commands), is that we could involve audit agents before information is relayed to agents with privileges.
-
-Note: Since agents can write to the workflow repo, it's wise to protect its branch against force-pushes and deletion.
-
-## Composable, sandboxable
-Building blocks that are repo-native, standalone and distributed allow you to compose a great variety of setups, depending on organizational needs. Epiq can be used as an agent memory graph, a workflow manager, an audit trail, or all at once.
-
-When I started Epiq a year and a half ago, agents weren't a priority. But an append-only event log that lives in the repo and travels over Git turns out to be what sandboxed agents need: a way to coordinate without opening another gap in the wall.
+Agentic workflows weren't on the radar at the inception of Epiq, 1.5 years ago, but an append-only event log that lives in the repo and travels over Git turns out to integrate easily with sandboxes, providing a way to coordinate without opening another gap in the wall.
 
 ---
 
-Is a repo-native control plane the right way to run sandboxed agents? I'd like to hear your thoughts, or how you run yours, in the comments.
+Is repo-native tooling a great solution to sandbox restrictions? Share your thoughts in the comments below.

@@ -36,16 +36,14 @@
 	<text class="lbl c-e" x="450" y="74">Workflow repo</text>
 
 	<path class="full" d="M130 90 V128" marker-start="url(#tip-e)" marker-end="url(#tip-e)" />
-	<path class="full" d="M389 90 V128" marker-start="url(#tip-e)" marker-end="url(#tip-e)" />
-	<path class="full" d="M523 90 V128" marker-start="url(#tip-e)" marker-end="url(#tip-e)" />
-	<path class="full" d="M657 90 V128" marker-start="url(#tip-e)" marker-end="url(#tip-e)" />
-	<path class="full" d="M791 90 V128" marker-start="url(#tip-e)" marker-end="url(#tip-e)" />
+	<path class="full" d="M410 90 V128" marker-start="url(#tip-e)" marker-end="url(#tip-e)" />
+	<path class="full" d="M590 90 V128" marker-start="url(#tip-e)" marker-end="url(#tip-e)" />
+	<path class="full" d="M770 90 V128" marker-start="url(#tip-e)" marker-end="url(#tip-e)" />
 	<rect class="key" x="50" y="130" width="160" height="36" rx="3" /><text class="lbl c-f" x="130" y="148">Gatekeeper</text>
-	<rect class="box" x="330" y="130" width="118" height="36" rx="3" /><text class="lbl" x="389" y="148">Investigator</text>
-	<rect class="box" x="464" y="130" width="118" height="36" rx="3" /><text class="lbl" x="523" y="148">Planner</text>
-	<rect class="box" x="598" y="130" width="118" height="36" rx="3" /><text class="lbl" x="657" y="148">Implementer</text>
-	<rect class="box" x="732" y="130" width="118" height="36" rx="3" /><text class="lbl" x="791" y="148">Reviewer</text>
-	<path class="rest" d="M389 166 V210 M523 166 V210 M657 166 V210 M791 166 V210" />
+	<rect class="box" x="330" y="130" width="160" height="36" rx="3" /><text class="lbl" x="410" y="148">Planner</text>
+	<rect class="box" x="510" y="130" width="160" height="36" rx="3" /><text class="lbl" x="590" y="148">Implementer</text>
+	<rect class="box" x="690" y="130" width="160" height="36" rx="3" /><text class="lbl" x="770" y="148">Reviewer</text>
+	<path class="rest" d="M410 166 V210 M590 166 V210 M770 166 V210" />
 	<rect class="code" x="330" y="210" width="520" height="28" rx="3" /><text class="lbl" x="590" y="224">Code repo</text>
 
 	<path class="rest ro" d="M328 224 H130 V168" marker-end="url(#tip-r)" />
