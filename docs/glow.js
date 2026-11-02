@@ -11,7 +11,7 @@
 
 	if (!window.matchMedia("(hover: hover)").matches) return;
 
-	var els = document.querySelectorAll(".nav, .copy-cmd, .hero-cta");
+	var els = document.querySelectorAll(".nav, .copy-cmd, .hero-cta, .links .btn");
 	var last = 0;
 
 	window.addEventListener("mousemove", function (event) {

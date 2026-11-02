@@ -172,16 +172,16 @@ pre {
 	min-height: 44px;
 	padding: 0 18px;
 	border: 1px solid var(--line);
-	border-radius: 1px;
-	background: rgba(255, 255, 255, 0.06);
+	border-radius: 2px;
+	/* the copy box's surface, so every button on a page reads as one family */
+	background: rgba(0, 0, 0, 0.34);
 	color: var(--text);
 	font-size: 14px;
 	transition: transform 0.18s ease, border-color 0.18s ease,
 		background 0.18s ease;
 }
 .btn:hover {
-	border-color: rgba(255, 255, 255, 0.26);
-	background: rgba(255, 255, 255, 0.09);
+	border-color: rgba(140, 176, 232, 0.45);
 }
 
 .btn.primary {
@@ -867,18 +867,6 @@ aside:not(.docs-layout > aside) {
 }
 
 /* Copy-to-clipboard command */
-/* The nav's GitHub button is tinted with the nav's blue rather than .btn's
- * neutral white, so it sits with the links instead of reading as a grey box. */
-.links .btn {
-	background: rgba(117, 160, 253, 0.07);
-	border-color: rgba(117, 160, 253, 0.22);
-	color: #c3cff2;
-}
-.links .btn:hover {
-	background: rgba(117, 160, 253, 0.12);
-	border-color: rgba(117, 190, 253, 0.4);
-	color: var(--text);
-}
 /* GitHub button with live star count; hidden once the nav gets tight. */
 .github-stars .stars {
 	display: inline-flex;
@@ -917,7 +905,8 @@ aside:not(.docs-layout > aside) {
 }
 /* Border light that follows the pointer; docs/glow.js sets --gx, --gy, --gp. */
 .copy-cmd,
-.hero-cta {
+.hero-cta,
+.links .btn {
 	position: relative;
 }
 /* The light replaces the bright hover border. */
@@ -926,6 +915,7 @@ aside:not(.docs-layout > aside) {
 }
 .copy-cmd::after,
 .hero-cta::after,
+.links .btn::after,
 .nav::after {
 	content: "";
 	position: absolute;
@@ -939,7 +929,8 @@ aside:not(.docs-layout > aside) {
 	);
 }
 .copy-cmd::after,
-.hero-cta::after {
+.hero-cta::after,
+.links .btn::after {
 	inset: -1px;
 	padding: 1px;
 	border-radius: inherit;
@@ -976,9 +967,8 @@ aside:not(.docs-layout > aside) {
 	align-items: center;
 	padding: 0 16px;
 	color: color-mix(in srgb, var(--text) calc(var(--gp, 0) * 100%), var(--dim));
-	transition: color 0.15s;
+	transition: color 0.15s, background 0.15s;
 	border-left: 1px solid var(--line);
-	background: rgba(255, 255, 255, 0.04);
 	font-size: 12px;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
@@ -992,6 +982,11 @@ aside:not(.docs-layout > aside) {
 }
 .copy-cmd.copied .copy-cmd-ico {
 	color: var(--cyan);
+}
+/* The copy segment fills when the pointer is on it, not on the command. */
+.copy-cmd .copy-cmd-ico:hover,
+.copy-cmd:focus-visible .copy-cmd-ico {
+	background: rgba(255, 255, 255, 0.04);
 }
 
 /* Active nav link */
