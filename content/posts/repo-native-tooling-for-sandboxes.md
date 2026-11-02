@@ -56,7 +56,7 @@ This is starting to look a whole lot like a setup I am running. For me [Epiq](ht
 
 ## Bunch of colored boxes
 
-We can make this even more colorful. Using something like [OpenShell](https://github.com/NVIDIA/OpenShell) to run sandboxed agents, we can keep secrets out of the sandbox entirely, since they are appended by a proxy layer on requests leaving the sandbox.
+One question remains: how do sandboxed agents push code or call a model without holding any secrets? Using something like [OpenShell](https://github.com/NVIDIA/OpenShell) to run sandboxed agents, we can keep secrets out of the sandbox entirely, since they are appended by a proxy layer on requests leaving the sandbox.
 
 ![A proxy layer appends real secrets outside the sandbox.](./images/sandbox-openshell-setup.svg)
 

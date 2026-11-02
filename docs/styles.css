@@ -867,6 +867,18 @@ aside:not(.docs-layout > aside) {
 }
 
 /* Copy-to-clipboard command */
+/* The nav's GitHub button is tinted with the nav's blue rather than .btn's
+ * neutral white, so it sits with the links instead of reading as a grey box. */
+.links .btn {
+	background: rgba(117, 160, 253, 0.07);
+	border-color: rgba(117, 160, 253, 0.22);
+	color: #c3cff2;
+}
+.links .btn:hover {
+	background: rgba(117, 160, 253, 0.12);
+	border-color: rgba(117, 190, 253, 0.4);
+	color: var(--text);
+}
 /* GitHub button with live star count; hidden once the nav gets tight. */
 .github-stars .stars {
 	display: inline-flex;
