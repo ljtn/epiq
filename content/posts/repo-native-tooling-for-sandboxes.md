@@ -60,7 +60,7 @@ One question remains: how do sandboxed agents push code or call a model without 
 
 ![A proxy layer appends real secrets outside the sandbox.](./images/sandbox-openshell-setup.svg)
 
-This is a lot of colored boxes, so let's not dive deeper. This should be sufficient to illustrate a basic setup that addresses problems with the lethal trifecta, requiring only: a _Git repo_, _a sandbox_ (OpenShell), and _an agent control plane_ (Epiq).
+This is a lot of colored boxes, so let's not dive deeper. This should be sufficient to illustrate a basic setup that addresses problems with the lethal trifecta, requiring only: a _Git repo_, _a sandbox_, and _an agent control plane_.
 
 ## Conclusion - repo-native is composable and sandboxable
 Using tooling that is repo-native, standalone and distributed allows you to compose a range of setups, depending on organizational needs. Epiq can manage one, or both, of the two workflow management planes.
