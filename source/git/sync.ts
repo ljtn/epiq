@@ -21,9 +21,9 @@ import {
 	clearStaleRefLock,
 	execGit,
 	getInProgressGitOperation,
+	getPublishState,
 	hasRemote,
 	hasStagedChanges,
-	isAheadOfUpstream,
 	isDetachedHead,
 	isNonFastForward,
 	isRemoteUnreachable,
@@ -49,8 +49,8 @@ type SyncSummary = {
 	pulled: boolean;
 	pushed: boolean;
 	bootstrapped: boolean;
-	// Local work is committed; the remote could not be reached, or there is
-	// none to reach.
+	// Local work is committed; the remote could not be reached, there is none
+	// to reach, or it refused a board it has never held.
 	offline: boolean;
 	// Another process held the state worktree; nothing was attempted.
 	skipped?: boolean;
@@ -317,15 +317,25 @@ const commitOwnEventFileToStateBranch = async ({
 	});
 };
 
+// Long enough that a refused push, which may upload the whole board first,
+// costs little; a new event pushes regardless.
+const PUBLISH_RETRY_MS = 5 * 60_000;
+
+const refusedPublishAt = new Map<string, number>();
+
+const OFFLINE_LABELS = {
+	offline: 'Offline',
+	'no remote': 'No remote',
+	'not published': 'Not published',
+};
+
 const offlineSummary = (
 	summary: Omit<SyncSummary, 'offline' | 'pulled' | 'pushed'>,
-	reason: 'offline' | 'no remote' = 'offline',
+	reason: keyof typeof OFFLINE_LABELS = 'offline',
 ): Result<SyncSummary> => {
 	const msg = summary.createdCommit
 		? `Committed locally, ${reason}`
-		: reason === 'offline'
-		? 'Offline'
-		: 'No remote';
+		: OFFLINE_LABELS[reason];
 
 	setSyncOffline(msg);
 
@@ -474,13 +484,29 @@ const runSync = async (
 	pulled = pullResult.value;
 
 	// Push remote, checked apart from `createdCommit`: an earlier unpushed commit still goes.
-	const aheadResult = trace(
-		'isAheadOfUpstream',
-		await isAheadOfUpstream(stateBranchRoot),
+	const publishResult = trace(
+		'getPublishState',
+		await getPublishState({branch: stateBranch, cwd: stateBranchRoot}),
 	);
-	if (isFail(aheadResult)) return failSync(aheadResult.message);
+	if (isFail(publishResult)) return failSync(publishResult.message);
 
-	if (createdCommit || bootstrapped || aheadResult.value) {
+	const publishState = publishResult.value;
+	const retryingPublish =
+		publishState === 'unpublished' && !createdCommit && !bootstrapped;
+	const refusedAt = refusedPublishAt.get(stateBranchRoot);
+
+	if (
+		retryingPublish &&
+		refusedAt !== undefined &&
+		Date.now() - refusedAt < PUBLISH_RETRY_MS
+	) {
+		return offlineSummary(
+			{repoRoot, stateBranchRoot, createdCommit, commitSha, bootstrapped},
+			'not published',
+		);
+	}
+
+	if (createdCommit || bootstrapped || publishState !== 'up-to-date') {
 		logger.info('[sync] pushing state branch', {
 			createdCommit,
 			bootstrapped,
@@ -519,6 +545,20 @@ const runSync = async (
 					commitSha,
 					bootstrapped,
 				});
+			}
+
+			// Only a retry of old work: a remote that may never take it must not
+			// fail every sync, which would also stop the reload and repo fetches.
+			if (retryingPublish) {
+				logger.error(
+					`[sync] state branch not published: ${pushResult.message}`,
+				);
+				refusedPublishAt.set(stateBranchRoot, Date.now());
+
+				return offlineSummary(
+					{repoRoot, stateBranchRoot, createdCommit, commitSha, bootstrapped},
+					'not published',
+				);
 			}
 
 			return failSync(pushResult.message);

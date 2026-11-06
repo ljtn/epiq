@@ -1068,23 +1068,36 @@ export const pullBranchRebaseIfPresent = async ({
 	return succeeded(moved ? 'Pulled with rebase' : 'Already up to date', moved);
 };
 
-// False when there is no upstream yet: the first push is gated on bootstrap.
-export const isAheadOfUpstream = async (
-	cwd: string,
-): Promise<Result<boolean>> => {
-	const result = await execGitAllowFail({
+type PublishState = 'up-to-date' | 'ahead' | 'unpublished';
+
+/** An upstream configured but gone was deleted on the remote: not ours to bring back. */
+export const getPublishState = async ({
+	branch,
+	cwd,
+}: {
+	branch: string;
+	cwd: string;
+}): Promise<Result<PublishState>> => {
+	const compared = await execGitAllowFail({
 		args: ['rev-list', '--count', '@{u}..HEAD'],
 		cwd,
 	});
 
-	if (result.exitCode !== 0) {
-		return succeeded('No upstream to compare against', false);
+	if (compared.exitCode === 0) {
+		return succeeded(
+			'Compared against upstream',
+			Number(compared.stdout.trim()) > 0 ? 'ahead' : 'up-to-date',
+		);
 	}
 
-	return succeeded(
-		'Compared against upstream',
-		Number(result.stdout.trim()) > 0,
-	);
+	const configured = await execGitAllowFail({
+		args: ['config', '--get', `branch.${branch}.merge`],
+		cwd,
+	});
+
+	return configured.exitCode === 1
+		? succeeded('Never published', 'unpublished')
+		: succeeded('Upstream gone', 'up-to-date');
 };
 
 /** Anything `--force` removal would lose, untracked included (a first event log is). */

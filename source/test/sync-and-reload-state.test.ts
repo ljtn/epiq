@@ -12,10 +12,28 @@ vi.mock('../lib/board/board-log.js', async importOriginal => ({
 	}),
 }));
 
+vi.mock('../mcp/api/boot.js', async importOriginal => ({
+	...(await importOriginal<object>()),
+	getActor: () => ({
+		status: 'success',
+		message: '',
+		value: {userId: 'u1', userName: 'alice'},
+	}),
+	resolveRepoRoot: (repoRoot: string) => ({
+		status: 'success',
+		message: '',
+		value: repoRoot,
+	}),
+}));
+
 import {syncAndReloadState} from '../git/sync-and-reload-state.js';
 import {loadWithoutProject} from '../lib/boot/load-project.js';
+import {syncCommand} from '../lib/command-line/commands/sync.cmd.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getState} from '../lib/state/state.js';
+import {setSyncOffline} from '../lib/state/sync-state.js';
+import {sync} from '../mcp/api/state.js';
+import {makeTempDir} from './helpers/git-repo.js';
 
 beforeEach(() => {
 	(globalThis as {logger?: unknown}).logger = {
@@ -50,5 +68,55 @@ describe('syncAndReloadState when the sync throws', () => {
 
 		// `isSyncing()` keys on this; left at 'syncing', no sync runs again.
 		expect(getState().syncStatus.status).toBe('failed');
+	});
+});
+
+describe('a sync that reached no remote', () => {
+	const notPublished = () => {
+		const root = makeTempDir();
+
+		syncEpiqWithRemote.mockImplementation(async () => {
+			setSyncOffline('Not published');
+
+			return {
+				status: 'success',
+				message: 'Not published',
+				value: {offline: true, repoRoot: root, stateBranchRoot: root},
+			};
+		});
+
+		return root;
+	};
+
+	it('says why on the TUI', async () => {
+		notPublished();
+
+		expect(isFail(await syncAndReloadState())).toBe(false);
+		expect(getState().syncStatus).toEqual({
+			msg: 'Not published',
+			status: 'offline',
+		});
+	});
+
+	it('says why on the sync command', async () => {
+		notPublished();
+
+		expect(isFail(await syncCommand())).toBe(false);
+		expect(getState().syncStatus).toEqual({
+			msg: 'Not published',
+			status: 'offline',
+		});
+	});
+
+	it('is not called synced on the GUI and MCP path', async () => {
+		const repoRoot = notPublished();
+
+		const result = await sync({repoRoot});
+		expect(isFail(result)).toBe(false);
+		expect(result.message).toBe('Not published');
+		expect(getState().syncStatus).toEqual({
+			msg: 'Not published',
+			status: 'offline',
+		});
 	});
 });

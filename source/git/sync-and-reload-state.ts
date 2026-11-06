@@ -175,6 +175,7 @@ const syncAndReloadStateUnsafe = async (
 	}
 
 	const {stateBranchRoot, offline, repoRoot} = syncResult.value;
+	const {message} = syncResult;
 
 	const reloadResult = reloadStateFromEventLog(stateBranchRoot);
 	if (isFail(reloadResult)) return reloadResult;
@@ -183,7 +184,7 @@ const syncAndReloadStateUnsafe = async (
 		hasProjectDefinition: true,
 		// The reload succeeded either way; only the remote half did not.
 		syncStatus: offline
-			? {msg: 'Committed locally, offline', status: 'offline'}
+			? {msg: message, status: 'offline'}
 			: {msg: 'Synced', status: 'synced'},
 	});
 
