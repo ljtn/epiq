@@ -21,9 +21,9 @@ import {
 	clearStaleRefLock,
 	execGit,
 	getInProgressGitOperation,
+	getPublishState,
 	hasRemote,
 	hasStagedChanges,
-	hasUnpushedCommits,
 	isDetachedHead,
 	isNonFastForward,
 	isRemoteUnreachable,
@@ -49,8 +49,8 @@ type SyncSummary = {
 	pulled: boolean;
 	pushed: boolean;
 	bootstrapped: boolean;
-	// Local work is committed; the remote could not be reached, or there is
-	// none to reach.
+	// Local work is committed; the remote could not be reached, there is none
+	// to reach, or it refused a board it has never held.
 	offline: boolean;
 	// Another process held the state worktree; nothing was attempted.
 	skipped?: boolean;
@@ -317,15 +317,19 @@ const commitOwnEventFileToStateBranch = async ({
 	});
 };
 
+const OFFLINE_LABELS = {
+	offline: 'Offline',
+	'no remote': 'No remote',
+	'not published': 'Not published',
+};
+
 const offlineSummary = (
 	summary: Omit<SyncSummary, 'offline' | 'pulled' | 'pushed'>,
-	reason: 'offline' | 'no remote' = 'offline',
+	reason: keyof typeof OFFLINE_LABELS = 'offline',
 ): Result<SyncSummary> => {
 	const msg = summary.createdCommit
 		? `Committed locally, ${reason}`
-		: reason === 'offline'
-		? 'Offline'
-		: 'No remote';
+		: OFFLINE_LABELS[reason];
 
 	setSyncOffline(msg);
 
@@ -474,13 +478,15 @@ const runSync = async (
 	pulled = pullResult.value;
 
 	// Push remote, checked apart from `createdCommit`: an earlier unpushed commit still goes.
-	const unpushedResult = trace(
-		'hasUnpushedCommits',
-		await hasUnpushedCommits(stateBranchRoot),
+	const publishResult = trace(
+		'getPublishState',
+		await getPublishState({branch: stateBranch, cwd: stateBranchRoot}),
 	);
-	if (isFail(unpushedResult)) return failSync(unpushedResult.message);
+	if (isFail(publishResult)) return failSync(publishResult.message);
 
-	if (createdCommit || bootstrapped || unpushedResult.value) {
+	const publishState = publishResult.value;
+
+	if (createdCommit || bootstrapped || publishState !== 'up-to-date') {
 		logger.info('[sync] pushing state branch', {
 			createdCommit,
 			bootstrapped,
@@ -519,6 +525,17 @@ const runSync = async (
 					commitSha,
 					bootstrapped,
 				});
+			}
+
+			// Only a retry of old work: a remote that may never take it must not
+			// fail every sync, which would also stop the reload and repo fetches.
+			if (publishState === 'unpublished' && !createdCommit && !bootstrapped) {
+				logger.info('[sync] state branch not published', pushResult.message);
+
+				return offlineSummary(
+					{repoRoot, stateBranchRoot, createdCommit, commitSha, bootstrapped},
+					'not published',
+				);
 			}
 
 			return failSync(pushResult.message);

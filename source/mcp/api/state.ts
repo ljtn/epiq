@@ -314,6 +314,6 @@ export const sync = async (input: SyncInput = {}) => {
 		return result;
 	}
 
-	setSynced();
+	if (!result.value.offline) setSynced();
 	return succeeded('Synced', result.value);
 };
