@@ -72,9 +72,7 @@ const seed = async () => {
 			.map(candidate => candidate.title);
 
 	const progress = () =>
-		unwrap(deriveGuiState())
-			.boards.find(candidate => candidate.id === board.id)!
-			.goals.find(candidate => candidate.id === goal.id)!;
+		unwrap(deriveGuiState()).goals.find(candidate => candidate.id === goal.id)!;
 
 	return {repoRoot, assumed, lane, first, file, mark, counting, progress};
 };

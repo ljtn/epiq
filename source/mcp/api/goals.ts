@@ -20,7 +20,8 @@ import {
 	isGoalTicketDone,
 	goalNameRefusal,
 	goalProgress,
-	projectGoals,
+	goalsOpenFirst,
+	isGoalClosed,
 } from '../../lib/utils/goal.utils.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
@@ -44,10 +45,11 @@ const apiGoal = (goal: Goal): ApiGoal => ({
 	...goalRef(goal),
 	...goalProgress(goal.id),
 	...(goal.description && {description: goal.description}),
+	...(isGoalClosed(goal.id) && {closed: true}),
 });
 
 /** The project's goals, each with how far along its tickets are. */
-export const apiGoals = (): ApiGoal[] => projectGoals().map(apiGoal);
+export const apiGoals = (): ApiGoal[] => goalsOpenFirst().map(apiGoal);
 
 /** Every goal in the project, and the boards its tickets are on. */
 export const listGoals = async (input: ToolInput = {}) => {
@@ -56,7 +58,7 @@ export const listGoals = async (input: ToolInput = {}) => {
 
 	return succeeded(
 		'Listed goals',
-		projectGoals().map(goal => ({
+		goalsOpenFirst().map(goal => ({
 			...apiGoal(goal),
 			boards: goalBoards(goal.id).map(id => ({id, ref: nodeRef(id)})),
 		})),

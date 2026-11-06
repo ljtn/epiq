@@ -457,7 +457,7 @@ export const createMcpServer = () => {
 		'epiq_goal_list',
 		{
 			description:
-				'List the goals in the project: each a group of tickets serving one outcome, with done/total (done is closed, or in a done lane: see epiq_swimlane_rule_set) and the boards its tickets are on. Put a ticket in one with epiq_issue_goal_set; epiq_goal_stats gives its code stats.',
+				'List the goals in the project: each a group of tickets serving one outcome, with done/total (done is closed, or in a done lane: see epiq_swimlane_rule_set), closed once all its tickets are, and the boards its tickets are on. Open goals first. Put a ticket in one with epiq_issue_goal_set; epiq_goal_stats gives its code stats.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),

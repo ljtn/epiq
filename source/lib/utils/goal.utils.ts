@@ -1,7 +1,7 @@
 // A goal is a project-wide name tickets belong to; its progress comes from
 // them. The log allows several per ticket, but every door shows and sets one.
 
-import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
+import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {Goal} from '../model/app-state.model.js';
 import {isTicketNode, Ticket} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
@@ -102,7 +102,7 @@ const ticketBoardId = (ticket: Ticket): string | undefined => {
 
 /**
  * The boards a ticket shows its goal on: the one it stands on, or, once
- * closed, every one it stood on, so a finished goal stays where it was worked.
+ * closed, every one it stood on, so a goal keeps its count where it was worked.
  */
 const ticketBoards = (ticket: Ticket): string[] => {
 	if (ticket.parentNodeId === CLOSED_SWIMLANE_ID) return boardsEverOnOf(ticket);
@@ -161,9 +161,13 @@ export const goalBoards = (goalId: string): string[] => [
 export const goalMembersOn = (goalId: string, boardId: string): Ticket[] =>
 	membership().onBoard.get(goalId)?.get(boardId) ?? [];
 
-/** The goals a board shows: those with a ticket on it. */
+/** The goals a board shows: those with a ticket on it, closed ones only on the Closed board. */
 export const boardGoals = (boardId: string): Goal[] =>
-	projectGoals().filter(goal => goalMembersOn(goal.id, boardId).length > 0);
+	projectGoals().filter(
+		goal =>
+			goalMembersOn(goal.id, boardId).length > 0 &&
+			(boardId === CLOSED_BOARD_ID || !isGoalClosed(goal.id)),
+	);
 
 /**
  * How far along a goal is, over every ticket in it on every board, however
@@ -178,6 +182,27 @@ export const goalProgress = (goalId: string): {done: number; total: number} => {
 export const isGoalTicketDone = (ticket: Ticket): boolean =>
 	ticket.parentNodeId === CLOSED_SWIMLANE_ID ||
 	isDoneLane(ticket.parentNodeId ?? '');
+
+/**
+ * Derived, so reopening a ticket or adding one reopens the goal. A done lane
+ * doesn't close it: its tickets are still on the board.
+ */
+export const isGoalClosed = (goalId: string): boolean => {
+	const members = goalMembers(goalId);
+	return (
+		members.length > 0 &&
+		members.every(ticket => ticket.parentNodeId === CLOSED_SWIMLANE_ID)
+	);
+};
+
+/** The project's goals, oldest first, those still open ahead of the closed. */
+export const goalsOpenFirst = (): Goal[] => {
+	const goals = projectGoals();
+	return [
+		...goals.filter(goal => !isGoalClosed(goal.id)),
+		...goals.filter(goal => isGoalClosed(goal.id)),
+	];
+};
 
 /** Why a goal may not be named so, or null when it may. */
 export const goalNameRefusal = (

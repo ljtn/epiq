@@ -25,7 +25,11 @@ import {
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
-import {boardGoals, getTicketGoal, projectGoals} from '../utils/goal.utils.js';
+import {
+	boardGoals,
+	getTicketGoal,
+	goalsOpenFirst,
+} from '../utils/goal.utils.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 import {laneRules, rulesLacking} from '../utils/lane-rules.js';
 
@@ -208,7 +212,7 @@ export const goalNamesInScope = (): string[] => {
 	const shown = board ? boardGoals(board.id) : [];
 	return [
 		...shown,
-		...projectGoals().filter(goal => !shown.includes(goal)),
+		...goalsOpenFirst().filter(goal => !shown.includes(goal)),
 	].map(goal => goal.name);
 };
 

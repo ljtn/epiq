@@ -126,6 +126,7 @@ import {
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useNeedleUrl} from './lib/needle-url';
+import {CLOSED_BOARD_ID} from '../../lib/board/static-ids.js';
 import {GoalDetails, GoalDetailsTab} from './components/GoalDetails';
 import {GoalStrip} from './components/GoalStrip';
 import {ManageGoalsModal} from './components/ManageGoalsModal';
@@ -726,6 +727,12 @@ export const App = () => {
 		goalDetailsOpen && isolatedGoalId
 			? state?.goals.find(goal => goal.id === isolatedGoalId) ?? null
 			: null;
+	// A closed goal shows only on the Closed board.
+	const openClosedGoal = (goalId: string) => {
+		setManagingGoals(false);
+		selectBoard(CLOSED_BOARD_ID);
+		filterByGoal(goalId);
+	};
 	const [goalTab, setGoalTab] = useState<GoalDetailsTab>('overview');
 	// Walks every ticket, so only while a tab that needs it is open.
 	const codeGoalId =
@@ -2098,24 +2105,28 @@ export const App = () => {
 										overflow: 'hidden',
 									}}
 								>
-									{selectedBoard && selectedBoard.goals.length > 0 && (
-										<GoalStrip
-											goals={selectedBoard.goals}
-											isolatedGoalId={isolatedGoalId}
-											onFilterByGoal={filterByGoal}
-											onManage={
-												selectedBoard.readonly
-													? undefined
-													: () => setManagingGoals(true)
-											}
-										/>
-									)}
+									{/* Closed goals keep it up: Manage goals is their way in. */}
+									{selectedBoard &&
+										(selectedBoard.goals.length > 0 ||
+											state?.goals.some(goal => goal.closed)) && (
+											<GoalStrip
+												goals={selectedBoard.goals}
+												isolatedGoalId={isolatedGoalId}
+												onFilterByGoal={filterByGoal}
+												onManage={
+													selectedBoard.readonly
+														? undefined
+														: () => setManagingGoals(true)
+												}
+											/>
+										)}
 									{managingGoals && (
 										<ManageGoalsModal
 											goals={state?.goals ?? []}
 											onCreate={name => createGoal(name)}
 											onRename={renameGoal}
 											onRemove={removeGoal}
+											onOpenClosed={openClosedGoal}
 											onClose={() => setManagingGoals(false)}
 										/>
 									)}

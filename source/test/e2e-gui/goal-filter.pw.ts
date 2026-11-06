@@ -413,3 +413,49 @@ test("a goal's description can't be edited while the board is offline", async ({
 	await expect(page.getByTestId('goal-details')).toContainText(goal);
 	await expect(page.getByTestId('goal-description-edit')).toHaveCount(0);
 });
+
+test('a goal leaves the strip when its last ticket closes, and opens from Manage goals', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const goal = `Shipped ${stamp}`;
+	const member = `Shipped member ${stamp}`;
+	const other = `Bystander ${stamp}`;
+
+	await addTicket(page, other);
+	await addTicket(page, member);
+	await startGoal(page, goal);
+	await expect(pill(page, goal)).toContainText('0/1');
+	await pill(page, goal).click();
+	await expect(card(page, other)).toHaveCount(0);
+
+	await card(page, member).click();
+	await page.keyboard.press('Control+k');
+	await page.keyboard.type('close ticket');
+	await expect(
+		page.getByTestId('command-palette').getByRole('option').first(),
+	).toContainText('Close ticket');
+	await page.keyboard.press('Enter');
+
+	await expect(pill(page, goal)).toHaveCount(0, {timeout: 30_000});
+	// The filter lets go with its pill, rather than stranding the board.
+	await expect(card(page, other)).toBeVisible();
+
+	await page.getByTestId('goal-strip-manage').click();
+	const row = page.getByTestId('manage-goal-row').filter({hasText: goal});
+	await expect(row).toContainText('1/1');
+	await expect(page.getByTestId('closed-goals')).toBeVisible();
+	await row.getByTestId('open-closed-goal').click();
+
+	await expect(page.getByTestId('manage-goals')).toHaveCount(0);
+	await expect(page.getByTestId('board-switcher')).toContainText('Closed');
+	await expect(page.getByTestId('goal-details')).toContainText(goal);
+	await expect(pill(page, goal)).toHaveAttribute('aria-pressed', 'true');
+	await expect(card(page, member)).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
