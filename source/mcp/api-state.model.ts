@@ -62,6 +62,8 @@ export type ApiGoal = ApiGoalRef & {
 	total: number;
 	// What the goal is for, as markdown; absent when it says nothing.
 	description?: string;
+	// Every ticket in it is closed; absent otherwise.
+	closed?: boolean;
 };
 
 /** A goal a board shows, and which of its tickets that board shows. */

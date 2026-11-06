@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {createDefaultEvents} from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {
@@ -17,6 +17,7 @@ import {
 	renameGoal,
 	removeGoal,
 	closeIssue,
+	reopenIssue,
 	createBoard,
 	createSwimlane,
 	moveIssue,
@@ -160,6 +161,140 @@ describe('a goal', () => {
 		expect(issueOf(part).goal).toBeUndefined();
 		expect(issueOf(part).title).toBe('Part');
 		expect(goalMark(nodeRepo.getNode(part) as Ticket, 20)).toBeNull();
+	});
+});
+
+describe('a closed goal', () => {
+	const closedOne = async () => {
+		const seeded = await seed();
+		const {repoRoot, file} = seeded;
+		const first = await file('First');
+		const second = await file('Second');
+		unwrap(await createGoal({repoRoot, name: 'Shipped', issueId: first}));
+		unwrap(await setIssueGoal({repoRoot, issueId: second, goal: 'Shipped'}));
+		unwrap(await closeIssue({repoRoot, issueId: first}));
+		unwrap(await closeIssue({repoRoot, issueId: second}));
+		return {...seeded, first, second};
+	};
+	const projectGoal = (name: string) =>
+		unwrap(deriveGuiState()).goals.find(goal => goal.name === name);
+
+	it('closes with its last ticket, and leaves the board for the Closed board', async () => {
+		const {repoRoot, boardId} = await closedOne();
+
+		expect(projectGoal('Shipped')).toMatchObject({
+			closed: true,
+			done: 2,
+			total: 2,
+		});
+		expect(goalsOf(boardId)).toEqual([]);
+		expect(
+			unwrap(await listBoards({repoRoot})).find(b => b.id === boardId)!.goals,
+		).toEqual([]);
+		expect(goalsOf(CLOSED_BOARD_ID)).toMatchObject([{name: 'Shipped'}]);
+		expect(unwrap(await listGoals({repoRoot}))[0]).toMatchObject({
+			name: 'Shipped',
+			closed: true,
+		});
+	});
+
+	it('stays open while a ticket is short of closed, even in a done lane', async () => {
+		const {repoRoot, boardId, file} = await seed();
+		const shipped = await file('Shipped');
+		const merged = await file('Merged');
+		unwrap(await createGoal({repoRoot, name: 'Almost', issueId: shipped}));
+		unwrap(await setIssueGoal({repoRoot, issueId: merged, goal: 'Almost'}));
+		const done = unwrap(
+			await createSwimlane({repoRoot, boardId, title: 'Done'}),
+		);
+		unwrap(await moveIssue({repoRoot, issueId: merged, parentId: done.id}));
+		unwrap(await closeIssue({repoRoot, issueId: shipped}));
+
+		const goal = projectGoal('Almost')!;
+		expect(goal).toMatchObject({done: 2, total: 2});
+		expect(goal.closed).toBeUndefined();
+		expect(goalsOf(boardId)).toHaveLength(1);
+	});
+
+	it('lists only the Closed board as a board it shows on', async () => {
+		const {repoRoot} = await closedOne();
+
+		const [goal] = unwrap(await listGoals({repoRoot}));
+		expect(goal!.boards.map(board => board.id)).toEqual([CLOSED_BOARD_ID]);
+	});
+
+	it('is said to be closed when made on a closed ticket', async () => {
+		const {repoRoot, file} = await seed();
+		const part = await file('Already shipped');
+		unwrap(await closeIssue({repoRoot, issueId: part}));
+
+		const set = await setIssueGoal({repoRoot, issueId: part, goal: 'Late'});
+		expect(set.message).toContain('so the goal is closed');
+
+		const part2 = await file('Also shipped');
+		unwrap(await closeIssue({repoRoot, issueId: part2}));
+		const made = await createGoal({repoRoot, name: 'Later', issueId: part2});
+		expect(made.message).toContain('so the goal is closed');
+
+		const open = await createGoal({repoRoot, name: 'Fresh'});
+		expect(open.message).not.toContain('so the goal is closed');
+	});
+
+	it('still sends its tickets past the closed window', async () => {
+		const {repoRoot, file} = await seed();
+		const inGoal = await file('Old and in a goal');
+		const loner = await file('Old and alone');
+		unwrap(await createGoal({repoRoot, name: 'Old', issueId: inGoal}));
+		unwrap(await closeIssue({repoRoot, issueId: inGoal}));
+		unwrap(await closeIssue({repoRoot, issueId: loner}));
+
+		const twoYears = 2 * 365 * 24 * 60 * 60 * 1000;
+		const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + twoYears);
+		const sent = [issueOf(inGoal), issueOf(loner)];
+		clock.mockRestore();
+
+		expect(sent[0]).toBeDefined();
+		expect(sent[1]).toBeUndefined();
+	});
+
+	it('takes an empty goal as open', async () => {
+		const {repoRoot} = await seed();
+		unwrap(await createGoal({repoRoot, name: 'Planned'}));
+
+		expect(projectGoal('Planned')!.closed).toBeUndefined();
+	});
+
+	it('reopens with a ticket reopened, and back on its board', async () => {
+		const {repoRoot, boardId, first} = await closedOne();
+		unwrap(await reopenIssue({repoRoot, issueId: first}));
+
+		expect(projectGoal('Shipped')!.closed).toBeUndefined();
+		expect(goalsOf(boardId)).toMatchObject([{name: 'Shipped'}]);
+	});
+
+	it('reopens with a new ticket', async () => {
+		const {repoRoot, boardId, file} = await closedOne();
+		const more = await file('More');
+		unwrap(await setIssueGoal({repoRoot, issueId: more, goal: 'Shipped'}));
+
+		expect(projectGoal('Shipped')).toMatchObject({done: 2, total: 3});
+		expect(projectGoal('Shipped')!.closed).toBeUndefined();
+		expect(goalsOf(boardId)).toMatchObject([{name: 'Shipped'}]);
+	});
+
+	it('lists after the open goals, oldest first within each', async () => {
+		const {repoRoot, file} = await closedOne();
+		const later = await file('Later');
+		unwrap(await createGoal({repoRoot, name: 'Newer', issueId: later}));
+
+		expect(unwrap(deriveGuiState()).goals.map(goal => goal.name)).toEqual([
+			'Newer',
+			'Shipped',
+		]);
+		expect(unwrap(await listGoals({repoRoot})).map(goal => goal.name)).toEqual([
+			'Newer',
+			'Shipped',
+		]);
 	});
 });
 
@@ -375,16 +510,20 @@ describe('a goal across boards', () => {
 		]);
 	});
 
-	it('keeps a closed ticket in its goal, on the board it was worked on', async () => {
+	it('keeps a closed ticket in its goal, counted on the board it was worked on', async () => {
 		const {repoRoot, boardId, file} = await seed();
 		const part = await file('Finished');
+		const open = await file('Still going');
 		unwrap(await createGoal({repoRoot, name: 'Kept', issueId: part}));
+		unwrap(await setIssueGoal({repoRoot, issueId: open, goal: 'Kept'}));
 		unwrap(await closeIssue({repoRoot, issueId: part}));
 
 		expect(issueOf(part).goal!.name).toBe('Kept');
-		expect(goalsOf(boardId)).toMatchObject([
-			{name: 'Kept', done: 1, total: 1, members: [{id: part, done: true}]},
-		]);
+		expect(goalsOf(boardId)).toMatchObject([{name: 'Kept', done: 1, total: 2}]);
+		expect(goalsOf(boardId)[0]!.members).toContainEqual({
+			id: part,
+			done: true,
+		});
 
 		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'Other'}));
 		expect(issueOf(part).goal!.name).toBe('Other');

@@ -109,6 +109,14 @@ export const GoalSection = ({
 					>
 						{goal.name}
 					</span>
+					{goal.closed && (
+						<span
+							data-testid="goal-option-closed"
+							style={{color: GUI_THEME.dim, flexShrink: 0}}
+						>
+							Closed
+						</span>
+					)}
 				</span>
 			),
 		})),

@@ -171,7 +171,9 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 					id: goal.id,
 					title: goal.name,
 					color: goal.color,
-					hint: `${goal.done}/${goal.total}`,
+					hint: goal.closed
+						? `Closed ${goal.done}/${goal.total}`
+						: `${goal.done}/${goal.total}`,
 				})),
 		// Sent as a name, which the server finds or makes a goal of, as `:goal`
 		// does in the terminal.

@@ -35,6 +35,7 @@ import {
 } from './boot.js';
 import {getIssueTags, getIssueAssignees} from './issue-projection.js';
 import {boardsEverOnOf} from '../../lib/utils/ticket-boards.js';
+import {getTicketGoal} from '../../lib/utils/goal.utils.js';
 import {apiBoardGoals, apiGoals, goalFields} from './goals.js';
 import {rulesOf} from './lane-rules.js';
 import {isDoneLane, isNamedDone} from '../../lib/utils/lane-rules.js';
@@ -113,10 +114,12 @@ export const deriveGuiState = (): Result<ApiState> => {
 		}
 
 		if (isTicketNode(node) && node.parentNodeId) {
-			// The closed lane is windowed; it would be most of the payload.
+			// The closed lane is windowed; it would be most of the payload. A
+			// goal's tickets are spared: its panel is the way in to them.
 			if (
 				node.parentNodeId === CLOSED_SWIMLANE_ID &&
-				ulidTimeMs(node.id) < closedSince
+				ulidTimeMs(node.id) < closedSince &&
+				!getTicketGoal(node)
 			) {
 				continue;
 			}

@@ -6,7 +6,12 @@ import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {Goal} from '../../lib/model/app-state.model.js';
 import {Ticket} from '../../lib/model/context.model.js';
-import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
+import {
+	failed,
+	isFail,
+	Result,
+	succeeded,
+} from '../../lib/model/result-types.js';
 import {
 	boardGoals,
 	findGoal,
@@ -20,7 +25,8 @@ import {
 	isGoalTicketDone,
 	goalNameRefusal,
 	goalProgress,
-	projectGoals,
+	goalsOpenFirst,
+	isGoalClosed,
 } from '../../lib/utils/goal.utils.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
@@ -44,10 +50,11 @@ const apiGoal = (goal: Goal): ApiGoal => ({
 	...goalRef(goal),
 	...goalProgress(goal.id),
 	...(goal.description && {description: goal.description}),
+	...(isGoalClosed(goal.id) && {closed: true}),
 });
 
 /** The project's goals, each with how far along its tickets are. */
-export const apiGoals = (): ApiGoal[] => projectGoals().map(apiGoal);
+export const apiGoals = (): ApiGoal[] => goalsOpenFirst().map(apiGoal);
 
 /** Every goal in the project, and the boards its tickets are on. */
 export const listGoals = async (input: ToolInput = {}) => {
@@ -56,7 +63,7 @@ export const listGoals = async (input: ToolInput = {}) => {
 
 	return succeeded(
 		'Listed goals',
-		projectGoals().map(goal => ({
+		goalsOpenFirst().map(goal => ({
 			...apiGoal(goal),
 			boards: goalBoards(goal.id).map(id => ({id, ref: nodeRef(id)})),
 		})),
@@ -74,6 +81,15 @@ export const apiBoardGoals = (boardId: string): ApiBoardGoal[] =>
 			done: isGoalTicketDone(ticket),
 		})),
 	}));
+
+// Said, as a closed goal shows on no working board.
+const sayingIfClosed = <T>(result: Result<T>, goalId?: string): Result<T> =>
+	isFail(result) || !goalId || !isGoalClosed(goalId)
+		? result
+		: succeeded(
+				`${result.message}: all its tickets are closed, so the goal is closed`,
+				result.value,
+		  );
 
 const persist = <T>(stateBranchRoot: string, events: AppEvent[], saved: T) => {
 	const results = materializeAndPersistAll(events, stateBranchRoot);
@@ -109,7 +125,10 @@ export const setIssueGoal = async (
 			// Said, so a mistyped name is seen to have made a goal.
 			return isFail(created)
 				? created
-				: succeeded(`Created goal "${created.value.name}"`, saved);
+				: sayingIfClosed(
+						succeeded(`Created goal "${created.value.name}"`, saved),
+						created.value.id,
+				  );
 		}
 		goalId = goal.id;
 	}
@@ -118,10 +137,13 @@ export const setIssueGoal = async (
 	if (changes.length === 0) return succeeded('No changes made', saved);
 
 	const actor = actorOf(ready.value.actor);
-	return persist(
-		ready.value.boot.stateBranchRoot,
-		changes.map(change => ({id: ulid(), ...actor, ...change})),
-		saved,
+	return sayingIfClosed(
+		persist(
+			ready.value.boot.stateBranchRoot,
+			changes.map(change => ({id: ulid(), ...actor, ...change})),
+			saved,
+		),
+		goalId,
 	);
 };
 
@@ -157,7 +179,10 @@ export const createGoal = async (
 		}
 	}
 
-	return persist(ready.value.boot.stateBranchRoot, events, {id, name});
+	return sayingIfClosed(
+		persist(ready.value.boot.stateBranchRoot, events, {id, name}),
+		id,
+	);
 };
 
 export const renameGoal = async (
