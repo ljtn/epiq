@@ -39,13 +39,7 @@ export const syncCommand = async () => {
 		return result;
 	}
 
-	patchState({
-		mode: Mode.DEFAULT,
-		syncStatus: {
-			msg: 'Synced',
-			status: 'synced',
-		},
-	});
+	patchState({mode: Mode.DEFAULT});
 
 	return result;
 };

@@ -317,6 +317,12 @@ const commitOwnEventFileToStateBranch = async ({
 	});
 };
 
+// Long enough that a refused push, which may upload the whole board first,
+// costs little; a new event pushes regardless.
+const PUBLISH_RETRY_MS = 5 * 60_000;
+
+const refusedPublishAt = new Map<string, number>();
+
 const OFFLINE_LABELS = {
 	offline: 'Offline',
 	'no remote': 'No remote',
@@ -485,6 +491,20 @@ const runSync = async (
 	if (isFail(publishResult)) return failSync(publishResult.message);
 
 	const publishState = publishResult.value;
+	const retryingPublish =
+		publishState === 'unpublished' && !createdCommit && !bootstrapped;
+	const refusedAt = refusedPublishAt.get(stateBranchRoot);
+
+	if (
+		retryingPublish &&
+		refusedAt !== undefined &&
+		Date.now() - refusedAt < PUBLISH_RETRY_MS
+	) {
+		return offlineSummary(
+			{repoRoot, stateBranchRoot, createdCommit, commitSha, bootstrapped},
+			'not published',
+		);
+	}
 
 	if (createdCommit || bootstrapped || publishState !== 'up-to-date') {
 		logger.info('[sync] pushing state branch', {
@@ -529,8 +549,11 @@ const runSync = async (
 
 			// Only a retry of old work: a remote that may never take it must not
 			// fail every sync, which would also stop the reload and repo fetches.
-			if (publishState === 'unpublished' && !createdCommit && !bootstrapped) {
-				logger.info('[sync] state branch not published', pushResult.message);
+			if (retryingPublish) {
+				logger.error(
+					`[sync] state branch not published: ${pushResult.message}`,
+				);
+				refusedPublishAt.set(stateBranchRoot, Date.now());
 
 				return offlineSummary(
 					{repoRoot, stateBranchRoot, createdCommit, commitSha, bootstrapped},

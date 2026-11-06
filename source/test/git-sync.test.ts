@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, onTestFinished, vi} from 'vitest';
 import {execGit} from '../git/git-utils.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
 import {isFail} from '../lib/model/result-types.js';
@@ -270,8 +270,14 @@ describe('unpushed commits', () => {
 		const {remoteRoot, repoRoot, stateBranchRoot} =
 			await localBoardWithOrigin();
 		const hook = path.join(remoteRoot, 'hooks', 'pre-receive');
-		writeFile(hook, '#!/bin/sh\nexit 1\n');
+		const attempts = path.join(remoteRoot, 'attempts');
+		writeFile(hook, `#!/bin/sh\necho x >> "${attempts}"\nexit 1\n`);
 		fs.chmodSync(hook, 0o755);
+		const attemptCount = () =>
+			fs.readFileSync(attempts, 'utf8').trim().split('\n').length;
+		const now = Date.now();
+		const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+		onTestFinished(() => clock.mockRestore());
 
 		for (const _ of [1, 2]) {
 			const refused = await syncEpiqWithRemote({
@@ -285,6 +291,12 @@ describe('unpushed commits', () => {
 			expect(refused.value.pushed).toBe(false);
 		}
 
+		expect(attemptCount()).toBe(1);
+
+		clock.mockReturnValue(now + 5 * 60_000);
+		await sync(repoRoot);
+		expect(attemptCount()).toBe(2);
+
 		// New work still reports the refusal.
 		const eventsFile = getEventsFile({
 			root: stateBranchRoot,
@@ -296,8 +308,10 @@ describe('unpushed commits', () => {
 			ownEventFileName: OWN_EVENT_FILE,
 		});
 		expect(isFail(write)).toBe(true);
+		expect(attemptCount()).toBe(3);
 
 		fs.rmSync(hook);
+		clock.mockReturnValue(now + 10 * 60_000);
 		expect((await sync(repoRoot)).pushed).toBe(true);
 	});
 

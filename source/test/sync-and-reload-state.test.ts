@@ -28,6 +28,7 @@ vi.mock('../mcp/api/boot.js', async importOriginal => ({
 
 import {syncAndReloadState} from '../git/sync-and-reload-state.js';
 import {loadWithoutProject} from '../lib/boot/load-project.js';
+import {syncCommand} from '../lib/command-line/commands/sync.cmd.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getState} from '../lib/state/state.js';
 import {setSyncOffline} from '../lib/state/sync-state.js';
@@ -97,10 +98,22 @@ describe('a sync that reached no remote', () => {
 		});
 	});
 
+	it('says why on the sync command', async () => {
+		notPublished();
+
+		expect(isFail(await syncCommand())).toBe(false);
+		expect(getState().syncStatus).toEqual({
+			msg: 'Not published',
+			status: 'offline',
+		});
+	});
+
 	it('is not called synced on the GUI and MCP path', async () => {
 		const repoRoot = notPublished();
 
-		expect(isFail(await sync({repoRoot}))).toBe(false);
+		const result = await sync({repoRoot});
+		expect(isFail(result)).toBe(false);
+		expect(result.message).toBe('Not published');
 		expect(getState().syncStatus).toEqual({
 			msg: 'Not published',
 			status: 'offline',
