@@ -6,7 +6,12 @@ import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {Goal} from '../../lib/model/app-state.model.js';
 import {Ticket} from '../../lib/model/context.model.js';
-import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
+import {
+	failed,
+	isFail,
+	Result,
+	succeeded,
+} from '../../lib/model/result-types.js';
 import {
 	boardGoals,
 	findGoal,
@@ -77,6 +82,15 @@ export const apiBoardGoals = (boardId: string): ApiBoardGoal[] =>
 		})),
 	}));
 
+// Said, as a closed goal shows on no working board.
+const sayingIfClosed = <T>(result: Result<T>, goalId?: string): Result<T> =>
+	isFail(result) || !goalId || !isGoalClosed(goalId)
+		? result
+		: succeeded(
+				`${result.message}: all its tickets are closed, so the goal is`,
+				result.value,
+		  );
+
 const persist = <T>(stateBranchRoot: string, events: AppEvent[], saved: T) => {
 	const results = materializeAndPersistAll(events, stateBranchRoot);
 	if (isFail(results)) return failed(results.message);
@@ -111,7 +125,10 @@ export const setIssueGoal = async (
 			// Said, so a mistyped name is seen to have made a goal.
 			return isFail(created)
 				? created
-				: succeeded(`Created goal "${created.value.name}"`, saved);
+				: sayingIfClosed(
+						succeeded(`Created goal "${created.value.name}"`, saved),
+						created.value.id,
+				  );
 		}
 		goalId = goal.id;
 	}
@@ -120,10 +137,13 @@ export const setIssueGoal = async (
 	if (changes.length === 0) return succeeded('No changes made', saved);
 
 	const actor = actorOf(ready.value.actor);
-	return persist(
-		ready.value.boot.stateBranchRoot,
-		changes.map(change => ({id: ulid(), ...actor, ...change})),
-		saved,
+	return sayingIfClosed(
+		persist(
+			ready.value.boot.stateBranchRoot,
+			changes.map(change => ({id: ulid(), ...actor, ...change})),
+			saved,
+		),
+		goalId,
 	);
 };
 
@@ -159,7 +179,10 @@ export const createGoal = async (
 		}
 	}
 
-	return persist(ready.value.boot.stateBranchRoot, events, {id, name});
+	return sayingIfClosed(
+		persist(ready.value.boot.stateBranchRoot, events, {id, name}),
+		id,
+	);
 };
 
 export const renameGoal = async (

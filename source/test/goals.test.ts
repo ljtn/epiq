@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {createDefaultEvents} from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {
@@ -214,6 +214,47 @@ describe('a closed goal', () => {
 		expect(goal).toMatchObject({done: 2, total: 2});
 		expect(goal.closed).toBeUndefined();
 		expect(goalsOf(boardId)).toHaveLength(1);
+	});
+
+	it('lists only the Closed board as a board it shows on', async () => {
+		const {repoRoot} = await closedOne();
+
+		const [goal] = unwrap(await listGoals({repoRoot}));
+		expect(goal!.boards.map(board => board.id)).toEqual([CLOSED_BOARD_ID]);
+	});
+
+	it('is said to be closed when made on a closed ticket', async () => {
+		const {repoRoot, file} = await seed();
+		const part = await file('Already shipped');
+		unwrap(await closeIssue({repoRoot, issueId: part}));
+
+		const set = await setIssueGoal({repoRoot, issueId: part, goal: 'Late'});
+		expect(set.message).toContain('so the goal is');
+
+		const part2 = await file('Also shipped');
+		unwrap(await closeIssue({repoRoot, issueId: part2}));
+		const made = await createGoal({repoRoot, name: 'Later', issueId: part2});
+		expect(made.message).toContain('so the goal is');
+
+		const open = await createGoal({repoRoot, name: 'Fresh'});
+		expect(open.message).not.toContain('so the goal is');
+	});
+
+	it('still sends its tickets past the closed window', async () => {
+		const {repoRoot, file} = await seed();
+		const inGoal = await file('Old and in a goal');
+		const loner = await file('Old and alone');
+		unwrap(await createGoal({repoRoot, name: 'Old', issueId: inGoal}));
+		unwrap(await closeIssue({repoRoot, issueId: inGoal}));
+		unwrap(await closeIssue({repoRoot, issueId: loner}));
+
+		const twoYears = 2 * 365 * 24 * 60 * 60 * 1000;
+		const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + twoYears);
+		const sent = [issueOf(inGoal), issueOf(loner)];
+		clock.mockRestore();
+
+		expect(sent[0]).toBeDefined();
+		expect(sent[1]).toBeUndefined();
 	});
 
 	it('takes an empty goal as open', async () => {

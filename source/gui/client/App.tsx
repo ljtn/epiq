@@ -62,6 +62,8 @@ import {CommandPalette} from './components/CommandPalette';
 import {buildCommandRegistry} from './lib/commands/command-registry';
 import {useRecentCommands} from './lib/commands/command-recents';
 import {useCommandPalette} from './lib/use-command-palette';
+import {applySelectionPatch, writeSelectionParams} from './lib/board-selection';
+import {showsGoalStrip} from './lib/goal-strip';
 import {moveIssue} from './lib/gui-move-issue';
 import {moveSwimlane} from './lib/gui-move-swimlane';
 import {DropTarget} from './lib/gui-result.model';
@@ -712,26 +714,45 @@ export const App = () => {
 			? selection.goal
 			: null;
 	// Narrowing to a goal opens its panel over whatever the inspector held.
+	const openGoalPanel = () => {
+		setGoalDetailsOpen(true);
+		setCommitDiff(null);
+		setDetailsSwimlaneId(null);
+		setBoardDetailsOpen(false);
+		clearPicked();
+	};
 	const filterByGoal = (goalId: string) => {
 		const narrowing = isolatedGoalId !== goalId;
-		setGoalDetailsOpen(narrowing);
-		if (narrowing) {
-			setCommitDiff(null);
-			setDetailsSwimlaneId(null);
-			setBoardDetailsOpen(false);
-			clearPicked();
-		}
+		if (narrowing) openGoalPanel();
+		else setGoalDetailsOpen(false);
 		changeSelection({goal: narrowing ? goalId : null});
 	};
+	// A closed goal is off every working board, so its filter ends with it. A
+	// scrub only looks at the past, and leaves the filter for the way back.
+	const narrowedToGoneGoal =
+		state?.timeTravel?.mode !== 'scrub' &&
+		selectedBoard &&
+		selectedBoard.id !== CLOSED_BOARD_ID &&
+		state?.goals.some(goal => goal.id === selection.goal && goal.closed);
+	useEffect(() => {
+		if (!narrowedToGoneGoal) return;
+		setGoalDetailsOpen(false);
+		changeSelection({goal: null});
+	}, [narrowedToGoneGoal]);
 	const detailedGoal =
 		goalDetailsOpen && isolatedGoalId
 			? state?.goals.find(goal => goal.id === isolatedGoalId) ?? null
 			: null;
-	// A closed goal shows only on the Closed board.
+	// One navigation, so no render stands on the old board narrowed to it.
 	const openClosedGoal = (goalId: string) => {
 		setManagingGoals(false);
-		selectBoard(CLOSED_BOARD_ID);
-		filterByGoal(goalId);
+		openGoalPanel();
+		const params = new URLSearchParams();
+		writeSelectionParams(
+			params,
+			applySelectionPatch(selection, {goal: goalId}),
+		);
+		void navigate(`/board/${nodeRef(CLOSED_BOARD_ID)}?${params}`);
 	};
 	const [goalTab, setGoalTab] = useState<GoalDetailsTab>('overview');
 	// Walks every ticket, so only while a tab that needs it is open.
@@ -2105,10 +2126,8 @@ export const App = () => {
 										overflow: 'hidden',
 									}}
 								>
-									{/* Closed goals keep it up: Manage goals is their way in. */}
 									{selectedBoard &&
-										(selectedBoard.goals.length > 0 ||
-											state?.goals.some(goal => goal.closed)) && (
+										showsGoalStrip(selectedBoard, state?.goals ?? []) && (
 											<GoalStrip
 												goals={selectedBoard.goals}
 												isolatedGoalId={isolatedGoalId}

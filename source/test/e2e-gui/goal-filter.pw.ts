@@ -442,8 +442,9 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 	await page.keyboard.press('Enter');
 
 	await expect(pill(page, goal)).toHaveCount(0, {timeout: 30_000});
-	// The filter lets go with its pill, rather than stranding the board.
+	// The filter ends with its pill, and stays ended.
 	await expect(card(page, other)).toBeVisible();
+	await expect(page).not.toHaveURL(/goal=/);
 
 	await page.getByTestId('goal-strip-manage').click();
 	const row = page.getByTestId('manage-goal-row').filter({hasText: goal});
@@ -456,6 +457,28 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 	await expect(page.getByTestId('goal-details')).toContainText(goal);
 	await expect(pill(page, goal)).toHaveAttribute('aria-pressed', 'true');
 	await expect(card(page, member)).toBeVisible();
+
+	// Opening it again from here keeps it open, rather than letting go.
+	await page.keyboard.press('Control+k');
+	await page.keyboard.type('manage goals');
+	await page.keyboard.press('Enter');
+	await page
+		.getByTestId('manage-goal-row')
+		.filter({hasText: goal})
+		.getByTestId('open-closed-goal')
+		.click();
+	await expect(page.getByTestId('goal-details')).toContainText(goal);
+	await expect(pill(page, goal)).toHaveAttribute('aria-pressed', 'true');
+
+	// Back on a working board the filter is gone.
+	await page.getByTestId('board-switcher').click();
+	await page
+		.getByTestId('board-switcher-row')
+		.filter({hasText: 'Default'})
+		.click();
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await expect(card(page, other)).toBeVisible();
+	await expect(page).not.toHaveURL(/goal=/);
 
 	expect(pageErrors).toEqual([]);
 });

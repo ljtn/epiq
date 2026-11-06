@@ -5,7 +5,6 @@ import {
 	getUserSetupStatus,
 	isRepositoryInitialized,
 } from '../config/setup-utils.js';
-import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {AppState} from '../model/app-state.model.js';
 import {
 	AnyContext,
@@ -29,6 +28,7 @@ import {
 	boardGoals,
 	getTicketGoal,
 	goalsOpenFirst,
+	isTicketClosed,
 } from '../utils/goal.utils.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 import {laneRules, rulesLacking} from '../utils/lane-rules.js';
@@ -215,9 +215,6 @@ export const goalNamesInScope = (): string[] => {
 		...goalsOpenFirst().filter(goal => !shown.includes(goal)),
 	].map(goal => goal.name);
 };
-
-const isTicketClosed = (ticket: Ticket): boolean =>
-	ticket.parentNodeId === CLOSED_SWIMLANE_ID;
 
 // `description` is offered whenever a ticket is in scope, even from a descendant node.
 const getEditModifiersInScope = ({

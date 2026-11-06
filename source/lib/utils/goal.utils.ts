@@ -92,6 +92,9 @@ export const oneGoalChanges = (
 /** Muted, and from the id, so renaming a goal keeps its colour. */
 export const goalColor = (goal: Goal): string => getMutedStringColor(goal.id);
 
+export const isTicketClosed = (ticket: Ticket): boolean =>
+	ticket.parentNodeId === CLOSED_SWIMLANE_ID;
+
 /** The board a ticket stands on: its lane's parent. */
 const ticketBoardId = (ticket: Ticket): string | undefined => {
 	const lane = ticket.parentNodeId
@@ -105,7 +108,7 @@ const ticketBoardId = (ticket: Ticket): string | undefined => {
  * closed, every one it stood on, so a goal keeps its count where it was worked.
  */
 const ticketBoards = (ticket: Ticket): string[] => {
-	if (ticket.parentNodeId === CLOSED_SWIMLANE_ID) return boardsEverOnOf(ticket);
+	if (isTicketClosed(ticket)) return boardsEverOnOf(ticket);
 	const board = ticketBoardId(ticket);
 	return board ? [board] : [];
 };
@@ -115,12 +118,14 @@ const ticketBoards = (ticket: Ticket): string[] => {
 type Membership = {
 	members: Map<string, Ticket[]>;
 	onBoard: Map<string, Map<string, Ticket[]>>;
+	closed: Set<string>;
 };
 const membershipCache = new WeakMap<object, Membership>();
 
 const membership = (): Membership => {
 	const state = stateOrNone();
-	if (!state) return {members: new Map(), onBoard: new Map()};
+	if (!state)
+		return {members: new Map(), onBoard: new Map(), closed: new Set()};
 	const cached = membershipCache.get(state);
 	if (cached) return cached;
 
@@ -144,7 +149,12 @@ const membership = (): Membership => {
 		onBoard.set(goal, boards);
 	}
 
-	const result = {members, onBoard};
+	const closed = new Set<string>();
+	for (const [goal, tickets] of members) {
+		if (tickets.every(isTicketClosed)) closed.add(goal);
+	}
+
+	const result = {members, onBoard, closed};
 	membershipCache.set(state, result);
 	return result;
 };
@@ -152,22 +162,31 @@ const membership = (): Membership => {
 export const goalMembers = (goalId: string): Ticket[] =>
 	membership().members.get(goalId) ?? [];
 
-/** The boards that show a goal's tickets. */
-export const goalBoards = (goalId: string): string[] => [
-	...(membership().onBoard.get(goalId)?.keys() ?? []),
-];
+/**
+ * Derived, so reopening a ticket or adding one reopens the goal. A done lane
+ * doesn't close it: its tickets are still on the board.
+ */
+export const isGoalClosed = (goalId: string): boolean =>
+	membership().closed.has(goalId);
+
+/** Closed goals show only on the Closed board. */
+const boardShowsGoal = (goalId: string, boardId: string): boolean =>
+	goalMembersOn(goalId, boardId).length > 0 &&
+	(boardId === CLOSED_BOARD_ID || !isGoalClosed(goalId));
+
+/** The boards that show a goal. */
+export const goalBoards = (goalId: string): string[] =>
+	[...(membership().onBoard.get(goalId)?.keys() ?? [])].filter(board =>
+		boardShowsGoal(goalId, board),
+	);
 
 /** The tickets of a goal a board shows. */
 export const goalMembersOn = (goalId: string, boardId: string): Ticket[] =>
 	membership().onBoard.get(goalId)?.get(boardId) ?? [];
 
-/** The goals a board shows: those with a ticket on it, closed ones only on the Closed board. */
+/** The goals a board shows. */
 export const boardGoals = (boardId: string): Goal[] =>
-	projectGoals().filter(
-		goal =>
-			goalMembersOn(goal.id, boardId).length > 0 &&
-			(boardId === CLOSED_BOARD_ID || !isGoalClosed(goal.id)),
-	);
+	projectGoals().filter(goal => boardShowsGoal(goal.id, boardId));
 
 /**
  * How far along a goal is, over every ticket in it on every board, however
@@ -180,29 +199,13 @@ export const goalProgress = (goalId: string): {done: number; total: number} => {
 
 /** Whether a ticket counts as done for its goal: closed, or in a done lane. */
 export const isGoalTicketDone = (ticket: Ticket): boolean =>
-	ticket.parentNodeId === CLOSED_SWIMLANE_ID ||
-	isDoneLane(ticket.parentNodeId ?? '');
-
-/**
- * Derived, so reopening a ticket or adding one reopens the goal. A done lane
- * doesn't close it: its tickets are still on the board.
- */
-export const isGoalClosed = (goalId: string): boolean => {
-	const members = goalMembers(goalId);
-	return (
-		members.length > 0 &&
-		members.every(ticket => ticket.parentNodeId === CLOSED_SWIMLANE_ID)
-	);
-};
+	isTicketClosed(ticket) || isDoneLane(ticket.parentNodeId ?? '');
 
 /** The project's goals, oldest first, those still open ahead of the closed. */
-export const goalsOpenFirst = (): Goal[] => {
-	const goals = projectGoals();
-	return [
-		...goals.filter(goal => !isGoalClosed(goal.id)),
-		...goals.filter(goal => isGoalClosed(goal.id)),
-	];
-};
+export const goalsOpenFirst = (): Goal[] =>
+	projectGoals().sort(
+		(a, b) => Number(isGoalClosed(a.id)) - Number(isGoalClosed(b.id)),
+	);
 
 /** Why a goal may not be named so, or null when it may. */
 export const goalNameRefusal = (
