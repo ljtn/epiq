@@ -229,15 +229,15 @@ describe('a closed goal', () => {
 		unwrap(await closeIssue({repoRoot, issueId: part}));
 
 		const set = await setIssueGoal({repoRoot, issueId: part, goal: 'Late'});
-		expect(set.message).toContain('so the goal is');
+		expect(set.message).toContain('so the goal is closed');
 
 		const part2 = await file('Also shipped');
 		unwrap(await closeIssue({repoRoot, issueId: part2}));
 		const made = await createGoal({repoRoot, name: 'Later', issueId: part2});
-		expect(made.message).toContain('so the goal is');
+		expect(made.message).toContain('so the goal is closed');
 
 		const open = await createGoal({repoRoot, name: 'Fresh'});
-		expect(open.message).not.toContain('so the goal is');
+		expect(open.message).not.toContain('so the goal is closed');
 	});
 
 	it('still sends its tickets past the closed window', async () => {

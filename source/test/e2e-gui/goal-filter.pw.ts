@@ -470,6 +470,14 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 	await expect(page.getByTestId('goal-details')).toContainText(goal);
 	await expect(pill(page, goal)).toHaveAttribute('aria-pressed', 'true');
 
+	// The Closed board's lock doesn't reach the goal itself.
+	await page.getByTestId('goal-description-edit').click();
+	await page.getByTestId('goal-description-input').fill('Shipped in spring');
+	await page.getByTestId('goal-description-save').click();
+	await expect(page.getByTestId('goal-description-body')).toHaveText(
+		'Shipped in spring',
+	);
+
 	// Back on a working board the filter is gone.
 	await page.getByTestId('board-switcher').click();
 	await page

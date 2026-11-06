@@ -2351,7 +2351,8 @@ export const App = () => {
 										commitDiffsBySha={issueCommitDiffs}
 										onLoadCommitDiff={loadIssueCommitDiff}
 										stats={goalStats}
-										readonly={selectedBoard.readonly || offline}
+										// A goal isn't board content: the Closed board's lock leaves it be.
+										readonly={state.timeTravel?.mode === 'scrub' || offline}
 										onSaveDescription={text =>
 											saveNodeDescription(
 												{kind: 'goal', id: detailedGoal.id},

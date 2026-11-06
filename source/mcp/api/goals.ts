@@ -87,7 +87,7 @@ const sayingIfClosed = <T>(result: Result<T>, goalId?: string): Result<T> =>
 	isFail(result) || !goalId || !isGoalClosed(goalId)
 		? result
 		: succeeded(
-				`${result.message}: all its tickets are closed, so the goal is`,
+				`${result.message}: all its tickets are closed, so the goal is closed`,
 				result.value,
 		  );
 
