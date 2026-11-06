@@ -440,10 +440,8 @@ export const App = () => {
 	const [laneTab, setLaneTab] = useState<SwimlaneDetailsTab>('overview');
 	// The board on screen's own panel, for the same reason.
 	const [boardDetailsOpen, setBoardDetailsOpen] = useState(false);
-	// The narrowed-to goal's panel, opened with its pill and with a link to it.
-	const [goalDetailsOpen, setGoalDetailsOpen] = useState(() =>
-		Boolean(selection.goal),
-	);
+	// The goal whose panel is open, by its pill or by a link to it.
+	const [panelGoalId, setPanelGoalId] = useState(selection.goal);
 
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
 
@@ -713,19 +711,15 @@ export const App = () => {
 		selectedBoard?.goals.some(goal => goal.id === selection.goal)
 			? selection.goal
 			: null;
-	// Narrowing to a goal opens its panel over whatever the inspector held.
-	const openGoalPanel = () => {
-		setGoalDetailsOpen(true);
+	const filterByGoal = (goalId: string) =>
+		changeSelection({goal: isolatedGoalId === goalId ? null : goalId});
+	// Over whatever the inspector held.
+	const openGoalPanel = (goalId: string) => {
+		setPanelGoalId(goalId);
 		setCommitDiff(null);
 		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
 		clearPicked();
-	};
-	const filterByGoal = (goalId: string) => {
-		const narrowing = isolatedGoalId !== goalId;
-		if (narrowing) openGoalPanel();
-		else setGoalDetailsOpen(false);
-		changeSelection({goal: narrowing ? goalId : null});
 	};
 	// A closed goal is off every working board, so its filter ends with it. A
 	// scrub only looks at the past, and leaves the filter for the way back.
@@ -736,17 +730,18 @@ export const App = () => {
 		state?.goals.some(goal => goal.id === selection.goal && goal.closed);
 	useEffect(() => {
 		if (!narrowedToGoneGoal) return;
-		setGoalDetailsOpen(false);
+		setPanelGoalId(null);
 		changeSelection({goal: null});
 	}, [narrowedToGoneGoal]);
-	const detailedGoal =
-		goalDetailsOpen && isolatedGoalId
-			? state?.goals.find(goal => goal.id === isolatedGoalId) ?? null
-			: null;
+	const detailedGoal = selectedBoard?.goals.some(
+		goal => goal.id === panelGoalId,
+	)
+		? state?.goals.find(goal => goal.id === panelGoalId) ?? null
+		: null;
 	// One navigation, so no render stands on the old board narrowed to it.
 	const openClosedGoal = (goalId: string) => {
 		setManagingGoals(false);
-		openGoalPanel();
+		openGoalPanel(goalId);
 		const params = new URLSearchParams();
 		writeSelectionParams(
 			params,
@@ -1201,7 +1196,7 @@ export const App = () => {
 		// would hide the ticket just asked for the same way.
 		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
-		setGoalDetailsOpen(false);
+		setPanelGoalId(null);
 
 		// A plain click both opens the ticket and makes it the selection, so a
 		// following modifier-click extends from it instead of starting over.
@@ -1223,7 +1218,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setBoardDetailsOpen(false);
-		setGoalDetailsOpen(false);
+		setPanelGoalId(null);
 		const open = detailsSwimlaneId === swimlaneId && laneTab === tab;
 		setDetailsSwimlaneId(open ? null : swimlaneId);
 		setLaneTab(tab);
@@ -1234,7 +1229,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setDetailsSwimlaneId(null);
-		setGoalDetailsOpen(false);
+		setPanelGoalId(null);
 		setBoardDetailsOpen(open => !open);
 	};
 
@@ -1273,7 +1268,7 @@ export const App = () => {
 		if (!board) return;
 
 		setCommitDiff(null);
-		setGoalDetailsOpen(false);
+		setPanelGoalId(null);
 
 		const params = new URLSearchParams({tab});
 		if (diffView) writeDiffViewParam(params, diffView === 'flat');
@@ -2131,6 +2126,7 @@ export const App = () => {
 											<GoalStrip
 												goals={selectedBoard.goals}
 												isolatedGoalId={isolatedGoalId}
+												onOpenGoal={openGoalPanel}
 												onFilterByGoal={filterByGoal}
 												onManage={
 													selectedBoard.readonly
@@ -2363,7 +2359,7 @@ export const App = () => {
 											setPickedIssueIds([id]);
 											openIssueTab(id, 'overview', boardRef);
 										}}
-										onClose={() => setGoalDetailsOpen(false)}
+										onClose={() => setPanelGoalId(null)}
 									/>
 								)}
 

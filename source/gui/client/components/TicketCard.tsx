@@ -478,7 +478,7 @@ export const TicketCard = ({
 	onFilterByGoal,
 }: {
 	ticket: GuiIssue;
-	// The goal the board is narrowed to, and narrowing to one from its pill.
+	// The goal the board is narrowed to, and narrowing to one from its label.
 	isolatedGoalId?: string | null;
 	onFilterByGoal?: (goalId: string) => void;
 	index: number;
