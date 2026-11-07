@@ -1,5 +1,5 @@
-// A goal's marks. On a card: its name in its colour, in the goal dropdown's
-// dark frame so it never reads as a tag, and its colour down the left edge.
+// A goal's marks. On a card: its name in the goal dropdown's dark frame, so it
+// never reads as a tag, and its colour down the left edge.
 // Its progress is the same stroke laid flat.
 
 import React from 'react';
@@ -41,8 +41,7 @@ export const GoalLabel = ({
 		minWidth: 0,
 		lineHeight: 1,
 		fontFamily: 'inherit',
-		// Its colour carries the name, so a lane's goals tell apart at a glance.
-		color,
+		color: GUI_THEME.secondary,
 		background: GUI_THEME.well,
 		// Held on, the frame takes the goal's colour.
 		border: `1px solid ${pressed ? color : GUI_THEME.line}`,

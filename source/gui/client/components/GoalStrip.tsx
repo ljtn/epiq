@@ -44,7 +44,7 @@ const GoalPill = ({
 				height: 26,
 				fontSize: 11,
 				lineHeight: 1,
-				color: goal.color,
+				color: GUI_THEME.secondary,
 				background: selected ? GUI_THEME.selectedWash : GUI_THEME.panel,
 				border: `1px solid ${
 					narrowed
