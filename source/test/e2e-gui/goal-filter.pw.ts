@@ -98,6 +98,7 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 
 	// A link keeps the filter, and opens no panel the funnel didn't.
 	await page.goto(page.url());
+	await expect(card(page, member)).toBeVisible();
 	await expect(card(page, other)).toHaveCount(0);
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 
@@ -562,6 +563,76 @@ test("a goal's panel outlives another goal's filter, and goes for good with its 
 	await closeOpenTicket();
 	await expect(pill(page, opened)).toHaveCount(0, {timeout: 30_000});
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+
+	// Reopening brings the pill back, and not the panel.
+	await page.keyboard.press('Control+k');
+	await page.keyboard.type('reopen ticket');
+	await expect(
+		page.getByTestId('command-palette').getByRole('option').first(),
+	).toContainText('Reopen ticket');
+	await page.keyboard.press('Enter');
+	await expect(pill(page, opened)).toHaveCount(1, {timeout: 30_000});
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+
+	expect(pageErrors).toEqual([]);
+});
+
+test("a ticket's ref in a goal's description opens the ticket over the goal's panel", async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const goal = `Linking ${stamp}`;
+	const linked = `Linked ${stamp}`;
+
+	await addTicket(page, linked);
+	await expect(page).toHaveURL(/\/issue\//);
+	const ref = /\/issue\/([^/?]+)/.exec(page.url())![1];
+	await startGoal(page, goal);
+
+	await pill(page, goal).getByTestId('goal-pill-open').click();
+	await page.getByTestId('goal-description-edit').click();
+	await page.getByTestId('goal-description-input').fill(`See ${ref}`);
+	await page.getByTestId('goal-description-save').click();
+
+	await page
+		.getByTestId('goal-description-body')
+		.locator('[data-ticket-ref]')
+		.click();
+
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+	await expect(page.locator('aside')).toContainText(linked);
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('picking a ticket gives up the goal panel for the bulk actions', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const goal = `Picking ${stamp}`;
+	const first = `Pick first ${stamp}`;
+	const second = `Pick second ${stamp}`;
+
+	await addTicket(page, second);
+	await addTicket(page, first);
+	await startGoal(page, goal);
+
+	await pill(page, goal).getByTestId('goal-pill-open').click();
+	await expect(page.getByTestId('goal-details')).toBeVisible();
+
+	await card(page, first).click({modifiers: ['ControlOrMeta']});
+	await card(page, second).click({modifiers: ['ControlOrMeta']});
+
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+	await expect(page.locator('aside')).toContainText('2 tickets selected');
 
 	expect(pageErrors).toEqual([]);
 });

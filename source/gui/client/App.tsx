@@ -755,6 +755,10 @@ export const App = () => {
 	useEffect(() => {
 		if (panelGoalGone) setPanelGoal(null);
 	}, [panelGoalGone]);
+	// Back, or a commit's ref: a ticket arriving by URL clears nothing else.
+	useEffect(() => {
+		if (issueId) setPanelGoal(null);
+	}, [issueId]);
 	// One navigation, so no render stands on the old board narrowed to it.
 	const openClosedGoal = (goalId: string) => {
 		setManagingGoals(false);
@@ -1204,7 +1208,10 @@ export const App = () => {
 	};
 
 	const selectIssue = (nextIssueId: string, {toggle} = {toggle: false}) => {
-		if (toggle) return togglePicked(nextIssueId);
+		if (toggle) {
+			setPanelGoal(null);
+			return togglePicked(nextIssueId);
+		}
 
 		// The ticket panel renders only while no commit diff does, so a diff left
 		// open by an earlier dot click would hide the ticket just asked for.
@@ -1263,6 +1270,8 @@ export const App = () => {
 			// findIssue resolves a ref across every board, so opening by ref works
 			// even when the ticket lives on one the reader isn't looking at.
 			onOpen: (ref: string) => {
+				// By hand too: the ticket on the URL already changes nothing there.
+				setPanelGoal(null);
 				if (boardSlug) void navigate(`/board/${boardSlug}/issue/${ref}`);
 			},
 		}),
