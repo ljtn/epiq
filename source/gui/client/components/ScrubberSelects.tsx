@@ -231,7 +231,7 @@ export const BoardSeriesGroup = ({
 			testId="series-select"
 			label={label}
 			// The box carries the series' colour; the label stays neutral.
-			color={partial || elsewhere ? GUI_THEME.dim2 : GUI_THEME.primary}
+			color={partial || elsewhere ? GUI_THEME.dim2 : GUI_THEME.secondary}
 			width={SELECT_TRIGGER_WIDTH}
 			minWidth={178}
 			disabled={!showIssues || !connected}
@@ -381,7 +381,7 @@ export const CommitSeriesGroup = ({
 			label={`${linesMeasure ? 'Lines' : 'Commits'} (${
 				linkedOnly ? 'linked' : 'all'
 			})`}
-			color={GUI_THEME.primary}
+			color={GUI_THEME.secondary}
 			width={COMMIT_SELECT_WIDTH}
 			minWidth={160}
 			disabled={!showCommits || !usable}
