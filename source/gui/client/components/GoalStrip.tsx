@@ -1,21 +1,28 @@
 // A board's goals, above its lanes: one pill each, underlined as far as its
-// tickets are done. A pill narrows the board to its goal; pressing it again
-// lets go.
+// tickets are done. A pill opens its goal's panel; its funnel narrows the
+// board to the goal, and pressing that again lets go.
 
 import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
-import {GoalProgressLine} from './GoalMarks';
+import {goalFilterTitle, GoalProgressLine} from './GoalMarks';
+import {ICON_SIZE, IconButton} from './IconButton';
+import {IconFunnel} from './IconFunnel';
 import {COLUMN_PADDING} from './SwimlaneColumn';
 
 const GoalPill = ({
 	goal,
-	pressed,
-	onPress,
+	narrowed,
+	selected,
+	onOpen,
+	onFilter,
 }: {
 	goal: GuiBoardGoal;
-	pressed: boolean;
-	onPress: () => void;
+	narrowed: boolean;
+	// Its panel is the one open.
+	selected: boolean;
+	onOpen: () => void;
+	onFilter: () => void;
 }) => {
 	const share = goal.total > 0 ? goal.done / goal.total : 0;
 	// Counted on every board; said, as the filter shows only this one's.
@@ -23,81 +30,123 @@ const GoalPill = ({
 	const elsewhere = away > 0 ? `, ${away} on other boards` : '';
 
 	return (
-		<button
-			type="button"
+		<div
 			data-testid="goal-pill"
 			data-goal-id={goal.id}
-			aria-pressed={pressed}
-			title={
-				pressed
-					? 'Show every ticket again'
-					: `${goal.done} of ${goal.total} done${elsewhere} · show only this goal`
-			}
-			onClick={event => {
-				event.stopPropagation();
-				onPress();
-			}}
+			data-selected={selected}
 			style={{
 				position: 'relative',
 				overflow: 'hidden',
 				display: 'inline-flex',
-				alignItems: 'center',
-				gap: 8,
 				maxWidth: 220,
 				flexShrink: 0,
 				boxSizing: 'border-box',
 				height: 26,
-				padding: '0 10px',
-				font: 'inherit',
 				fontSize: 11,
 				lineHeight: 1,
 				color: goal.color,
-				background: GUI_THEME.panel,
-				border: `1px solid ${pressed ? goal.color : GUI_THEME.line}`,
+				background: selected ? GUI_THEME.selectedWash : GUI_THEME.panel,
+				border: `1px solid ${
+					narrowed
+						? goal.color
+						: selected
+						? GUI_THEME.accentEdge
+						: GUI_THEME.line
+				}`,
 				borderRadius: 6,
-				cursor: 'pointer',
 			}}
 		>
+			<button
+				type="button"
+				data-testid="goal-pill-open"
+				aria-expanded={selected}
+				title={`${goal.done} of ${goal.total} done${elsewhere}`}
+				onClick={event => {
+					event.stopPropagation();
+					onOpen();
+				}}
+				style={{
+					display: 'inline-flex',
+					alignItems: 'center',
+					gap: 8,
+					minWidth: 0,
+					padding: '0 8px 0 10px',
+					color: 'inherit',
+					background: 'transparent',
+					border: 'none',
+					font: 'inherit',
+					cursor: 'pointer',
+					// The pill clips what would fall outside it.
+					outlineOffset: -2,
+				}}
+			>
+				<span
+					style={{
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{goal.name}
+				</span>
+				<span
+					style={{
+						color: GUI_THEME.dim,
+						fontSize: 10,
+						fontVariantNumeric: 'tabular-nums',
+					}}
+				>
+					{goal.done}/{goal.total}
+				</span>
+			</button>
+			<IconButton
+				testId="goal-pill-filter"
+				title={goalFilterTitle(narrowed)}
+				pressed={narrowed}
+				onClick={event => {
+					event.stopPropagation();
+					onFilter();
+				}}
+			>
+				<span
+					style={{
+						display: 'inline-flex',
+						color: narrowed ? goal.color : undefined,
+					}}
+				>
+					<IconFunnel size={ICON_SIZE} />
+				</span>
+			</IconButton>
 			{/* Along its foot, clear of the rounded corners. */}
 			<GoalProgressLine
 				color={goal.color}
 				share={share}
 				thickness={2}
 				testId="goal-pill-progress"
-				style={{position: 'absolute', left: 6, right: 6, bottom: 2}}
+				style={{
+					position: 'absolute',
+					left: 6,
+					right: 6,
+					bottom: 2,
+					pointerEvents: 'none',
+				}}
 			/>
-			<span
-				style={{
-					position: 'relative',
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap',
-				}}
-			>
-				{goal.name}
-			</span>
-			<span
-				style={{
-					position: 'relative',
-					color: GUI_THEME.dim,
-					fontSize: 10,
-					fontVariantNumeric: 'tabular-nums',
-				}}
-			>
-				{goal.done}/{goal.total}
-			</span>
-		</button>
+		</div>
 	);
 };
 
 export const GoalStrip = ({
 	goals,
 	isolatedGoalId,
+	selectedGoalId,
+	onOpenGoal,
 	onFilterByGoal,
 	onManage,
 }: {
 	goals: GuiBoardGoal[];
 	isolatedGoalId: string | null;
+	selectedGoalId: string | null;
+	onOpenGoal: (goalId: string) => void;
 	onFilterByGoal: (goalId: string) => void;
 	onManage?: () => void;
 }) => (
@@ -117,8 +166,10 @@ export const GoalStrip = ({
 			<GoalPill
 				key={goal.id}
 				goal={goal}
-				pressed={goal.id === isolatedGoalId}
-				onPress={() => onFilterByGoal(goal.id)}
+				narrowed={goal.id === isolatedGoalId}
+				selected={goal.id === selectedGoalId}
+				onOpen={() => onOpenGoal(goal.id)}
+				onFilter={() => onFilterByGoal(goal.id)}
 			/>
 		))}
 		{onManage && (
