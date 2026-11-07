@@ -5,6 +5,10 @@
 import React from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 
+/** What pressing a goal's filter does, on a pill or a card. */
+export const goalFilterTitle = (narrowed: boolean): string =>
+	narrowed ? 'Show every ticket again' : 'Show only this goal';
+
 export const GoalLabel = ({
 	color,
 	label,

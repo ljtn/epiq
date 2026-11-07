@@ -9,6 +9,9 @@ const card = (page: Page, title: string) =>
 const pill = (page: Page, goal: string) =>
 	page.getByTestId('goal-pill').filter({hasText: goal});
 
+const funnel = (page: Page, goal: string) =>
+	pill(page, goal).getByTestId('goal-pill-filter');
+
 // Names a new goal from the open ticket's Goal dropdown, which puts the
 // ticket in it.
 const startGoal = async (page: Page, goal: string) => {
@@ -70,14 +73,40 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	expect(await height(member)).toBe(await height(other));
 	await page.getByTestId('card-density-wide').click();
 
-	await pill(page, goal).click();
+	// The funnel narrows and opens nothing; the pill opens and narrows nothing.
+	await funnel(page, goal).click();
 	await expect(card(page, other)).toHaveCount(0);
 	await expect(card(page, member)).toBeVisible();
-	await expect(pill(page, goal)).toHaveAttribute('aria-pressed', 'true');
+	await expect(funnel(page, goal)).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+
+	await funnel(page, goal).click();
+	await expect(card(page, other)).toBeVisible();
+	await expect(funnel(page, goal)).toHaveAttribute('aria-pressed', 'false');
+
+	await expect(pill(page, goal)).toHaveAttribute('data-selected', 'false');
+	await pill(page, goal).getByTestId('goal-pill-open').click();
+	await expect(page.getByTestId('goal-details')).toContainText(goal);
+	await expect(pill(page, goal)).toHaveAttribute('data-selected', 'true');
+	await expect(card(page, other)).toBeVisible();
+	await page.goto(boardUrl);
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+
+	await funnel(page, goal).click();
+	await expect(card(page, other)).toHaveCount(0);
 	await expect(page).toHaveURL(/goal=/);
 
+	// A link keeps the filter, and opens no panel the funnel didn't.
 	await page.goto(page.url());
 	await expect(card(page, other)).toHaveCount(0);
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+
+	// A second press closes what the first opened.
+	await pill(page, goal).getByTestId('goal-pill-open').click();
+	await expect(page.getByTestId('goal-details')).toContainText(goal);
+	await pill(page, goal).getByTestId('goal-pill-open').click();
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+	await pill(page, goal).getByTestId('goal-pill-open').click();
 
 	// Its panel names it, counts it and lists its tickets, each a way in.
 	const details = page.getByTestId('goal-details');
@@ -289,7 +318,7 @@ test('Manage goals renames and removes, and a removed goal gives the board back'
 	await addTicket(page, member);
 	await startGoal(page, goal);
 
-	await pill(page, goal).click();
+	await funnel(page, goal).click();
 	await expect(card(page, other)).toHaveCount(0);
 
 	await page.getByTestId('goal-strip-manage').click();
@@ -372,6 +401,7 @@ test("a goal's description is written in its panel, and kept", async ({
 
 	// Persisted, not just the optimistic copy.
 	await page.reload();
+	await pill(page, goal).click();
 	await expect(page.getByTestId('goal-details')).toContainText(goal);
 	await expect(
 		page.getByTestId('goal-description-body').locator('strong'),
@@ -430,7 +460,7 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 	await addTicket(page, member);
 	await startGoal(page, goal);
 	await expect(pill(page, goal)).toContainText('0/1');
-	await pill(page, goal).click();
+	await funnel(page, goal).click();
 	await expect(card(page, other)).toHaveCount(0);
 
 	await card(page, member).click();
@@ -455,7 +485,7 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 	await expect(page.getByTestId('manage-goals')).toHaveCount(0);
 	await expect(page.getByTestId('board-switcher')).toContainText('Closed');
 	await expect(page.getByTestId('goal-details')).toContainText(goal);
-	await expect(pill(page, goal)).toHaveAttribute('aria-pressed', 'true');
+	await expect(funnel(page, goal)).toHaveAttribute('aria-pressed', 'true');
 	await expect(card(page, member)).toBeVisible();
 
 	// Opening it again from here keeps it open, rather than letting go.
@@ -468,7 +498,7 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 		.getByTestId('open-closed-goal')
 		.click();
 	await expect(page.getByTestId('goal-details')).toContainText(goal);
-	await expect(pill(page, goal)).toHaveAttribute('aria-pressed', 'true');
+	await expect(funnel(page, goal)).toHaveAttribute('aria-pressed', 'true');
 
 	// The Closed board's lock doesn't reach the goal itself.
 	await page.getByTestId('goal-description-edit').click();
@@ -487,6 +517,51 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await expect(card(page, other)).toBeVisible();
 	await expect(page).not.toHaveURL(/goal=/);
+
+	expect(pageErrors).toEqual([]);
+});
+
+test("a goal's panel outlives another goal's filter, and goes for good with its own goal", async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const narrowed = `Narrowed ${stamp}`;
+	const opened = `Opened ${stamp}`;
+	const narrowedTicket = `In narrowed ${stamp}`;
+	const openedTicket = `In opened ${stamp}`;
+
+	const closeOpenTicket = async () => {
+		await page.keyboard.press('Control+k');
+		await page.keyboard.type('close ticket');
+		await expect(
+			page.getByTestId('command-palette').getByRole('option').first(),
+		).toContainText('Close ticket');
+		await page.keyboard.press('Enter');
+	};
+
+	await addTicket(page, openedTicket);
+	await startGoal(page, opened);
+	await addTicket(page, narrowedTicket);
+	await startGoal(page, narrowed);
+
+	await funnel(page, narrowed).click();
+	await pill(page, opened).getByTestId('goal-pill-open').click();
+	await expect(page.getByTestId('goal-details')).toContainText(opened);
+
+	await closeOpenTicket();
+	await expect(pill(page, narrowed)).toHaveCount(0, {timeout: 30_000});
+	await expect(page.getByTestId('goal-details')).toContainText(opened);
+
+	await card(page, openedTicket).click();
+	await pill(page, opened).getByTestId('goal-pill-open').click();
+	await expect(page.getByTestId('goal-details')).toContainText(opened);
+	await closeOpenTicket();
+	await expect(pill(page, opened)).toHaveCount(0, {timeout: 30_000});
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });
