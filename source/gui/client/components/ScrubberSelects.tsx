@@ -230,8 +230,7 @@ export const BoardSeriesGroup = ({
 			// is plotted, so the text is not a name anything can be found by.
 			testId="series-select"
 			label={label}
-			// The box carries the series' colour; the label stays neutral.
-			color={partial || elsewhere ? GUI_THEME.dim2 : GUI_THEME.secondary}
+			// The box carries the series' colour; the label is as quiet as the periods.
 			width={SELECT_TRIGGER_WIDTH}
 			minWidth={178}
 			disabled={!showIssues || !connected}
@@ -381,7 +380,6 @@ export const CommitSeriesGroup = ({
 			label={`${linesMeasure ? 'Lines' : 'Commits'} (${
 				linkedOnly ? 'linked' : 'all'
 			})`}
-			color={GUI_THEME.secondary}
 			width={COMMIT_SELECT_WIDTH}
 			minWidth={160}
 			disabled={!showCommits || !usable}
