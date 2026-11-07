@@ -796,7 +796,6 @@ export const TicketCard = ({
 														event.stopPropagation();
 														onFilterByTag(tag.id);
 													}}
-													style={{color: tag.color}}
 												>
 													{tag.name}
 												</Button>
