@@ -10,7 +10,6 @@ import {
 	TRIGGER_ALIVE_POLL_MS,
 } from '../lib/hover-card';
 import {TicketPreview} from '../lib/use-ticket-previews';
-import {TintDot} from './Button';
 
 // The hover card for a linkified ticket ref: title, lane and description
 // opening. Shares timing with TooltipLayer (lib/hover-card); not interactive.
@@ -49,7 +48,7 @@ const Meta = ({preview}: {preview: TicketPreview}) => (
 	</div>
 );
 
-// Tag names behind their dots, since nothing here is pressable.
+// Tag names as coloured text, since nothing here is pressable.
 const Tags = ({preview}: {preview: TicketPreview}) => (
 	<div
 		style={{
@@ -61,16 +60,7 @@ const Tags = ({preview}: {preview: TicketPreview}) => (
 		}}
 	>
 		{preview.tags.map(tag => (
-			<span
-				key={tag.id}
-				style={{
-					display: 'inline-flex',
-					alignItems: 'center',
-					gap: 5,
-					color: GUI_THEME.secondary,
-				}}
-			>
-				<TintDot color={tag.color} />
+			<span key={tag.id} style={{color: tag.color}}>
 				{tag.name}
 			</span>
 		))}

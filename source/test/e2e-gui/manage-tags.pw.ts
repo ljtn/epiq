@@ -71,9 +71,8 @@ test('arming a delete highlights the whole tag row', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// A tag's colour is a dot on a neutral chip, so a row of tags is not a row of
-// colours.
-test("a tag chip carries the tag's colour as a dot, on a neutral chip", async ({
+// Fill, border and name all take the tag's own colour.
+test("a tag chip is washed with the tag's own colour", async ({
 	page,
 	appUrl,
 	pageErrors,
@@ -84,35 +83,33 @@ test("a tag chip carries the tag's colour as a dot, on a neutral chip", async ({
 	const stamp = Date.now();
 
 	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('ticket name').fill(`Dotted ${stamp}`);
+	await page.getByPlaceholder('ticket name').fill(`Washed ${stamp}`);
 	await page.getByPlaceholder('ticket name').press('Enter');
-	await expect(page.locator('aside')).toContainText(`Dotted ${stamp}`);
+	await expect(page.locator('aside')).toContainText(`Washed ${stamp}`);
 
-	const name = `dot${stamp}`;
+	const name = `wash${stamp}`;
 	await addTag(page, name);
 
 	// As a string, like every other computed-style read in this suite: the DOM
 	// globals inside it are the browser's, and the root tsconfig has no lib for
 	// them.
-	const [fill, text, dot] = await page.evaluate<[string, string, string]>(`
+	const [fill, text] = await page.evaluate<[string, string]>(`
 		(() => {
 			const chip = [...document.querySelectorAll('aside button')]
 				.find(button => button.textContent.startsWith('${name}'));
 			const computed = getComputedStyle(chip);
-			const mark = chip.querySelector('[aria-hidden]');
-			return [
-				computed.backgroundColor,
-				computed.color,
-				mark ? getComputedStyle(mark).backgroundColor : '',
-			];
+			return [computed.backgroundColor, computed.color];
 		})()
 	`);
 
-	expect(text).toBe('rgb(127, 138, 163)');
-	expect(dot).toMatch(/^rgb\(/);
-	expect(dot).not.toBe(text);
-	// No wash of the tag's hue behind the name.
-	expect(fill).not.toContain(dot.slice(4, -1));
+	// Same hue as the name it sits behind, and far enough down that the chip
+	// never competes with the title above it.
+	const rgba = /^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/;
+	const [, r, g, b, alpha] = rgba.exec(fill) ?? [];
+	expect(fill).toMatch(rgba);
+	expect(`rgb(${r}, ${g}, ${b})`).toBe(text);
+	expect(Number(alpha)).toBeGreaterThan(0);
+	expect(Number(alpha)).toBeLessThan(0.2);
 
 	expect(pageErrors).toEqual([]);
 });

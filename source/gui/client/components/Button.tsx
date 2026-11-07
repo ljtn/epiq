@@ -10,7 +10,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 	danger?: boolean;
 	// TooltipLayer strips `title` while open, so tests find buttons by this.
 	testId?: string;
-	// A tag's own colour: a dot on a chip, washed into fill and border elsewhere.
+	// A tag's own colour, washed into fill and border.
 	tint?: string;
 	// Pressed and held, e.g. the tag the board is narrowed to. Needs a `tint`.
 	held?: boolean;
@@ -51,9 +51,6 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 		const lit = isPrimary && !props.disabled;
 		const hue = danger ? GUI_THEME.red : GUI_THEME.accent;
 
-		// A tinted chip stays neutral but for its dot, until held.
-		const dotted = variant === 'chip' && tint !== undefined;
-
 		// Wash alpha: resting, hovered, held, held and hovered.
 		const wash = held ? (lifted ? '4d' : '3d') : lifted ? '2b' : '1c';
 		const edge = held ? 'ff' : lifted ? '7a' : '3d';
@@ -75,38 +72,28 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 				style={{
 					appearance: 'none',
 					WebkitAppearance: 'none',
-					background:
-						dotted && held
-							? `${tint}${lifted ? '33' : '26'}`
-							: tint && !dotted
-							? `${tint}${wash}`
-							: lit
-							? `${hue}${lifted ? '33' : '1f'}`
-							: isPrimary
-							? GUI_THEME.raised
-							: variant === 'chip'
-							? // Its own dark ground, so its edge still shows on a row lit under it.
-							  lifted
-								? `linear-gradient(${GUI_THEME.hover}, ${GUI_THEME.hover}), ${GUI_THEME.panel}`
-								: GUI_THEME.panel
-							: lifted
-							? GUI_THEME.hover
-							: 'transparent',
-					color: lit
-						? hue
-						: dotted && held
-						? GUI_THEME.primary
-						: GUI_THEME.secondary,
-					border:
-						dotted && held
-							? `1px solid ${tint}`
-							: tint && !dotted
-							? `1px solid ${tint}${edge}`
-							: isPrimary
-							? `none`
-							: variant === 'ghost' && !lifted
-							? '1px solid transparent'
-							: `1px solid ${lifted ? GUI_THEME.secondary : GUI_THEME.line}`,
+					background: tint
+						? `${tint}${wash}`
+						: lit
+						? `${hue}${lifted ? '33' : '1f'}`
+						: isPrimary
+						? GUI_THEME.raised
+						: variant === 'chip'
+						? // Its own dark ground, so its edge still shows on a row lit under it.
+						  lifted
+							? `linear-gradient(${GUI_THEME.hover}, ${GUI_THEME.hover}), ${GUI_THEME.panel}`
+							: GUI_THEME.panel
+						: lifted
+						? GUI_THEME.hover
+						: 'transparent',
+					color: lit ? hue : GUI_THEME.secondary,
+					border: tint
+						? `1px solid ${tint}${edge}`
+						: isPrimary
+						? `none`
+						: variant === 'ghost' && !lifted
+						? '1px solid transparent'
+						: `1px solid ${lifted ? GUI_THEME.secondary : GUI_THEME.line}`,
 					borderRadius: variant === 'chip' ? 999 : 6,
 					cursor: props.disabled ? 'default' : 'pointer',
 					// One box for every variant that draws one, so a row mixing them
@@ -125,15 +112,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 						'color 120ms ease, background 120ms ease, border-color 120ms ease',
 					outline: 'none',
 					opacity: props.disabled ? 0.7 : 1,
-					...(dotted && {
-						display: 'inline-flex',
-						alignItems: 'center',
-						gap: 5,
-					}),
 					...style,
 				}}
 			>
-				{dotted && <TintDot color={tint} />}
 				{children}
 			</button>
 		);
@@ -141,16 +122,3 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = 'Button';
-
-export const TintDot = ({color}: {color: string}) => (
-	<span
-		aria-hidden
-		style={{
-			width: 6,
-			height: 6,
-			borderRadius: 3,
-			background: color,
-			flexShrink: 0,
-		}}
-	/>
-);

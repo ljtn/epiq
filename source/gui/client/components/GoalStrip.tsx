@@ -4,7 +4,7 @@
 
 import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
-import {Button, TintDot} from './Button';
+import {Button} from './Button';
 import {goalFilterTitle, GoalProgressLine} from './GoalMarks';
 import {ICON_SIZE, IconButton} from './IconButton';
 import {IconFunnel} from './IconFunnel';
@@ -80,7 +80,6 @@ const GoalPill = ({
 					outlineOffset: -2,
 				}}
 			>
-				<TintDot color={goal.color} />
 				<span
 					style={{
 						overflow: 'hidden',

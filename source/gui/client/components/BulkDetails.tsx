@@ -113,6 +113,7 @@ export const BulkDetails = ({
 								title="Remove from every selected ticket"
 								onClick={() => onRemoveTag(item.id)}
 								tint={item.color}
+								style={{color: item.color}}
 							>
 								{item.name}
 								{partial(count)} ×
@@ -129,7 +130,7 @@ export const BulkDetails = ({
 							title="Add to every selected ticket"
 							onClick={() => onAddTag(tag.name)}
 							tint={tag.color}
-							style={{opacity: 0.6}}
+							style={{color: tag.color, opacity: 0.6}}
 						>
 							+ {tag.name}
 						</Button>
