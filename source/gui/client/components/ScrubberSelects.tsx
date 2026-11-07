@@ -118,7 +118,8 @@ const Radio = ({
 			padding: 0,
 			fontSize: 11,
 			fontFamily: 'inherit',
-			color: selected ? color : GUI_THEME.dim,
+			// The dot carries the colour, as a checkbox's box does.
+			color: selected ? GUI_THEME.secondary : GUI_THEME.dim,
 			cursor: disabled ? 'not-allowed' : 'pointer',
 			opacity: disabled ? 0.4 : 1,
 		}}
