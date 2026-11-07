@@ -55,7 +55,7 @@ const buildActor = (): string => {
 		packages: 'external',
 		platform: 'node',
 		format: 'esm',
-		target: 'node18',
+		target: 'node22',
 		// For readable stacks; spawns run with `--enable-source-maps`.
 		sourcemap: 'inline',
 		outfile: out,

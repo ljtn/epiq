@@ -48,6 +48,8 @@ export type TuiSession = {
 		timeoutMs?: number,
 	) => Promise<string>;
 	clear: () => void;
+	/** The raw bytes the TUI wrote since the last call. */
+	takeWritten: () => string;
 	destroy: () => Promise<void>;
 	pid: number;
 };
@@ -212,6 +214,7 @@ export const setupTui = (
 	let renderedOutput = '';
 	let pendingWrites: Promise<void> = Promise.resolve();
 	let lastDataAt = Date.now();
+	let written = '';
 
 	const terminal = new Terminal({
 		cols: width,
@@ -254,6 +257,7 @@ export const setupTui = (
 
 	child.onData(data => {
 		lastDataAt = Date.now();
+		written += data;
 		pendingWrites = pendingWrites.then(
 			() =>
 				new Promise<void>(resolve => {
@@ -330,6 +334,12 @@ export const setupTui = (
 
 		output: getOutput,
 		clear: clearOutput,
+
+		takeWritten: () => {
+			const taken = written;
+			written = '';
+			return taken;
+		},
 
 		waitFor: async (text, timeoutMs = 3_000) => {
 			const deadline = timeoutMs * TIMEOUT_SCALE;

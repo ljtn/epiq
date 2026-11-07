@@ -40,6 +40,7 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 			justifyContent="space-between"
 			flexDirection="row"
 			max-width={process.stdout.columns - 40}
+			height={1}
 			overflow="hidden"
 		>
 			{timeMode === 'replay' ? (

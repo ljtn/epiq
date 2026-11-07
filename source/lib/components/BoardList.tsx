@@ -5,13 +5,15 @@ import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {CursorUI} from './Cursor.js';
 
-export default function BoardList() {
+export default function BoardList({
+	height,
+	width,
+}: {
+	height: number;
+	width: number;
+}) {
 	const state = useAppState();
 	const workspace = state.nodes[state.rootNodeId];
-	const breadCrumbHeight = 1;
-	const commandLineHeight = 3;
-	const height = process.stdout.rows - breadCrumbHeight - commandLineHeight;
-	const width = process.stdout.columns || 120;
 	const children = workspace?.id ? getRenderedChildren(workspace?.id) : [];
 
 	return (

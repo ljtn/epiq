@@ -23,14 +23,14 @@
 		"epiq-mcp": "dist/mcp.js"
 	},
 	"engines": {
-		"node": ">=18"
+		"node": ">=22"
 	},
 	"scripts": {
 		"build": "tsc --noEmit",
 		"build:gui:types": "tsc --noEmit -p source/gui/client/tsconfig.json",
 		"build:gui": "npm run build:gui:types && node source/scripts/build-gui.mjs",
 		"build:gui:dev": "EPIQ_GUI_DEV_BUILD=1 npm run build:gui",
-		"build:npm": "node source/scripts/write-version.mjs && node source/scripts/write-skill.mjs && rm -rf ./dist && npm run build:gui && esbuild index=source/cli.ts mcp=source/mcp/index.ts --bundle --splitting --packages=external --platform=node --format=esm --target=node18 --minify --outdir=dist --banner:js='#!/usr/bin/env node'",
+		"build:npm": "node source/scripts/write-version.mjs && node source/scripts/write-skill.mjs && rm -rf ./dist && npm run build:gui && esbuild index=source/cli.ts mcp=source/mcp/index.ts --bundle --splitting --packages=external --platform=node --format=esm --target=node22 --minify --outdir=dist --banner:js='#!/usr/bin/env node'",
 		"build:sea:bundle": "node source/scripts/write-version.mjs && node source/scripts/write-skill.mjs && node source/scripts/build-sea.mjs",
 		"build:sea": "node source/scripts/build-sea.mjs",
 		"build:publish": "npm run build:npm",
@@ -73,10 +73,10 @@
 		"@modelcontextprotocol/sdk": "^1.32.1",
 		"@pierre/diffs": "^1.3.6",
 		"@xterm/headless": "^6.0.0",
-		"ink": "^6.8.0",
+		"ink": "^8.0.0",
 		"meow": "^14.1.0",
-		"react": "^19.2.4",
-		"react-dom": "^19.2.6",
+		"react": "^19.3.1",
+		"react-dom": "^19.3.1",
 		"react-markdown": "^10.1.0",
 		"react-router-dom": "^7.18.4",
 		"remark-breaks": "^4.0.0",

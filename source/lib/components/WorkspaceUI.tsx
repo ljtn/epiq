@@ -34,7 +34,7 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 	return (
 		<Box flexDirection="row">
 			{contextNode.context === 'WORKSPACE' ? (
-				<BoardList />
+				<BoardList height={boardHeight} width={width} />
 			) : board ? (
 				<BoardUI
 					height={boardHeight}
