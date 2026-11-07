@@ -76,7 +76,11 @@ let ink: ReturnType<typeof render> | null = null;
 const renderNode = (node: React.ReactNode): Result<void> => {
 	try {
 		if (!ink) {
-			ink = render(node, {incrementalRendering: true});
+			ink = render(node, {
+				incrementalRendering: true,
+				// Ink reads a `CI` variable as non-interactive and draws nothing.
+				interactive: Boolean(process.stdout.isTTY),
+			});
 			return succeeded('Rendered app', undefined);
 		}
 

@@ -1,3 +1,7 @@
+import {exitOnOldNode} from './lib/utils/node-version.js';
+
+exitOnOldNode();
+
 // Before the app loads: React and ink are external and read NODE_ENV on import.
 process.env['NODE_ENV'] ||= 'production';
 

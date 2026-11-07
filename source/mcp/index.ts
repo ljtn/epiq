@@ -1,3 +1,7 @@
+import {exitOnOldNode} from '../lib/utils/node-version.js';
+
+exitOnOldNode();
+
 process.env['EPIQ_MCP'] = 'true';
 // Read by React on import, so it is set before the imports below.
 process.env['NODE_ENV'] ||= 'production';

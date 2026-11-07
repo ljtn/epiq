@@ -83,4 +83,18 @@ describe('TUI redraw e2e', () => {
 		},
 		testTimeout,
 	);
+
+	it(
+		'draws in a shell that exports CI',
+		async () => {
+			const tui = setupTui([], {env: {CI: 'true'}});
+
+			try {
+				await tui.waitFor(output => output.includes('Mode:'), 20_000);
+			} finally {
+				await tui.destroy();
+			}
+		},
+		testTimeout,
+	);
 });
