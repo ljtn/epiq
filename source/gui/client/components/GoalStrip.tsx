@@ -47,10 +47,10 @@ const GoalPill = ({
 				color: goal.color,
 				background: selected ? GUI_THEME.selectedWash : GUI_THEME.panel,
 				border: `1px solid ${
-					selected
-						? GUI_THEME.accentEdge
-						: narrowed
+					narrowed
 						? goal.color
+						: selected
+						? GUI_THEME.accentEdge
 						: GUI_THEME.line
 				}`,
 				borderRadius: 6,
@@ -108,7 +108,14 @@ const GoalPill = ({
 					onFilter();
 				}}
 			>
-				<IconFunnel size={ICON_SIZE} />
+				<span
+					style={{
+						display: 'inline-flex',
+						color: narrowed ? goal.color : undefined,
+					}}
+				>
+					<IconFunnel size={ICON_SIZE} />
+				</span>
 			</IconButton>
 			{/* Along its foot, clear of the rounded corners. */}
 			<GoalProgressLine
