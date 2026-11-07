@@ -61,8 +61,12 @@ inner = requireShim + inner;
 // __EPIQ_SEA_URL__.
 const PH = '__EPIQ_IMPORT_META_URL__';
 inner = inner.replace(/\bimport\.meta\.url\b/g, PH);
-// Replace any remaining standalone import.meta with a synthetic object.
-inner = inner.replace(/\bimport\.meta\b/g, `{url:${PH}}`);
+// Any other import.meta becomes a stand-in, parenthesised so it never parses as
+// a block. Its `resolve` finds nothing: the binary bundles every package.
+inner = inner.replace(
+	/\bimport\.meta\b/g,
+	`({url:${PH},resolve(s){throw new Error('Cannot resolve '+s)}})`,
+);
 // Expand the placeholder to the actual runtime expression.
 inner = inner.replace(new RegExp(PH, 'g'), 'process.env.__EPIQ_SEA_URL__');
 
