@@ -440,8 +440,11 @@ export const App = () => {
 	const [laneTab, setLaneTab] = useState<SwimlaneDetailsTab>('overview');
 	// The board on screen's own panel, for the same reason.
 	const [boardDetailsOpen, setBoardDetailsOpen] = useState(false);
-	// The goal whose panel is open, by its pill or by a link to it.
-	const [panelGoalId, setPanelGoalId] = useState(selection.goal);
+	// The goal whose panel is open, and the board that opened it.
+	const [panelGoal, setPanelGoal] = useState<{
+		id: string;
+		boardId: string;
+	} | null>(null);
 
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
 
@@ -711,11 +714,15 @@ export const App = () => {
 		selectedBoard?.goals.some(goal => goal.id === selection.goal)
 			? selection.goal
 			: null;
-	const filterByGoal = (goalId: string) =>
-		changeSelection({goal: isolatedGoalId === goalId ? null : goalId});
+	const filterByGoal = (goalId: string) => {
+		const narrowing = isolatedGoalId !== goalId;
+		// A pick left on a ticket the filter hides would still move with the rest.
+		if (narrowing) clearPicked();
+		changeSelection({goal: narrowing ? goalId : null});
+	};
 	// Over whatever the inspector held.
-	const openGoalPanel = (goalId: string) => {
-		setPanelGoalId(goalId);
+	const openGoalPanel = (id: string, boardId = selectedBoardId) => {
+		setPanelGoal(boardId ? {id, boardId} : null);
 		setCommitDiff(null);
 		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
@@ -730,18 +737,28 @@ export const App = () => {
 		state?.goals.some(goal => goal.id === selection.goal && goal.closed);
 	useEffect(() => {
 		if (!narrowedToGoneGoal) return;
-		setPanelGoalId(null);
 		changeSelection({goal: null});
 	}, [narrowedToGoneGoal]);
-	const detailedGoal = selectedBoard?.goals.some(
-		goal => goal.id === panelGoalId,
-	)
-		? state?.goals.find(goal => goal.id === panelGoalId) ?? null
+	const panelGoalOnBoard =
+		panelGoal?.boardId === selectedBoard?.id &&
+		selectedBoard?.goals.some(goal => goal.id === panelGoal?.id);
+	const detailedGoal = panelGoalOnBoard
+		? state?.goals.find(goal => goal.id === panelGoal?.id) ?? null
 		: null;
+	// Gone from its board, it stays gone: a ticket reopened later brings the
+	// pill back, not the panel. A scrub only looks.
+	const panelGoalGone =
+		panelGoal &&
+		state?.timeTravel?.mode !== 'scrub' &&
+		panelGoal.boardId === selectedBoard?.id &&
+		!panelGoalOnBoard;
+	useEffect(() => {
+		if (panelGoalGone) setPanelGoal(null);
+	}, [panelGoalGone]);
 	// One navigation, so no render stands on the old board narrowed to it.
 	const openClosedGoal = (goalId: string) => {
 		setManagingGoals(false);
-		openGoalPanel(goalId);
+		openGoalPanel(goalId, CLOSED_BOARD_ID);
 		const params = new URLSearchParams();
 		writeSelectionParams(
 			params,
@@ -1196,7 +1213,7 @@ export const App = () => {
 		// would hide the ticket just asked for the same way.
 		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
-		setPanelGoalId(null);
+		setPanelGoal(null);
 
 		// A plain click both opens the ticket and makes it the selection, so a
 		// following modifier-click extends from it instead of starting over.
@@ -1218,7 +1235,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setBoardDetailsOpen(false);
-		setPanelGoalId(null);
+		setPanelGoal(null);
 		const open = detailsSwimlaneId === swimlaneId && laneTab === tab;
 		setDetailsSwimlaneId(open ? null : swimlaneId);
 		setLaneTab(tab);
@@ -1229,7 +1246,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setDetailsSwimlaneId(null);
-		setPanelGoalId(null);
+		setPanelGoal(null);
 		setBoardDetailsOpen(open => !open);
 	};
 
@@ -1268,7 +1285,7 @@ export const App = () => {
 		if (!board) return;
 
 		setCommitDiff(null);
-		setPanelGoalId(null);
+		setPanelGoal(null);
 
 		const params = new URLSearchParams({tab});
 		if (diffView) writeDiffViewParam(params, diffView === 'flat');
@@ -1804,6 +1821,14 @@ export const App = () => {
 	// The lane as the board has it now, including a replayed board.
 	const detailsSwimlane =
 		shownSwimlanes.find(swimlane => swimlane.id === detailsSwimlaneId) ?? null;
+	// What outranks it in the inspector leaves its panel open underneath.
+	const shownGoal =
+		theatre || commitDiff || detailsSwimlane || boardDetailsOpen
+			? null
+			: detailedGoal;
+
+	const toggleGoalPanel = (goalId: string) =>
+		shownGoal?.id === goalId ? setPanelGoal(null) : openGoalPanel(goalId);
 
 	// Read off the drop event: a drag can start in another window.
 	const dropSwimlane = (swimlaneId: string) => {
@@ -2126,7 +2151,8 @@ export const App = () => {
 											<GoalStrip
 												goals={selectedBoard.goals}
 												isolatedGoalId={isolatedGoalId}
-												onOpenGoal={openGoalPanel}
+												selectedGoalId={shownGoal?.id ?? null}
+												onOpenGoal={toggleGoalPanel}
 												onFilterByGoal={filterByGoal}
 												onManage={
 													selectedBoard.readonly
@@ -2329,39 +2355,30 @@ export const App = () => {
 									/>
 								)}
 
-							{!theatre &&
-								!commitDiff &&
-								!detailsSwimlane &&
-								!boardDetailsOpen &&
-								detailedGoal &&
-								selectedBoard &&
-								state && (
-									<GoalDetails
-										dock={asideDock}
-										goal={detailedGoal}
-										boards={state.boards}
-										boardId={selectedBoard.id}
-										tab={goalTab}
-										onChangeTab={setGoalTab}
-										commits={goalCommits}
-										commitDiffsBySha={issueCommitDiffs}
-										onLoadCommitDiff={loadIssueCommitDiff}
-										stats={goalStats}
-										// A goal isn't board content: the Closed board's lock leaves it be.
-										readonly={state.timeTravel?.mode === 'scrub' || offline}
-										onSaveDescription={text =>
-											saveNodeDescription(
-												{kind: 'goal', id: detailedGoal.id},
-												text,
-											)
-										}
-										onOpenIssue={(id, boardRef) => {
-											setPickedIssueIds([id]);
-											openIssueTab(id, 'overview', boardRef);
-										}}
-										onClose={() => setPanelGoalId(null)}
-									/>
-								)}
+							{shownGoal && selectedBoard && state && (
+								<GoalDetails
+									dock={asideDock}
+									goal={shownGoal}
+									boards={state.boards}
+									boardId={selectedBoard.id}
+									tab={goalTab}
+									onChangeTab={setGoalTab}
+									commits={goalCommits}
+									commitDiffsBySha={issueCommitDiffs}
+									onLoadCommitDiff={loadIssueCommitDiff}
+									stats={goalStats}
+									// A goal isn't board content: the Closed board's lock leaves it be.
+									readonly={state.timeTravel?.mode === 'scrub' || offline}
+									onSaveDescription={text =>
+										saveNodeDescription({kind: 'goal', id: shownGoal.id}, text)
+									}
+									onOpenIssue={(id, boardRef) => {
+										setPickedIssueIds([id]);
+										openIssueTab(id, 'overview', boardRef);
+									}}
+									onClose={() => setPanelGoal(null)}
+								/>
+							)}
 
 							{!theatre &&
 								!commitDiff &&

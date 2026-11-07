@@ -22,7 +22,7 @@ import {
 	useCardDensityView,
 } from '../lib/card-density';
 import {Button} from './Button';
-import {GoalLabel, GoalStripe} from './GoalMarks';
+import {goalFilterTitle, GoalLabel, GoalStripe} from './GoalMarks';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
 import {formatDuration} from '../lib/gui-format.helper';
@@ -556,9 +556,7 @@ export const TicketCard = ({
 			{...(onFilterByGoal && {
 				pressed: goalIsolated,
 				onPress: () => onFilterByGoal(goal.id),
-				pressTitle: goalIsolated
-					? 'Show every ticket again'
-					: 'Show only this goal',
+				pressTitle: goalFilterTitle(goalIsolated),
 			})}
 		/>
 	) : null;
@@ -621,7 +619,7 @@ export const TicketCard = ({
 				// Selected is a step up the same wash, not another colour.
 				background:
 					isSelected || isPicked
-						? 'rgba(185, 192, 255, 0.1)'
+						? GUI_THEME.selectedWash
 						: 'rgba(185, 192, 255, 0.065)',
 				// Roomier than a list row.
 				padding: view.metrics.padding,

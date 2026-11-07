@@ -66,6 +66,8 @@ export const GUI_THEME = {
 	accentWash: 'rgba(118, 212, 255, 0.1)',
 	// The accent as the edge of a selected card: the only accent it carries.
 	accentEdge: 'rgba(118, 212, 255, 0.65)',
+	// What a selected card or pill stands on.
+	selectedWash: 'rgba(185, 192, 255, 0.1)',
 	green: '#8ce99a',
 	// One step short of `red`, at the same pastel weight, for anything that
 	// warns before it alarms.

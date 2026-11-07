@@ -2,22 +2,25 @@
 // tickets are done. A pill opens its goal's panel; its funnel narrows the
 // board to the goal, and pressing that again lets go.
 
-import {CSSProperties} from 'react';
 import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
-import {GoalProgressLine} from './GoalMarks';
+import {goalFilterTitle, GoalProgressLine} from './GoalMarks';
+import {ICON_SIZE, IconButton} from './IconButton';
 import {IconFunnel} from './IconFunnel';
 import {COLUMN_PADDING} from './SwimlaneColumn';
 
 const GoalPill = ({
 	goal,
 	narrowed,
+	selected,
 	onOpen,
 	onFilter,
 }: {
 	goal: GuiBoardGoal;
 	narrowed: boolean;
+	// Its panel is the one open.
+	selected: boolean;
 	onOpen: () => void;
 	onFilter: () => void;
 }) => {
@@ -25,19 +28,12 @@ const GoalPill = ({
 	// Counted on every board; said, as the filter shows only this one's.
 	const away = goal.total - goal.members.length;
 	const elsewhere = away > 0 ? `, ${away} on other boards` : '';
-	const filterLabel = narrowed ? 'Show every ticket' : 'Show only this goal';
-	const zone: CSSProperties = {
-		display: 'inline-flex',
-		alignItems: 'center',
-		border: 'none',
-		font: 'inherit',
-		cursor: 'pointer',
-	};
 
 	return (
 		<div
 			data-testid="goal-pill"
 			data-goal-id={goal.id}
+			data-selected={selected}
 			style={{
 				position: 'relative',
 				overflow: 'hidden',
@@ -49,26 +45,39 @@ const GoalPill = ({
 				fontSize: 11,
 				lineHeight: 1,
 				color: goal.color,
-				background: GUI_THEME.panel,
-				border: `1px solid ${narrowed ? goal.color : GUI_THEME.line}`,
+				background: selected ? GUI_THEME.selectedWash : GUI_THEME.panel,
+				border: `1px solid ${
+					selected
+						? GUI_THEME.accentEdge
+						: narrowed
+						? goal.color
+						: GUI_THEME.line
+				}`,
 				borderRadius: 6,
 			}}
 		>
 			<button
 				type="button"
 				data-testid="goal-pill-open"
+				aria-expanded={selected}
 				title={`${goal.done} of ${goal.total} done${elsewhere}`}
 				onClick={event => {
 					event.stopPropagation();
 					onOpen();
 				}}
 				style={{
-					...zone,
+					display: 'inline-flex',
+					alignItems: 'center',
 					gap: 8,
 					minWidth: 0,
 					padding: '0 8px 0 10px',
 					color: 'inherit',
 					background: 'transparent',
+					border: 'none',
+					font: 'inherit',
+					cursor: 'pointer',
+					// The pill clips what would fall outside it.
+					outlineOffset: -2,
 				}}
 			>
 				<span
@@ -90,27 +99,17 @@ const GoalPill = ({
 					{goal.done}/{goal.total}
 				</span>
 			</button>
-			<button
-				type="button"
-				data-testid="goal-pill-filter"
-				aria-label={filterLabel}
-				aria-pressed={narrowed}
-				title={filterLabel}
+			<IconButton
+				testId="goal-pill-filter"
+				title={goalFilterTitle(narrowed)}
+				pressed={narrowed}
 				onClick={event => {
 					event.stopPropagation();
 					onFilter();
 				}}
-				style={{
-					...zone,
-					flexShrink: 0,
-					padding: '0 6px',
-					borderLeft: `1px solid ${GUI_THEME.line}`,
-					color: narrowed ? goal.color : GUI_THEME.dim,
-					background: narrowed ? GUI_THEME.line : 'transparent',
-				}}
 			>
-				<IconFunnel size={12} />
-			</button>
+				<IconFunnel size={ICON_SIZE} />
+			</IconButton>
 			{/* Along its foot, clear of the rounded corners. */}
 			<GoalProgressLine
 				color={goal.color}
@@ -132,12 +131,14 @@ const GoalPill = ({
 export const GoalStrip = ({
 	goals,
 	isolatedGoalId,
+	selectedGoalId,
 	onOpenGoal,
 	onFilterByGoal,
 	onManage,
 }: {
 	goals: GuiBoardGoal[];
 	isolatedGoalId: string | null;
+	selectedGoalId: string | null;
 	onOpenGoal: (goalId: string) => void;
 	onFilterByGoal: (goalId: string) => void;
 	onManage?: () => void;
@@ -159,6 +160,7 @@ export const GoalStrip = ({
 				key={goal.id}
 				goal={goal}
 				narrowed={goal.id === isolatedGoalId}
+				selected={goal.id === selectedGoalId}
 				onOpen={() => onOpenGoal(goal.id)}
 				onFilter={() => onFilterByGoal(goal.id)}
 			/>
