@@ -62,13 +62,21 @@ if (cli.flags.as !== undefined) {
 }
 
 let width = process.stdout.columns || 120;
-let height = process.stdout.rows || 20;
+// A Windows console gets one row less: there Ink clears and redraws every
+// frame that fills the terminal, which tears.
+const appHeight = () =>
+	Math.max(
+		1,
+		(process.stdout.rows || 20) - (process.platform === 'win32' ? 1 : 0),
+	);
+
+let height = appHeight();
 let ink: ReturnType<typeof render> | null = null;
 
 const renderNode = (node: React.ReactNode): Result<void> => {
 	try {
 		if (!ink) {
-			ink = render(node);
+			ink = render(node, {incrementalRendering: true});
 			return succeeded('Rendered app', undefined);
 		}
 
@@ -84,7 +92,7 @@ export const renderApp = (): Result<void> =>
 
 process.stdout.on('resize', () => {
 	width = process.stdout.columns || 120;
-	height = process.stdout.rows || 20;
+	height = appHeight();
 
 	if (!ink) return;
 

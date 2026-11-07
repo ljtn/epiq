@@ -7,7 +7,7 @@ const context = await esbuild.context({
 	packages: 'external',
 	platform: 'node',
 	format: 'esm',
-	target: 'node18',
+	target: 'node22',
 	minify: true,
 	outdir: 'dist',
 	banner: {
