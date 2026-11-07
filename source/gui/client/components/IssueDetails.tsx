@@ -657,6 +657,7 @@ export const IssueDetails = ({
 											disabled={issue.readonly}
 											onClick={() => onRemoveTag(issue.id, tag.id)}
 											tint={tag.color}
+											style={{color: tag.color}}
 										>
 											{tag.name} {!issue.readonly && '×'}
 										</Button>
@@ -673,7 +674,7 @@ export const IssueDetails = ({
 											disabled={issue.readonly}
 											onClick={() => addTag(tag.name)}
 											tint={tag.color}
-											style={{opacity: 0.55}}
+											style={{color: tag.color, opacity: 0.55}}
 										>
 											+ {tag.name}
 										</Button>
