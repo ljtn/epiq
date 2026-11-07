@@ -92,11 +92,9 @@ test('a bare board link picks up the last selection, and a link wins over it', a
 	expect(pageErrors).toEqual([]);
 });
 
-// The card's tag used to be a hand-rolled button: its own radius, padding, type
-// size and a flat `#ffffff08` fill, while the panel drew the same tag as a
-// washed chip. One component now, and the isolated state — which used to *be*
-// the wash — reads as a step above it instead.
-test('a card draws its tag as the same washed chip the panel does', async ({
+// The card draws its tag as the panel does: neutral, with the tag's colour as
+// a dot. Isolating fills it with that colour, the one tag that stands out.
+test("a card's tag is a neutral chip with a dot, filled only while isolated", async ({
 	page,
 	appUrl,
 	pageErrors,
@@ -107,7 +105,7 @@ test('a card draws its tag as the same washed chip the panel does', async ({
 	const stamp = Date.now();
 	const tag = `t${stamp}`;
 
-	await addTicket(page, `Washed card ${stamp}`);
+	await addTicket(page, `Dotted card ${stamp}`);
 	await tagOpenTicket(page, tag);
 	await page.getByRole('button', {name: 'Close', exact: true}).click();
 
@@ -118,31 +116,32 @@ test('a card draws its tag as the same washed chip the panel does', async ({
 	// globals inside it are the browser's, and the root tsconfig has no lib for
 	// them.
 	const read = () =>
-		page.evaluate<[string, string]>(`
+		page.evaluate<[string, string, string]>(`
 			(() => {
-				const chip = document.querySelector('[data-testid="ticket-tag"]');
+				const chip = [...document.querySelectorAll('[data-testid="ticket-tag"]')]
+					.find(chip => chip.textContent.includes('${tag}'));
 				const computed = getComputedStyle(chip);
-				return [computed.backgroundColor, computed.color];
+				const mark = chip.querySelector('[aria-hidden]');
+				return [
+					computed.backgroundColor,
+					computed.color,
+					getComputedStyle(mark).backgroundColor,
+				];
 			})()
 		`);
 
-	const rgba = /^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/;
+	const [resting, text, dot] = await read();
+	const hue = dot.slice(4, -1);
+	expect(text).toBe('rgb(127, 138, 163)');
+	expect(resting).not.toContain(hue);
 
-	const [resting, text] = await read();
-	const [, r, g, b, restingAlpha] = rgba.exec(resting) ?? [];
-	expect(`rgb(${r}, ${g}, ${b})`).toBe(text);
-	expect(Number(restingAlpha)).toBeGreaterThan(0);
-	expect(Number(restingAlpha)).toBeLessThan(0.2);
-
-	// Isolating holds the chip a step above its neighbours, and the pointer is
-	// moved off it first so what is measured is `held` rather than hover.
+	// Measured off the pointer, so what is read is `held` rather than hover.
 	await chip.click();
 	await expect(chip).toHaveAttribute('aria-pressed', 'true');
 	await page.mouse.move(0, 0);
 
-	const [isolated] = await read();
-	const [, , , , isolatedAlpha] = rgba.exec(isolated) ?? [];
-	expect(Number(isolatedAlpha)).toBeGreaterThan(Number(restingAlpha));
+	// Polled: the fill eases in.
+	await expect.poll(async () => (await read())[0]).toContain(hue);
 
 	expect(pageErrors).toEqual([]);
 });
