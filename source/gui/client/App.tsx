@@ -58,6 +58,8 @@ import {TheatrePlayer} from './components/TheatrePlayer';
 import {EventLog} from './components/EventLog';
 import {FollowBanner} from './components/FollowBanner';
 import {useAsideDock} from './lib/aside-dock';
+import {inspectorPanel} from './lib/inspector-panel';
+import {useGoalPanel} from './lib/use-goal-panel';
 import {CommandPalette} from './components/CommandPalette';
 import {buildCommandRegistry} from './lib/commands/command-registry';
 import {useRecentCommands} from './lib/commands/command-recents';
@@ -440,11 +442,6 @@ export const App = () => {
 	const [laneTab, setLaneTab] = useState<SwimlaneDetailsTab>('overview');
 	// The board on screen's own panel, for the same reason.
 	const [boardDetailsOpen, setBoardDetailsOpen] = useState(false);
-	// The goal whose panel is open, and the board that opened it.
-	const [panelGoal, setPanelGoal] = useState<{
-		id: string;
-		boardId: string;
-	} | null>(null);
 
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
 
@@ -714,6 +711,12 @@ export const App = () => {
 		selectedBoard?.goals.some(goal => goal.id === selection.goal)
 			? selection.goal
 			: null;
+	const goalPanel = useGoalPanel({
+		goals: state?.goals,
+		board: selectedBoard,
+		scrubbing: state?.timeTravel?.mode === 'scrub',
+		issueId,
+	});
 	const filterByGoal = (goalId: string) => {
 		const narrowing = isolatedGoalId !== goalId;
 		// A pick left on a ticket the filter hides would still move with the rest.
@@ -722,7 +725,7 @@ export const App = () => {
 	};
 	// Over whatever the inspector held.
 	const openGoalPanel = (id: string, boardId = selectedBoardId) => {
-		setPanelGoal(boardId ? {id, boardId} : null);
+		goalPanel.open(id, boardId);
 		setCommitDiff(null);
 		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
@@ -739,26 +742,7 @@ export const App = () => {
 		if (!narrowedToGoneGoal) return;
 		changeSelection({goal: null});
 	}, [narrowedToGoneGoal]);
-	const panelGoalOnBoard =
-		panelGoal?.boardId === selectedBoard?.id &&
-		selectedBoard?.goals.some(goal => goal.id === panelGoal?.id);
-	const detailedGoal = panelGoalOnBoard
-		? state?.goals.find(goal => goal.id === panelGoal?.id) ?? null
-		: null;
-	// Gone from its board, it stays gone: a ticket reopened later brings the
-	// pill back, not the panel. A scrub only looks.
-	const panelGoalGone =
-		panelGoal &&
-		state?.timeTravel?.mode !== 'scrub' &&
-		panelGoal.boardId === selectedBoard?.id &&
-		!panelGoalOnBoard;
-	useEffect(() => {
-		if (panelGoalGone) setPanelGoal(null);
-	}, [panelGoalGone]);
-	// Back, or a commit's ref: a ticket arriving by URL clears nothing else.
-	useEffect(() => {
-		if (issueId) setPanelGoal(null);
-	}, [issueId]);
+	const detailedGoal = goalPanel.goal;
 	// One navigation, so no render stands on the old board narrowed to it.
 	const openClosedGoal = (goalId: string) => {
 		setManagingGoals(false);
@@ -1209,7 +1193,7 @@ export const App = () => {
 
 	const selectIssue = (nextIssueId: string, {toggle} = {toggle: false}) => {
 		if (toggle) {
-			setPanelGoal(null);
+			goalPanel.close();
 			return togglePicked(nextIssueId);
 		}
 
@@ -1220,7 +1204,7 @@ export const App = () => {
 		// would hide the ticket just asked for the same way.
 		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
-		setPanelGoal(null);
+		goalPanel.close();
 
 		// A plain click both opens the ticket and makes it the selection, so a
 		// following modifier-click extends from it instead of starting over.
@@ -1242,7 +1226,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setBoardDetailsOpen(false);
-		setPanelGoal(null);
+		goalPanel.close();
 		const open = detailsSwimlaneId === swimlaneId && laneTab === tab;
 		setDetailsSwimlaneId(open ? null : swimlaneId);
 		setLaneTab(tab);
@@ -1253,7 +1237,7 @@ export const App = () => {
 		clearPicked();
 		closeIssueDetails();
 		setDetailsSwimlaneId(null);
-		setPanelGoal(null);
+		goalPanel.close();
 		setBoardDetailsOpen(open => !open);
 	};
 
@@ -1271,7 +1255,7 @@ export const App = () => {
 			// even when the ticket lives on one the reader isn't looking at.
 			onOpen: (ref: string) => {
 				// By hand too: the ticket on the URL already changes nothing there.
-				setPanelGoal(null);
+				goalPanel.close();
 				if (boardSlug) void navigate(`/board/${boardSlug}/issue/${ref}`);
 			},
 		}),
@@ -1294,7 +1278,7 @@ export const App = () => {
 		if (!board) return;
 
 		setCommitDiff(null);
-		setPanelGoal(null);
+		goalPanel.close();
 
 		const params = new URLSearchParams({tab});
 		if (diffView) writeDiffViewParam(params, diffView === 'flat');
@@ -1830,14 +1814,21 @@ export const App = () => {
 	// The lane as the board has it now, including a replayed board.
 	const detailsSwimlane =
 		shownSwimlanes.find(swimlane => swimlane.id === detailsSwimlaneId) ?? null;
+	const inspector = inspectorPanel({
+		playing: theatre !== null,
+		commitDiff: commitDiff !== null,
+		lane: detailsSwimlane !== null,
+		boardDetails: boardDetailsOpen,
+		boardOnScreen: selectedBoard !== null && selectedBoard !== undefined,
+		goal: detailedGoal !== null,
+		pickedCount: pickedIssues.length,
+		issue: Boolean(selectedIssue && state?.user),
+	});
 	// What outranks it in the inspector leaves its panel open underneath.
-	const shownGoal =
-		theatre || commitDiff || detailsSwimlane || boardDetailsOpen
-			? null
-			: detailedGoal;
+	const shownGoal = inspector === 'goal' ? detailedGoal : null;
 
 	const toggleGoalPanel = (goalId: string) =>
-		shownGoal?.id === goalId ? setPanelGoal(null) : openGoalPanel(goalId);
+		shownGoal?.id === goalId ? goalPanel.close() : openGoalPanel(goalId);
 
 	// Read off the drop event: a drag can start in another window.
 	const dropSwimlane = (swimlaneId: string) => {
@@ -2276,13 +2267,11 @@ export const App = () => {
 
 										{/* Reserves the closed side panel's width (also closed by a film), so the
 										board keeps its max scrollLeft and does not bounce back. */}
-										{asideDock === 'right' &&
-											(theatre ||
-												(!commitDiff && !(selectedIssue && state?.user))) && (
-												<div
-													style={{width: readStoredAsideWidth(), flexShrink: 0}}
-												/>
-											)}
+										{asideDock === 'right' && inspector === 'none' && (
+											<div
+												style={{width: readStoredAsideWidth(), flexShrink: 0}}
+											/>
+										)}
 
 										{/* The page's right margin, scrolling with the columns. Constant,
 							so it cancels out of the invariant above. */}
@@ -2292,7 +2281,7 @@ export const App = () => {
 							</div>
 
 							{/* Side panels close for the film; the ticket stays selected. */}
-							{!theatre && commitDiff && (
+							{inspector === 'diff' && commitDiff && (
 								<Aside dock={asideDock} onWidthChange={setCommitDiffPanelWidth}>
 									{({isFullscreen, toggleFullscreen}) => (
 										<DiffPanel
@@ -2321,7 +2310,7 @@ export const App = () => {
 								</Aside>
 							)}
 
-							{!theatre && !commitDiff && detailsSwimlane && (
+							{inspector === 'lane' && detailsSwimlane && (
 								<SwimlaneDetails
 									dock={asideDock}
 									swimlane={detailsSwimlane}
@@ -2344,27 +2333,23 @@ export const App = () => {
 								/>
 							)}
 
-							{!theatre &&
-								!commitDiff &&
-								!detailsSwimlane &&
-								boardDetailsOpen &&
-								selectedBoard && (
-									<BoardDetails
-										dock={asideDock}
-										board={selectedBoard}
-										overview={boardOverview}
-										live={state?.timeTravel?.mode !== 'scrub'}
-										onSaveDescription={text =>
-											saveNodeDescription(
-												{kind: 'board', id: selectedBoard.id},
-												text,
-											)
-										}
-										onClose={() => setBoardDetailsOpen(false)}
-									/>
-								)}
+							{inspector === 'board' && selectedBoard && (
+								<BoardDetails
+									dock={asideDock}
+									board={selectedBoard}
+									overview={boardOverview}
+									live={state?.timeTravel?.mode !== 'scrub'}
+									onSaveDescription={text =>
+										saveNodeDescription(
+											{kind: 'board', id: selectedBoard.id},
+											text,
+										)
+									}
+									onClose={() => setBoardDetailsOpen(false)}
+								/>
+							)}
 
-							{shownGoal && selectedBoard && state && (
+							{inspector === 'goal' && shownGoal && selectedBoard && state && (
 								<GoalDetails
 									dock={asideDock}
 									goal={shownGoal}
@@ -2385,187 +2370,174 @@ export const App = () => {
 										setPickedIssueIds([id]);
 										openIssueTab(id, 'overview', boardRef);
 									}}
-									onClose={() => setPanelGoal(null)}
+									onClose={() => goalPanel.close()}
 								/>
 							)}
 
-							{!theatre &&
-								!commitDiff &&
-								!detailsSwimlane &&
-								!boardDetailsOpen &&
-								!detailedGoal &&
-								pickedIssues.length > 1 && (
-									<BulkDetails
-										dock={asideDock}
-										issues={pickedIssues}
-										knownTags={state?.tags ?? []}
-										knownAssignees={contributors}
-										tagName={bulkTagName}
-										assigneeName={bulkAssigneeName}
-										onChangeTagName={setBulkTagName}
-										onChangeAssigneeName={setBulkAssigneeName}
-										onAddTag={name => {
-											forPicked(id => addIssueTag(id, name));
-											setBulkTagName('');
-										}}
-										onRemoveTag={tagId =>
-											forPicked(id => removeIssueTag(id, tagId))
+							{inspector === 'bulk' && (
+								<BulkDetails
+									dock={asideDock}
+									issues={pickedIssues}
+									knownTags={state?.tags ?? []}
+									knownAssignees={contributors}
+									tagName={bulkTagName}
+									assigneeName={bulkAssigneeName}
+									onChangeTagName={setBulkTagName}
+									onChangeAssigneeName={setBulkAssigneeName}
+									onAddTag={name => {
+										forPicked(id => addIssueTag(id, name));
+										setBulkTagName('');
+									}}
+									onRemoveTag={tagId =>
+										forPicked(id => removeIssueTag(id, tagId))
+									}
+									onAddAssignee={assigneeId =>
+										forPicked(id => addIssueAssignee(id, assigneeId))
+									}
+									onRemoveAssignee={assigneeId =>
+										forPicked(id => removeIssueAssignee(id, assigneeId))
+									}
+									onCloseIssues={() => {
+										// Skips the ones already closed: the event log would otherwise
+										// carry a second "Closed" for each of them.
+										for (const issue of pickedIssues) {
+											if (!issue.isClosed) closeIssue(issue.id);
 										}
-										onAddAssignee={assigneeId =>
-											forPicked(id => addIssueAssignee(id, assigneeId))
+										clearPicked();
+									}}
+									onReopenIssues={() => {
+										for (const issue of pickedIssues) {
+											if (issue.isClosed) reopenIssue(issue.id);
 										}
-										onRemoveAssignee={assigneeId =>
-											forPicked(id => removeIssueAssignee(id, assigneeId))
-										}
-										onCloseIssues={() => {
-											// Skips the ones already closed: the event log would otherwise
-											// carry a second "Closed" for each of them.
-											for (const issue of pickedIssues) {
-												if (!issue.isClosed) closeIssue(issue.id);
-											}
-											clearPicked();
-										}}
-										onReopenIssues={() => {
-											for (const issue of pickedIssues) {
-												if (issue.isClosed) reopenIssue(issue.id);
-											}
-											clearPicked();
-										}}
-										onClear={clearPicked}
-									/>
-								)}
+										clearPicked();
+									}}
+									onClear={clearPicked}
+								/>
+							)}
 
-							{!theatre &&
-								!commitDiff &&
-								!detailsSwimlane &&
-								!boardDetailsOpen &&
-								!detailedGoal &&
-								pickedIssues.length <= 1 &&
-								selectedIssue &&
-								state?.user && (
-									<IssueDetails
-										dock={asideDock}
-										onDock={setAsideDock}
-										whoAmI={state.user}
-										issue={((): GuiIssue => {
-											const base =
-												issueDetail?.issueId === selectedIssue.id
-													? {
-															...selectedIssue,
-															description: issueDetail.description,
-													  }
-													: selectedIssue;
-
-											return offline ? {...base, readonly: true} : base;
-										})()}
-										activeTab={selectedTab}
-										comments={
+							{inspector === 'issue' && selectedIssue && state?.user && (
+								<IssueDetails
+									dock={asideDock}
+									onDock={setAsideDock}
+									whoAmI={state.user}
+									issue={((): GuiIssue => {
+										const base =
 											issueDetail?.issueId === selectedIssue.id
-												? issueDetail.comments
-												: []
-										}
-										onChangeTab={changeIssueDetailsTab}
-										onClose={closeIssueDetails}
-										timelineNarrowed={selection.ticketOnly}
-										timelineCapped={
-											selection.ticketOnly &&
-											!windowNamesIssues(history.timeline)
-										}
-										canNarrowTimeline={connected || selection.ticketOnly}
-										onChangeTimelineNarrowed={next =>
-											changeSelection({ticketOnly: next})
-										}
-										onEditTitle={editIssueTitle}
-										onEditDescription={editIssueDescription}
-										onAddTag={addIssueTag}
-										onRemoveTag={removeIssueTag}
-										goals={state?.goals ?? []}
-										onSetGoal={setIssueGoal}
-										{...(selectedIssue &&
-											!selectedIssue.readonly && {
-												onCreateGoal: (name: string) =>
-													createGoal(name, selectedIssue.id),
-												onManageGoals: () => setManagingGoals(true),
-											})}
-										onAddAssignee={addIssueAssignee}
-										onAddExternalAssignee={addExternalIssueAssignee}
-										onRemoveContributor={removeContributor}
-										onDeleteTag={removeTag}
-										onRemoveAssignee={removeIssueAssignee}
-										onAddComment={addIssueComment}
-										onDeleteComment={deleteIssueComment}
-										onEditComment={editIssueComment}
-										onFileTicket={fileTicketFromSelection}
-										onOpenDiffLocation={openDiffLocation}
-										diffFocus={diffFocus}
-										diffFocusRequest={commitOpenRequest.current}
-										focusedCommentId={focusedCommentId}
-										attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
-										attachmentUploadStatus={attachmentUploadStatus}
-										onUploadAttachments={uploadIssueAttachments}
-										onDeleteAttachment={deleteIssueAttachment}
-										commits={
-											issueCommits?.issueId === selectedIssue.id
-												? issueCommits.commits
-												: []
-										}
-										// No entry for this ticket yet means its fetch is about to be
-										// sent, not that it has nothing.
-										commitsLoading={
-											issueCommits?.issueId === selectedIssue.id
-												? issueCommits.loading
-												: true
-										}
-										commitsError={
-											issueCommits?.issueId === selectedIssue.id
-												? issueCommits.error
-												: null
-										}
-										commitDiffsBySha={issueCommitDiffs}
-										onLoadCommitDiff={loadIssueCommitDiff}
-										diffView={{
-											compacted: compactedDiff,
-											onChangeCompacted: chooseDiffView,
-											squashed:
-												issueSquashedDiff?.issueId === selectedIssue.id
-													? issueSquashedDiff.diff
-													: null,
-											// No entry for this ticket yet means its fetch is about to
-											// be sent, not that it has nothing.
-											loading:
-												issueSquashedDiff?.issueId === selectedIssue.id
-													? issueSquashedDiff.loading
-													: true,
-											error:
-												issueSquashedDiff?.issueId === selectedIssue.id
-													? issueSquashedDiff.error
-													: null,
-										}}
-										stats={
-											issueStats?.issueId === selectedIssue.id
-												? issueStats.stats
-												: null
-										}
-										statsLoading={
-											issueStats?.issueId === selectedIssue.id
-												? issueStats.loading
-												: true
-										}
-										onOpenStatsFile={openStatsFile}
-										boardStats={boardStats}
-										activity={issueActivity}
-										statsError={
-											issueStats?.issueId === selectedIssue.id
-												? issueStats.error
-												: null
-										}
-										onReopenIssue={reopenIssue}
-										onCloseIssue={closeIssue}
-										knownTags={state.tags ?? []}
-										knownAssignees={contributors}
-										onOpenAssigneePicker={requestContributors}
-									/>
-								)}
+												? {
+														...selectedIssue,
+														description: issueDetail.description,
+												  }
+												: selectedIssue;
+
+										return offline ? {...base, readonly: true} : base;
+									})()}
+									activeTab={selectedTab}
+									comments={
+										issueDetail?.issueId === selectedIssue.id
+											? issueDetail.comments
+											: []
+									}
+									onChangeTab={changeIssueDetailsTab}
+									onClose={closeIssueDetails}
+									timelineNarrowed={selection.ticketOnly}
+									timelineCapped={
+										selection.ticketOnly && !windowNamesIssues(history.timeline)
+									}
+									canNarrowTimeline={connected || selection.ticketOnly}
+									onChangeTimelineNarrowed={next =>
+										changeSelection({ticketOnly: next})
+									}
+									onEditTitle={editIssueTitle}
+									onEditDescription={editIssueDescription}
+									onAddTag={addIssueTag}
+									onRemoveTag={removeIssueTag}
+									goals={state?.goals ?? []}
+									onSetGoal={setIssueGoal}
+									{...(selectedIssue &&
+										!selectedIssue.readonly && {
+											onCreateGoal: (name: string) =>
+												createGoal(name, selectedIssue.id),
+											onManageGoals: () => setManagingGoals(true),
+										})}
+									onAddAssignee={addIssueAssignee}
+									onAddExternalAssignee={addExternalIssueAssignee}
+									onRemoveContributor={removeContributor}
+									onDeleteTag={removeTag}
+									onRemoveAssignee={removeIssueAssignee}
+									onAddComment={addIssueComment}
+									onDeleteComment={deleteIssueComment}
+									onEditComment={editIssueComment}
+									onFileTicket={fileTicketFromSelection}
+									onOpenDiffLocation={openDiffLocation}
+									diffFocus={diffFocus}
+									diffFocusRequest={commitOpenRequest.current}
+									focusedCommentId={focusedCommentId}
+									attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
+									attachmentUploadStatus={attachmentUploadStatus}
+									onUploadAttachments={uploadIssueAttachments}
+									onDeleteAttachment={deleteIssueAttachment}
+									commits={
+										issueCommits?.issueId === selectedIssue.id
+											? issueCommits.commits
+											: []
+									}
+									// No entry for this ticket yet means its fetch is about to be
+									// sent, not that it has nothing.
+									commitsLoading={
+										issueCommits?.issueId === selectedIssue.id
+											? issueCommits.loading
+											: true
+									}
+									commitsError={
+										issueCommits?.issueId === selectedIssue.id
+											? issueCommits.error
+											: null
+									}
+									commitDiffsBySha={issueCommitDiffs}
+									onLoadCommitDiff={loadIssueCommitDiff}
+									diffView={{
+										compacted: compactedDiff,
+										onChangeCompacted: chooseDiffView,
+										squashed:
+											issueSquashedDiff?.issueId === selectedIssue.id
+												? issueSquashedDiff.diff
+												: null,
+										// No entry for this ticket yet means its fetch is about to
+										// be sent, not that it has nothing.
+										loading:
+											issueSquashedDiff?.issueId === selectedIssue.id
+												? issueSquashedDiff.loading
+												: true,
+										error:
+											issueSquashedDiff?.issueId === selectedIssue.id
+												? issueSquashedDiff.error
+												: null,
+									}}
+									stats={
+										issueStats?.issueId === selectedIssue.id
+											? issueStats.stats
+											: null
+									}
+									statsLoading={
+										issueStats?.issueId === selectedIssue.id
+											? issueStats.loading
+											: true
+									}
+									onOpenStatsFile={openStatsFile}
+									boardStats={boardStats}
+									activity={issueActivity}
+									statsError={
+										issueStats?.issueId === selectedIssue.id
+											? issueStats.error
+											: null
+									}
+									onReopenIssue={reopenIssue}
+									onCloseIssue={closeIssue}
+									knownTags={state.tags ?? []}
+									knownAssignees={contributors}
+									onOpenAssigneePicker={requestContributors}
+								/>
+							)}
 						</div>
 
 						{theatre && (

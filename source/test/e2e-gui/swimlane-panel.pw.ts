@@ -211,3 +211,38 @@ test('a readonly board opens its lanes read-only', async ({page}) => {
 	await page.getByTestId('swimlane-details-title').click();
 	await expect(page.getByTestId('swimlane-details-title-input')).toHaveCount(0);
 });
+
+// The board keeps room for a closed panel only: an open one takes that room
+// itself, so the columns still end at the board's right margin.
+test('with a lane panel open, the board scrolls to its last column and no further', async ({
+	page,
+	pageErrors,
+}) => {
+	await page
+		.locator('section')
+		.first()
+		.getByTestId('swimlane-details-open')
+		.click();
+	await expect(page.getByTestId('swimlane-details')).toBeVisible();
+
+	// As a string, like every other computed-style read in this suite.
+	const trailing = await page.evaluate<number>(`
+		(() => {
+			const last = document.querySelector('[data-testid="add-swimlane"]');
+			let scroller = last.parentElement;
+			while (scroller && getComputedStyle(scroller).overflowX !== 'auto' && getComputedStyle(scroller).overflowX !== 'scroll') {
+				scroller = scroller.parentElement;
+			}
+			const lastRight =
+				last.getBoundingClientRect().right -
+				scroller.getBoundingClientRect().left +
+				scroller.scrollLeft;
+			return scroller.scrollWidth - lastRight;
+		})()
+	`);
+
+	// The right margin alone, not a panel's width on top of it.
+	expect(trailing).toBeLessThan(100);
+
+	expect(pageErrors).toEqual([]);
+});
