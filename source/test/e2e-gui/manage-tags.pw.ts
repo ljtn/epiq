@@ -71,9 +71,7 @@ test('arming a delete highlights the whole tag row', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The chip used to be coloured text inside the neutral hairline every other
-// button wears, which at that contrast left it reading as two words rather than
-// one element. Fill, border and name are all the tag's own colour now.
+// Fill, border and name all take the tag's own colour.
 test("a tag chip is washed with the tag's own colour", async ({
 	page,
 	appUrl,

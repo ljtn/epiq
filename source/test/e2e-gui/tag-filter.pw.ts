@@ -92,10 +92,7 @@ test('a bare board link picks up the last selection, and a link wins over it', a
 	expect(pageErrors).toEqual([]);
 });
 
-// The card's tag used to be a hand-rolled button: its own radius, padding, type
-// size and a flat `#ffffff08` fill, while the panel drew the same tag as a
-// washed chip. One component now, and the isolated state — which used to *be*
-// the wash — reads as a step above it instead.
+// A card's tag is the panel's washed chip, and isolating it fills it further.
 test('a card draws its tag as the same washed chip the panel does', async ({
 	page,
 	appUrl,
@@ -120,7 +117,8 @@ test('a card draws its tag as the same washed chip the panel does', async ({
 	const read = () =>
 		page.evaluate<[string, string]>(`
 			(() => {
-				const chip = document.querySelector('[data-testid="ticket-tag"]');
+				const chip = [...document.querySelectorAll('[data-testid="ticket-tag"]')]
+					.find(chip => chip.textContent.includes('${tag}'));
 				const computed = getComputedStyle(chip);
 				return [computed.backgroundColor, computed.color];
 			})()
@@ -140,9 +138,10 @@ test('a card draws its tag as the same washed chip the panel does', async ({
 	await expect(chip).toHaveAttribute('aria-pressed', 'true');
 	await page.mouse.move(0, 0);
 
-	const [isolated] = await read();
-	const [, , , , isolatedAlpha] = rgba.exec(isolated) ?? [];
-	expect(Number(isolatedAlpha)).toBeGreaterThan(Number(restingAlpha));
+	// Polled: the fill eases in.
+	await expect
+		.poll(async () => Number(rgba.exec((await read())[0])?.[4]))
+		.toBeGreaterThan(Number(restingAlpha));
 
 	expect(pageErrors).toEqual([]);
 });
