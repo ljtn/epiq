@@ -2267,13 +2267,11 @@ export const App = () => {
 
 										{/* Reserves the closed side panel's width (also closed by a film), so the
 										board keeps its max scrollLeft and does not bounce back. */}
-										{asideDock === 'right' &&
-											(theatre ||
-												(!commitDiff && !(selectedIssue && state?.user))) && (
-												<div
-													style={{width: readStoredAsideWidth(), flexShrink: 0}}
-												/>
-											)}
+										{asideDock === 'right' && inspector === 'none' && (
+											<div
+												style={{width: readStoredAsideWidth(), flexShrink: 0}}
+											/>
+										)}
 
 										{/* The page's right margin, scrolling with the columns. Constant,
 							so it cancels out of the invariant above. */}
