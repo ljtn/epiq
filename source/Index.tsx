@@ -114,6 +114,9 @@ if (command === 'gui') {
 		process.exitCode = 1;
 	}
 } else {
+	// Raw before the screen is cleared: a key typed in cooked mode is echoed by
+	// the terminal itself, and the echo moves the cursor under Ink's diff.
+	if (process.stdin.isTTY) process.stdin.setRawMode(true);
 	console.clear();
 
 	const bootResult = await bootTui();
