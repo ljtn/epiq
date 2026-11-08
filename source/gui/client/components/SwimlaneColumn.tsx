@@ -267,9 +267,8 @@ export const SwimlaneColumn = ({
 				}}
 				onDragEnd={onSwimlaneDragEnd}
 				style={{
-					height: 40,
-					// The cards' edges, and their text's inset, so title lines up with title.
-					margin: '4px 0',
+					height: 48,
+					// The cards' text inset, so title lines up with title.
 					padding: `0 ${HEADER_END_PADDING}px 0 ${metrics.inset}px`,
 					flexShrink: 0,
 					display: 'flex',
