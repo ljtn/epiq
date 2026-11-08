@@ -2202,6 +2202,10 @@ export const App = () => {
 													detailsSwimlaneId === swimlane.id ? laneTab : null
 												}
 												onOpenDetails={openSwimlaneDetails}
+												selected={
+													inspector === 'lane' &&
+													detailsSwimlaneId === swimlane.id
+												}
 												selectedIssueId={selectedIssue?.id ?? null}
 												commentsByIssueId={commentsByIssueId}
 												dragOver={dragOverSwimlaneId === swimlane.id}

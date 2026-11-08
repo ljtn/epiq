@@ -242,3 +242,36 @@ test('the commit panel holds a large file behind a "Show diff"', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The diff outranks a lane's panel, so the lane hidden under it is not shown
+// as selected either.
+test("an unlinked commit's diff takes the selection off an open lane", async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	const {sha, title} = await seedCommitOnScatter(page, appUrl, repoRoot, {
+		link: false,
+	});
+
+	const header = page.getByTestId('swimlane-handle').first();
+	await header.click();
+	await expect(page.getByTestId('swimlane-details')).toBeVisible();
+	await expect(header).toHaveAttribute('aria-expanded', 'true');
+
+	// Found again: opening the panel navigates, and the chart redraws.
+	const canvas = page.getByTestId('scatter-canvas');
+	await expect(canvas).toHaveAttribute('data-entrance', 'done');
+	const stamp = title.replace('Scatter ', '');
+	const dot = await findCommitDot(
+		page,
+		canvas,
+		page.getByText(`notes ${stamp}`, {exact: false}).last(),
+	);
+	await page.mouse.click(dot.x, dot.y);
+	await expect(page.locator(`aside button[title="Copy ${sha}"]`)).toBeVisible();
+	await expect(header).toHaveAttribute('aria-expanded', 'false');
+
+	expect(pageErrors).toEqual([]);
+});

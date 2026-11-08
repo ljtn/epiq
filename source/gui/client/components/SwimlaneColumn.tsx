@@ -33,6 +33,7 @@ const HEADER_END_PADDING = 4;
 
 export const SwimlaneColumn = ({
 	swimlane,
+	selected,
 	middle = false,
 	selectedIssueId,
 	onSelectIssueComments,
@@ -64,6 +65,8 @@ export const SwimlaneColumn = ({
 	diffStats,
 }: {
 	swimlane: GuiSwimlane;
+	// Its panel is the one on screen, as a selected ticket's is.
+	selected: boolean;
 	selectedIssueId: string | null;
 	commentsByIssueId: Record<string, GuiComment[]>;
 	dragOver: boolean;
@@ -145,8 +148,6 @@ export const SwimlaneColumn = ({
 		return {ms, level: dwellLevel(ms, dwell, swimlane.issues.length)};
 	};
 
-	// Its panel on screen: the lane is the inspector's subject, as a ticket is.
-	const selected = openTab !== null;
 	const {metrics} = useCardDensityView();
 
 	return (
