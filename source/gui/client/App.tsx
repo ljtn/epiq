@@ -2202,7 +2202,6 @@ export const App = () => {
 													detailsSwimlaneId === swimlane.id ? laneTab : null
 												}
 												onOpenDetails={openSwimlaneDetails}
-												selected={false}
 												selectedIssueId={selectedIssue?.id ?? null}
 												commentsByIssueId={commentsByIssueId}
 												dragOver={dragOverSwimlaneId === swimlane.id}

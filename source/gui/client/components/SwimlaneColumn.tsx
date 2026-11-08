@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {DropIndicator} from '../App';
 import {GuiComment, GuiIssue, GuiSwimlane} from '../lib/gui-state.model';
+import {useCardDensityView} from '../lib/card-density';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
 	cardActivity,
@@ -12,9 +13,7 @@ import {
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
 import {IconCheck} from './IconCheck';
-import {IconDots} from './IconDots';
 import {SwimlaneDetailsTab} from './SwimlaneDetails';
-import {IconLaneStats} from './IconLaneStats';
 import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
@@ -29,11 +28,12 @@ const COLUMN_GLOW_COLOR = 'rgb(140, 176, 232)';
 
 // A lane's inset from its edge, which the goal strip above the lanes keeps too.
 export const COLUMN_PADDING = 12;
+// Room after the header's last button.
+const HEADER_END_PADDING = 4;
 
 export const SwimlaneColumn = ({
 	swimlane,
 	middle = false,
-	selected,
 	selectedIssueId,
 	onSelectIssueComments,
 	onSelectIssueCode,
@@ -64,7 +64,6 @@ export const SwimlaneColumn = ({
 	diffStats,
 }: {
 	swimlane: GuiSwimlane;
-	selected: boolean;
 	selectedIssueId: string | null;
 	commentsByIssueId: Record<string, GuiComment[]>;
 	dragOver: boolean;
@@ -146,11 +145,21 @@ export const SwimlaneColumn = ({
 		return {ms, level: dwellLevel(ms, dwell, swimlane.issues.length)};
 	};
 
+	// Its panel on screen: the lane is the inspector's subject, as a ticket is.
+	const selected = openTab !== null;
+	const {metrics} = useCardDensityView();
+
 	return (
 		<Panel
 			as="section"
 			active={dragOver}
-			borderColor={selected || dragOver ? GUI_THEME.accent : GUI_THEME.line}
+			borderColor={
+				dragOver
+					? GUI_THEME.accent
+					: selected
+					? GUI_THEME.accentEdge
+					: GUI_THEME.line
+			}
 			// Tuned by eye; the wide reach lights a column as a dragged ticket nears.
 			glowColor={COLUMN_GLOW_COLOR}
 			glowOpacity={0.41}
@@ -165,7 +174,11 @@ export const SwimlaneColumn = ({
 				height: '100%',
 				// Panel's 1px border would otherwise add to the 100% and overflow the row.
 				boxSizing: 'border-box',
-				background: dragOver ? '#14202a' : GUI_THEME.bg,
+				background: dragOver
+					? '#14202a'
+					: selected
+					? `linear-gradient(${GUI_THEME.selectedWash}, ${GUI_THEME.selectedWash}), ${GUI_THEME.bg}`
+					: GUI_THEME.bg,
 				padding: `0 ${COLUMN_PADDING}px`,
 				display: 'flex',
 				flexDirection: 'column',
@@ -234,9 +247,16 @@ export const SwimlaneColumn = ({
 				/>
 			)}
 
+			{/* A click opens the lane's panel on its Overview, and on it, closes it. */}
 			<header
 				draggable={!swimlane.readonly}
 				data-testid="swimlane-handle"
+				aria-expanded={selected}
+				onClick={event => {
+					// Stopped here, or the board's own click would close it again.
+					event.stopPropagation();
+					onOpenDetails(swimlane.id, 'overview');
+				}}
 				onDragStart={event => {
 					event.stopPropagation();
 					event.dataTransfer.effectAllowed = 'move';
@@ -247,13 +267,16 @@ export const SwimlaneColumn = ({
 				}}
 				onDragEnd={onSwimlaneDragEnd}
 				style={{
-					height: 48,
+					height: 40,
+					// The cards' edges, and their text's inset, so title lines up with title.
+					margin: '4px 0',
+					padding: `0 ${HEADER_END_PADDING}px 0 ${metrics.inset}px`,
 					flexShrink: 0,
 					display: 'flex',
 					fontSize: 12,
 					justifyContent: 'space-between',
 					alignItems: 'center',
-					cursor: swimlane.readonly ? 'default' : 'grab',
+					cursor: 'pointer',
 				}}
 			>
 				<div
@@ -264,17 +287,10 @@ export const SwimlaneColumn = ({
 						minWidth: 0,
 					}}
 				>
-					<span
-						style={{
-							color: selected ? GUI_THEME.accent : GUI_THEME.secondary,
-						}}
-					>
-						{selected ? '❯' : ' '}
-					</span>
-
 					<strong
+						data-testid="swimlane-details-open"
 						style={{
-							color: selected ? GUI_THEME.accent : GUI_THEME.primary,
+							color: GUI_THEME.primary,
 							// The lane's own figures are the fixed part of this row: a
 							// title long enough to crowd them out is cut instead.
 							overflow: 'hidden',
@@ -297,21 +313,6 @@ export const SwimlaneColumn = ({
 						</span>
 					)}
 
-					{/* The lane's panel, on its figures; the menu opens it on the rest. */}
-					<IconButton
-						testId="swimlane-stats-open"
-						title="Swimlane stats"
-						pressed={openTab === 'stats'}
-						onClick={event => {
-							// Stopped here, or the header's own click would take the
-							// selection with it.
-							event.stopPropagation();
-							onOpenDetails(swimlane.id, 'stats');
-						}}
-					>
-						<IconLaneStats size={ICON_SIZE} />
-					</IconButton>
-
 					{swimlane.readonly && (
 						<span
 							title="Read-only"
@@ -327,21 +328,12 @@ export const SwimlaneColumn = ({
 						testId="add-issue"
 						title="Add ticket"
 						disabled={swimlane.readonly}
-						onClick={() => onCreateIssue(swimlane.id)}
-					>
-						<IconPlus size={ICON_SIZE} />
-					</IconButton>
-
-					<IconButton
-						testId="swimlane-details-open"
-						title="Swimlane details"
-						pressed={openTab === 'overview'}
 						onClick={event => {
 							event.stopPropagation();
-							onOpenDetails(swimlane.id, 'overview');
+							onCreateIssue(swimlane.id);
 						}}
 					>
-						<IconDots size={ICON_SIZE} />
+						<IconPlus size={ICON_SIZE} />
 					</IconButton>
 				</div>
 			</header>

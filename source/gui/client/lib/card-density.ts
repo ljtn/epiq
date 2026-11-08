@@ -12,6 +12,8 @@ export type CardMetrics = {
 	radius: number;
 	// Between one card and the next in a lane.
 	gap: number;
+	// Where a card's text starts, which its lane's header lines up with.
+	inset: number;
 	// The title's line, which the controls beside it centre on.
 	titleLineHeight: number;
 	titleFontSize: number;
@@ -24,6 +26,7 @@ export type CardMetrics = {
 
 export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 	wide: {
+		inset: 14,
 		padding: '12px 18px 12px 14px',
 		minHeight: 58,
 		radius: 8,
@@ -34,6 +37,7 @@ export const CARD_METRICS: Record<CardDensity, CardMetrics> = {
 		dropMargin: '4px 8px 8px',
 	},
 	dense: {
+		inset: 11,
 		padding: '7px 11px',
 		minHeight: 0,
 		radius: 6,

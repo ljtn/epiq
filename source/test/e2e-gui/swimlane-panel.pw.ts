@@ -47,14 +47,18 @@ test.beforeEach(async ({page, appUrl}) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 });
 
-test('the menu opens a lane on its Overview, the chart on its Stats, and either again closes it', async ({
+test('the header opens a lane on its Overview, the panel switches to Stats, and the header again closes it', async ({
 	page,
 	pageErrors,
 }) => {
 	const name = `Tabs ${Date.now()}`;
 	await addLane(page, name);
 
-	await lane(page, name).getByTestId('swimlane-stats-open').click();
+	await lane(page, name).getByTestId('swimlane-handle').click();
+	await page
+		.locator('aside')
+		.getByRole('button', {name: 'Stats', exact: true})
+		.click();
 	await expect(page.getByText('Time in this lane')).toBeVisible();
 	await expect(page.getByTestId('swimlane-rule-done')).toHaveCount(0);
 
@@ -244,5 +248,31 @@ test('with a lane panel open, the board scrolls to its last column and no furthe
 	// The right margin alone, not a panel's width on top of it.
 	expect(trailing).toBeLessThan(100);
 
+	expect(pageErrors).toEqual([]);
+});
+
+test("a lane's header opens its panel and marks it selected; its add button opens neither", async ({
+	page,
+	pageErrors,
+}) => {
+	const name = `Header ${Date.now()}`;
+	await addLane(page, name);
+	const header = lane(page, name).getByTestId('swimlane-handle');
+
+	await lane(page, name).getByTestId('add-issue').click();
+	await expect(page.getByPlaceholder('ticket name')).toBeVisible();
+	await expect(page.getByTestId('swimlane-details')).toHaveCount(0);
+	await page.keyboard.press('Escape');
+	await expect(page.getByPlaceholder('ticket name')).toHaveCount(0);
+
+	await header.click();
+	await expect(page.getByTestId('swimlane-details-title')).toHaveText(name);
+	await expect(header).toHaveAttribute('aria-expanded', 'true');
+
+	await header.click();
+	await expect(page.getByTestId('swimlane-details')).toHaveCount(0);
+	await expect(header).toHaveAttribute('aria-expanded', 'false');
+
+	await remove(page, name);
 	expect(pageErrors).toEqual([]);
 });

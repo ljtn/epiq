@@ -1,6 +1,16 @@
 import type {Locator, Page} from '@playwright/test';
+import {clickEmptyBoard} from './live-board.js';
 import {expect, test} from './fixtures.js';
 import {trackWithWindow} from './track.js';
+
+// The lane's header opens its panel; its Stats tab shows the figures.
+const openStats = async (page: Page, header: Locator) => {
+	await header.click();
+	await page
+		.locator('aside')
+		.getByRole('button', {name: 'Stats', exact: true})
+		.click();
+};
 
 // A lane holding tickets, for the assertions that read real figures off the
 // panel: an empty column reaches the same panel but has nothing to put in it.
@@ -49,7 +59,7 @@ test('a lane opens its own stats, and says how long its tickets have sat there',
 	await expect(page.getByRole('main').getByText(title)).toBeVisible();
 
 	const lane = await laneWithTickets(page);
-	await lane.getByTestId('swimlane-stats-open').click();
+	await openStats(page, lane);
 
 	const panel = page.getByTestId('swimlane-details');
 	await expect(panel).toBeVisible();
@@ -78,12 +88,12 @@ test('a click on the board closes the lane panel', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	const lane = await laneWithTickets(page);
-	await lane.getByTestId('swimlane-stats-open').click();
+	await openStats(page, lane);
 	await expect(page.getByTestId('swimlane-details')).toBeVisible();
 
 	// The empty ground below the columns: a click that was never about a
 	// ticket, a lane header, or the panel.
-	await page.getByRole('main').click({position: {x: 40, y: 40}});
+	await clickEmptyBoard(page);
 
 	await expect(page.getByTestId('swimlane-details')).toHaveCount(0);
 
@@ -151,10 +161,7 @@ test('an empty lane still opens its panel', async ({
 	const header = page.getByTestId('swimlane-handle').first();
 	await expect(header).toContainText('(0)');
 
-	const stats = header.getByTestId('swimlane-stats-open');
-	await expect(stats).toHaveAttribute('title', 'Swimlane stats');
-
-	await stats.click();
+	await header.click();
 	await expect(page.getByTestId('swimlane-details')).toBeVisible();
 
 	// Left as it was found: the suite shares one board across files.
