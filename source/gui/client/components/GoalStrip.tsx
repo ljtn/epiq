@@ -5,7 +5,7 @@
 import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
-import {goalFilterTitle, GoalProgressLine} from './GoalMarks';
+import {goalFilterTitle, GoalMark, GoalProgressLine} from './GoalMarks';
 import {ICON_SIZE, IconButton} from './IconButton';
 import {IconFunnel} from './IconFunnel';
 import {COLUMN_PADDING} from './SwimlaneColumn';
@@ -80,6 +80,7 @@ const GoalPill = ({
 					outlineOffset: -2,
 				}}
 			>
+				<GoalMark color={goal.color} />
 				<span
 					style={{
 						overflow: 'hidden',
