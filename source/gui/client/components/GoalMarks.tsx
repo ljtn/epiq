@@ -2,7 +2,7 @@
 // the strip, so the two read as one. Its progress is a stroke along the strip
 // pill's foot.
 
-import React from 'react';
+import React, {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 
 /** A short upright bar in the goal's colour. */
@@ -43,6 +43,10 @@ export const GoalLabel = ({
 	onPress?: () => void;
 	pressTitle?: string;
 }) => {
+	// Pressable, it lifts under the pointer as a chip does.
+	const [hovered, setHovered] = useState(false);
+	const lifted = hovered && onPress !== undefined;
+
 	const style: React.CSSProperties = {
 		maxWidth: '45%',
 		flexShrink: 0,
@@ -58,9 +62,14 @@ export const GoalLabel = ({
 		lineHeight: 1,
 		fontFamily: 'inherit',
 		color: GUI_THEME.secondary,
-		background: GUI_THEME.well,
+		background: lifted
+			? `linear-gradient(${GUI_THEME.hover}, ${GUI_THEME.hover}), ${GUI_THEME.well}`
+			: GUI_THEME.well,
 		// Held on, the whole frame takes the goal's colour.
-		border: `1px solid ${pressed ? color : GUI_THEME.line}`,
+		border: `1px solid ${
+			pressed ? color : lifted ? GUI_THEME.secondary : GUI_THEME.line
+		}`,
+		transition: 'background 120ms ease, border-color 120ms ease',
 	};
 	const content = (
 		<>
@@ -91,6 +100,8 @@ export const GoalLabel = ({
 			data-testid={testId}
 			aria-pressed={pressed}
 			title={pressTitle ?? label}
+			onMouseEnter={() => setHovered(true)}
+			onMouseLeave={() => setHovered(false)}
 			// Stopped here, or a click on a card would also select it.
 			onClick={event => {
 				event.stopPropagation();
