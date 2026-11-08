@@ -22,7 +22,7 @@ import {
 	useCardDensityView,
 } from '../lib/card-density';
 import {Button} from './Button';
-import {goalFilterTitle, GoalLabel, GoalStripe} from './GoalMarks';
+import {goalFilterTitle, GoalLabel} from './GoalMarks';
 import {DiffStat} from './DiffStat';
 import {CardActivity, DwellLevel} from '../lib/lane-dwell';
 import {formatDuration} from '../lib/gui-format.helper';
@@ -635,7 +635,6 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
-			{goal && <GoalStripe color={goal.color} inset={view.metrics.radius} />}
 			{dense ? (
 				<DenseBody
 					goal={goalLabel}
