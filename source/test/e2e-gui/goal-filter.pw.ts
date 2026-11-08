@@ -54,12 +54,8 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 
 	await page.goto(boardUrl);
 	await expect(card(page, other)).toBeVisible();
-	await expect(
-		card(page, member).getByTestId('ticket-goal-stripe'),
-	).toHaveCount(1);
-	await expect(card(page, other).getByTestId('ticket-goal-stripe')).toHaveCount(
-		0,
-	);
+	await expect(card(page, member).getByTestId('goal-mark')).toHaveCount(1);
+	await expect(card(page, other).getByTestId('goal-mark')).toHaveCount(0);
 
 	// The label sits in room the card already has.
 	const height = async (title: string) =>
@@ -535,13 +531,19 @@ test("a goal's panel outlives another goal's filter, and goes for good with its 
 	const narrowedTicket = `In narrowed ${stamp}`;
 	const openedTicket = `In opened ${stamp}`;
 
-	const closeOpenTicket = async () => {
-		await page.keyboard.press('Control+k');
-		await page.keyboard.type('close ticket');
+	// From a second page, as another client would: opening a ticket here would
+	// close this page's goal panel.
+	const elsewhere = await page.context().newPage();
+	await openBoard(elsewhere, appUrl);
+	const runOn = async (title: string, command: string) => {
+		await card(elsewhere, title).click();
+		await expect(elsewhere.locator('aside')).toContainText(title);
+		await elsewhere.keyboard.press('Control+k');
+		await elsewhere.keyboard.type(command.toLowerCase());
 		await expect(
-			page.getByTestId('command-palette').getByRole('option').first(),
-		).toContainText('Close ticket');
-		await page.keyboard.press('Enter');
+			elsewhere.getByTestId('command-palette').getByRole('option').first(),
+		).toContainText(command);
+		await elsewhere.keyboard.press('Enter');
 	};
 
 	await addTicket(page, openedTicket);
@@ -553,26 +555,24 @@ test("a goal's panel outlives another goal's filter, and goes for good with its 
 	await pill(page, opened).getByTestId('goal-pill-open').click();
 	await expect(page.getByTestId('goal-details')).toContainText(opened);
 
-	await closeOpenTicket();
+	await runOn(narrowedTicket, 'Close ticket');
 	await expect(pill(page, narrowed)).toHaveCount(0, {timeout: 30_000});
 	await expect(page.getByTestId('goal-details')).toContainText(opened);
 
-	await card(page, openedTicket).click();
-	await pill(page, opened).getByTestId('goal-pill-open').click();
-	await expect(page.getByTestId('goal-details')).toContainText(opened);
-	await closeOpenTicket();
+	await runOn(openedTicket, 'Close ticket');
 	await expect(pill(page, opened)).toHaveCount(0, {timeout: 30_000});
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 
 	// Reopening brings the pill back, and not the panel.
-	await page.keyboard.press('Control+k');
-	await page.keyboard.type('reopen ticket');
+	await elsewhere.keyboard.press('Control+k');
+	await elsewhere.keyboard.type('reopen ticket');
 	await expect(
-		page.getByTestId('command-palette').getByRole('option').first(),
+		elsewhere.getByTestId('command-palette').getByRole('option').first(),
 	).toContainText('Reopen ticket');
-	await page.keyboard.press('Enter');
+	await elsewhere.keyboard.press('Enter');
 	await expect(pill(page, opened)).toHaveCount(1, {timeout: 30_000});
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+	await elsewhere.close();
 
 	expect(pageErrors).toEqual([]);
 });
@@ -633,6 +633,33 @@ test('picking a ticket gives up the goal panel for the bulk actions', async ({
 
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 	await expect(page.locator('aside')).toContainText('2 tickets selected');
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('opening a goal closes the open ticket, and keeps the board narrowed', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const goal = `Exclusive ${stamp}`;
+	const member = `Exclusive member ${stamp}`;
+
+	await addTicket(page, member);
+	await startGoal(page, goal);
+	await funnel(page, goal).click();
+	await expect(page).toHaveURL(/goal=/);
+
+	await card(page, member).click();
+	await expect(page).toHaveURL(/\/issue\//);
+
+	await pill(page, goal).getByTestId('goal-pill-open').click();
+	await expect(page.getByTestId('goal-details')).toBeVisible();
+	await expect(page).not.toHaveURL(/\/issue\//);
+	await expect(page).toHaveURL(/goal=/);
 
 	expect(pageErrors).toEqual([]);
 });

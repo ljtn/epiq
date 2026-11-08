@@ -730,6 +730,8 @@ export const App = () => {
 		setDetailsSwimlaneId(null);
 		setBoardDetailsOpen(false);
 		clearPicked();
+		// One subject: the ticket goes too. Another board's goal navigates there.
+		if (issueId && boardId === selectedBoardId) closeIssueDetails();
 	};
 	// A closed goal is off every working board, so its filter ends with it. A
 	// scrub only looks at the past, and leaves the filter for the way back.
