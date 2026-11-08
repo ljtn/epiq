@@ -33,3 +33,31 @@ export const openBoard = async (page: Page, appUrl: string) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 };
+
+// A click on bare board: under it no header, button, card, link or field, so
+// it can only be read as a click on nothing.
+export const clickEmptyBoard = async (page: Page) => {
+	// As a string, like every other in-page read in this suite.
+	const point = await page.evaluate<{x: number; y: number} | null>(`
+		(() => {
+			const main = document.querySelector('main');
+			const box = main.getBoundingClientRect();
+			for (let y = box.bottom - 12; y > box.top; y -= 16) {
+				for (let x = box.left + 12; x < box.right; x += 16) {
+					const hit = document.elementFromPoint(x, y);
+					if (
+						hit &&
+						main.contains(hit) &&
+						!hit.closest('header, button, [draggable="true"], a, input, textarea')
+					) {
+						return {x, y};
+					}
+				}
+			}
+			return null;
+		})()
+	`);
+
+	expect(point).not.toBeNull();
+	await page.mouse.click(point!.x, point!.y);
+};

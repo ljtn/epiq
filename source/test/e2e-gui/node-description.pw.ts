@@ -1,4 +1,5 @@
 import type {Page} from '@playwright/test';
+import {clickEmptyBoard} from './live-board.js';
 import {expect, test} from './fixtures.js';
 
 const addLane = async (page: Page, name: string) => {
@@ -93,7 +94,7 @@ test('a half-written lane description keeps the panel open past a stray click', 
 	await page.getByTestId('swimlane-description-edit').click();
 	await page.getByTestId('swimlane-description-input').fill('Half written');
 
-	await page.getByRole('main').click({position: {x: 40, y: 40}});
+	await clickEmptyBoard(page);
 	await expect(page.getByTestId('swimlane-description-input')).toHaveValue(
 		'Half written',
 	);

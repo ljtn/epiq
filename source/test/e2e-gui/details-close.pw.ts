@@ -1,4 +1,5 @@
 import {expect, test} from './fixtures.js';
+import {clickEmptyBoard} from './live-board.js';
 import {addTicket} from './ticket.js';
 
 test.beforeEach(async ({page, appUrl}) => {
@@ -16,14 +17,14 @@ test('clicking outside the details leaves it open', async ({
 }) => {
 	await openTicket(page);
 
-	// A scrubber control and a swimlane header: clicks that were never about the
+	// A scrubber control and bare board: clicks that were never about the
 	// panel. Settled before asserting, or the check can land before a close has
 	// had time to navigate and pass on nothing.
 	await page.getByRole('button', {name: 'Events', exact: true}).click();
 	await page.waitForTimeout(600);
 	await expect(page).toHaveURL(/\/issue\//);
 
-	await page.getByText('Todo').first().click();
+	await clickEmptyBoard(page);
 	await page.waitForTimeout(600);
 	await expect(page).toHaveURL(/\/issue\//);
 
