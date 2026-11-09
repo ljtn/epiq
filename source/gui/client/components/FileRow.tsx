@@ -19,6 +19,7 @@ import {
 	FileTicketParams,
 } from '../lib/diff-selection';
 import {disclosureStyle} from '../lib/commit-row.style';
+import {CopyButton} from './CopyButton';
 import {CODE_FONT} from '../lib/code-text.style';
 import {DiffStat} from './DiffStat';
 import {Chip} from './Chip';
@@ -114,38 +115,59 @@ const FileHeader = ({
 				padding: '4px 10px 4px 4px',
 			}}
 		>
-			<button
+			{/* The whole stretch folds the file; the button inside is its keyboard
+			    way in, and the copy button keeps its click to itself. */}
+			<div
 				onClick={onToggle}
-				aria-expanded={expanded}
 				onMouseEnter={() => setLit(true)}
 				onMouseLeave={() => setLit(false)}
-				onFocus={() => setLit(true)}
-				onBlur={() => setLit(false)}
 				style={{
-					...disclosureStyle,
+					display: 'flex',
+					alignItems: 'center',
+					gap: 10,
 					flex: 1,
 					minWidth: 0,
-					width: 'auto',
-					color: GUI_THEME.secondary,
 					padding: '4px 6px',
+					borderRadius: 6,
+					cursor: 'pointer',
 					background: lit ? GUI_THEME.hover : 'transparent',
+					transition: 'background 120ms ease',
 				}}
 			>
-				{expanded ? (
-					<IconChevronDown size={12} />
-				) : (
-					<IconChevronRight size={12} />
-				)}
-				<span
+				<button
+					aria-expanded={expanded}
+					onFocus={() => setLit(true)}
+					onBlur={() => setLit(false)}
 					style={{
-						fontFamily: CODE_FONT,
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap',
+						...disclosureStyle,
+						flex: '0 1 auto',
+						minWidth: 0,
+						width: 'auto',
+						color: GUI_THEME.secondary,
+						padding: 0,
 					}}
 				>
-					{file.path}
-				</span>
+					{expanded ? (
+						<IconChevronDown size={12} />
+					) : (
+						<IconChevronRight size={12} />
+					)}
+					<span
+						style={{
+							fontFamily: CODE_FONT,
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+						}}
+					>
+						{file.path}
+					</span>
+				</button>
+				<CopyButton
+					value={file.path}
+					title="Copy path"
+					testId="copy-file-path"
+				/>
 				{repo && <RepoChip repo={repo} />}
 				{shared && (
 					<Chip
@@ -192,7 +214,7 @@ const FileHeader = ({
 						Large diff
 					</span>
 				)}
-			</button>
+			</div>
 			<DiffStat insertions={file.insertions} deletions={file.deletions} />
 			{/* Beside the toggle rather than inside it: ticking a file off must
 			    not also fold or unfold it by accident. */}

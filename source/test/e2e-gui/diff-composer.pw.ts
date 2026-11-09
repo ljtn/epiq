@@ -250,3 +250,35 @@ test('a drag across line numbers lights the lines as it goes, before the release
 
 	expect(pageErrors).toEqual([]);
 });
+
+test("a file's path copies from beside it, and copying folds nothing", async ({
+	page,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+
+	const stamp = Date.now();
+	await addTicket(page, `Copy path ${stamp}`);
+	const ref = (
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
+	)?.trim();
+	expect(ref).toBeTruthy();
+
+	const fileName = linkedFileName(ref!);
+	commitLinkedFile(repoRoot, ref!, 'add notes');
+	await page.reload();
+	await expect(page.locator('aside')).toContainText(`Copy path ${stamp}`);
+	await expandDiff(page, 'add notes', fileName);
+
+	const toggle = page.getByRole('button', {name: fileName});
+	await page.getByTestId('copy-file-path').click();
+	expect(await page.evaluate('navigator.clipboard.readText()')).toBe(fileName);
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+	// The path itself still folds the file.
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+	expect(pageErrors).toEqual([]);
+});

@@ -62,14 +62,18 @@ test('a commit opens the ordinary files and leaves a lockfile shut', async ({
 	await expect(code).toHaveAttribute('aria-expanded', 'true');
 	await expect(lock).toHaveAttribute('aria-expanded', 'false');
 
-	// Says why it was passed over, before anything is clicked.
-	await expect(lock.getByTestId('large-diff-badge')).toBeVisible();
+	// Says why it was passed over, before anything is clicked, in its header.
+	const lockBadge = page
+		.getByTestId('file-row')
+		.filter({has: lock})
+		.getByTestId('large-diff-badge');
+	await expect(lockBadge).toBeVisible();
 
 	// Still reachable by hand — collapsed is the default, not a refusal.
 	await lock.click();
 	await expect(lock).toHaveAttribute('aria-expanded', 'true');
 	// Open, the badge has nothing left to explain.
-	await expect(lock.getByTestId('large-diff-badge')).toHaveCount(0);
+	await expect(lockBadge).toHaveCount(0);
 
 	// And the button can still shut everything, including the one it never
 	// opened — otherwise a large file opened by hand would be stuck open.
