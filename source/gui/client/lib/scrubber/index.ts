@@ -87,6 +87,7 @@ export {
 	issuePassesBoardFilter,
 	axisColor,
 	axisListsBoard,
+	issueIdsInGoals,
 } from './series';
 export type {
 	EventCategory,

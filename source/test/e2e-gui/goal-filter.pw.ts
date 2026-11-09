@@ -150,6 +150,39 @@ test('a goal is a pill above the lanes, and the board filter narrows to it, the 
 	expect(pageErrors).toEqual([]);
 });
 
+// The chart and its log follow the goal axis as the columns do.
+test('narrowing to a goal narrows the event log to its tickets', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	const stamp = Date.now();
+	const goal = `Charted ${stamp}`;
+	const member = `Charted member ${stamp}`;
+	const other = `Charted other ${stamp}`;
+
+	await addTicket(page, other);
+	await addTicket(page, member);
+	await startGoal(page, goal);
+
+	await page.goto(boardUrl);
+	await page.getByTestId('log-toggle').click();
+	const lines = page.getByTestId('log-line');
+	await expect(lines.filter({hasText: other})).toHaveCount(1);
+
+	await label(page, member).click();
+	await expect(lines.filter({hasText: other})).toHaveCount(0);
+	await expect(lines.filter({hasText: member}).first()).toBeVisible();
+
+	await label(page, member).click();
+	await expect(lines.filter({hasText: other})).toHaveCount(1);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('a link from before goals were an axis still narrows to its goal', async ({
 	page,
 	appUrl,

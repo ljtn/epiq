@@ -18,6 +18,7 @@ import {
 	keptIssueIds,
 	categoryOf,
 	issuePassesBoardFilter,
+	issueIdsInGoals,
 	identityAxisFor,
 	FILTER_AXES,
 	listIdentities,
@@ -1127,6 +1128,19 @@ describe('board filter', () => {
 		const any = buildBoardFilter({goal: 'all'});
 		expect(issuePassesBoardFilter(inGoal('G2'), nothing, any)).toBe(true);
 		expect(issuePassesBoardFilter(issue(), nothing, any)).toBe(false);
+	});
+
+	it('keeps the tickets in a named goal, or in any goal, on every board', () => {
+		const lane = (issues: {id: string; goal?: {id: string}}[]) => ({
+			swimlanes: [{issues}],
+		});
+		const boards = [
+			lane([{id: 'a', goal: {id: 'G1'}}, {id: 'b'}]),
+			lane([{id: 'c', goal: {id: 'G2'}}]),
+		] as unknown as Parameters<typeof issueIdsInGoals>[0];
+
+		expect([...issueIdsInGoals(boards, ['G2'])]).toEqual(['c']);
+		expect([...issueIdsInGoals(boards, 'all')]).toEqual(['a', 'c']);
 	});
 
 	it('draws no view of its own for goals', () => {

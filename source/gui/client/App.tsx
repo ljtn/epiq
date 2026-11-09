@@ -99,6 +99,7 @@ import {
 	FilterAxis,
 	isPeriodWindow,
 	issuePassesBoardFilter,
+	issueIdsInGoals,
 	windowIssueIds,
 	windowNamesIssues,
 } from './lib/scrubber';
@@ -898,19 +899,28 @@ export const App = () => {
 		[state?.boards],
 	);
 
-	// The tickets the text query keeps, or null with no query.
-	const queryIssueIds = useMemo(() => {
+	// The tickets the text query and the goal axis keep, or null while neither
+	// asks. Goals span boards, so their tickets are read off every board.
+	const filterIssueIds = useMemo(() => {
 		const query = textFilter.trim();
-		if (!query || !selectedBoard) return null;
+		const goals = selection.only.goal;
+		const byQuery =
+			query && selectedBoard
+				? new Set(
+						selectedBoard.swimlanes.flatMap(swimlane =>
+							swimlane.issues
+								.filter(issue => issueMatchesText(issue, query))
+								.map(issue => issue.id),
+						),
+				  )
+				: null;
+		if (goals === undefined) return byQuery;
 
-		return new Set(
-			selectedBoard.swimlanes.flatMap(swimlane =>
-				swimlane.issues
-					.filter(issue => issueMatchesText(issue, query))
-					.map(issue => issue.id),
-			),
-		);
-	}, [selectedBoard, textFilter]);
+		const byGoal = issueIdsInGoals(state?.boards ?? [], goals);
+		return byQuery === null
+			? byGoal
+			: new Set([...byQuery].filter(id => byGoal.has(id)));
+	}, [selectedBoard, textFilter, selection.only.goal, state?.boards]);
 
 	// Returns the lanes untouched when nothing is filtered, keeping SwimlaneColumn's memo.
 	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
@@ -1545,7 +1555,7 @@ export const App = () => {
 		commits: plottedCommits,
 		selection,
 		selectedIssueId: selectedIssue?.id ?? null,
-		queryIssueIds,
+		filterIssueIds,
 		linkedCommitsOnly,
 		boardIssueIdByRef,
 		issueIdByRef,
@@ -2098,7 +2108,7 @@ export const App = () => {
 								}
 								textFilter={textFilter}
 								onChangeTextFilter={setTextFilter}
-								queryIssueIds={queryIssueIds}
+								filterIssueIds={filterIssueIds}
 								knownIdentities={knownIdentities}
 								refreshOn={historyTick}
 								following={following}

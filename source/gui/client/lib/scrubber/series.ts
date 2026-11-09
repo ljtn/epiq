@@ -1,4 +1,5 @@
 import {
+	GuiBoard,
 	GuiEventIdentity,
 	GuiEventTimeline,
 	GuiEventTimelineEntry,
@@ -275,13 +276,13 @@ const EVENT_DOT_SIZE = 4;
 const EVENT_DOT_OPACITY = 0.55;
 
 // The tickets whose events the chart keeps (null for all): those passing both
-// the ticket narrowing and the text query, as the board does.
+// the ticket narrowing and the text and goal filters, as the board does.
 export const keptIssueIds = (
 	issueOnly: string | null,
-	queryIssueIds: ReadonlySet<string> | null,
+	filterIssueIds: ReadonlySet<string> | null,
 ): ReadonlySet<string> | null => {
-	if (issueOnly === null) return queryIssueIds;
-	if (queryIssueIds === null || queryIssueIds.has(issueOnly)) {
+	if (issueOnly === null) return filterIssueIds;
+	if (filterIssueIds === null || filterIssueIds.has(issueOnly)) {
 		return new Set([issueOnly]);
 	}
 
@@ -467,3 +468,27 @@ export const issuePassesBoardFilter = (
 
 		return ids.some(id => visibleIds.has(id));
 	});
+
+// Every ticket, on any board, that the goal axis keeps: in one of the named
+// goals, or in any goal while the axis takes them all.
+export const issueIdsInGoals = (
+	boards: readonly Pick<GuiBoard, 'swimlanes'>[],
+	narrowing: AxisNarrowing,
+): Set<string> => {
+	const ids = narrowedIds(narrowing);
+	const goals = ids === null ? null : new Set(ids);
+
+	return new Set(
+		boards.flatMap(board =>
+			board.swimlanes.flatMap(swimlane =>
+				swimlane.issues
+					.filter(
+						issue =>
+							issue.goal !== undefined &&
+							(goals === null || goals.has(issue.goal.id)),
+					)
+					.map(issue => issue.id),
+			),
+		),
+	);
+};
