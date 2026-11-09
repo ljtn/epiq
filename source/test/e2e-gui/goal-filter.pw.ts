@@ -108,7 +108,7 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	// Its panel names it, counts it and lists its tickets, each a way in.
 	const details = page.getByTestId('goal-details');
 	await expect(details).toContainText(goal);
-	await expect(page.getByTestId('goal-details-done')).toContainText('0/1');
+	await expect(pill(page, goal)).toContainText('0/1');
 
 	// The ref copies and leaves the panel where it is.
 	const memberRow = page.getByTestId('goal-member').filter({hasText: member});
@@ -213,8 +213,7 @@ test("a goal's panel counts a closed ticket on the board it was closed from, as 
 	await expect(card(page, closing)).toHaveCount(0, {timeout: 30_000});
 
 	await pill(page, goal).click();
-	await expect(page.getByTestId('goal-details-done')).toContainText('1/2');
-	await expect(page.getByTestId('goal-details-here')).toContainText('2');
+	await expect(pill(page, goal)).toContainText('1/2');
 	// One group, this board's, the open ticket first.
 	await expect(page.getByTestId('goal-group')).toHaveCount(1);
 	await expect(page.getByTestId('goal-member').first()).toContainText(open);
@@ -713,7 +712,10 @@ test("a goal's ticket row unfolds its description, with a way to the ticket", as
 	const row = page.getByTestId('goal-member').filter({hasText: member});
 	const toggle = row.getByTestId('goal-member-toggle');
 
-	await toggle.click();
+	// Copying the ref unfolds nothing; the rest of the line does, its edge too.
+	await row.getByTestId('copy-ref').click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await row.click({position: {x: 6, y: 12}});
 	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 	await expect(row.getByTestId('goal-member-details')).toContainText(
 		description,

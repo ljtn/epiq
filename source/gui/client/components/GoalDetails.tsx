@@ -15,7 +15,7 @@ import {CommitDiffState} from '../lib/use-issue-detail';
 import {TicketPreview} from '../lib/use-ticket-previews';
 import {IssueStats as IssueStatsValue} from '../../../lib/stats/issue-stats.model.js';
 import {GUI_THEME} from '../lib/gui-theme';
-import {statGrid, statsAcross} from '../lib/issue-stats.style';
+import {statsAcross} from '../lib/issue-stats.style';
 import {
 	Aside,
 	ASIDE_PADDING,
@@ -33,7 +33,6 @@ import {DetailsHeader} from './NodeDetails';
 import {useEditDraft} from '../lib/ticket-drafts';
 import {descriptionLimitOf} from '../../../lib/utils/text.limits.js';
 import {Section} from './Section';
-import {Stat} from './StatRow';
 import {IssueCommits} from './IssueCommits';
 import {IssueStats} from './IssueStats';
 import {Tabs} from './Tabs';
@@ -124,12 +123,16 @@ const MemberRow = ({
 				transition: 'background 120ms ease',
 			}}
 		>
+			{/* The whole line unfolds the row; its button is the keyboard's way in,
+			    and the ref's copy keeps its click to itself. */}
 			<div
+				onClick={() => setExpanded(!expanded)}
 				style={{
 					display: 'flex',
 					alignItems: 'center',
 					gap: 10,
 					padding: '7px 8px 7px 10px',
+					cursor: 'pointer',
 				}}
 			>
 				<span
@@ -160,7 +163,6 @@ const MemberRow = ({
 					type="button"
 					data-testid="goal-member-toggle"
 					aria-expanded={expanded}
-					onClick={() => setExpanded(!expanded)}
 					style={{
 						display: 'flex',
 						alignItems: 'center',
@@ -304,10 +306,6 @@ export const GoalDetails = ({
 		goal.description ?? '',
 	);
 	const groups = groupsOf(goal.id, boards, boardId);
-	const here =
-		boards
-			.find(board => board.id === boardId)
-			?.goals.find(shown => shown.id === goal.id)?.members.length ?? 0;
 
 	const row = (board: GuiBoard) => (member: Member) =>
 		(
@@ -379,23 +377,6 @@ export const GoalDetails = ({
 						testId="goal-description"
 						placeholder="What this goal is for, and when it is done"
 					/>
-
-					<Section title="Progress">
-						<div style={statGrid(2, 2)}>
-							<Stat
-								size="compact"
-								value={`${goal.done}/${goal.total}`}
-								label="Done"
-								testId="goal-details-done"
-							/>
-							<Stat
-								size="compact"
-								value={String(here)}
-								testId="goal-details-here"
-								label="On this board"
-							/>
-						</div>
-					</Section>
 
 					{groups.length === 0 && (
 						<Section title="Tickets">
