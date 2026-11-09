@@ -390,6 +390,48 @@ test('Manage goals renames and removes, and a removed goal gives the board back'
 	expect(pageErrors).toEqual([]);
 });
 
+test('a bare board link lets go of a stored goal that is gone', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url().split('?')[0]!;
+
+	const stamp = Date.now();
+	const goal = `Stored ${stamp}`;
+	const member = `Stored member ${stamp}`;
+	const other = `Stored other ${stamp}`;
+
+	await addTicket(page, other);
+	await addTicket(page, member);
+	await startGoal(page, goal);
+	const id = await pill(page, goal).getAttribute('data-goal-id');
+
+	await page.getByTestId('goal-strip-manage').click();
+	const row = page.getByTestId('manage-goal-row').filter({hasText: goal});
+	await row.getByTestId('remove-goal').click();
+	await row.getByTestId('remove-goal').click();
+	await expect(row).toHaveCount(0);
+
+	// Storage left narrowed to it, as by a session that closed before it went.
+	await page.evaluate(
+		goalId =>
+			localStorage.setItem(
+				'epiq.board.selection',
+				JSON.stringify({scope: 'all', layout: 'even', only: {goal: [goalId]}}),
+			),
+		id!,
+	);
+	await page.goto(boardUrl);
+	await expect(card(page, other)).toBeVisible();
+	await expect(page).not.toHaveURL(GOAL_IN_URL);
+	await page.reload();
+	await expect(card(page, other)).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('Manage goals adds a goal the board can then be put in', async ({
 	page,
 	appUrl,

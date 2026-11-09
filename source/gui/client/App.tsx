@@ -756,7 +756,8 @@ export const App = () => {
 				kept.length > 0 ? kept : undefined,
 			),
 		});
-	}, [goneGoalKey]);
+		// Again whenever the narrowing moves: a pending URL write can bring a gone goal back.
+	}, [goneGoalKey, goalOnly?.join()]);
 	const detailedGoal = goalPanel.goal;
 	// One navigation, so no render stands on the old board narrowed to it.
 	const openClosedGoal = (goalId: string) => {

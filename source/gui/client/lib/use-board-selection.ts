@@ -72,10 +72,8 @@ export const useBoardSelection = (): [
 
 			const params = new URLSearchParams(searchParams);
 			writeSelectionParams(params, next);
-			if (params.toString() === query) {
-				setRevision(value => value + 1);
-				return;
-			}
+			// Written even then, so it lands after any write still pending.
+			if (params.toString() === query) setRevision(value => value + 1);
 
 			setSearchParams(params, {replace: true});
 		},
