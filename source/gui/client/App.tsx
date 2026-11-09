@@ -482,14 +482,6 @@ export const App = () => {
 
 	const [managingGoals, setManagingGoals] = useState(false);
 
-	// The bar beside a card's ref, fetched once for the repository.
-	const {stats: refDiffStats, onMessage: onRefDiffStatsMessage} =
-		useRefDiffStats({
-			socketEpoch,
-			asOfTime: scrubCut(state?.timeTravel),
-			sendRaw,
-		});
-
 	// The card a linkified ticket ref shows on hover. Most of it is already in
 	// `state`; only the description excerpt is fetched.
 	const {
@@ -516,6 +508,15 @@ export const App = () => {
 	const updateInfo = useUpdateInfo({socketEpoch, sendRaw});
 	// The other repos whose commits count as the board's.
 	const repos = useRepos({open: settingsOpen, sendRaw, socketEpoch});
+	// The bar beside a card's ref, fetched once for the repository and again
+	// when another repo's commits move.
+	const {stats: refDiffStats, onMessage: onRefDiffStatsMessage} =
+		useRefDiffStats({
+			socketEpoch,
+			reposChanged: repos.changed,
+			asOfTime: scrubCut(state?.timeTravel),
+			sendRaw,
+		});
 	const registeredRepoIds = useMemo(
 		() => repos.data?.repos.map(repo => repo.id) ?? null,
 		[repos.data],

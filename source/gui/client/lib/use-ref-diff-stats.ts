@@ -18,9 +18,12 @@ const REFRESH_AFTER_MS = 5_000;
 
 export const useRefDiffStats = ({
 	socketEpoch,
+	reposChanged,
 	asOfTime,
 	sendRaw,
 }: {
+	// Rises when another repo's commits move or it leaves: its totals change.
+	reposChanged: number;
 	// The needle of a scrubbed board, or null when live: only commits made by
 	// then count.
 	asOfTime: number | null;
@@ -42,6 +45,12 @@ export const useRefDiffStats = ({
 
 		ask();
 	}, [socketEpoch, ask]);
+
+	useEffect(() => {
+		if (reposChanged === 0) return;
+
+		ask();
+	}, [reposChanged, ask]);
 
 	useEffect(() => {
 		const refresh = () => {
