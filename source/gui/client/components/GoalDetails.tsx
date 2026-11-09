@@ -1,7 +1,7 @@
 // A goal's panel, opened from its pill: how far along it is, and every
 // ticket in it, on whichever board, each a way to that ticket.
 
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {CLOSED_BOARD_ID} from '../../../lib/board/static-ids.js';
 import {AsideDock} from '../lib/aside-dock';
 import {
@@ -106,6 +106,11 @@ const MemberRow = ({
 }) => {
 	const [hovered, setHovered] = useState(false);
 	const [expanded, setExpanded] = useState(false);
+	// Asked again on each new state while open, so an edit to the description
+	// shows; the request skips a state it already has an answer for.
+	useEffect(() => {
+		if (expanded) onExpand();
+	}, [expanded, onExpand]);
 
 	return (
 		<div
@@ -155,10 +160,7 @@ const MemberRow = ({
 					type="button"
 					data-testid="goal-member-toggle"
 					aria-expanded={expanded}
-					onClick={() => {
-						if (!expanded) onExpand();
-						setExpanded(!expanded);
-					}}
+					onClick={() => setExpanded(!expanded)}
 					style={{
 						display: 'flex',
 						alignItems: 'center',

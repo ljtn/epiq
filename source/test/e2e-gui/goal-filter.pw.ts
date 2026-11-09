@@ -724,7 +724,20 @@ test("a goal's ticket row unfolds its description, with a way to the ticket", as
 	await toggle.click();
 	await expect(row.getByTestId('goal-member-details')).toHaveCount(0);
 
+	// An edit made elsewhere reaches a row left open.
 	await toggle.click();
+	const edited = `Rewritten ${stamp}`;
+	const elsewhere = await page.context().newPage();
+	await openBoard(elsewhere, appUrl);
+	await card(elsewhere, member).click();
+	const theirs = elsewhere.locator('aside');
+	await theirs.getByTestId('description-edit').click();
+	await theirs.getByTestId('description-input').fill(edited);
+	await theirs.getByTestId('description-save').click();
+	await expect(theirs).toContainText(edited);
+	await elsewhere.close();
+	await expect(row.getByTestId('goal-member-details')).toContainText(edited);
+
 	await row.getByTestId('goal-member-open').click();
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 	await expect(aside).toContainText(member);
