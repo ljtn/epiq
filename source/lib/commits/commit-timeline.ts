@@ -95,14 +95,27 @@ export const bodyRefs = (body: string): string[] => [
 
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
+type RefRead = {candidates: CommitEntry[]; order: string[]};
+
+// A clone's reads for some refs, held until its `version` changes, as its
+// full scan is. The board's own repo is read afresh: it is cheap there.
+const cloneRefCache = new Map<
+	string,
+	{version: number | null; result: Result<RefRead>}
+>();
+// Enough for every ticket a session opens; the oldest go first.
+const CLONE_REF_CACHE_LIMIT = 500;
+
 // Test-only: resets the module-level cache.
 export const resetCommitTimelineCacheForTests = (): void => {
 	fullTimelineCache.clear();
+	cloneRefCache.clear();
 };
 
 /** After a fetch: a clone's history has moved, so its cached read is stale. */
 export const invalidateCommitTimelineCache = (): void => {
 	fullTimelineCache.clear();
+	cloneRefCache.clear();
 };
 
 // Commits are plotted at author date but `--since` matches committer date, so
@@ -123,6 +136,97 @@ const cleanText = (value: string | undefined): string =>
 		/[\u0080-\u009f\u202a-\u202e\u2066-\u2069]/g,
 		'',
 	);
+
+type Separators = ReturnType<typeof separatorsFor>;
+
+/** The log's own options for a source: what it walks and how each commit reads. */
+const logArgs = (
+	source: CommitSource,
+	separators: Separators,
+	extra: string[],
+): string[] => [
+	'log',
+	...source.revisions,
+	...extra,
+	'--shortstat',
+	// The commit date only where a window is cut by it: the board's own
+	// log reads as it always has.
+	`--format=${separators.record}%H${separators.field}%at${
+		source.notBefore ? `${separators.field}%ct` : ''
+	}${separators.field}%an${separators.field}%ae${separators.field}%s${
+		separators.body
+	}%b${separators.end}`,
+];
+
+// Another repo's history can be far longer than the board's own.
+const cloneLimits = (source: CommitSource) =>
+	source.repo
+		? {timeoutMs: CLONE_LOG_TIMEOUT_MS, maxOutput: CLONE_LOG_MAX_CHARS}
+		: {};
+
+/** Whether a commit is one the source lists at all. */
+const listed = (
+	source: CommitSource,
+	sha: string | undefined,
+	ctSeconds: string | undefined,
+): boolean =>
+	!!sha &&
+	(!source.repo || SHA.test(sha)) &&
+	!source.exclude.has(sha) &&
+	// By commit date, as the clone's own window is cut: a rebased commit
+	// keeps an old author date.
+	!(source.notBefore && Number(ctSeconds) * 1000 < source.notBefore);
+
+const parseLog = (
+	stdout: string,
+	source: CommitSource,
+	separators: Separators,
+): CommitEntry[] =>
+	stdout
+		.split(separators.record)
+		.filter(record => record.trim().length > 0)
+		.map((record): CommitEntry | null => {
+			// Without the end marker (output in the old one-line form) the header
+			// is the first line and the rest is --shortstat, as before bodies.
+			const endAt = record.indexOf(separators.end);
+			const [firstLine = '', ...restLines] = record.split('\n');
+			const head = endAt === -1 ? firstLine : record.slice(0, endAt);
+			const statLines =
+				endAt === -1
+					? restLines
+					: record.slice(endAt + separators.end.length).split('\n');
+			const bodyAt = head.indexOf(separators.body);
+			const headerLine = bodyAt === -1 ? head : head.slice(0, bodyAt);
+			const refs =
+				bodyAt === -1
+					? []
+					: bodyRefs(head.slice(bodyAt + separators.body.length));
+			const fields = headerLine.split(separators.field);
+			const [sha, atSeconds] = fields;
+			const ctSeconds = source.notBefore ? fields[2] : undefined;
+			const [author, authorEmail, ...subjectParts] = fields.slice(
+				source.notBefore ? 3 : 2,
+			);
+			if (!atSeconds || !listed(source, sha, ctSeconds)) return null;
+
+			const statText = statLines.join(' ');
+			const insertions = Number(/(\d+) insertion/.exec(statText)?.[1] ?? 0);
+			const deletions = Number(/(\d+) deletion/.exec(statText)?.[1] ?? 0);
+
+			return {
+				sha: sha!,
+				...(source.repo ? {repo: source.repo} : {}),
+				time: Number(atSeconds) * 1000,
+				author: cleanText(author) || 'unknown',
+				authorEmail: cleanText(authorEmail),
+				subject: cleanText(subjectParts.join(separators.field)),
+				...(refs.length > 0 ? {refs} : {}),
+				linesChanged: insertions + deletions,
+				insertions,
+				deletions,
+			};
+		})
+		.filter((commit): commit is CommitEntry => commit !== null);
 
 const readSourceLog = async (
 	source: CommitSource,
@@ -153,29 +257,15 @@ const readSourceLog = async (
 
 	const logResult = await execGit({
 		cwd: source.cwd,
-		// Another repo's history can be far longer than the board's own, and it
-		// was asked for in full when its window is `all`.
-		...(source.repo
-			? {timeoutMs: CLONE_LOG_TIMEOUT_MS, maxOutput: CLONE_LOG_MAX_CHARS}
-			: {}),
-		args: [
-			'log',
-			...source.revisions,
+		...cloneLimits(source),
+		args: logArgs(source, separators, [
 			...(window.start !== undefined
 				? [`--since=@${Math.floor(window.start / 1000)}`]
 				: []),
 			...(window.end !== undefined
 				? [`--until=@${Math.floor(window.end / 1000)}`]
 				: []),
-			'--shortstat',
-			// The commit date only where a window is cut by it: the board's own
-			// log reads as it always has.
-			`--format=${separators.record}%H${separators.field}%at${
-				source.notBefore ? `${separators.field}%ct` : ''
-			}${separators.field}%an${separators.field}%ae${separators.field}%s${
-				separators.body
-			}%b${separators.end}`,
-		],
+		]),
 	});
 
 	if (isFail(logResult)) {
@@ -190,59 +280,9 @@ const readSourceLog = async (
 		return failed(logResult.message);
 	}
 
-	const commits = logResult.value.stdout
-		.split(separators.record)
-		.filter(record => record.trim().length > 0)
-		.map((record): CommitEntry | null => {
-			// Without the end marker (output in the old one-line form) the header
-			// is the first line and the rest is --shortstat, as before bodies.
-			const endAt = record.indexOf(separators.end);
-			const [firstLine = '', ...restLines] = record.split('\n');
-			const head = endAt === -1 ? firstLine : record.slice(0, endAt);
-			const statLines =
-				endAt === -1
-					? restLines
-					: record.slice(endAt + separators.end.length).split('\n');
-			const bodyAt = head.indexOf(separators.body);
-			const headerLine = bodyAt === -1 ? head : head.slice(0, bodyAt);
-			const refs =
-				bodyAt === -1
-					? []
-					: bodyRefs(head.slice(bodyAt + separators.body.length));
-			const fields = headerLine.split(separators.field);
-			const [sha, atSeconds] = fields;
-			if (source.repo && !SHA.test(sha ?? '')) return null;
-			const ctSeconds = source.notBefore ? fields[2] : undefined;
-			const [author, authorEmail, ...subjectParts] = fields.slice(
-				source.notBefore ? 3 : 2,
-			);
-			if (!sha || !atSeconds) return null;
-			if (source.exclude.has(sha)) return null;
-			// By commit date, as the clone's own window is cut: a rebased commit
-			// keeps an old author date.
-			if (source.notBefore && Number(ctSeconds) * 1000 < source.notBefore) {
-				return null;
-			}
-
-			const statText = statLines.join(' ');
-			const insertions = Number(/(\d+) insertion/.exec(statText)?.[1] ?? 0);
-			const deletions = Number(/(\d+) deletion/.exec(statText)?.[1] ?? 0);
-
-			return {
-				sha,
-				...(source.repo ? {repo: source.repo} : {}),
-				time: Number(atSeconds) * 1000,
-				author: cleanText(author) || 'unknown',
-				authorEmail: cleanText(authorEmail),
-				subject: cleanText(subjectParts.join(separators.field)),
-				...(refs.length > 0 ? {refs} : {}),
-				linesChanged: insertions + deletions,
-				insertions,
-				deletions,
-			};
-		})
-		.filter((commit): commit is CommitEntry => commit !== null)
-		.filter(commit => inCommitWindow(commit.time, window.start, window.end));
+	const commits = parseLog(logResult.value.stdout, source, separators).filter(
+		commit => inCommitWindow(commit.time, window.start, window.end),
+	);
 
 	if (cacheable) {
 		fullTimelineCache.set(cacheKey, {
@@ -256,31 +296,123 @@ const readSourceLog = async (
 };
 
 /**
- * Each source's commits in its own `git log` order. Only the board's own repo
- * failing fails the answer.
+ * The commits whose message names any of the refs, in log order: git filters,
+ * so only those are diffed for their stats. A superset, narrowed by the caller.
  */
-const readSourceLogs = async (
+const readRefCandidates = async (
+	source: CommitSource,
+	refs: string[],
+): Promise<Result<CommitEntry[]>> => {
+	const separators = separatorsFor();
+	const logResult = await execGit({
+		cwd: source.cwd,
+		...cloneLimits(source),
+		args: logArgs(source, separators, [
+			'--regexp-ignore-case',
+			'--fixed-strings',
+			...refs.map(ref => `--grep=${ref}`),
+		]),
+	});
+	if (isFail(logResult)) return failed(logResult.message);
+
+	return succeeded(
+		'Read commits naming the refs',
+		parseLog(logResult.value.stdout, source, separators),
+	);
+};
+
+/** Every listed commit's sha in log order, without stats: cheap at any length. */
+const readSourceOrder = async (
+	source: CommitSource,
+): Promise<Result<string[]>> => {
+	const field = GIT_LOG_FIELD_SEP;
+	const logResult = await execGit({
+		cwd: source.cwd,
+		...cloneLimits(source),
+		args: [
+			'log',
+			...source.revisions,
+			`--format=%H${source.notBefore ? `${field}%ct` : ''}`,
+		],
+	});
+	if (isFail(logResult)) return failed(logResult.message);
+
+	return succeeded(
+		'Read the commit order',
+		logResult.value.stdout
+			.split('\n')
+			.map(line => line.split(field))
+			.filter(([sha, ct]) => listed(source, sha, ct))
+			.map(([sha]) => sha!),
+	);
+};
+
+/** A source's commits naming the refs, and its whole order for predecessors. */
+const readRefSource = async (
+	source: CommitSource,
+	refs: string[],
+): Promise<Result<RefRead>> => {
+	const key = source.repo
+		? [
+				source.cwd,
+				source.revisions.join(' '),
+				source.notBefore ?? '',
+				source.exclude.size,
+				[...refs].sort().join(','),
+		  ].join('\0')
+		: null;
+	const version = source.repo ? cloneVersion(source.cwd) : null;
+	const cached = key ? cloneRefCache.get(key) : undefined;
+	if (cached && cached.version === version) return cached.result;
+
+	const read = async (): Promise<Result<RefRead>> => {
+		const candidates = await readRefCandidates(source, refs);
+		if (isFail(candidates)) return failed(candidates.message);
+		const order = await readSourceOrder(source);
+		if (isFail(order)) return failed(order.message);
+		return succeeded('Read commits naming the refs', {
+			candidates: candidates.value,
+			order: order.value,
+		});
+	};
+	const result = await read();
+
+	// A read that ran out of time under load is tried again on the next.
+	if (key && !(isFail(result) && isGitTimeout(result.message))) {
+		cloneRefCache.delete(key);
+		cloneRefCache.set(key, {version, result});
+		if (cloneRefCache.size > CLONE_REF_CACHE_LIMIT) {
+			cloneRefCache.delete(cloneRefCache.keys().next().value!);
+		}
+	}
+
+	return result;
+};
+
+/**
+ * One read per source, in turn. Only the board's own repo failing fails the
+ * answer; a clone that can't be read is left out and noted.
+ */
+const readEverySource = async <T>(
 	repoRoot: string | undefined,
-	window: Window,
-): Promise<Result<CommitEntry[][]>> => {
+	read: (source: CommitSource) => Promise<Result<T>>,
+): Promise<Result<T[]>> => {
 	const sourcesResult = await listCommitSources(repoRoot);
 	if (isFail(sourcesResult)) return failed(sourcesResult.message);
 
-	const sources = sourcesResult.value;
-	// One at a time: each log is read whole into memory before it is parsed,
-	// and the clones are somebody else's size.
-	const logs: Result<CommitEntry[]>[] = [];
-	for (const source of sources) logs.push(await readSourceLog(source, window));
+	// One at a time: a read is held whole in memory before it is parsed, and
+	// the clones are somebody else's size.
+	const values: T[] = [];
+	for (const source of sourcesResult.value) {
+		const result = await read(source);
+		const {repo} = source;
 
-	const lists: CommitEntry[][] = [];
-	for (const [index, log] of logs.entries()) {
-		const repo = sources[index]!.repo;
-		if (isFail(log)) {
-			if (!repo) return failed(log.message);
-			logger.info(`[repos] could not read a clone: ${log.message}`);
+		if (isFail(result)) {
+			if (!repo) return failed(result.message);
+			logger.info(`[repos] could not read a clone: ${result.message}`);
 			noteCloneRead(
 				repo,
-				isOutputOverflow(log.message)
+				isOutputOverflow(result.message)
 					? 'its history is too long to read; narrow its window'
 					: 'its history could not be read',
 			);
@@ -288,12 +420,18 @@ const readSourceLogs = async (
 		}
 
 		if (repo) noteCloneRead(repo, null);
-
-		lists.push(log.value);
+		values.push(result.value);
 	}
 
-	return succeeded('Read every source', lists);
+	return succeeded('Read every source', values);
 };
+
+/** Each source's commits in its own `git log` order. */
+const readSourceLogs = (
+	repoRoot: string | undefined,
+	window: Window,
+): Promise<Result<CommitEntry[][]>> =>
+	readEverySource(repoRoot, source => readSourceLog(source, window));
 
 /**
  * A commit shared by sources, listed once from the first that has it (own repo
@@ -368,8 +506,10 @@ const refsMatchesBySource = async (
 		);
 	}
 
-	const listsResult = await readSourceLogs(input.repoRoot, {});
-	if (isFail(listsResult)) return failed(listsResult.message);
+	const readsResult = await readEverySource(input.repoRoot, source =>
+		readRefSource(source, input.refs),
+	);
+	if (isFail(readsResult)) return failed(readsResult.message);
 
 	// Case-insensitive, like nodeRefMatches, so a hand-typed ref matches.
 	const wanted = new Set(input.refs.map(ref => ref.toUpperCase()));
@@ -383,28 +523,35 @@ const refsMatchesBySource = async (
 			: named;
 	};
 
-	// Per source, in git log's order — so all[i + 1] is exactly the commit
-	// immediately before all[i] in that repo's real history, matched or not.
+	// Per source, in git log's order. A commit's predecessor is the next sha in
+	// the whole walk, matched or not; only a candidate can share a ticket.
 	return succeeded(
 		'Matched commits by ref',
-		listsResult.value.map(all => {
-			const matched: RefsCommitEntry[] = [];
-
-			for (const [index, commit] of all.entries()) {
+		readsResult.value.map(({candidates, order}) => {
+			const ticketsBySha = new Map<string, string[]>();
+			for (const commit of candidates) {
 				const tickets = ticketsOf(commit);
-				if (tickets.length === 0) continue;
+				if (tickets.length > 0) ticketsBySha.set(commit.sha, tickets);
+			}
+			const precedingOf = new Map(
+				order.map((sha, index) => [sha, order[index + 1]]),
+			);
+
+			const matched: RefsCommitEntry[] = [];
+			for (const commit of candidates) {
+				const tickets = ticketsBySha.get(commit.sha);
+				if (!tickets) continue;
 				if (!inCommitWindow(commit.time, undefined, input.end)) continue;
 
-				const precedingCommit = all[index + 1];
+				const preceding = precedingOf.get(commit.sha);
+				const shared = preceding ? ticketsBySha.get(preceding) ?? [] : [];
 
 				matched.push({
 					...commit,
 					tickets,
-					precedingSha:
-						precedingCommit &&
-						ticketsOf(precedingCommit).some(ref => tickets.includes(ref))
-							? precedingCommit.sha
-							: null,
+					precedingSha: shared.some(ref => tickets.includes(ref))
+						? preceding!
+						: null,
 				});
 			}
 
