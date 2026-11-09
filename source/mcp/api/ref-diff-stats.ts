@@ -1,10 +1,11 @@
-// Every ticket's code footprint in one answer, bucketed from the cached
-// `getCommitTimeline` scan by the ref each subject opens with.
+// Every ticket's code footprint in one answer, bucketed by the ref each subject
+// opens with or an Epiq-Ref line names. Only those commits are diffed.
 
 import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
 import {RefDiffTimeline} from '../../lib/stats/ref-diff-stats.model.js';
 import {NODE_REF_LENGTH} from '../../lib/utils/node-ref.js';
-import {CommitEntry, getCommitTimeline} from '../../lib/commits/commits.js';
+import {CommitEntry} from '../../lib/commits/commits.js';
+import {getRefCommitTimeline} from '../../lib/commits/commit-timeline.js';
 
 // The same loose shape `getCommitsForRef` matches, so the two never disagree.
 const REF_TOKEN = new RegExp(`^[0-9A-Z]{${NODE_REF_LENGTH}}$`);
@@ -18,6 +19,10 @@ const leadingRef = (subject: string): string | null => {
 
 	return REF_TOKEN.test(token) ? token : null;
 };
+
+/** Whether a commit names any ticket, as collectRefDiffTimeline counts it. */
+const namesATicket = (commit: CommitEntry): boolean =>
+	leadingRef(commit.subject) !== null || (commit.refs?.length ?? 0) > 0;
 
 export const collectRefDiffTimeline = (
 	commits: readonly CommitEntry[],
@@ -46,7 +51,10 @@ export const collectRefDiffTimeline = (
 export const getRefDiffTimeline = async (
 	input: {repoRoot?: string} = {},
 ): Promise<Result<RefDiffTimeline>> => {
-	const timelineResult = await getCommitTimeline({repoRoot: input.repoRoot});
+	const timelineResult = await getRefCommitTimeline(
+		input.repoRoot,
+		namesATicket,
+	);
 	if (isFail(timelineResult)) return timelineResult;
 
 	return succeeded(

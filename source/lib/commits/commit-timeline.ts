@@ -111,16 +111,24 @@ const cloneRefCache = new Map<
 // Enough for every ticket a session opens; the oldest go first.
 const CLONE_REF_CACHE_LIMIT = 500;
 
+// Each source's commits that name a ticket, held as its full scan is.
+const refCommitsCache = new Map<
+	string,
+	{fetchedAt: number; version: number | null; result: Result<CommitEntry[]>}
+>();
+
 // Test-only: resets the module-level cache.
 export const resetCommitTimelineCacheForTests = (): void => {
 	fullTimelineCache.clear();
 	cloneRefCache.clear();
+	refCommitsCache.clear();
 };
 
 /** After a fetch: a clone's history has moved, so its cached read is stale. */
 export const invalidateCommitTimelineCache = (): void => {
 	fullTimelineCache.clear();
 	cloneRefCache.clear();
+	refCommitsCache.clear();
 };
 
 // Commits are plotted at author date but `--since` matches committer date, so
@@ -149,11 +157,12 @@ const logArgs = (
 	source: CommitSource,
 	separators: Separators,
 	extra: string[],
+	{stats = true}: {stats?: boolean} = {},
 ): string[] => [
 	'log',
 	...source.revisions,
 	...extra,
-	'--shortstat',
+	...(stats ? ['--shortstat'] : []),
 	// The commit date only where a window is cut by it: the board's own
 	// log reads as it always has.
 	`--format=${separators.record}%H${separators.field}%at${
@@ -501,6 +510,123 @@ const mergeNewestFirst = <T extends CommitEntry>(lists: T[][]): T[] => {
 
 	// Stable, so commits of one second keep their repo's order.
 	return nonEmpty.flat().sort((a, b) => b.time - a.time);
+};
+
+const detachedCommit = (commit: CommitEntry): CommitEntry => ({
+	...commit,
+	sha: detached(commit.sha),
+	author: detached(commit.author),
+	authorEmail: detached(commit.authorEmail),
+	subject: detached(commit.subject),
+	...(commit.refs ? {refs: commit.refs.map(detached)} : {}),
+});
+
+/**
+ * A source's commits that `names` holds to name a ticket, with their stats. A
+ * walk without diffs finds them; only they are diffed, so history from before
+ * any ticket costs a read, not a diff.
+ */
+const readRefCommits = async (
+	source: CommitSource,
+	names: (commit: CommitEntry) => boolean,
+): Promise<Result<CommitEntry[]>> => {
+	const cacheKey = [
+		source.cwd,
+		source.revisions.join(' '),
+		source.notBefore ?? '',
+		source.exclude.size,
+	].join('\0');
+	const cached = refCommitsCache.get(cacheKey);
+	const version = source.repo ? cloneVersion(source.cwd) : null;
+	if (
+		cached &&
+		(source.repo
+			? cached.version === version
+			: Date.now() - cached.fetchedAt < scanCacheMs(FULL_TIMELINE_CACHE_TTL_MS))
+	) {
+		return cached.result;
+	}
+
+	const read = async (): Promise<Result<CommitEntry[]>> => {
+		const separators = separatorsFor();
+		const walk = await execGit({
+			cwd: source.cwd,
+			...cloneLimits(source),
+			args: logArgs(source, separators, [], {stats: false}),
+		});
+		if (isFail(walk)) return failed(walk.message);
+
+		// Copies: a slice of the walk's output would keep all of it alive.
+		const named = parseLog(walk.value.stdout, source, separators)
+			.filter(names)
+			.map(detachedCommit);
+		if (named.length === 0) return succeeded('No commit names a ticket', []);
+
+		const record = separators.record;
+		const stats = await execGit({
+			cwd: source.cwd,
+			...cloneLimits(source),
+			args: [
+				'log',
+				'--no-walk=unsorted',
+				'--stdin',
+				'--shortstat',
+				`--format=${record}%H`,
+			],
+			input: `${named.map(commit => commit.sha).join('\n')}\n`,
+		});
+		if (isFail(stats)) return failed(stats.message);
+
+		const bySha = new Map<string, {insertions: number; deletions: number}>();
+		for (const entry of stats.value.stdout.split(record)) {
+			const [sha = '', ...rest] = entry.split('\n');
+			const text = rest.join(' ');
+			bySha.set(sha.trim(), {
+				insertions: Number(/(\d+) insertion/.exec(text)?.[1] ?? 0),
+				deletions: Number(/(\d+) deletion/.exec(text)?.[1] ?? 0),
+			});
+		}
+
+		return succeeded(
+			'Read the commits that name a ticket',
+			named.map(commit => {
+				const {insertions = 0, deletions = 0} = bySha.get(commit.sha) ?? {};
+				return {
+					...commit,
+					insertions,
+					deletions,
+					linesChanged: insertions + deletions,
+				};
+			}),
+		);
+	};
+	const result = await read();
+
+	// A read that ran out of time under load is tried again on the next.
+	if (!(isFail(result) && isGitTimeout(result.message))) {
+		refCommitsCache.set(cacheKey, {fetchedAt: Date.now(), version, result});
+	}
+
+	return result;
+};
+
+/**
+ * Every commit that names a ticket, newest first across sources, each once:
+ * the ticket totals' read, which needs no other commit's diff.
+ */
+export const getRefCommitTimeline = async (
+	repoRoot: string | undefined,
+	names: (commit: CommitEntry) => boolean,
+): Promise<Result<CommitEntry[]>> => {
+	const lists = await readEverySource(repoRoot, source =>
+		readRefCommits(source, names),
+	);
+	if (isFail(lists)) return failed(lists.message);
+
+	return succeeded(
+		'Computed the commits that name a ticket',
+		mergeNewestFirst(withoutShared(lists.value)),
+	);
 };
 
 // Pure read of the *code* history, safe mid-scrub: the board's own repo and
