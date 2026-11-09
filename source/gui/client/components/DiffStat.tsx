@@ -16,8 +16,8 @@ export const DiffStat = ({
 }: {
 	insertions: number;
 	deletions: number;
-	// The pill after the figures. Off where the figures are enough — a log
-	// line has no room for a picture of what its two numbers already say.
+	// The pill after the figures. Off where the figures are enough: a log line
+	// or a commit row, where it only repeats what the two numbers say.
 	bar?: boolean;
 	// `card` is the board's size: the ref's own type, and a hairline bar.
 	variant?: DiffStatVariant;
