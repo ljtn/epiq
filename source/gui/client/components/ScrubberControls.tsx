@@ -2,12 +2,8 @@
 
 import {useRef} from 'react';
 import {GUI_THEME, SANS_FONT} from '../lib/gui-theme';
-import {
-	GROUP_LABEL_COLOR,
-	GROUP_LABEL_OPACITY,
-	GROUP_LABEL_STYLE,
-} from '../lib/group-label.style';
 import {useGlowGradient} from './Panel';
+import {GroupLabel} from './GroupLabel';
 import {
 	isPeriodWindow,
 	LayoutMode,
@@ -432,58 +428,30 @@ const LabelledGroup = ({
 	label: string;
 	style?: React.CSSProperties;
 	children: React.ReactNode;
-}) => {
-	const labelRef = useRef<HTMLSpanElement>(null);
-	const {glow, gradient} = useGlowGradient(labelRef);
-
-	return (
-		<div
-			data-group-label={label}
+}) => (
+	<div
+		data-group-label={label}
+		style={{
+			position: 'relative',
+			display: 'flex',
+			alignItems: 'center',
+			alignSelf: 'stretch',
+			...style,
+		}}
+	>
+		<GroupLabel
+			label={label}
 			style={{
-				position: 'relative',
-				display: 'flex',
-				alignItems: 'center',
-				alignSelf: 'stretch',
-				...style,
+				position: 'absolute',
+				left: 0,
+				bottom: '100%',
+				marginBottom: 4,
+				pointerEvents: 'none',
 			}}
-		>
-			<span
-				ref={labelRef}
-				aria-hidden
-				style={{
-					...GROUP_LABEL_STYLE,
-					position: 'absolute',
-					left: 0,
-					bottom: '100%',
-					marginBottom: 4,
-					pointerEvents: 'none',
-				}}
-			>
-				{/* Two copies side by side, so the faint one's opacity doesn't cap the lit one. */}
-				<span style={{color: GROUP_LABEL_COLOR, opacity: GROUP_LABEL_OPACITY}}>
-					{label}
-				</span>
-				{/* The lit copy over the faint one, the glow's gradient clipped to
-				    its letters, fading in and out on the border's own clock. */}
-				<span
-					style={{
-						position: 'absolute',
-						inset: 0,
-						color: 'transparent',
-						backgroundImage: gradient,
-						WebkitBackgroundClip: 'text',
-						backgroundClip: 'text',
-						opacity: glow.strength,
-						transition: 'opacity 140ms ease',
-					}}
-				>
-					{label}
-				</span>
-			</span>
-			{children}
-		</div>
-	);
-};
+		/>
+		{children}
+	</div>
+);
 
 // Narrows the board to tickets active in the window. Goes flat while the
 // ticket narrowing is on.

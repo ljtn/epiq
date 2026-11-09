@@ -4,11 +4,8 @@
 
 import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
-import {
-	GROUP_LABEL_COLOR,
-	GROUP_LABEL_OPACITY,
-	GROUP_LABEL_STYLE,
-} from '../lib/group-label.style';
+import {GroupLabel} from './GroupLabel';
+import {GlowArea} from './Panel';
 import {Button} from './Button';
 import {goalFilterTitle, GoalMark, GoalProgressLine} from './GoalMarks';
 import {ICON_SIZE, IconButton} from './IconButton';
@@ -156,27 +153,18 @@ export const GoalStrip = ({
 	onFilterByGoal: (goalId: string) => void;
 	onManage?: () => void;
 }) => (
-	<div
-		data-testid="goal-strip"
+	<GlowArea
+		testId="goal-strip"
 		style={{
 			display: 'flex',
 			flexDirection: 'column',
-			gap: 6,
+			gap: 4,
 			// In from the board's edge as far as a lane's title is.
-			padding: `10px ${COLUMN_PADDING}px 10px`,
+			padding: `4px ${COLUMN_PADDING}px 10px`,
 			flexShrink: 0,
 		}}
 	>
-		<span
-			aria-hidden
-			style={{
-				...GROUP_LABEL_STYLE,
-				color: GROUP_LABEL_COLOR,
-				opacity: GROUP_LABEL_OPACITY,
-			}}
-		>
-			Goals
-		</span>
+		<GroupLabel label="Goals" style={{alignSelf: 'flex-start'}} />
 		<div
 			style={{
 				display: 'flex',
@@ -209,5 +197,5 @@ export const GoalStrip = ({
 				</Button>
 			)}
 		</div>
-	</div>
+	</GlowArea>
 );
