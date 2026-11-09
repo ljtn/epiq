@@ -85,6 +85,8 @@ export {
 	windowIssueIds,
 	actorIdsByIssue,
 	issuePassesBoardFilter,
+	axisColor,
+	axisListsBoard,
 } from './series';
 export type {
 	EventCategory,

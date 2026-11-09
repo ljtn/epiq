@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
 import {
 	applySelectionPatch,
@@ -31,11 +31,14 @@ export const useBoardSelection = (): [
 
 	const query = searchParams.toString();
 
+	// A change that leaves a bare URL bare moves no params, but storage moved.
+	const [revision, setRevision] = useState(0);
+
 	const selection = useMemo(() => {
 		const fromParams = readSelectionParams(searchParams);
 
 		return fromParams ?? {...readStoredSelection(), ...carried.current.values};
-	}, [searchParams]);
+	}, [searchParams, revision]);
 
 	carried.current = carryRender(carried.current, query, selection);
 
@@ -67,16 +70,16 @@ export const useBoardSelection = (): [
 			// Carried now, not on the next render, which would read the old values back.
 			carried.current = carryChange(carried.current, next);
 
-			setSearchParams(
-				prev => {
-					const params = new URLSearchParams(prev);
-					writeSelectionParams(params, next);
-					return params;
-				},
-				{replace: true},
-			);
+			const params = new URLSearchParams(searchParams);
+			writeSelectionParams(params, next);
+			if (params.toString() === query) {
+				setRevision(value => value + 1);
+				return;
+			}
+
+			setSearchParams(params, {replace: true});
 		},
-		[selection, setSearchParams],
+		[selection, searchParams, query, setSearchParams],
 	);
 
 	return [selection, change];

@@ -50,6 +50,7 @@ import {
 	identityAxisFor,
 	isFilterAxis,
 	listIdentitiesByAxis,
+	axisListsBoard,
 	narrowedIds,
 	plottedView,
 	soleVisibleIdentity,
@@ -212,7 +213,7 @@ export const TimeScrubber = ({
 		{ref: string; title: string; assignee: GuiUser | null}
 	>;
 	// Every tag and person the board knows, per axis, for naming a selected
-	// identity the window itself holds no event for.
+	// identity the window itself holds no event for; for goals, the whole legend.
 	knownIdentities: Record<FilterAxis, GuiEventIdentity[]>;
 	// A change refetches the window: it decides which tickets the board shows and
 	// feeds the log, so it must include anything filed since.
@@ -559,7 +560,7 @@ export const TimeScrubber = ({
 
 		for (const axis of FILTER_AXES) {
 			lists[axis] = withSelectedIdentities(
-				listed[axis],
+				axisListsBoard(axis) ? knownIdentities[axis] : listed[axis],
 				narrowedIds(narrowingFor(only, axis)),
 				knownIdentities[axis],
 			);

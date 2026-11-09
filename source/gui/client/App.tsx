@@ -706,12 +706,9 @@ export const App = () => {
 			),
 		});
 
-	// The goal the board is narrowed to, only while it is still one of this board's.
-	const isolatedGoalId =
-		selection.goal &&
-		selectedBoard?.goals.some(goal => goal.id === selection.goal)
-			? selection.goal
-			: null;
+	// The same for goals, from a pill or a card's goal label.
+	const goalOnly = narrowedIds(selection.only.goal);
+	const isolatedGoalId = goalOnly?.length === 1 ? goalOnly[0] ?? null : null;
 	const goalPanel = useGoalPanel({
 		goals: state?.goals,
 		board: selectedBoard,
@@ -719,10 +716,12 @@ export const App = () => {
 		issueId,
 	});
 	const filterByGoal = (goalId: string) => {
-		const narrowing = isolatedGoalId !== goalId;
+		const next = isolateOnly(goalOnly, goalId);
 		// A pick left on a ticket the filter hides would still move with the rest.
-		if (narrowing) clearPicked();
-		changeSelection({goal: narrowing ? goalId : null});
+		if (next) clearPicked();
+		changeSelection({
+			only: withNarrowing(selection.only, 'goal', next ?? undefined),
+		});
 	};
 	// Over whatever the inspector held.
 	const openGoalPanel = (id: string, boardId = selectedBoardId) => {
@@ -734,17 +733,30 @@ export const App = () => {
 		// One subject: the ticket goes too. Another board's goal navigates there.
 		if (issueId && boardId === selectedBoardId) closeIssueDetails();
 	};
-	// A closed goal is off every working board, so its filter ends with it. A
-	// scrub only looks at the past, and leaves the filter for the way back.
-	const narrowedToGoneGoal =
-		state?.timeTravel?.mode !== 'scrub' &&
+	// A closed or removed goal is off every working board, so the axis lets it
+	// go. A scrub only looks at the past, and leaves the filter for the way back.
+	const goneGoalIds =
+		state &&
+		state.timeTravel?.mode !== 'scrub' &&
 		selectedBoard &&
 		selectedBoard.id !== CLOSED_BOARD_ID &&
-		state?.goals.some(goal => goal.id === selection.goal && goal.closed);
+		goalOnly
+			? goalOnly.filter(
+					id => !state.goals.some(goal => goal.id === id && !goal.closed),
+			  )
+			: [];
+	const goneGoalKey = goneGoalIds.join();
 	useEffect(() => {
-		if (!narrowedToGoneGoal) return;
-		changeSelection({goal: null});
-	}, [narrowedToGoneGoal]);
+		if (!goneGoalKey || !goalOnly) return;
+		const kept = goalOnly.filter(id => !goneGoalIds.includes(id));
+		changeSelection({
+			only: withNarrowing(
+				selection.only,
+				'goal',
+				kept.length > 0 ? kept : undefined,
+			),
+		});
+	}, [goneGoalKey]);
 	const detailedGoal = goalPanel.goal;
 	// One navigation, so no render stands on the old board narrowed to it.
 	const openClosedGoal = (goalId: string) => {
@@ -753,7 +765,9 @@ export const App = () => {
 		const params = new URLSearchParams();
 		writeSelectionParams(
 			params,
-			applySelectionPatch(selection, {goal: goalId}),
+			applySelectionPatch(selection, {
+				only: withNarrowing(selection.only, 'goal', [goalId]),
+			}),
 		);
 		void navigate(`/board/${nodeRef(CLOSED_BOARD_ID)}?${params}`);
 	};
@@ -810,13 +824,28 @@ export const App = () => {
 		}
 		const users = [...people.values()];
 
+		// The board's goals, and any the axis names that are off it, so they can be unticked.
+		const goals = (state?.goals ?? []).filter(
+			goal =>
+				selectedBoard?.goals.some(onBoard => onBoard.id === goal.id) ||
+				goalOnly?.includes(goal.id),
+		);
+
 		return {
 			tag: state?.tags ?? [],
+			goal: goals.map(({id, name, color}) => ({id, name, color})),
 			commenter: users,
 			assignee: users,
 			actor: users,
 		} satisfies Record<FilterAxis, GuiEventIdentity[]>;
-	}, [state?.tags, state?.contributors, contributors]);
+	}, [
+		state?.tags,
+		state?.contributors,
+		contributors,
+		state?.goals,
+		selectedBoard?.goals,
+		goalOnly,
+	]);
 
 	// Every ticket on every board by its ref, for the chart: it plots the
 	// repository, so a link there can name a ticket on any board.
@@ -890,8 +919,7 @@ export const App = () => {
 			boardFilter.length === 0 &&
 			!query &&
 			windowIds === null &&
-			!isolatedIssueId &&
-			!isolatedGoalId
+			!isolatedIssueId
 		)
 			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
 
@@ -915,8 +943,7 @@ export const App = () => {
 					) &&
 					issueMatchesText(issue, query) &&
 					(windowIds === null || windowIds.has(issue.id)) &&
-					(!isolatedIssueId || issue.id === isolatedIssueId) &&
-					(!isolatedGoalId || issue.goal?.id === isolatedGoalId),
+					(!isolatedIssueId || issue.id === isolatedIssueId),
 			);
 
 			hidden += swimlane.issues.length - issues.length;
@@ -933,7 +960,6 @@ export const App = () => {
 		eventActorIds,
 		windowIds,
 		isolatedIssueId,
-		isolatedGoalId,
 	]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 
@@ -2153,10 +2179,9 @@ export const App = () => {
 										showsGoalStrip(selectedBoard, state?.goals ?? []) && (
 											<GoalStrip
 												goals={selectedBoard.goals}
-												isolatedGoalId={isolatedGoalId}
+												narrowedGoalIds={goalOnly}
 												selectedGoalId={shownGoal?.id ?? null}
 												onOpenGoal={toggleGoalPanel}
-												onFilterByGoal={filterByGoal}
 												onManage={
 													selectedBoard.readonly
 														? undefined

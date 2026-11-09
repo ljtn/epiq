@@ -10,9 +10,7 @@ import {
 	GROUP_LABEL_STYLE,
 } from '../lib/group-label.style';
 import {Button} from './Button';
-import {goalFilterTitle, GoalMark, GoalProgressLine} from './GoalMarks';
-import {ICON_SIZE, IconButton} from './IconButton';
-import {IconFunnel} from './IconFunnel';
+import {GoalMark, GoalProgressLine} from './GoalMarks';
 import {COLUMN_PADDING} from './SwimlaneColumn';
 
 const GoalPill = ({
@@ -20,14 +18,13 @@ const GoalPill = ({
 	narrowed,
 	selected,
 	onOpen,
-	onFilter,
 }: {
 	goal: GuiBoardGoal;
+	// The board filter is narrowed to it.
 	narrowed: boolean;
 	// Its panel is the one open.
 	selected: boolean;
 	onOpen: () => void;
-	onFilter: () => void;
 }) => {
 	const share = goal.total > 0 ? goal.done / goal.total : 0;
 	// Counted on every board; said, as the filter shows only this one's.
@@ -39,6 +36,7 @@ const GoalPill = ({
 			data-testid="goal-pill"
 			data-goal-id={goal.id}
 			data-selected={selected}
+			data-narrowed={narrowed}
 			style={{
 				position: 'relative',
 				overflow: 'hidden',
@@ -75,7 +73,7 @@ const GoalPill = ({
 					alignItems: 'center',
 					gap: 8,
 					minWidth: 0,
-					padding: '0 8px 0 10px',
+					padding: '0 10px',
 					color: 'inherit',
 					background: 'transparent',
 					border: 'none',
@@ -105,24 +103,6 @@ const GoalPill = ({
 					{goal.done}/{goal.total}
 				</span>
 			</button>
-			<IconButton
-				testId="goal-pill-filter"
-				title={goalFilterTitle(narrowed)}
-				pressed={narrowed}
-				onClick={event => {
-					event.stopPropagation();
-					onFilter();
-				}}
-			>
-				<span
-					style={{
-						display: 'inline-flex',
-						color: narrowed ? goal.color : undefined,
-					}}
-				>
-					<IconFunnel size={ICON_SIZE} />
-				</span>
-			</IconButton>
 			{/* Along its foot, clear of the rounded corners. */}
 			<GoalProgressLine
 				color={goal.color}
@@ -143,17 +123,16 @@ const GoalPill = ({
 
 export const GoalStrip = ({
 	goals,
-	isolatedGoalId,
+	narrowedGoalIds,
 	selectedGoalId,
 	onOpenGoal,
-	onFilterByGoal,
 	onManage,
 }: {
 	goals: GuiBoardGoal[];
-	isolatedGoalId: string | null;
+	// The goals the board filter is narrowed to, or null where it names none.
+	narrowedGoalIds: readonly string[] | null;
 	selectedGoalId: string | null;
 	onOpenGoal: (goalId: string) => void;
-	onFilterByGoal: (goalId: string) => void;
 	onManage?: () => void;
 }) => (
 	<div
@@ -189,10 +168,9 @@ export const GoalStrip = ({
 				<GoalPill
 					key={goal.id}
 					goal={goal}
-					narrowed={goal.id === isolatedGoalId}
+					narrowed={narrowedGoalIds?.includes(goal.id) ?? false}
 					selected={goal.id === selectedGoalId}
 					onOpen={() => onOpenGoal(goal.id)}
-					onFilter={() => onFilterByGoal(goal.id)}
 				/>
 			))}
 			{onManage && (
