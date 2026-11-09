@@ -95,7 +95,12 @@ export const bodyRefs = (body: string): string[] => [
 
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
-type RefRead = {candidates: CommitEntry[]; order: string[]};
+// Each candidate's next sha in the whole walk, matched or not: all that is
+// kept of a history that can be far longer than the ticket's share of it.
+type RefRead = {
+	candidates: CommitEntry[];
+	precedingOf: Map<string, string | undefined>;
+};
 
 // A clone's reads for some refs, held until its `version` changes, as its
 // full scan is. The board's own repo is read afresh: it is cheap there.
@@ -370,9 +375,16 @@ const readRefSource = async (
 		if (isFail(candidates)) return failed(candidates.message);
 		const order = await readSourceOrder(source);
 		if (isFail(order)) return failed(order.message);
+
+		const wanted = new Set(candidates.value.map(commit => commit.sha));
+		const precedingOf = new Map<string, string | undefined>();
+		order.value.forEach((sha, index) => {
+			if (wanted.has(sha)) precedingOf.set(sha, order.value[index + 1]);
+		});
+
 		return succeeded('Read commits naming the refs', {
 			candidates: candidates.value,
-			order: order.value,
+			precedingOf,
 		});
 	};
 	const result = await read();
@@ -527,15 +539,12 @@ const refsMatchesBySource = async (
 	// the whole walk, matched or not; only a candidate can share a ticket.
 	return succeeded(
 		'Matched commits by ref',
-		readsResult.value.map(({candidates, order}) => {
+		readsResult.value.map(({candidates, precedingOf}) => {
 			const ticketsBySha = new Map<string, string[]>();
 			for (const commit of candidates) {
 				const tickets = ticketsOf(commit);
 				if (tickets.length > 0) ticketsBySha.set(commit.sha, tickets);
 			}
-			const precedingOf = new Map(
-				order.map((sha, index) => [sha, order[index + 1]]),
-			);
 
 			const matched: RefsCommitEntry[] = [];
 			for (const commit of candidates) {
