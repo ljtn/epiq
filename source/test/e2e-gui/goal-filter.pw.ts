@@ -124,6 +124,7 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	);
 	await aside.getByRole('button', {name: 'Overview', exact: true}).click();
 
+	await memberRow.getByTestId('goal-member-toggle').click();
 	await memberRow.getByTestId('goal-member-open').click();
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 	await expect(page.locator('aside')).toContainText(member);
@@ -684,6 +685,62 @@ test("a goal's panel shows its ref, to copy and name it to an agent", async ({
 	await expect(
 		page.getByTestId('goal-details').getByTestId('copy-ref'),
 	).toHaveText(id!.slice(-7).toUpperCase());
+
+	expect(pageErrors).toEqual([]);
+});
+
+test("a goal's ticket row unfolds its description, with a way to the ticket", async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const goal = `Unfolding ${stamp}`;
+	const member = `Unfolds ${stamp}`;
+	const description = `Why this matters ${stamp}`;
+
+	await addTicket(page, member);
+	const aside = page.locator('aside');
+	await aside.getByTestId('description-edit').click();
+	await aside.getByTestId('description-input').fill(description);
+	await aside.getByTestId('description-save').click();
+	await expect(aside).toContainText(description);
+	await startGoal(page, goal);
+
+	await pill(page, goal).getByTestId('goal-pill-open').click();
+	const row = page.getByTestId('goal-member').filter({hasText: member});
+	const toggle = row.getByTestId('goal-member-toggle');
+
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	await expect(row.getByTestId('goal-member-details')).toContainText(
+		description,
+	);
+	// Unfolding reads, it doesn't leave the goal.
+	await expect(page.getByTestId('goal-details')).toBeVisible();
+
+	await toggle.click();
+	await expect(row.getByTestId('goal-member-details')).toHaveCount(0);
+
+	// An edit made elsewhere reaches a row left open.
+	await toggle.click();
+	const edited = `Rewritten ${stamp}`;
+	const elsewhere = await page.context().newPage();
+	await openBoard(elsewhere, appUrl);
+	await card(elsewhere, member).click();
+	const theirs = elsewhere.locator('aside');
+	await theirs.getByTestId('description-edit').click();
+	await theirs.getByTestId('description-input').fill(edited);
+	await theirs.getByTestId('description-save').click();
+	await expect(theirs).toContainText(edited);
+	await elsewhere.close();
+	await expect(row.getByTestId('goal-member-details')).toContainText(edited);
+
+	await row.getByTestId('goal-member-open').click();
+	await expect(page.getByTestId('goal-details')).toHaveCount(0);
+	await expect(aside).toContainText(member);
 
 	expect(pageErrors).toEqual([]);
 });
