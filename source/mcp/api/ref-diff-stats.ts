@@ -3,26 +3,11 @@
 
 import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
 import {RefDiffTimeline} from '../../lib/stats/ref-diff-stats.model.js';
-import {NODE_REF_LENGTH} from '../../lib/utils/node-ref.js';
 import {CommitEntry} from '../../lib/commits/commits.js';
-import {getRefCommitTimeline} from '../../lib/commits/commit-timeline.js';
-
-// The same loose shape `getCommitsForRef` matches, so the two never disagree.
-const REF_TOKEN = new RegExp(`^[0-9A-Z]{${NODE_REF_LENGTH}}$`);
-
-/** The ref a subject names, or null — `"5S52AC8 message"` -> `"5S52AC8"`. */
-const leadingRef = (subject: string): string | null => {
-	const space = subject.indexOf(' ');
-	if (space === -1) return null;
-
-	const token = subject.slice(0, space).toUpperCase();
-
-	return REF_TOKEN.test(token) ? token : null;
-};
-
-/** Whether a commit names any ticket, as collectRefDiffTimeline counts it. */
-const namesATicket = (commit: CommitEntry): boolean =>
-	leadingRef(commit.subject) !== null || (commit.refs?.length ?? 0) > 0;
+import {
+	getRefCommitTimeline,
+	leadingRef,
+} from '../../lib/commits/commit-timeline.js';
 
 export const collectRefDiffTimeline = (
 	commits: readonly CommitEntry[],
@@ -51,10 +36,7 @@ export const collectRefDiffTimeline = (
 export const getRefDiffTimeline = async (
 	input: {repoRoot?: string} = {},
 ): Promise<Result<RefDiffTimeline>> => {
-	const timelineResult = await getRefCommitTimeline(
-		input.repoRoot,
-		namesATicket,
-	);
+	const timelineResult = await getRefCommitTimeline(input.repoRoot);
 	if (isFail(timelineResult)) return timelineResult;
 
 	return succeeded(

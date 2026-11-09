@@ -512,6 +512,23 @@ const mergeNewestFirst = <T extends CommitEntry>(lists: T[][]): T[] => {
 	return nonEmpty.flat().sort((a, b) => b.time - a.time);
 };
 
+// The loose shape a subject's lead is read with, so totals and lists agree.
+const LEAD_REF = new RegExp(`^[0-9A-Z]{${NODE_REF_LENGTH}}$`);
+
+/** The ref a subject names, or null — `"5S52AC8 message"` -> `"5S52AC8"`. */
+export const leadingRef = (subject: string): string | null => {
+	const space = subject.indexOf(' ');
+	if (space === -1) return null;
+
+	const token = subject.slice(0, space).toUpperCase();
+
+	return LEAD_REF.test(token) ? token : null;
+};
+
+/** Whether a commit names any ticket, by its subject's lead or an Epiq-Ref line. */
+export const namesATicket = (commit: CommitEntry): boolean =>
+	leadingRef(commit.subject) !== null || (commit.refs?.length ?? 0) > 0;
+
 const detachedCommit = (commit: CommitEntry): CommitEntry => ({
 	...commit,
 	sha: detached(commit.sha),
@@ -528,7 +545,6 @@ const detachedCommit = (commit: CommitEntry): CommitEntry => ({
  */
 const readRefCommits = async (
 	source: CommitSource,
-	names: (commit: CommitEntry) => boolean,
 ): Promise<Result<CommitEntry[]>> => {
 	const cacheKey = [
 		source.cwd,
@@ -558,7 +574,7 @@ const readRefCommits = async (
 
 		// Copies: a slice of the walk's output would keep all of it alive.
 		const named = parseLog(walk.value.stdout, source, separators)
-			.filter(names)
+			.filter(namesATicket)
 			.map(detachedCommit);
 		if (named.length === 0) return succeeded('No commit names a ticket', []);
 
@@ -616,11 +632,8 @@ const readRefCommits = async (
  */
 export const getRefCommitTimeline = async (
 	repoRoot: string | undefined,
-	names: (commit: CommitEntry) => boolean,
 ): Promise<Result<CommitEntry[]>> => {
-	const lists = await readEverySource(repoRoot, source =>
-		readRefCommits(source, names),
-	);
+	const lists = await readEverySource(repoRoot, readRefCommits);
 	if (isFail(lists)) return failed(lists.message);
 
 	return succeeded(
