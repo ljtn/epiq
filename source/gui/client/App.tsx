@@ -2375,6 +2375,8 @@ export const App = () => {
 										setPickedIssueIds([id]);
 										openIssueTab(id, 'overview', boardRef);
 									}}
+									previewFor={ticketPreviewFor}
+									requestPreview={requestTicketPreview}
 									onClose={() => goalPanel.close()}
 								/>
 							)}
