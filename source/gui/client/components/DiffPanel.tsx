@@ -31,19 +31,24 @@ const PIERRE_THEME = EPIQ_DIFF_THEME;
 
 // The box a file's diff sits in. Shared with whatever stands in for the diff
 // while it is collapsed, so a file looks the same shut as open.
-export const DIFF_BOX_STYLE = {
+export const DIFF_BOX_STYLE: React.CSSProperties = {
 	...CODE_TEXT_VARS,
-	// Half the library's tint, so a changed line keeps its syntax colours readable.
-	'--diffs-bg-addition-override':
-		'color-mix(in lab, var(--diffs-bg) 90%, var(--diffs-addition-base))',
-	'--diffs-bg-deletion-override':
-		'color-mix(in lab, var(--diffs-bg) 90%, var(--diffs-deletion-base))',
 	marginBottom: 16,
 	border: `1px solid ${GUI_THEME.line}`,
 	borderRadius: 8,
 	// Clip, not hidden: a scroll container would stop the header sticking.
 	overflow: 'clip',
-} as React.CSSProperties;
+};
+
+// Half the library's tint, so a changed line keeps its syntax colours. The
+// override is what the line mixes 20% of in, so a 50% blend halves it. Inside
+// the shadow root, where the library's own variables resolve.
+const DIFF_LINE_CSS = ['addition', 'deletion']
+	.map(
+		kind =>
+			`[data-line-type='change-${kind}'] { --diffs-bg-${kind}-override: color-mix(in lab, var(--diffs-bg) 50%, var(--diffs-${kind}-base)); }`,
+	)
+	.join('\n');
 
 const FileDiffViewInner = <LAnnotation = undefined,>({
 	file,
@@ -96,6 +101,7 @@ const FileDiffViewInner = <LAnnotation = undefined,>({
 					// Keeps a file's name pinned while any of its diff is on screen.
 					stickyHeader: true,
 					overflow: wrap ? 'wrap' : 'scroll',
+					unsafeCSS: DIFF_LINE_CSS,
 				}}
 				selectedLines={selectedLines}
 				lineAnnotations={lineAnnotations}
