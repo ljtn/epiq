@@ -10,6 +10,10 @@ import {
 } from '../lib/commits/commits.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
+import {
+	collectRefDiffTimeline,
+	getRefDiffTimeline,
+} from '../mcp/api/ref-diff-stats.js';
 
 // Real git log output from the board's own repo, read the way every source is.
 
@@ -198,5 +202,36 @@ describe('a ref set past the search limit', () => {
 
 		expect(searched).toHaveLength(4);
 		expect(scanned).toEqual(searched);
+	});
+});
+
+// The cards' totals diff only the commits naming a ticket; summed, they must
+// equal what the full scan of every commit gives.
+describe("tickets' diff totals", () => {
+	const commitFile = (message: string[], file: string, lines: number) => {
+		fs.writeFileSync(
+			path.join(board, file),
+			Array.from({length: lines}, (_, n) => `line ${n}\n`).join(''),
+		);
+		childProcess.execFileSync('git', ['add', file], {cwd: board});
+		commit(board, 'Ada', message);
+	};
+
+	it('match the full scan, from only the commits that name a ticket', async () => {
+		commitFile(['B8PYTCM start'], 'a.txt', 12);
+		commitFile(['unrelated change'], 'b.txt', 40);
+		commitFile(['wire it up', 'Epiq-Ref: W1TCS14, B8PYTCM'], 'a.txt', 5);
+		commitFile(['w1tcs14 lower-case lead'], 'c.txt', 3);
+		commitFile(['W1TCS14X not a ref'], 'd.txt', 9);
+
+		resetCommitTimelineCacheForTests();
+		const fromScan = collectRefDiffTimeline(
+			value(await getCommitTimeline({repoRoot: board})),
+		);
+		resetCommitTimelineCacheForTests();
+		const fromNamed = value(await getRefDiffTimeline({repoRoot: board}));
+
+		expect(Object.keys(fromNamed).sort()).toEqual(['B8PYTCM', 'W1TCS14']);
+		expect(fromNamed).toEqual(fromScan);
 	});
 });
