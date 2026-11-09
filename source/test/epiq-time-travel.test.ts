@@ -136,10 +136,33 @@ const cannedLog =
 		const format = args
 			.find(arg => arg.startsWith('--format='))!
 			.slice('--format='.length);
+
+		// The walk for each commit's predecessor: shas alone, in order.
+		if (!format.includes('%at')) {
+			const shas = stdout
+				.split('\x1e')
+				.filter(entry => entry.trim())
+				.map(entry => entry.split('\n')[0]!.split('\x1f')[0]);
+			return succeeded('git log', {
+				stdout: `${shas.join('\n')}\n`,
+				stderr: '',
+				exitCode: 0,
+			});
+		}
+
+		// As git's own search does: any message naming a grepped ref.
+		const greps = args
+			.filter(arg => arg.startsWith('--grep='))
+			.map(arg => arg.slice('--grep='.length).toLowerCase());
+		const named = (entry: string) =>
+			greps.length === 0 ||
+			greps.some(grep => entry.toLowerCase().includes(grep));
+
 		const [, record, field, body, end] =
 			/^(.*)%H(.*)%at\2%an\2%ae\2%s(.*)%b(.*)$/s.exec(format)!;
 		const respelled = stdout
 			.split('\x1e')
+			.filter(entry => !entry || named(entry))
 			.map(entry => {
 				if (!entry) return entry;
 				const [header = '', ...rest] = entry.split('\n');
@@ -1122,9 +1145,9 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(false);
 		});
 
-		// The scrubber's 'commits:get' usually fires just before the Commits tab's;
-		// the cache collapses them into one git call.
-		it('reuses a timeline already scanned for a different ref instead of re-scanning', async () => {
+		// git's search narrows a long history to the ticket's own commits; the
+		// stats-bearing full scan is the timeline's alone.
+		it("finds a ticket's commits through git's search, never the full scan", async () => {
 			vi.mocked(execGit).mockImplementation(
 				cannedLog(
 					`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 add the tool\n` +
@@ -1135,7 +1158,13 @@ describe('epiq-time-travel', () => {
 			const first = await getCommitsForRef({ref: '5S52AC8'});
 			const second = await getCommitsForRef({ref: 'QG9544B'});
 
-			expect(execGit).toHaveBeenCalledTimes(1);
+			const statReads = vi
+				.mocked(execGit)
+				.mock.calls.map(([call]) => call.args)
+				.filter(args => args.includes('--shortstat'));
+			expect(
+				statReads.map(args => args.filter(a => a.startsWith('--grep='))),
+			).toEqual([['--grep=5S52AC8'], ['--grep=QG9544B']]);
 			expect(isSuccess(first) && first.value.map(c => c.sha)).toEqual([
 				'aaa111',
 			]);
