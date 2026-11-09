@@ -68,7 +68,7 @@ test('each group on the controls row wears its name above it', async ({
 	await expect(page.getByTestId('spotlight')).toBeVisible();
 
 	const groups = page.locator('[data-group-label]');
-	await expect(groups).toHaveCount(7);
+	await expect(groups).toHaveCount(8);
 	expect(
 		await groups.evaluateAll(nodes =>
 			nodes.map(
@@ -78,7 +78,16 @@ test('each group on the controls row wears its name above it', async ({
 					],
 			),
 		),
-	).toEqual(['Graph', 'Cards', 'Scope', 'Narrow', 'Filter', 'Live', 'Replay']);
+	).toEqual([
+		'Graph',
+		'Cards',
+		'Scope',
+		'Narrow',
+		'Filter commits',
+		'Filter board',
+		'Live',
+		'Replay',
+	]);
 
 	for (const group of await groups.all()) {
 		const box = await group.boundingBox();
