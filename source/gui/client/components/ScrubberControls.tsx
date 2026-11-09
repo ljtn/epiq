@@ -311,17 +311,7 @@ export const ScrubberControls = ({
 			{/* The row's slack, between the window controls and the pickers. */}
 			<div aria-hidden style={{flex: '1 1 0', minWidth: 0}} />
 
-			<LabelledGroup
-				label="Filter"
-				style={{
-					// A touch closer than the row's own gap: this is one group of
-					// narrowings, and it is the row's widest at a laptop's width.
-					gap: 10,
-					// Shrinkable past its content, which is what lets the text filter
-					// in it give way on a tight row; nothing else in here can.
-					minWidth: 0,
-				}}
-			>
+			<LabelledGroup label="Filter commits">
 				<CommitSeriesGroup
 					connected={connected}
 					idle={layoutMode === 'flow'}
@@ -335,6 +325,19 @@ export const ScrubberControls = ({
 					onChangeLinesMeasure={onChangeLinesMeasure}
 					onToggleRepo={onToggleCommitRepo}
 				/>
+			</LabelledGroup>
+
+			<LabelledGroup
+				label="Filter board"
+				style={{
+					// A touch closer than the row's own gap: the board's narrowings
+					// are one group, and the row's widest at a laptop's width.
+					gap: 10,
+					// Shrinkable past its content, which is what lets the text filter
+					// in it give way on a tight row; nothing else in here can.
+					minWidth: 0,
+				}}
+			>
 				<BoardSeriesGroup
 					connected={connected}
 					showIssues={showIssues}
