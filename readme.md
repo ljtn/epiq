@@ -1,7 +1,7 @@
 # Epiq — `ghpages` (website only)
 
 This branch holds **only the published website** served at
-<https://ljtn.github.io/epiq/> from the [`docs/`](./docs) folder. It is *not*
+<https://epiq.sh/> from the [`docs/`](./docs) folder. It is *not*
 the application source.
 
 ```

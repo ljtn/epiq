@@ -34,8 +34,7 @@
 	--line: rgba(78, 84, 133, 0.315);
 	--cyan: #75d2fd;
 	--violet: #c6a7ff;
-	--deepBlue: #2370dc;
-	/* docs group labels: a calmer blue than --deepBlue */
+	/* docs group labels and the footer's column heads */
 	--groupBlue: #5a82bd;
 	--shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
 	--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -173,16 +172,16 @@ pre {
 	min-height: 44px;
 	padding: 0 18px;
 	border: 1px solid var(--line);
-	border-radius: 1px;
-	background: rgba(255, 255, 255, 0.06);
+	border-radius: 2px;
+	/* the copy box's surface, so every button on a page reads as one family */
+	background: rgba(0, 0, 0, 0.34);
 	color: var(--text);
 	font-size: 14px;
 	transition: transform 0.18s ease, border-color 0.18s ease,
 		background 0.18s ease;
 }
 .btn:hover {
-	border-color: rgba(255, 255, 255, 0.26);
-	background: rgba(255, 255, 255, 0.09);
+	border-color: rgba(140, 176, 232, 0.45);
 }
 
 .btn.primary {
@@ -217,41 +216,57 @@ h1,
 	line-height: 0.86;
 	max-width: 860px;
 }
-/* A sentence breaks only after its full stop, never inside it. The second
-   is muted so it and the kicker read as one quiet block under the first. */
-.hero-title .line {
-	display: inline-block;
-}
-.hero-title .line:last-child {
-	color: var(--muted);
-}
-.hero .kicker {
-	font-size: clamp(13px, 1.6vw, 16px);
-	margin-bottom: 16px;
-}
-.hero .lead {
+/* The h1 at the hero size; the second line sized to end under "tracking" (14
+   of the h1's 0.5em characters), so "as code" stands out past it, and the
+   third in spaced capitals to end under "code". --s keeps the h1 within the block. */
+.hero .hero-title {
 	max-width: none;
-	font-size: clamp(18px, 2.6vw, 24px);
+	margin-bottom: 40px;
+	container-type: inline-size;
+	line-height: 1.08;
 }
-.hero .lead span {
-	color: inherit;
+.hero-title > * {
+	--s: min(90px, 100cqi / 11.15);
+	margin: 0;
+	font: inherit;
+	letter-spacing: -0.1em;
+	line-height: inherit;
 	white-space: nowrap;
 }
-.hero .lead .sep {
-	margin: 0 0.54em 0 0.3em;
-	color: var(--dim);
+.hero-title > :nth-child(1) {
+	font-size: var(--s);
 }
-/* Below the width where all three phrases fit one line they stack instead of
-   breaking mid-phrase. */
-@media (max-width: 1000px) {
-	.hero .lead span {
+.hero-title > :nth-child(2) {
+	margin-top: calc(var(--s) * 0.12);
+	font-size: max(20px, var(--s) * 7 / 15.5);
+	color: color-mix(in srgb, var(--text) 75%, transparent);
+}
+.hero-title > :nth-child(3) {
+	margin-top: calc(var(--s) * 0.6);
+	font-size: calc(var(--s) * 0.3038);
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: color-mix(in srgb, var(--dim) 75%, transparent);
+}
+/* At its floor the third line's spacing tightens so it keeps to one row. */
+@media (max-width: 620px) {
+	.hero-title > :nth-child(3) {
+		font-size: max(12px, var(--s) * 7 / 34.56);
+		letter-spacing: 0.02em;
+	}
+	/* "as code" on its own line, so --s fits the 14 of "Issue tracking". */
+	.hero-title > * {
+		--s: min(90px, 100cqi / 7.15);
+	}
+	.hero-title h1 span {
 		display: block;
 	}
-	.hero .lead .sep {
-		display: none;
-	}
 }
-
+/* Below their floors the two smaller lines wrap rather than shrink further. */
+.hero-title > :not(:first-child) {
+	white-space: normal;
+	text-wrap: balance;
+}
 .lead {
 	max-width: 710px;
 	text-wrap: balance;
@@ -696,7 +711,7 @@ aside:not(.docs-layout > aside) {
 	font: 12px var(--mono);
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
-	color: var(--deepBlue);
+	color: var(--groupBlue);
 	margin-bottom: 4px;
 }
 .footer-foot {
@@ -739,7 +754,10 @@ aside:not(.docs-layout > aside) {
 		padding: 0 12px;
 	}
 	.hero {
-		padding-top: 52px;
+		padding: 36px 0 32px;
+	}
+	.hero-grid {
+		min-height: 0;
 	}
 	/* Keep "Issue Tracking." on one line down to 375px-wide phones. */
 	h1,
@@ -888,7 +906,8 @@ aside:not(.docs-layout > aside) {
 }
 /* Border light that follows the pointer; docs/glow.js sets --gx, --gy, --gp. */
 .copy-cmd,
-.hero-cta {
+.hero-cta,
+.links .btn {
 	position: relative;
 }
 /* The light replaces the bright hover border. */
@@ -897,6 +916,7 @@ aside:not(.docs-layout > aside) {
 }
 .copy-cmd::after,
 .hero-cta::after,
+.links .btn::after,
 .nav::after {
 	content: "";
 	position: absolute;
@@ -910,7 +930,8 @@ aside:not(.docs-layout > aside) {
 	);
 }
 .copy-cmd::after,
-.hero-cta::after {
+.hero-cta::after,
+.links .btn::after {
 	inset: -1px;
 	padding: 1px;
 	border-radius: inherit;
@@ -947,9 +968,8 @@ aside:not(.docs-layout > aside) {
 	align-items: center;
 	padding: 0 16px;
 	color: color-mix(in srgb, var(--text) calc(var(--gp, 0) * 100%), var(--dim));
-	transition: color 0.15s;
+	transition: color 0.15s, background 0.15s;
 	border-left: 1px solid var(--line);
-	background: rgba(255, 255, 255, 0.04);
 	font-size: 12px;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
@@ -963,6 +983,11 @@ aside:not(.docs-layout > aside) {
 }
 .copy-cmd.copied .copy-cmd-ico {
 	color: var(--cyan);
+}
+/* The copy segment fills when the pointer is on it, not on the command. */
+.copy-cmd .copy-cmd-ico:hover,
+.copy-cmd:focus-visible .copy-cmd-ico {
+	background: rgba(255, 255, 255, 0.04);
 }
 
 /* Active nav link */
@@ -1945,4 +1970,22 @@ h2 {
 }
 .feed-link:hover .accent {
 	color: var(--cyan);
+}
+
+#repos .media-placeholder {
+	min-height: 0;
+}
+#repos .media-placeholder > picture {
+	display: contents;
+}
+#repos .media-placeholder img {
+	width: 100%;
+	max-width: 720px;
+	height: auto;
+	box-shadow: none;
+}
+@media (max-width: 760px) {
+	#repos .media-placeholder img {
+		max-width: 440px;
+	}
 }

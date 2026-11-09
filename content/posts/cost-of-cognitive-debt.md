@@ -3,6 +3,7 @@ title: The Cost of Cognitive Debt
 date: 2026-08-25
 tags: ai, architecture, ddd, programming
 cover_alt: A wide, dark abstract banner
+guid: https://ljtn.github.io/epiq/blog/cost-of-cognitive-debt.html
 ---
 
 It is easy to end up in one of two absolutes: either agentic workflows are the future and mark the end of traditional coding, or, agentic workflows have no place in modern software development whatsoever. However, there may be a third way, one that recognizes the problems, and addresses the risk in a methodical way.

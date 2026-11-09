@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Sandboxes favor repo-native tooling — Epiq</title>
+
+		<meta name="description" content="Recent incidents involving rogue agents highlight the importance of sandboxing. A common setup is a privileged gatekeeper agent on your host machine whose…" />
+		<meta name="theme-color" content="#090a0f" />
+		<link rel="canonical" href="https://epiq.sh/blog/repo-native-tooling-for-sandboxes" />
+
+		<meta property="og:title" content="Sandboxes favor repo-native tooling — Epiq" />
+		<meta property="og:description" content="Recent incidents involving rogue agents highlight the importance of sandboxing. A common setup is a privileged gatekeeper agent on your host machine whose…" />
+		<meta property="og:url" content="https://epiq.sh/blog/repo-native-tooling-for-sandboxes" />
+		<meta property="og:type" content="article" />
+		<meta property="og:site_name" content="Epiq" />
+		<meta property="og:image" content="https://epiq.sh/blog/images/repo-native-tooling-for-sandboxes-og.jpg" />
+		<meta property="og:image:alt" content="Three robots at work in a walled sandbox, planning, coding and reviewing; outside, a gatekeeper robot on the phone passes a note into a mailbox inside" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:image" content="https://epiq.sh/blog/images/repo-native-tooling-for-sandboxes-og.jpg" />
+		<meta property="article:published_time" content="2026-10-30" />
+		<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Sandboxes favor repo-native tooling",
+  "description": "Recent incidents involving rogue agents highlight the importance of sandboxing. A common setup is a privileged gatekeeper agent on your host machine whose…",
+  "datePublished": "2026-10-30",
+  "author": {
+    "@type": "Person",
+    "name": "Jonatan Lampa"
+  },
+  "url": "https://epiq.sh/blog/repo-native-tooling-for-sandboxes"
+}
+		</script>
+		<link rel="alternate" type="application/rss+xml" title="Epiq blog" href="https://epiq.sh/blog/feed.xml" />
+		<link rel="icon" href="../favicon.ico" sizes="any" />
+		<link rel="stylesheet" href="../styles.css" />
+	</head>
+	<body>
+		<nav class="nav">
+			<div class="wrap nav-inner">
+				<a class="brand" href="../" aria-label="Epiq home">
+					<span><span class="accent">:</span>epiq</span>
+				</a>
+				<div class="links">
+					<a class="cmd-link" href="../docs" aria-label="Documentation"
+						><span class="accent">:</span>docs</a
+					>
+					<a
+						class="cmd-link active"
+						href="../blog"
+						aria-label="Blog"
+						><span class="accent">:</span>blog</a
+					>
+					<a class="cmd-link" href="../releases" aria-label="Releases"
+						><span class="accent">v</span><span class="nav-version">1.16.2</span></a
+					>
+					<a class="btn" href="https://github.com/ljtn/epiq" aria-label="Epiq on GitHub">
+						<span>GitHub</span>
+					</a>
+				</div>
+			</div>
+		</nav>
+
+		<main id="top">
+			<article class="article wrap">
+				<header class="article-head">
+					<a class="article-back" href="../blog">← Blog</a>
+					<h1>Sandboxes favor repo-native tooling</h1>
+					<div class="article-meta">Oct 30, 2026  ·  3 min read</div>
+					<div class="post-tags"><span class="post-tag">#ai</span><span class="post-tag">#agents</span><span class="post-tag">#security</span></div>
+				</header>
+
+				<figure class="article-cover">
+					<img src="./images/repo-native-tooling-for-sandboxes-hero.svg" alt="Three robots at work in a walled sandbox, planning, coding and reviewing; outside, a gatekeeper robot on the phone passes a note into a mailbox inside" />
+				</figure>
+
+				<div class="prose">
+					<p>Recent incidents involving rogue agents highlight the importance of sandboxing. A common setup is a privileged gatekeeper agent on your host machine whose sole responsibility is to delegate work to restricted peers in sandboxed containers.</p><figure class="md-figure"><img src="./images/sandbox-gatekeeper-simple.svg" alt="The gatekeeper reaches each agent through its own opening in the wall." loading="lazy" decoding="async" /><figcaption>The gatekeeper reaches each agent through its own opening in the wall.</figcaption></figure><p>This is not watertight, and as the saying goes: if there is a way in, there is a way out, as we shall see. In any case, it is better than nothing at all. Most importantly, it narrows the contact surface with the outside world.</p><h2>It's political</h2><p>Sandboxing also makes interactions with agents a pain. Agents without a way to communicate with peers, the gatekeeper, or humans are impractical. The common solution is to relax restrictions with tooling whitelists. This is not only an annoyance from a technical standpoint. In a large corporation, it takes political skill to navigate security departments and corporate machinery.</p><h2>Repo-native tooling</h2><p>A way around this is <em>repo-native tooling</em> - tools that work offline with only Git access. They have most of the allowances in place, as agents need Git anyway to deliver code.</p><p>If, for instance, the agent control plane is part of the repository, we need fewer gates to the outside. We can use Git as a communication transport and a plain log in a repository as memory persistence.</p><figure class="md-figure"><img src="./images/sandbox-repo-only.svg" alt="What crosses the wall is Git, already allowed" loading="lazy" decoding="async" /><figcaption>What crosses the wall is Git, already allowed</figcaption></figure><p>This simplifies our setup, but there is a problem: our gatekeeper, with access to the outside, can also modify the code. This is a security risk. In fact, the sandbox itself is typically not what fails, but <a class="inline-link" href="https://labs.cloudsecurityalliance.org/research/csa-research-note-ai-coding-agent-sandbox-escapes-20260722-c/" rel="noopener">doors left open on purpose</a>.</p><p>To address this we can separate the control plane into a workflow repo, and give the gatekeeper read-only access to the code.</p><figure class="md-figure"><img src="./images/sandbox-repo-native.svg" alt="A shared workflow repo, and a restricted code repo." loading="lazy" decoding="async" /><figcaption>A shared workflow repo, and a restricted code repo.</figcaption></figure><h2>Slipping notes under bars</h2><p>Repo-native tooling does not address the problem of information flow. An important question is who is reached by what information, with what privileges.</p><p>Think of it as a drug lord in prison - the cartel is just as lethal as long as he can slip out notes to someone able to act on them, no matter how restricted he is.</p><p>The combination of <em>private data</em>, <em>a way out</em>, and <em>untrusted content</em> is called <a class="inline-link" href="https://cosmonic.com/ai-sandbox/principles/lethal-trifecta/" rel="noopener">the Lethal Trifecta</a>.</p><figure class="md-figure"><img src="./images/lethal-trifecta.svg" alt="Remove one leg, and the lethal trifecta breaks." loading="lazy" decoding="async" /><figcaption>Remove one leg, and the lethal trifecta breaks.</figcaption></figure><p>The idea is that we can contain this risk by not giving any agent all three components.</p><p>In our setup, the gatekeeper is the only agent that holds all three legs. It has secrets, it has a way out, and it reads untrusted agent notes. As such, we need to make it <em>human supervised</em>.</p><p>Our current model still carries some risk: should external stakeholders get access to the control plane, their input would reach the agents unfiltered, and vice versa. We can stop our drug lord from slipping notes to the outside by adding a public issue tracker alongside the internal issue tracker:</p><figure class="md-figure"><img src="./images/sandbox-public-tracker.svg" alt="One public and one internal issue tracker" loading="lazy" decoding="async" /><figcaption>One public and one internal issue tracker</figcaption></figure><h2>Dead drop</h2><p>Now the gatekeeper, with no write access to the code, reads instructions from stakeholders and puts notes in the dedicated workflow repo. The notes are picked up by sandboxed agents, with code write access. Think of a Cold War <a class="inline-link" href="https://en.wikipedia.org/wiki/Dead_drop" rel="noopener">dead drop</a>. In return, sandboxed agents drop notes back onto the workflow repository, leaving an audit trail behind. The gatekeeper reads them as untrusted content.</p><p>This is starting to look a whole lot like a setup I am running. For me <a class="inline-link" href="https://epiq.sh/" rel="noopener">Epiq</a> is the internal issue tracker and agent memory operating as the <em>control plane</em>. It persists an event log in a dedicated repository, tracking work in other repositories, online or offline.</p><h2>Bunch of colored boxes</h2><p>One question remains: how do sandboxed agents push code or call a model without holding any secrets? Using something like <a class="inline-link" href="https://github.com/NVIDIA/OpenShell" rel="noopener">OpenShell</a> to run sandboxed agents, we can keep secrets out of the sandbox entirely, since they are appended by a proxy layer on requests leaving the sandbox.</p><figure class="md-figure"><img src="./images/sandbox-openshell-setup.svg" alt="A proxy layer appends real secrets outside the sandbox." loading="lazy" decoding="async" /><figcaption>A proxy layer appends real secrets outside the sandbox.</figcaption></figure><p>This is a lot of colored boxes, so let's not dive deeper. This should be sufficient to illustrate a basic setup that addresses problems with the lethal trifecta, requiring only: a <em>Git repo</em>, <em>a sandbox</em>, and <em>an agent control plane</em>.</p><h2>Conclusion - repo-native is composable and sandboxable</h2><p>Using tooling that is repo-native, standalone and distributed allows you to compose a range of setups, depending on organizational needs.</p><p>Epiq can manage one, or both, of the two workflow management planes. Agentic workflows weren't on the radar at its inception, 1.5 years ago, but an append-only event log that lives in the repo and travels over Git turns out to integrate easily with sandboxes, providing a way to coordinate without opening another gap in the wall.</p><hr /><p>Is repo-native tooling a great solution to sandbox restrictions? Do you have a better setup? Share your thoughts in the comments below.</p>
+				</div>
+
+				<footer class="article-foot">
+					<div class="article-nav">
+						<span></span>
+						<a class="article-nav-link is-next" href="./the-soft-fabric-of-agentic-code"><span>Older →</span><span class="article-nav-title">The soft fabric of agentic code</span></a>
+					</div>
+				</footer>
+
+				<section class="comments" aria-label="Comments">
+					<script src="https://giscus.app/client.js"
+						data-repo="ljtn/epiq"
+						data-repo-id="R_kgDOPAGkNw"
+						data-category="Announcements"
+						data-category-id="DIC_kwDOPAGkN84C_cIj"
+						data-mapping="specific"
+						data-term="repo-native-tooling-for-sandboxes"
+						data-strict="1"
+						data-reactions-enabled="1"
+						data-emit-metadata="0"
+						data-input-position="top"
+						data-theme="transparent_dark"
+						data-lang="en"
+						data-loading="lazy"
+						crossorigin="anonymous"
+						async></script>
+				</section>
+			</article>
+		</main>
+
+		<footer class="footer">
+			<div class="wrap footer-inner">
+				<div class="footer-brand">
+					<a class="brand" href="../" aria-label="Epiq home"
+						><span><span class="accent">:</span>epiq</span></a
+					>
+					<p>Git-native issue tracking.</p>
+				</div>
+				<div class="footer-cols">
+					<div class="footer-col">
+						<div class="footer-head">Read</div>
+						<a href="../docs">Docs</a>
+						<a href="../blog">Blog</a>
+						<a href="../releases">Releases</a>
+					</div>
+					<div class="footer-col">
+						<div class="footer-head">Project</div>
+						<a href="https://github.com/ljtn/epiq" rel="noopener">GitHub</a>
+						<a href="https://www.npmjs.com/package/epiq" rel="noopener">npm</a>
+					</div>
+				</div>
+			</div>
+			<div class="wrap footer-foot">
+				<span>Open source under the MIT license.</span>
+			</div>
+		</footer>
+
+		<script src="../site.js"></script>
+		<script src="../analytics.js"></script>
+	</body>
+</html>

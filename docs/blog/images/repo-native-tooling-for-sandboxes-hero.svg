@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 101 1672 731.5" width="1440" height="630" role="img" aria-label="Three robots at work inside a walled sandbox: one holds a plan drawn as a flowchart, one codes on a laptop at a desk, one reviews a document with two checks and a cross. Outside the wall, a purple gatekeeper robot on the phone passes a note along a dashed line into a mailbox inside the sandbox.">
+	<defs><pattern id="grid" x="24" y="29" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0 H0 V48" fill="none" stroke="rgba(255,255,255,.03)" stroke-width="1" /></pattern></defs>
+	<rect x="-20" y="81" width="1712" height="772" fill="#0a0a0f" />
+	<rect x="-20" y="81" width="1712" height="772" fill="url(#grid)" />
+	<g fill="#0a0a0f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+		<rect fill="none" stroke="#e7b765" stroke-width="2.6" x="378" y="256" width="1212" height="422" rx="14" />
+		<path fill="none" stroke="#a07c45" stroke-width="2.6" d="M380 606.0 L388 607.2 L396 608.3 L404 609.4 L412 610.4 L420 611.2 L428 611.9 L436 612.5 L444 612.9 L452 613.1 L460 613.1 L468 613.0 L476 612.8 L484 612.5 L492 612.0 L500 611.5 L508 611.0 L516 610.5 L524 610.0 L532 609.5 L540 609.1 L548 608.8 L556 608.6 L564 608.4 L572 608.4 L580 608.5 L588 608.6 L596 608.8 L604 609.0 L612 609.2 L620 609.3 L628 609.5 L636 609.5 L644 609.5 L652 609.3 L660 609.1 L668 608.6 L676 608.1 L684 607.4 L692 606.6 L700 605.7 L708 604.7 L716 603.7 L724 602.6 L732 601.6 L740 600.6 L748 599.6 L756 598.8 L764 598.1 L772 597.6 L780 597.3 L788 597.1 L796 597.1 L804 597.3 L812 597.7 L820 598.2 L828 598.9 L836 599.7 L844 600.5 L852 601.4 L860 602.3 L868 603.2 L876 604.0 L884 604.8 L892 605.5 L900 606.1 L908 606.5 L916 606.9 L924 607.1 L932 607.2 L940 607.3 L948 607.2 L956 607.1 L964 607.0 L972 606.9 L980 606.8 L988 606.7 L996 606.8 L1004 606.9 L1012 607.1 L1020 607.4 L1028 607.8 L1036 608.4 L1044 609.0 L1052 609.7 L1060 610.4 L1068 611.1 L1076 611.8 L1084 612.5 L1092 613.1 L1100 613.7 L1108 614.0 L1116 614.3 L1124 614.4 L1132 614.2 L1140 614.0 L1148 613.5 L1156 612.9 L1164 612.1 L1172 611.2 L1180 610.1 L1188 609.1 L1196 607.9 L1204 606.8 L1212 605.7 L1220 604.6 L1228 603.6 L1236 602.8 L1244 602.0 L1252 601.4 L1260 601.0 L1268 600.7 L1276 600.6 L1284 600.6 L1292 600.7 L1300 600.9 L1308 601.2 L1316 601.5 L1324 601.9 L1332 602.2 L1340 602.5 L1348 602.7 L1356 602.9 L1364 603.0 L1372 603.0 L1380 602.9 L1388 602.7 L1396 602.4 L1404 602.1 L1412 601.8 L1420 601.4 L1428 601.1 L1436 600.8 L1444 600.5 L1452 600.4 L1460 600.4 L1468 600.5 L1476 600.8 L1484 601.2 L1492 601.8 L1500 602.5 L1508 603.4 L1516 604.4 L1524 605.4 L1532 606.6 L1540 607.7 L1548 608.9 L1556 610.0 L1564 611.0 L1572 611.9 L1580 612.7 L1588 613.4" />
+		<rect stroke="#b98cf5" x="162" y="535" width="22" height="75.0" />
+		<rect stroke="#b98cf5" x="202" y="535" width="22" height="75.0" />
+		<g transform="rotate(0 193 537)">
+		<path fill="none" stroke="#b98cf5" d="M193 335 V357" />
+		<path fill="none" stroke="#b98cf5" d="M147 438 L117 418 L137 398" /><path fill="none" stroke="#b98cf5" d="M239 446 L290 460" />
+		<rect stroke="#b98cf5" x="181.0" y="411" width="24" height="20" />
+		<path stroke="#b98cf5" d="M159 429 H227 L241 443 V523 L227 537 H159 L145 523 V443 Z" />
+		<path stroke="#b98cf5" d="M169 357 H217 L231 371 V399 L217 413 H169 L155 399 V371 Z" />
+		<rect fill="#b98cf5" stroke="#8a5fd0" stroke-width="1.6" x="168" y="381" width="50" height="7.5" rx="3.5" />
+		<path stroke="#b98cf5" stroke-width="2.6" d="M187 431 H199 L197 441 H189 Z" /><path stroke="#b98cf5" stroke-width="2.6" d="M189 441 H197 L201 486 L193 496 L185 486 Z" />
+		</g>
+		<rect stroke="#b98cf5" x="131" y="362" width="25" height="48" rx="5" transform="rotate(-14 143 386)" />
+		<path fill="none" stroke="#b98cf5" d="M117 371 q-11 17 0 34 M101 361 q-20 27 0 54" />
+		<g transform="rotate(-12 313 455)"><rect stroke="#4fd0e6" x="286" y="437" width="54" height="36" rx="3" /><path fill="none" stroke="#4fd0e6" d="M298 450 H326 M298 460 H320" /></g>
+		<path fill="none" stroke="#4fd0e6" stroke-dasharray="9 9" d="M344 446 C382 438 392 396 428 399 S468 422 474 436" />
+		<rect stroke="#a3abbe" x="528" y="490" width="20" height="119.2" />
+		<path fill="none" stroke="#4fd0e6" d="M590 415 V370" /><rect fill="#4fd0e6" stroke="#4fd0e6" x="590" y="369" width="33" height="24" />
+		<path fill="#101a22" stroke="#4fd0e6" d="M478 490 V453 A38 38 0 0 1 516 415 H564 A38 38 0 0 1 602 453 V490 Z" />
+		<rect stroke="#a3abbe" x="733" y="535" width="22" height="65.1" />
+		<rect stroke="#a3abbe" x="773" y="535" width="22" height="62.2" />
+		<g transform="rotate(0 764 537)">
+		<path fill="none" stroke="#a3abbe" d="M764 335 V357" />
+		<path fill="none" stroke="#a3abbe" d="M810 442 L826 466 L836 478" />
+		<rect stroke="#a3abbe" x="752.0" y="411" width="24" height="20" />
+		<path stroke="#a3abbe" d="M730 429 H798 L812 443 V523 L798 537 H730 L716 523 V443 Z" />
+		<path stroke="#a3abbe" d="M740 357 H788 L802 371 V399 L788 413 H740 L726 399 V371 Z" />
+		<rect fill="#4fd0e6" stroke="#2c9fb5" stroke-width="1.6" x="739" y="381" width="50" height="7.5" rx="3.5" />
+		<path fill="none" stroke="#a3abbe" d="M718 442 L700 486 L750 500" />
+		</g>
+		<g transform="rotate(-7 794 481)">
+			<rect stroke="#a3abbe" x="742" y="440" width="104" height="82" rx="2" />
+			<rect fill="none" stroke="#a3abbe" stroke-width="2.2" x="783" y="456" width="22" height="11" rx="1" />
+			<path fill="none" stroke="#a3abbe" stroke-width="2" d="M794 467 V478 M768 478 H820 M768 478 V490 M820 478 V490" />
+			<rect fill="none" stroke="#f0b955" stroke-width="2.4" x="757" y="490" width="22" height="12" rx="1" />
+			<rect fill="none" stroke="#f0b955" stroke-width="2.4" x="809" y="490" width="22" height="12" rx="1" />
+		</g>
+		<path fill="none" stroke="#f0b955" stroke-width="2.6" d="M822 356 L830 343 M832 370 L847 362 M836 384 L852 385" />
+		<rect stroke="#a3abbe" x="1011" y="535" width="22" height="72.5" />
+		<rect stroke="#a3abbe" x="1051" y="535" width="22" height="75.6" />
+		<g transform="rotate(0 1042 537)">
+		<path fill="none" stroke="#a3abbe" d="M1049 335 V357" />
+		
+		<rect stroke="#a3abbe" x="1033.5" y="411" width="24" height="20" />
+		<path stroke="#a3abbe" d="M1013.0 429 H1071.0 L1085.0 443 V523 L1071.0 537 H1037.0 L1023.0 523 L999.0 443 Z" />
+		<path stroke="#a3abbe" d="M1025 357 H1073 L1087 371 V399 L1073 413 H1025 L1011 399 V371 Z" />
+		<rect fill="#4fd0e6" stroke="#2c9fb5" stroke-width="1.6" x="1024" y="381" width="50" height="7.5" rx="3.5" />
+		<path fill="none" stroke="#a3abbe" d="M999 443 L993 500 L1016 505 L1058 507 L1074 516" /><path fill="none" stroke="#a3abbe" d="M1085 448 V492 L1104 504" />
+		</g>
+		<path stroke="#a3abbe" d="M1099 519 L1121 438 H1221 L1198 519 Z" />
+		<path fill="none" stroke="#4fd0e6" stroke-width="2.8" d="M1137 459 H1172 M1137 472 H1188 M1137 484 H1168 M1128 496 H1153" />
+		<rect stroke="#a3abbe" x="1050" y="515" width="46" height="7" rx="2" />
+		<rect stroke="#a3abbe" x="1098" y="515" width="122" height="7" rx="2" />
+		<rect stroke="#a3abbe" x="944" y="522" width="278" height="22" />
+		<rect stroke="#a3abbe" x="954" y="544" width="8" height="63.1" />
+		<rect stroke="#a3abbe" x="1206" y="544" width="8" height="61.9" />
+		<rect stroke="#a3abbe" x="1463" y="535" width="22" height="65.7" />
+		<rect stroke="#a3abbe" x="1503" y="535" width="22" height="69.1" />
+		<g transform="rotate(0 1494 537)">
+		<path fill="none" stroke="#a3abbe" d="M1494 335 V357" />
+		<path fill="none" stroke="#a3abbe" d="M1448 444 L1428 462" /><path fill="none" stroke="#a3abbe" d="M1540 446 L1562 484 L1534 516" />
+		<rect stroke="#a3abbe" x="1482.0" y="411" width="24" height="20" />
+		<path stroke="#a3abbe" d="M1460 429 H1528 L1542 443 V523 L1528 537 H1460 L1446 523 V443 Z" />
+		<path stroke="#a3abbe" d="M1470 357 H1518 L1532 371 V399 L1518 413 H1470 L1456 399 V371 Z" />
+		<rect fill="#4fd0e6" stroke="#2c9fb5" stroke-width="1.6" x="1469" y="381" width="50" height="7.5" rx="3.5" />
+		
+		</g>
+		<rect stroke="#a3abbe" x="1345" y="388" width="86" height="124" rx="3" />
+		<path fill="none" stroke="#4fd0e6" stroke-width="2.6" d="M1360 410 H1416 M1360 431 H1406" />
+		<path fill="none" stroke="#f0b955" stroke-width="2.6" d="M1360 452 H1412 M1360 472 H1396" />
+		<path fill="none" stroke="#a3abbe" stroke-width="2.6" d="M1360 492 H1410" />
+		<path fill="none" stroke="#4fd0e6" stroke-width="2.6" d="M1305 410 l7 7 l13 -14 M1305 450 l7 7 l13 -14" />
+		<path fill="none" stroke="#f0b955" stroke-width="2.6" d="M1308 482 l14 14 M1322 482 l-14 14" />
+	</g>
+</svg>

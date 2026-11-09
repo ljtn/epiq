@@ -11,16 +11,16 @@
 		/>
 
 		<meta name="theme-color" content="#090a0f" />
-		<link rel="canonical" href="https://ljtn.github.io/epiq/docs.html" />
+		<link rel="canonical" href="https://epiq.sh/docs" />
 
 		<meta property="og:title" content="Epiq — Documentation" />
 		<meta
 			property="og:description"
 			content="Install, getting started, command reference, keyboard shortcuts, sync, and MCP integration for the Git-backed issue tracker."
 		/>
-		<meta property="og:url" content="https://ljtn.github.io/epiq/docs.html" />
+		<meta property="og:url" content="https://epiq.sh/docs" />
 		<meta property="og:type" content="website" />
-		<meta property="og:image" content="https://ljtn.github.io/epiq/og-diff.jpeg" />
+		<meta property="og:image" content="https://epiq.sh/og-diff.jpeg" />
 		<meta property="og:image:alt" content="The Epiq board in the browser, a done ticket beside the diff that closed it, with the time-travel timeline plotting board events above" />
 		<meta property="og:image:width" content="1200" />
 		<meta property="og:image:height" content="630" />
@@ -31,7 +31,7 @@
 	<body>
 		<nav class="nav">
 			<div class="wrap nav-inner">
-				<a class="brand" href="./index.html" aria-label="Epiq home">
+				<a class="brand" href="./" aria-label="Epiq home">
 					<span
 						><span class="accent">:</span>epiq</span
 					>
@@ -39,16 +39,16 @@
 				<div class="links">
 					<a
 						class="cmd-link active"
-						href="./docs.html"
+						href="./docs"
 						aria-current="page"
 						aria-label="Documentation"
 						><span class="accent">:</span>docs</a
 					>
-					<a class="cmd-link" href="./blog.html" aria-label="Blog"
+					<a class="cmd-link" href="./blog" aria-label="Blog"
 						><span class="accent">:</span>blog</a
 					>
-					<a class="cmd-link" href="./releases.html" aria-label="Releases"
-						><span class="accent">v</span><span class="nav-version">1.12.4</span></a
+					<a class="cmd-link" href="./releases" aria-label="Releases"
+						><span class="accent">v</span><span class="nav-version">1.16.2</span></a
 					>
 					<a class="btn" href="https://github.com/ljtn/epiq" aria-label="Epiq on GitHub">
 						<span>GitHub</span>
@@ -749,9 +749,9 @@
 							be pasted or dropped straight in.
 						</p>
 						<p>
-							The Code tab lists every commit whose subject starts with the
-							ticket's ref, with its diffstat and per-file diff. Comment on any
-							line, or mark a file as reviewed.
+							The Code tab lists every commit linked to the ticket, with its
+							message, diffstat and per-file diff. Comment on any line, or mark a
+							file as reviewed.
 						</p>
 					</section>
 
@@ -846,10 +846,15 @@
 
 						<div class="docs-note">
 							<strong>Linking commits.</strong> A commit links to a ticket when
-							its subject <em>starts</em> with the ticket's ref, the seven
-							characters <code>:yank ref</code> copies:
+							its body has an <code>Epiq-Ref:</code> line naming the ticket's
+							ref, the seven characters <code>:yank ref</code> copies:
+							<code>git commit -m "fix the parser" -m "Epiq-Ref: A1B2C3D"</code>.
+							One line can name several refs, comma-separated. A subject that
+							<em>starts</em> with the ref links too:
 							<code>git commit -m "A1B2C3D fix the parser"</code>. Linked commits
-							show in the ticket's Code tab.
+							show in the ticket's Code tab. An Epiq-Ref line survives a squash
+							merge that keeps the squashed messages, as GitHub's default does;
+							a prefix needs the commits rebase-merged as they are.
 						</div>
 
 						<h3>Other MCP clients</h3>
@@ -880,7 +885,7 @@
 		<footer class="footer">
 			<div class="wrap footer-inner">
 				<div class="footer-brand">
-					<a class="brand" href="./index.html" aria-label="Epiq home"
+					<a class="brand" href="./" aria-label="Epiq home"
 						><span><span class="accent">:</span>epiq</span></a
 					>
 					<p>Git-native issue tracking.</p>
@@ -888,9 +893,9 @@
 				<div class="footer-cols">
 					<div class="footer-col">
 						<div class="footer-head">Read</div>
-						<a href="./docs.html">Docs</a>
-						<a href="./blog.html">Blog</a>
-						<a href="./releases.html">Releases</a>
+						<a href="./docs">Docs</a>
+						<a href="./blog">Blog</a>
+						<a href="./releases">Releases</a>
 					</div>
 					<div class="footer-col">
 						<div class="footer-head">Project</div>
