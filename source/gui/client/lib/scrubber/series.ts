@@ -1,4 +1,5 @@
 import {
+	GuiBoard,
 	GuiEventIdentity,
 	GuiEventTimeline,
 	GuiEventTimelineEntry,
@@ -49,26 +50,38 @@ export const boardViewColor = (view: BoardView): string =>
 
 // What the board can be narrowed by. `commenter` is the author over comments,
 // `actor` over every kind.
-export const FILTER_AXES = ['commenter', 'tag', 'assignee', 'actor'] as const;
+export const FILTER_AXES = [
+	'commenter',
+	'tag',
+	'goal',
+	'assignee',
+	'actor',
+] as const;
 
 export type FilterAxis = (typeof FILTER_AXES)[number];
 
 export const isFilterAxis = (value: unknown): value is FilterAxis =>
 	FILTER_AXES.includes(value as FilterAxis);
 
-// The field on a timeline entry each axis reads its identity out of.
-const AXIS_FIELD: Record<FilterAxis, 'actor' | 'tag' | 'assignee'> = {
+// The field on a timeline entry each axis reads its identity out of. Null for
+// `goal`, whose legend is the board's goals rather than the window's events.
+const AXIS_FIELD: Record<FilterAxis, 'actor' | 'tag' | 'assignee' | null> = {
 	commenter: 'actor',
 	tag: 'tag',
+	goal: null,
 	assignee: 'assignee',
 	actor: 'actor',
 };
+
+export const axisListsBoard = (axis: FilterAxis): boolean =>
+	AXIS_FIELD[axis] === null;
 
 // The kind of event an axis's legend is drawn from. Null for `actor`, which
 // lists whoever caused anything at all.
 const AXIS_CATEGORY: Record<FilterAxis, EventCategory | null> = {
 	commenter: 'comments',
 	tag: 'tagging',
+	goal: 'tagging',
 	assignee: 'assigning',
 	actor: null,
 };
@@ -89,10 +102,12 @@ export const narrowedIds = (
 export const activeAxes = (only: SelectionNarrowing): FilterAxis[] =>
 	FILTER_AXES.filter(axis => only[axis] !== undefined);
 
-// The view an axis is drawn as, which is the inverse of identityAxisFor.
-const VIEW_FOR_AXIS: Record<FilterAxis, BoardView> = {
+// The view an axis is drawn as, which is the inverse of identityAxisFor. Goals
+// have no view of their own: the chart has no goal on its events to colour by.
+const VIEW_FOR_AXIS: Record<FilterAxis, BoardView | null> = {
 	commenter: 'comments',
 	tag: 'tagging',
+	goal: null,
 	assignee: 'assigning',
 	actor: 'contributors',
 };
@@ -100,8 +115,12 @@ const VIEW_FOR_AXIS: Record<FilterAxis, BoardView> = {
 // The view the filter implies: one axis on draws that axis, otherwise 'all'.
 export const plottedView = (only: SelectionNarrowing): BoardView => {
 	const active = activeAxes(only);
-	return active.length === 1 ? VIEW_FOR_AXIS[active[0]!] : 'all';
+	return (active.length === 1 && VIEW_FOR_AXIS[active[0]!]) || 'all';
 };
+
+// Goals wear the colour of the kind their events are counted under.
+export const axisColor = (axis: FilterAxis): string =>
+	boardViewColor(VIEW_FOR_AXIS[axis] ?? 'tagging');
 
 // Which side of the event a view colours by. Tickets has none — every event is
 // somebody changing a ticket, so it stays the plain Board accent.
@@ -158,7 +177,8 @@ const identityForView = (
 	view: BoardView,
 ): GuiEventIdentity | null => {
 	const axis = identityAxisFor(view);
-	return axis === null ? null : entry[AXIS_FIELD[axis]];
+	const field = axis === null ? null : AXIS_FIELD[axis];
+	return field === null ? null : entry[field];
 };
 
 // The identity an event offers an axis, or null where it offers none.
@@ -166,10 +186,12 @@ const identityOnAxis = (
 	entry: GuiEventTimelineEntry,
 	axis: FilterAxis,
 ): GuiEventIdentity | null => {
+	const field = AXIS_FIELD[axis];
 	const category = AXIS_CATEGORY[axis];
+	if (field === null) return null;
 	if (category !== null && categoryOf(entry.action) !== category) return null;
 
-	return entry[AXIS_FIELD[axis]];
+	return entry[field];
 };
 
 // Every identity in the window on this axis, in first-seen order: the filter's legend.
@@ -254,13 +276,13 @@ const EVENT_DOT_SIZE = 4;
 const EVENT_DOT_OPACITY = 0.55;
 
 // The tickets whose events the chart keeps (null for all): those passing both
-// the ticket narrowing and the text query, as the board does.
+// the ticket narrowing and the text and goal filters, as the board does.
 export const keptIssueIds = (
 	issueOnly: string | null,
-	queryIssueIds: ReadonlySet<string> | null,
+	filterIssueIds: ReadonlySet<string> | null,
 ): ReadonlySet<string> | null => {
-	if (issueOnly === null) return queryIssueIds;
-	if (queryIssueIds === null || queryIssueIds.has(issueOnly)) {
+	if (issueOnly === null) return filterIssueIds;
+	if (filterIssueIds === null || filterIssueIds.has(issueOnly)) {
 		return new Set([issueOnly]);
 	}
 
@@ -419,6 +441,7 @@ export const issuePassesBoardFilter = (
 		id: string;
 		tags: {id: string}[];
 		assignees: {id: string}[];
+		goal?: {id: string};
 	},
 	facts: IssueFilterFacts,
 	filter: BoardFilter,
@@ -427,6 +450,10 @@ export const issuePassesBoardFilter = (
 		const ids =
 			axis === 'tag'
 				? issue.tags.map(tag => tag.id)
+				: axis === 'goal'
+				? issue.goal
+					? [issue.goal.id]
+					: []
 				: axis === 'assignee'
 				? issue.assignees.map(assignee => assignee.id)
 				: axis === 'commenter'
@@ -441,3 +468,27 @@ export const issuePassesBoardFilter = (
 
 		return ids.some(id => visibleIds.has(id));
 	});
+
+// Every ticket, on any board, that the goal axis keeps: in one of the named
+// goals, or in any goal while the axis takes them all.
+export const issueIdsInGoals = (
+	boards: readonly Pick<GuiBoard, 'swimlanes'>[],
+	narrowing: AxisNarrowing,
+): Set<string> => {
+	const ids = narrowedIds(narrowing);
+	const goals = ids === null ? null : new Set(ids);
+
+	return new Set(
+		boards.flatMap(board =>
+			board.swimlanes.flatMap(swimlane =>
+				swimlane.issues
+					.filter(
+						issue =>
+							issue.goal !== undefined &&
+							(goals === null || goals.has(issue.goal.id)),
+					)
+					.map(issue => issue.id),
+			),
+		),
+	);
+};

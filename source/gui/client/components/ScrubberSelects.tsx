@@ -13,6 +13,7 @@ import {
 	EventCategory,
 	FILTER_AXES,
 	FilterAxis,
+	axisColor,
 } from '../lib/scrubber';
 import {AxisState} from '../lib/board-selection';
 import {GuiEventIdentity} from '../lib/gui-state.model';
@@ -46,19 +47,20 @@ const VIEW_LABELS: Record<BoardView, string> = {
 	contributors: 'Contributors',
 };
 
-// The row an axis is drawn as. Kept here rather than imported so the labels and
-// the rows they sit on are read off one table.
-const VIEW_FOR_AXIS: Record<FilterAxis, BoardView> = {
-	commenter: 'comments',
-	tag: 'tagging',
-	assignee: 'assigning',
-	actor: 'contributors',
+// Each axis's row in the filter, named as the list under it.
+const AXIS_LABELS: Record<FilterAxis, string> = {
+	commenter: CATEGORY_LABELS.comments,
+	tag: CATEGORY_LABELS.tagging,
+	goal: 'Goals',
+	assignee: CATEGORY_LABELS.assigning,
+	actor: VIEW_LABELS.contributors,
 };
 
 // What ticking a row asks of every ticket, said in full where the label cannot.
 const AXIS_TITLES: Record<FilterAxis, string> = {
 	commenter: 'Only tickets with comments',
 	tag: 'Only tagged tickets',
+	goal: 'Only tickets in a goal',
 	assignee: 'Only assigned tickets',
 	actor: 'Only tickets touched in this window',
 };
@@ -253,10 +255,9 @@ export const BoardSeriesGroup = ({
 		>
 			{() =>
 				FILTER_AXES.map(axis => {
-					const option = VIEW_FOR_AXIS[axis];
 					const state = axisStates[axis];
 					const open = expandedAxis === axis;
-					const rowLabel = VIEW_LABELS[option].toLowerCase();
+					const rowLabel = AXIS_LABELS[axis].toLowerCase();
 
 					return (
 						<div
@@ -267,10 +268,10 @@ export const BoardSeriesGroup = ({
 							    row's height rather than adding to it. */}
 							<MenuItem style={{padding: '1px 2px 1px 8px'}}>
 								<Checkbox
-									label={VIEW_LABELS[option]}
+									label={AXIS_LABELS[axis]}
 									checked={state === 'all'}
 									mixed={state === 'some'}
-									activeColor={boardViewColor(option)}
+									activeColor={axisColor(axis)}
 									disabled={!showIssues || !filtered}
 									title={AXIS_TITLES[axis]}
 									onChange={next => onToggleAxis(axis, next)}

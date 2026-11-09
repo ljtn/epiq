@@ -35,8 +35,6 @@ export type BoardSelection = {
 	// Narrows the chart to the selected ticket's lifetime and events. Derived
 	// rather than written into `zoom`, so turning it off restores the scope.
 	ticketOnly: boolean;
-	// Narrows the board to one goal's tickets.
-	goal: string | null;
 };
 
 export const DEFAULT_SELECTION: BoardSelection = {
@@ -47,7 +45,6 @@ export const DEFAULT_SELECTION: BoardSelection = {
 	only: {},
 	windowOnly: false,
 	ticketOnly: false,
-	goal: null,
 };
 
 const PARAM_KEYS = [
@@ -177,8 +174,7 @@ export const isDefaultSelection = (selection: BoardSelection): boolean =>
 	selection.layout === DEFAULT_SELECTION.layout &&
 	!isNarrowed(selection.only) &&
 	selection.windowOnly === DEFAULT_SELECTION.windowOnly &&
-	selection.ticketOnly === DEFAULT_SELECTION.ticketOnly &&
-	selection.goal === DEFAULT_SELECTION.goal;
+	selection.ticketOnly === DEFAULT_SELECTION.ticketOnly;
 
 // A change to one field, with what it implies for the others: a new scope
 // starts at its most recent period.
@@ -220,7 +216,7 @@ export const applySelectionPatch = (
 // does: opening a ticket rebuilds the query from scratch.
 export type CarriedSelection = Pick<
 	BoardSelection,
-	'offset' | 'zoom' | 'windowOnly' | 'ticketOnly' | 'goal'
+	'offset' | 'zoom' | 'windowOnly' | 'ticketOnly'
 >;
 
 // The carried values with the query they were read from. A render between
@@ -233,7 +229,6 @@ const carriedFrom = (selection: BoardSelection): CarriedSelection => ({
 	zoom: selection.zoom,
 	windowOnly: selection.windowOnly,
 	ticketOnly: selection.ticketOnly,
-	goal: selection.goal,
 });
 
 export const DEFAULT_CARRY: SelectionCarry = {
@@ -323,6 +318,10 @@ export const readSelectionParams = (
 	// Read but never written, for older links whose unprefixed `only` named no axis.
 	const viewParam = params.get('view');
 	const legacyView = isBoardView(viewParam) ? viewParam : 'all';
+	const only = readNarrowing(params.get('only'), legacyView);
+	// Read but never written, for links from before goals were an axis.
+	const legacyGoal = params.get('goal');
+	if (legacyGoal && only.goal === undefined) only.goal = [legacyGoal];
 
 	return normalize({
 		scope: isScope(scope) ? scope : DEFAULT_SELECTION.scope,
@@ -332,10 +331,9 @@ export const readSelectionParams = (
 				? null
 				: {start: Number(from), end: Number(to)},
 		layout: isLayoutMode(layout) ? layout : DEFAULT_SELECTION.layout,
-		only: readNarrowing(params.get('only'), legacyView),
+		only,
 		windowOnly: params.get('window') === '1',
 		ticketOnly: params.get('ticket') === '1',
-		goal: params.get('goal') || null,
 	});
 };
 
@@ -364,7 +362,7 @@ export const writeSelectionParams = (
 	put('only', writeNarrowing(next.only));
 	put('window', next.windowOnly ? '1' : null);
 	put('ticket', next.ticketOnly ? '1' : null);
-	put('goal', next.goal);
+	put('goal', null);
 };
 
 // ------------------------------------------------------------------- storage
@@ -394,7 +392,7 @@ const readStoredNarrowing = (
 	return only;
 };
 
-// Not stored: the offset, a zoom, windowOnly, ticketOnly and the goal. They
+// Not stored: the offset, a zoom, windowOnly and ticketOnly. They
 // are moments or hide tickets, too much to restore silently days later.
 export const readStoredSelection = (): BoardSelection => {
 	try {
@@ -419,7 +417,6 @@ export const readStoredSelection = (): BoardSelection => {
 			only: readStoredNarrowing(only, legacyView),
 			windowOnly: DEFAULT_SELECTION.windowOnly,
 			ticketOnly: DEFAULT_SELECTION.ticketOnly,
-			goal: DEFAULT_SELECTION.goal,
 		});
 	} catch {
 		return DEFAULT_SELECTION;

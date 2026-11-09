@@ -50,6 +50,7 @@ import {
 	identityAxisFor,
 	isFilterAxis,
 	listIdentitiesByAxis,
+	axisListsBoard,
 	narrowedIds,
 	plottedView,
 	soleVisibleIdentity,
@@ -126,7 +127,7 @@ export const TimeScrubber = ({
 	selectedIssue,
 	textFilter,
 	onChangeTextFilter,
-	queryIssueIds,
+	filterIssueIds,
 	knownIdentities,
 	refreshOn,
 	onPlayTheatre,
@@ -188,9 +189,9 @@ export const TimeScrubber = ({
 	// narrowings; it sits on this bar because every narrowing does.
 	textFilter: string;
 	onChangeTextFilter: (next: string) => void;
-	// The tickets that query keeps, and null while there is none: the chart
-	// plots the tickets the columns show.
-	queryIssueIds: ReadonlySet<string> | null;
+	// The tickets the text query and the goal axis keep, null while neither
+	// asks: the chart plots the tickets the columns show.
+	filterIssueIds: ReadonlySet<string> | null;
 	// The Code series narrowed to ticket-linked commits, and the ref maps that
 	// rule reads: the board's own, or the repository's across every board.
 	linkedCommitsOnly: boolean;
@@ -212,7 +213,7 @@ export const TimeScrubber = ({
 		{ref: string; title: string; assignee: GuiUser | null}
 	>;
 	// Every tag and person the board knows, per axis, for naming a selected
-	// identity the window itself holds no event for.
+	// identity the window itself holds no event for; for goals, the whole legend.
 	knownIdentities: Record<FilterAxis, GuiEventIdentity[]>;
 	// A change refetches the window: it decides which tickets the board shows and
 	// feeds the log, so it must include anything filed since.
@@ -343,8 +344,8 @@ export const TimeScrubber = ({
 	// The events this narrowing keeps. Null leaves every ticket's events in.
 	const issueOnly = ticketFocus ? selectedIssue.id : null;
 	const keptIssues = useMemo(
-		() => keptIssueIds(issueOnly, queryIssueIds),
-		[issueOnly, queryIssueIds],
+		() => keptIssueIds(issueOnly, filterIssueIds),
+		[issueOnly, filterIssueIds],
 	);
 
 	// The ticket the window is cut from, or null; only then does switching tickets
@@ -559,7 +560,7 @@ export const TimeScrubber = ({
 
 		for (const axis of FILTER_AXES) {
 			lists[axis] = withSelectedIdentities(
-				listed[axis],
+				axisListsBoard(axis) ? knownIdentities[axis] : listed[axis],
 				narrowedIds(narrowingFor(only, axis)),
 				knownIdentities[axis],
 			);

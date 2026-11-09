@@ -18,6 +18,7 @@ import {
 	keptIssueIds,
 	categoryOf,
 	issuePassesBoardFilter,
+	issueIdsInGoals,
 	identityAxisFor,
 	FILTER_AXES,
 	listIdentities,
@@ -941,6 +942,7 @@ describe('identity views', () => {
 		expect(listIdentitiesByAxis(null)).toEqual({
 			commenter: [],
 			tag: [],
+			goal: [],
 			assignee: [],
 			actor: [],
 		});
@@ -1111,6 +1113,39 @@ describe('board filter', () => {
 		expect(issuePassesBoardFilter(issue([jola], []), nothing, filter)).toBe(
 			false,
 		);
+	});
+
+	it('reads the goal off the ticket, and passes several goals', () => {
+		const one = buildBoardFilter({goal: ['G1']});
+		const two = buildBoardFilter({goal: ['G1', 'G2']});
+		const inGoal = (id: string) => ({...issue(), goal: {id}});
+
+		expect(issuePassesBoardFilter(inGoal('G1'), nothing, one)).toBe(true);
+		expect(issuePassesBoardFilter(inGoal('G2'), nothing, one)).toBe(false);
+		expect(issuePassesBoardFilter(inGoal('G2'), nothing, two)).toBe(true);
+		expect(issuePassesBoardFilter(issue(), nothing, one)).toBe(false);
+		// On with every goal: any ticket in one.
+		const any = buildBoardFilter({goal: 'all'});
+		expect(issuePassesBoardFilter(inGoal('G2'), nothing, any)).toBe(true);
+		expect(issuePassesBoardFilter(issue(), nothing, any)).toBe(false);
+	});
+
+	it('keeps the tickets in a named goal, or in any goal, on every board', () => {
+		const lane = (issues: {id: string; goal?: {id: string}}[]) => ({
+			swimlanes: [{issues}],
+		});
+		const boards = [
+			lane([{id: 'a', goal: {id: 'G1'}}, {id: 'b'}]),
+			lane([{id: 'c', goal: {id: 'G2'}}]),
+		] as unknown as Parameters<typeof issueIdsInGoals>[0];
+
+		expect([...issueIdsInGoals(boards, ['G2'])]).toEqual(['c']);
+		expect([...issueIdsInGoals(boards, 'all')]).toEqual(['a', 'c']);
+	});
+
+	it('draws no view of its own for goals', () => {
+		expect(plottedView({goal: ['G1']})).toBe('all');
+		expect(plottedView({goal: ['G1'], tag: 'all'})).toBe('all');
 	});
 
 	it('reads comment authors on the commenter axis', () => {

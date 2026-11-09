@@ -51,8 +51,8 @@ export type EventLogSources = {
 	// is down to one ticket.
 	selection: BoardSelection;
 	selectedIssueId: string | null;
-	// The tickets the text query keeps, and null while there is no query.
-	queryIssueIds: ReadonlySet<string> | null;
+	// The tickets the text query and the goal axis keep, null while neither asks.
+	filterIssueIds: ReadonlySet<string> | null;
 	// The Code series narrowed to linked commits, and the refs that rule reads.
 	linkedCommitsOnly: boolean;
 	boardIssueIdByRef: ReadonlyMap<string, string>;
@@ -101,7 +101,7 @@ export const useEventLog = ({
 	commits,
 	selection,
 	selectedIssueId,
-	queryIssueIds,
+	filterIssueIds,
 	linkedCommitsOnly,
 	boardIssueIdByRef,
 	issueIdByRef,
@@ -119,8 +119,8 @@ export const useEventLog = ({
 	const issueOnly =
 		ticketOnly && selectedIssueId !== null ? selectedIssueId : null;
 	const keptIssues = useMemo(
-		() => keptIssueIds(issueOnly, queryIssueIds),
-		[issueOnly, queryIssueIds],
+		() => keptIssueIds(issueOnly, filterIssueIds),
+		[issueOnly, filterIssueIds],
 	);
 
 	// Both series in clock order, filtered as the chart filters them.

@@ -61,10 +61,9 @@ describe('selection in the URL', () => {
 			offset: 2,
 			zoom: null,
 			layout: 'real',
-			only: {tag: ['bug', 'docs'], assignee: ['jola']},
+			only: {tag: ['bug', 'docs'], goal: ['G1'], assignee: ['jola']},
 			windowOnly: true,
 			ticketOnly: false,
-			goal: 'G1',
 		};
 
 		expect(readSelectionParams(params(written(selection)))).toEqual(selection);
@@ -163,7 +162,6 @@ describe('applySelectionPatch', () => {
 		only: {tag: ['bug']},
 		windowOnly: false,
 		ticketOnly: false,
-		goal: null,
 	};
 
 	it('starts a new scope at its most recent period', () => {
@@ -193,10 +191,10 @@ describe('applySelectionPatch', () => {
 		expect(isDefaultSelection(narrowed)).toBe(false);
 	});
 
-	// Or a goal carried onto a bare ticket URL is never written back, and so
-	// can never be switched off there.
-	it('is not the default while narrowed to a goal', () => {
-		expect(isDefaultSelection({...DEFAULT_SELECTION, goal: 'G1'})).toBe(false);
+	it('reads an older goal link onto the goal axis, and writes it there', () => {
+		const selection = readSelectionParams(params('goal=G1'));
+		expect(selection?.only).toEqual({goal: ['G1']});
+		expect(written(selection!)).toBe('only=goal%3AG1');
 	});
 
 	describe('zoom', () => {
@@ -325,16 +323,15 @@ describe('stored selection', () => {
 		expect(readStoredSelection()).toEqual(DEFAULT_SELECTION);
 	});
 
-	it('keeps everything but the moment in time, the ticket filter and the goal', () => {
+	it('keeps everything but the moment in time and the ticket filter', () => {
 		storeSelection({
 			scope: 'month',
 			offset: 4,
 			zoom: {start: 1000, end: 2000},
 			layout: 'real',
-			only: {tag: ['bug'], assignee: 'all'},
+			only: {tag: ['bug'], goal: ['G1'], assignee: 'all'},
 			windowOnly: true,
 			ticketOnly: false,
-			goal: 'G1',
 		});
 
 		expect(readStoredSelection()).toEqual({
@@ -342,12 +339,11 @@ describe('stored selection', () => {
 			offset: 0,
 			zoom: null,
 			layout: 'real',
-			only: {tag: ['bug'], assignee: 'all'},
+			only: {tag: ['bug'], goal: ['G1'], assignee: 'all'},
 			// Not kept: a filter that hides tickets is not a preference to come
 			// back to days later.
 			windowOnly: false,
 			ticketOnly: false,
-			goal: null,
 		});
 	});
 
@@ -401,11 +397,6 @@ describe('carried selection', () => {
 		const {carry} = render(DEFAULT_CARRY, 'ticket=1');
 		const opened = render(carry, '');
 		expect(opened.selection.ticketOnly).toBe(true);
-	});
-
-	it('keeps the board narrowed to a goal across opening a ticket', () => {
-		const {carry} = render(DEFAULT_CARRY, 'goal=G1');
-		expect(render(carry, '').selection.goal).toBe('G1');
 	});
 
 	// The bug: a change is two steps — the carried values, then the URL a

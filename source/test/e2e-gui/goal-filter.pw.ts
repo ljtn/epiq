@@ -9,8 +9,19 @@ const card = (page: Page, title: string) =>
 const pill = (page: Page, goal: string) =>
 	page.getByTestId('goal-pill').filter({hasText: goal});
 
-const funnel = (page: Page, goal: string) =>
-	pill(page, goal).getByTestId('goal-pill-filter');
+// The card's own goal label, which narrows the board's goal axis to it.
+const label = (page: Page, title: string) =>
+	card(page, title).getByTestId('ticket-goal');
+
+// From the Board filter, as any other axis.
+const narrowFromFilter = async (page: Page, goal: string) => {
+	await page.getByTestId('series-select').click();
+	await page.getByTestId('filter-axis-goal').click();
+	await page.getByRole('button', {name: `Show only ${goal}`}).click();
+	await page.keyboard.press('Escape');
+};
+
+const GOAL_IN_URL = /only=[^&]*goal%3A/;
 
 // Names a new goal from the open ticket's Goal dropdown, which puts the
 // ticket in it.
@@ -33,7 +44,7 @@ const openBoard = async (page: Page, appUrl: string) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 };
 
-test('a goal is a pill above the lanes that narrows the board to it, and the URL carries it', async ({
+test('a goal is a pill above the lanes, and the board filter narrows to it, the URL carrying it', async ({
 	page,
 	appUrl,
 	pageErrors,
@@ -69,16 +80,17 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	expect(await height(member)).toBe(await height(other));
 	await page.getByTestId('card-density-wide').click();
 
-	// The funnel narrows and opens nothing; the pill opens and narrows nothing.
-	await funnel(page, goal).click();
+	// The filter narrows and opens nothing; the pill opens and narrows nothing.
+	await narrowFromFilter(page, goal);
 	await expect(card(page, other)).toHaveCount(0);
 	await expect(card(page, member)).toBeVisible();
-	await expect(funnel(page, goal)).toHaveAttribute('aria-pressed', 'true');
+	await expect(pill(page, goal)).toHaveAttribute('data-narrowed', 'true');
+	await expect(label(page, member)).toHaveAttribute('aria-pressed', 'true');
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 
-	await funnel(page, goal).click();
+	await label(page, member).click();
 	await expect(card(page, other)).toBeVisible();
-	await expect(funnel(page, goal)).toHaveAttribute('aria-pressed', 'false');
+	await expect(pill(page, goal)).toHaveAttribute('data-narrowed', 'false');
 
 	await expect(pill(page, goal)).toHaveAttribute('data-selected', 'false');
 	await pill(page, goal).getByTestId('goal-pill-open').click();
@@ -88,11 +100,11 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	await page.goto(boardUrl);
 	await expect(page.getByTestId('goal-details')).toHaveCount(0);
 
-	await funnel(page, goal).click();
+	await label(page, member).click();
 	await expect(card(page, other)).toHaveCount(0);
-	await expect(page).toHaveURL(/goal=/);
+	await expect(page).toHaveURL(GOAL_IN_URL);
 
-	// A link keeps the filter, and opens no panel the funnel didn't.
+	// A link keeps the filter, and opens no panel the label didn't.
 	await page.goto(page.url());
 	await expect(card(page, member)).toBeVisible();
 	await expect(card(page, other)).toHaveCount(0);
@@ -131,9 +143,74 @@ test('a goal is a pill above the lanes that narrows the board to it, and the URL
 	await expect(card(page, other)).toHaveCount(0);
 
 	// The card's own label lets go as well as the pill does.
-	await card(page, member).getByTestId('ticket-goal').click();
+	await label(page, member).click();
 	await expect(card(page, other)).toBeVisible();
-	await expect(page).not.toHaveURL(/goal=/);
+	await expect(page).not.toHaveURL(GOAL_IN_URL);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// The chart and its log follow the goal axis as the columns do.
+test('narrowing to a goal narrows the event log to its tickets', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	const stamp = Date.now();
+	const goal = `Charted ${stamp}`;
+	const member = `Charted member ${stamp}`;
+	const other = `Charted other ${stamp}`;
+
+	await addTicket(page, other);
+	await addTicket(page, member);
+	await startGoal(page, goal);
+
+	await page.goto(boardUrl);
+	await page.getByTestId('log-toggle').click();
+	const lines = page.getByTestId('log-line');
+	await expect(lines.filter({hasText: other})).toHaveCount(1);
+
+	await label(page, member).click();
+	await expect(lines.filter({hasText: other})).toHaveCount(0);
+	await expect(lines.filter({hasText: member}).first()).toBeVisible();
+
+	await label(page, member).click();
+	await expect(lines.filter({hasText: other})).toHaveCount(1);
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('a link from before goals were an axis still narrows to its goal', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	const stamp = Date.now();
+	const goal = `Linked ${stamp}`;
+	const member = `Linked member ${stamp}`;
+	const other = `Linked other ${stamp}`;
+
+	await addTicket(page, other);
+	await addTicket(page, member);
+	await startGoal(page, goal);
+	const id = await pill(page, goal).getAttribute('data-goal-id');
+
+	const url = new URL(boardUrl);
+	url.searchParams.set('goal', id!);
+	await page.goto(url.toString());
+	await expect(card(page, member)).toBeVisible();
+	await expect(card(page, other)).toHaveCount(0);
+	await expect(pill(page, goal)).toHaveAttribute('data-narrowed', 'true');
+
+	await label(page, member).click();
+	await expect(card(page, other)).toBeVisible();
+	await expect(page).not.toHaveURL(/goal/);
 
 	expect(pageErrors).toEqual([]);
 });
@@ -315,7 +392,7 @@ test('Manage goals renames and removes, and a removed goal gives the board back'
 	await addTicket(page, member);
 	await startGoal(page, goal);
 
-	await funnel(page, goal).click();
+	await label(page, member).click();
 	await expect(card(page, other)).toHaveCount(0);
 
 	await page.getByTestId('goal-strip-manage').click();
@@ -341,6 +418,48 @@ test('Manage goals renames and removes, and a removed goal gives the board back'
 	await expect(card(page, member).getByTestId('ticket-goal')).toHaveCount(0);
 	await expect(card(page, other)).toBeVisible();
 	await page.goto(page.url());
+	await expect(card(page, other)).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('a bare board link lets go of a stored goal that is gone', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url().split('?')[0]!;
+
+	const stamp = Date.now();
+	const goal = `Stored ${stamp}`;
+	const member = `Stored member ${stamp}`;
+	const other = `Stored other ${stamp}`;
+
+	await addTicket(page, other);
+	await addTicket(page, member);
+	await startGoal(page, goal);
+	const id = await pill(page, goal).getAttribute('data-goal-id');
+
+	await page.getByTestId('goal-strip-manage').click();
+	const row = page.getByTestId('manage-goal-row').filter({hasText: goal});
+	await row.getByTestId('remove-goal').click();
+	await row.getByTestId('remove-goal').click();
+	await expect(row).toHaveCount(0);
+
+	// Storage left narrowed to it, as by a session that closed before it went.
+	await page.evaluate(
+		goalId =>
+			localStorage.setItem(
+				'epiq.board.selection',
+				JSON.stringify({scope: 'all', layout: 'even', only: {goal: [goalId]}}),
+			),
+		id!,
+	);
+	await page.goto(boardUrl);
+	await expect(card(page, other)).toBeVisible();
+	await expect(page).not.toHaveURL(GOAL_IN_URL);
+	await page.reload();
 	await expect(card(page, other)).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
@@ -457,7 +576,7 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 	await addTicket(page, member);
 	await startGoal(page, goal);
 	await expect(pill(page, goal)).toContainText('0/1');
-	await funnel(page, goal).click();
+	await label(page, member).click();
 	await expect(card(page, other)).toHaveCount(0);
 
 	await card(page, member).click();
@@ -471,7 +590,7 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 	await expect(pill(page, goal)).toHaveCount(0, {timeout: 30_000});
 	// The filter ends with its pill, and stays ended.
 	await expect(card(page, other)).toBeVisible();
-	await expect(page).not.toHaveURL(/goal=/);
+	await expect(page).not.toHaveURL(GOAL_IN_URL);
 
 	await page.getByTestId('goal-strip-manage').click();
 	const row = page.getByTestId('manage-goal-row').filter({hasText: goal});
@@ -482,7 +601,7 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 	await expect(page.getByTestId('manage-goals')).toHaveCount(0);
 	await expect(page.getByTestId('board-switcher')).toContainText('Closed');
 	await expect(page.getByTestId('goal-details')).toContainText(goal);
-	await expect(funnel(page, goal)).toHaveAttribute('aria-pressed', 'true');
+	await expect(pill(page, goal)).toHaveAttribute('data-narrowed', 'true');
 	await expect(card(page, member)).toBeVisible();
 
 	// Opening it again from here keeps it open, rather than letting go.
@@ -495,7 +614,7 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 		.getByTestId('open-closed-goal')
 		.click();
 	await expect(page.getByTestId('goal-details')).toContainText(goal);
-	await expect(funnel(page, goal)).toHaveAttribute('aria-pressed', 'true');
+	await expect(pill(page, goal)).toHaveAttribute('data-narrowed', 'true');
 
 	// The Closed board's lock doesn't reach the goal itself.
 	await page.getByTestId('goal-description-edit').click();
@@ -513,7 +632,7 @@ test('a goal leaves the strip when its last ticket closes, and opens from Manage
 		.click();
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await expect(card(page, other)).toBeVisible();
-	await expect(page).not.toHaveURL(/goal=/);
+	await expect(page).not.toHaveURL(GOAL_IN_URL);
 
 	expect(pageErrors).toEqual([]);
 });
@@ -551,7 +670,7 @@ test("a goal's panel outlives another goal's filter, and goes for good with its 
 	await addTicket(page, narrowedTicket);
 	await startGoal(page, narrowed);
 
-	await funnel(page, narrowed).click();
+	await label(page, narrowedTicket).click();
 	await pill(page, opened).getByTestId('goal-pill-open').click();
 	await expect(page.getByTestId('goal-details')).toContainText(opened);
 
@@ -650,8 +769,8 @@ test('opening a goal closes the open ticket, and keeps the board narrowed', asyn
 
 	await addTicket(page, member);
 	await startGoal(page, goal);
-	await funnel(page, goal).click();
-	await expect(page).toHaveURL(/goal=/);
+	await label(page, member).click();
+	await expect(page).toHaveURL(GOAL_IN_URL);
 
 	await card(page, member).click();
 	await expect(page).toHaveURL(/\/issue\//);
@@ -659,7 +778,7 @@ test('opening a goal closes the open ticket, and keeps the board narrowed', asyn
 	await pill(page, goal).getByTestId('goal-pill-open').click();
 	await expect(page.getByTestId('goal-details')).toBeVisible();
 	await expect(page).not.toHaveURL(/\/issue\//);
-	await expect(page).toHaveURL(/goal=/);
+	await expect(page).toHaveURL(GOAL_IN_URL);
 
 	expect(pageErrors).toEqual([]);
 });
