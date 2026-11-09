@@ -34,6 +34,9 @@ const BUDGET_BOARD_OVERVIEW_MS = 1000;
 const COMMITS = number('STRESS_COMMITS', 5000);
 const BUDGET_COMMIT_HISTORY_MS = 5000;
 const BUDGET_GOAL_TAB_MS = 2000;
+// One ticket's commits with nothing cached: git's search, not a full read of
+// the history, which alone takes about a second on CI's runners.
+const BUDGET_TICKET_CODE_MS = 800;
 
 const ROOT =
 	process.env['STRESS_DIR'] ??
@@ -354,6 +357,7 @@ const biggest = goals.reduce<(typeof goals)[number] | undefined>(
 
 let goalTabMs = 0;
 let historyMs = 0;
+let ticketCodeMs = 0;
 if (biggest) {
 	const refs = goalMembers(biggest.id).map(ticket => nodeRef(ticket.id));
 	const start = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
@@ -410,6 +414,23 @@ if (biggest) {
 				`${refs.length} tickets, ${COMMITS.toLocaleString()} commits`,
 		);
 	}
+
+	const {getCommitsForRef, resetCommitTimelineCacheForTests} = await import(
+		'../../lib/commits/commit-timeline.js'
+	);
+	resetCommitTimelineCacheForTests();
+	const ticketAt = performance.now();
+	const ticketCommits = ok(
+		await getCommitsForRef({repoRoot: REPO, ref: refs[0]!}),
+	) as unknown[];
+	ticketCodeMs = performance.now() - ticketAt;
+	console.log(
+		`  ${'ticket Code tab, cold'.padEnd(38)} ${ticketCodeMs
+			.toFixed(1)
+			.padStart(
+				6,
+			)} ms   ${ticketCommits.length.toLocaleString()} of ${COMMITS.toLocaleString()} commits`,
+	);
 }
 
 // What an edit costs, which is not what a read costs: a write grows the log,
@@ -481,6 +502,10 @@ if (CHECK) {
 			`the commit history took ${historyMs.toFixed(
 				1,
 			)} ms, budget ${BUDGET_COMMIT_HISTORY_MS} ms`,
+		ticketCodeMs > BUDGET_TICKET_CODE_MS &&
+			`a ticket's Code tab took ${ticketCodeMs.toFixed(
+				1,
+			)} ms, budget ${BUDGET_TICKET_CODE_MS} ms`,
 		goalTabMs > BUDGET_GOAL_TAB_MS &&
 			`a goal tab took ${goalTabMs.toFixed(
 				1,
