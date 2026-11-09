@@ -153,7 +153,11 @@ export const CommitRow = ({
 				)}
 				<span style={{flex: 1}} />
 				{commit.repo && <RepoChip repo={commit.repo} />}
-				<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
+				<DiffStat
+					insertions={commit.insertions}
+					deletions={commit.deletions}
+					bar={false}
+				/>
 				{/* The sha shows on hover or when expanded. Always mounted, so the row's
 				    height (and the rail lines) don't jump. */}
 				<span
