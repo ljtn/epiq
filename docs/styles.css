@@ -241,7 +241,7 @@ h1,
 	font-size: max(20px, var(--s) * 7 / 15.5);
 	color: color-mix(in srgb, var(--text) 75%, transparent);
 }
-.hero-title > :nth-child(3) {
+.sub-header {
 	margin-top: calc(var(--s) * 0.6);
 	font-size: calc(var(--s) * 0.3038);
 	letter-spacing: 0.16em;
@@ -250,7 +250,7 @@ h1,
 }
 /* At its floor the third line's spacing tightens so it keeps to one row. */
 @media (max-width: 620px) {
-	.hero-title > :nth-child(3) {
+	.sub-header {
 		font-size: max(12px, var(--s) * 7 / 34.56);
 		letter-spacing: 0.02em;
 	}
