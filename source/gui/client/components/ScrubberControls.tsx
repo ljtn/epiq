@@ -2,6 +2,11 @@
 
 import {useRef} from 'react';
 import {GUI_THEME, SANS_FONT} from '../lib/gui-theme';
+import {
+	GROUP_LABEL_COLOR,
+	GROUP_LABEL_OPACITY,
+	GROUP_LABEL_STYLE,
+} from '../lib/group-label.style';
 import {useGlowGradient} from './Panel';
 import {
 	isPeriodWindow,
@@ -443,22 +448,18 @@ const LabelledGroup = ({
 				ref={labelRef}
 				aria-hidden
 				style={{
+					...GROUP_LABEL_STYLE,
 					position: 'absolute',
 					left: 0,
 					bottom: '100%',
 					marginBottom: 4,
-					fontFamily: SANS_FONT,
-					fontSize: 8,
-					lineHeight: 1,
-					letterSpacing: '0.1em',
-					textTransform: 'uppercase',
-					whiteSpace: 'nowrap',
 					pointerEvents: 'none',
-					userSelect: 'none',
 				}}
 			>
 				{/* Two copies side by side, so the faint one's opacity doesn't cap the lit one. */}
-				<span style={{color: GUI_THEME.dim, opacity: 0.6}}>{label}</span>
+				<span style={{color: GROUP_LABEL_COLOR, opacity: GROUP_LABEL_OPACITY}}>
+					{label}
+				</span>
 				{/* The lit copy over the faint one, the glow's gradient clipped to
 				    its letters, fading in and out on the border's own clock. */}
 				<span

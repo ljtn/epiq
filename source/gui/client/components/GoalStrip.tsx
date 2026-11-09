@@ -4,6 +4,11 @@
 
 import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {
+	GROUP_LABEL_COLOR,
+	GROUP_LABEL_OPACITY,
+	GROUP_LABEL_STYLE,
+} from '../lib/group-label.style';
 import {Button} from './Button';
 import {goalFilterTitle, GoalMark, GoalProgressLine} from './GoalMarks';
 import {ICON_SIZE, IconButton} from './IconButton';
@@ -155,36 +160,54 @@ export const GoalStrip = ({
 		data-testid="goal-strip"
 		style={{
 			display: 'flex',
-			alignItems: 'center',
+			flexDirection: 'column',
 			gap: 6,
 			// In from the board's edge as far as a lane's title is.
-			padding: `14px ${COLUMN_PADDING}px 10px`,
-			overflowX: 'auto',
+			padding: `10px ${COLUMN_PADDING}px 10px`,
 			flexShrink: 0,
 		}}
 	>
-		{goals.map(goal => (
-			<GoalPill
-				key={goal.id}
-				goal={goal}
-				narrowed={goal.id === isolatedGoalId}
-				selected={goal.id === selectedGoalId}
-				onOpen={() => onOpenGoal(goal.id)}
-				onFilter={() => onFilterByGoal(goal.id)}
-			/>
-		))}
-		{onManage && (
-			<Button
-				variant="ghost"
-				testId="goal-strip-manage"
-				onClick={event => {
-					event.stopPropagation();
-					onManage();
-				}}
-				style={{fontSize: 11, color: GUI_THEME.dim, flexShrink: 0}}
-			>
-				Manage goals
-			</Button>
-		)}
+		<span
+			aria-hidden
+			style={{
+				...GROUP_LABEL_STYLE,
+				color: GROUP_LABEL_COLOR,
+				opacity: GROUP_LABEL_OPACITY,
+			}}
+		>
+			Goals
+		</span>
+		<div
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				gap: 6,
+				overflowX: 'auto',
+			}}
+		>
+			{goals.map(goal => (
+				<GoalPill
+					key={goal.id}
+					goal={goal}
+					narrowed={goal.id === isolatedGoalId}
+					selected={goal.id === selectedGoalId}
+					onOpen={() => onOpenGoal(goal.id)}
+					onFilter={() => onFilterByGoal(goal.id)}
+				/>
+			))}
+			{onManage && (
+				<Button
+					variant="ghost"
+					testId="goal-strip-manage"
+					onClick={event => {
+						event.stopPropagation();
+						onManage();
+					}}
+					style={{fontSize: 11, color: GUI_THEME.dim, flexShrink: 0}}
+				>
+					Manage goals
+				</Button>
+			)}
+		</div>
 	</div>
 );
