@@ -66,8 +66,9 @@ test('opening a commit from the log folds the others and brings it into view', a
 	);
 	await expect(header(`second of ${ref}`)).toBeInViewport();
 
-	// The same commit again: the URL does not change, and it still opens.
-	await header(`second of ${ref}`).click();
+	// The same commit again: the URL does not change, and it still opens. On
+	// the subject: the header's middle may be its message button.
+	await card(`second of ${ref}`).getByText(`second of ${ref}`).click();
 	await expect(header(`second of ${ref}`)).toHaveAttribute(
 		'aria-expanded',
 		'false',

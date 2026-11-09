@@ -1,11 +1,8 @@
 // A board's goals, above its lanes: one pill each, underlined as far as its
-// tickets are done. A pill opens its goal's panel; its funnel narrows the
-// board to the goal, and pressing that again lets go.
+// tickets are done. A pill opens its goal's panel.
 
 import {GuiBoardGoal} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
-import {GroupLabel} from './GroupLabel';
-import {GlowArea} from './Panel';
 import {Button} from './Button';
 import {GoalMark, GoalProgressLine} from './GoalMarks';
 import {COLUMN_PADDING} from './SwimlaneColumn';
@@ -132,18 +129,14 @@ export const GoalStrip = ({
 	onOpenGoal: (goalId: string) => void;
 	onManage?: () => void;
 }) => (
-	<GlowArea
-		testId="goal-strip"
+	<div
+		data-testid="goal-strip"
 		style={{
-			display: 'flex',
-			flexDirection: 'column',
-			gap: 4,
 			// In from the board's edge as far as a lane's title is.
-			padding: `4px ${COLUMN_PADDING}px 10px`,
+			padding: `10px ${COLUMN_PADDING}px`,
 			flexShrink: 0,
 		}}
 	>
-		<GroupLabel label="Goals" style={{alignSelf: 'flex-start'}} />
 		<div
 			style={{
 				display: 'flex',
@@ -175,5 +168,5 @@ export const GoalStrip = ({
 				</Button>
 			)}
 		</div>
-	</GlowArea>
+	</div>
 );

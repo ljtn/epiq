@@ -2066,6 +2066,12 @@ export const App = () => {
 							</div>
 
 							<TimeScrubber
+								footLegend={
+									selectedBoard &&
+									showsGoalStrip(selectedBoard, state?.goals ?? [])
+										? 'Goals'
+										: null
+								}
 								timeline={history.timeline}
 								commits={history.commits}
 								historyId={history.requestId}

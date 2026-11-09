@@ -62,6 +62,7 @@ import {
 	VolumeBars,
 } from './ScrubberTrack';
 import {Panel} from './Panel';
+import {GroupLabel} from './GroupLabel';
 import {REVEAL_MS, useReveal} from '../lib/use-reveal';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -207,7 +208,15 @@ export type ScrubberChart = {
 	on: ScrubberChartHandlers;
 };
 
+const PAD_X = 30;
+const PAD_BOTTOM = 18;
+// Past the goal strip's height, so all of it lights the edge.
+const GLOW_REACH = 80;
+// Over the goal pills' left edge, less the legend backing's inset.
+const LEGEND_LEFT = 10;
+
 export const ScrubberLayout = ({
+	footLegend,
 	collapsed,
 	onToggleCollapsed,
 	canPlay,
@@ -219,6 +228,8 @@ export const ScrubberLayout = ({
 	controls,
 	chart,
 }: {
+	// A legend on the bottom edge, naming what stands below: the goal strip.
+	footLegend: string | null;
 	collapsed: boolean;
 	onToggleCollapsed: () => void;
 	canPlay: boolean;
@@ -257,16 +268,33 @@ export const ScrubberLayout = ({
 			as="div"
 			borderColor={GUI_THEME.line}
 			borderRadius={0}
+			// Lights its foot, and the legend on it, from the goal strip below too.
+			proximityReach={footLegend ? GLOW_REACH : undefined}
 			style={{
 				borderLeft: 'none',
 				borderRight: 'none',
 				borderTop: 'none',
-				padding: '20px 30px 18px',
+				padding: `20px ${PAD_X}px ${PAD_BOTTOM}px`,
 				// Lets the hint overhang; safe only because this panel is square.
 				overflow: 'visible',
 				pointerEvents: standDown ? 'none' : undefined,
 			}}
 		>
+			{footLegend && (
+				<span
+					style={{
+						position: 'absolute',
+						// Past the padding, centred on the 1px edge: the text is 8px tall.
+						bottom: -(PAD_BOTTOM + 4),
+						left: LEGEND_LEFT - PAD_X,
+						display: 'flex',
+						padding: '0 6px',
+						background: GUI_THEME.chrome,
+					}}
+				>
+					<GroupLabel label={footLegend} />
+				</span>
+			)}
 			<style>{SCRUBBER_KEYFRAMES}</style>
 			<style>{SCRUBBER_PAGER_STYLES}</style>
 
