@@ -352,11 +352,37 @@ const readSourceOrder = async (
 	);
 };
 
+// Up to this many refs, git's own search beats the full scan; past it (a big
+// goal) the scan, cached and shared with the timeline, is cheaper.
+const SEARCH_REF_LIMIT = 16;
+
+/** Every commit as a candidate, from the cached full scan. */
+const refReadFromScan = async (
+	source: CommitSource,
+): Promise<Result<RefRead>> => {
+	const all = await readSourceLog(source, {});
+	if (isFail(all)) return failed(all.message);
+
+	const precedingOf = new Map<string, string | undefined>();
+	all.value.forEach((commit, index) =>
+		precedingOf.set(commit.sha, all.value[index + 1]?.sha),
+	);
+
+	return succeeded('Read every commit', {candidates: all.value, precedingOf});
+};
+
+// A fresh string: V8 keeps a slice's whole parent alive.
+const detached = (text: string): string => Buffer.from(text).toString();
+
 /** A source's commits naming the refs, and its whole order for predecessors. */
 const readRefSource = async (
 	source: CommitSource,
 	refs: string[],
 ): Promise<Result<RefRead>> => {
+	// A goal's many refs: the cached full scan answers them all at once, where a
+	// search per ref set is read afresh each time.
+	if (refs.length > SEARCH_REF_LIMIT) return refReadFromScan(source);
+
 	const key = source.repo
 		? [
 				source.cwd,
@@ -376,11 +402,15 @@ const readRefSource = async (
 		const order = await readSourceOrder(source);
 		if (isFail(order)) return failed(order.message);
 
-		const wanted = new Set(candidates.value.map(commit => commit.sha));
+		const indexOf = new Map(order.value.map((sha, index) => [sha, index]));
+		// Keyed by the candidate's own sha and holding a copy of the next: a
+		// slice of the walk's output would keep all of it alive in the cache.
 		const precedingOf = new Map<string, string | undefined>();
-		order.value.forEach((sha, index) => {
-			if (wanted.has(sha)) precedingOf.set(sha, order.value[index + 1]);
-		});
+		for (const commit of candidates.value) {
+			const at = indexOf.get(commit.sha);
+			const next = at === undefined ? undefined : order.value[at + 1];
+			precedingOf.set(commit.sha, next && detached(next));
+		}
 
 		return succeeded('Read commits naming the refs', {
 			candidates: candidates.value,
