@@ -11,15 +11,9 @@ import {MenuItem} from './Menu';
 import {Section} from './Section';
 import {popoverStyle, selectLabelStyle} from '../lib/select-style';
 import {IconChevronDown} from './IconChevronDown';
+import {GoalMark} from './GoalMarks';
 
 const PICK_LIMIT = 8;
-
-const ColorBar = ({color, height}: {color: string; height: number}) => (
-	<span
-		aria-hidden
-		style={{width: 3, height, flexShrink: 0, background: color}}
-	/>
-);
 
 export const GoalSection = ({
 	issue,
@@ -99,7 +93,7 @@ export const GoalSection = ({
 						flex: 1,
 					}}
 				>
-					<ColorBar color={goal.color} height={12} />
+					<GoalMark color={goal.color} />
 					<span
 						style={{
 							overflow: 'hidden',
@@ -166,7 +160,8 @@ export const GoalSection = ({
 						boxSizing: 'border-box',
 						marginTop: 10,
 						background: GUI_THEME.well,
-						color: issue.goal?.color ?? GUI_THEME.dim,
+						// The goal's colour is its mark; the name stays neutral, as on a card.
+						color: issue.goal ? GUI_THEME.secondary : GUI_THEME.dim,
 						border: `1px solid ${GUI_THEME.line}`,
 						borderRadius: 8,
 						padding: '8px 10px',
@@ -183,7 +178,7 @@ export const GoalSection = ({
 							gap: 8,
 						}}
 					>
-						{issue.goal && <ColorBar color={issue.goal.color} height={14} />}
+						{issue.goal && <GoalMark color={issue.goal.color} />}
 						{issue.goal?.name ?? 'None'}
 					</span>
 					<IconChevronDown size={12} />
