@@ -268,10 +268,10 @@ h1,
 	text-wrap: balance;
 }
 .lead {
-	max-width: 710px;
+	max-width: 820px;
 	text-wrap: balance;
 	margin: 0 0 28px;
-	font-size: clamp(16px, 2.2vw, 20px);
+	font-size: clamp(16px, 2.2vw, 24px);
 	font-weight: 400;
 	line-height: 1.55;
 	color: var(--text);
