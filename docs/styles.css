@@ -380,6 +380,7 @@ section {
 	gap: 24px;
 	align-items: last baseline;
 	margin-bottom: 32px;
+	margin-top: 24px;
 }
 h2 {
 	margin: 0;
