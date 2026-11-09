@@ -1,4 +1,5 @@
 import {GUI_THEME} from '../lib/gui-theme';
+import {CopyRef} from './CopyRef';
 import {Button} from './Button';
 import {FormHeader} from './FormHeader';
 import {Input} from './FormPrimitives';
@@ -19,12 +20,15 @@ export const DetailsHeader = ({
 	testId,
 	kind,
 	title,
+	refValue,
 	rename,
 	onClose,
 }: {
 	testId: string;
 	kind: 'Board' | 'Swimlane' | 'Goal';
 	title: string;
+	// Its short ref, copied to name it to an agent, as a ticket's is.
+	refValue?: string;
 	// Given, the title is edited in place, as a ticket's is, in a draft kept
 	// under the node's id: Enter or leaving it saves, Escape keeps the old one.
 	rename?: {nodeId: string; onSave: (title: string) => void};
@@ -60,6 +64,7 @@ export const DetailsHeader = ({
 				>
 					{kind}
 				</span>
+				{refValue && <CopyRef refValue={refValue} />}
 				{rename && edit.editing ? (
 					<Input
 						data-testid={`${testId}-title-input`}

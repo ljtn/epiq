@@ -663,3 +663,27 @@ test('opening a goal closes the open ticket, and keeps the board narrowed', asyn
 
 	expect(pageErrors).toEqual([]);
 });
+
+test("a goal's panel shows its ref, to copy and name it to an agent", async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const stamp = Date.now();
+	const goal = `Referred ${stamp}`;
+
+	await addTicket(page, `Refers ${stamp}`);
+	await startGoal(page, goal);
+
+	const id = await pill(page, goal).getAttribute('data-goal-id');
+	expect(id).toBeTruthy();
+
+	await pill(page, goal).getByTestId('goal-pill-open').click();
+	await expect(
+		page.getByTestId('goal-details').getByTestId('copy-ref'),
+	).toHaveText(id!.slice(-7).toUpperCase());
+
+	expect(pageErrors).toEqual([]);
+});
