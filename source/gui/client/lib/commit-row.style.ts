@@ -13,6 +13,8 @@ export const disclosureStyle: React.CSSProperties = {
 	alignItems: 'center',
 	gap: 8,
 	width: '100%',
+	// A div wearing this would otherwise add its padding past the full width.
+	boxSizing: 'border-box',
 	textAlign: 'left',
 	background: 'transparent',
 	border: 'none',

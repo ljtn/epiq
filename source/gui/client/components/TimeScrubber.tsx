@@ -107,6 +107,7 @@ const EXPANDED_AXIS_STORAGE_KEY = 'epiq.timeScrubber.expandedAxis';
 const LINES_MEASURE_STORAGE_KEY = 'epiq.timeScrubber.linesMeasure';
 
 export const TimeScrubber = ({
+	footLegend,
 	timeline,
 	commits,
 	historyId,
@@ -151,6 +152,8 @@ export const TimeScrubber = ({
 	laneTitles,
 	issueSummaryById,
 }: {
+	// Names what stands under the chart, on its bottom edge.
+	footLegend: string | null;
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
 	// Identifies the window `timeline` and `commits` came from.
@@ -1168,6 +1171,7 @@ export const TimeScrubber = ({
 
 	return (
 		<ScrubberLayout
+			footLegend={footLegend}
 			collapsed={collapsed}
 			onToggleCollapsed={() => setCollapsed(!collapsed)}
 			canPlay={connected && !theatreOpen && canPlayTimeline(timeline)}

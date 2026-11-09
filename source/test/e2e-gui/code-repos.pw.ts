@@ -225,6 +225,13 @@ test('a repo is previewed, connected on the confirm, and brings its commits to t
 		await expect(commit.getByTestId('commit-repo')).toHaveText(
 			path.basename(upstream).toLowerCase(),
 		);
+		// The row's last control stays inside its card, chip and all.
+		await commit.hover();
+		const cardBox = (await commit.boundingBox())!;
+		const shaBox = (await commit.getByTestId('copy-sha').boundingBox())!;
+		expect(shaBox.x + shaBox.width).toBeLessThanOrEqual(
+			cardBox.x + cardBox.width,
+		);
 
 		// Its diff is read from the clone, not from the board's own repo.
 		await expect(

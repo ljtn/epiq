@@ -1,10 +1,6 @@
 import {GUI_THEME} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
-import {
-	diffFill,
-	DIFF_STAT_METRICS,
-	DiffStatVariant,
-} from '../lib/diff-stat.style';
+import {DIFF_STAT_METRICS, DiffStatVariant} from '../lib/diff-stat.style';
 import {DiffBar} from './DiffBar';
 
 export const DiffStat = ({
@@ -19,7 +15,7 @@ export const DiffStat = ({
 	// The pill after the figures. Off where the figures are enough: a log line
 	// or a commit row, where it only repeats what the two numbers say.
 	bar?: boolean;
-	// `card` is the board's size: the ref's own type, and a hairline bar.
+	// `card` is the board's size, the ref's own type, with no bar.
 	variant?: DiffStatVariant;
 	// The pointer is on it, so it comes up to full strength — it is a way in to
 	// what it counts, not only a reading. Nothing on a variant already there.
@@ -30,13 +26,12 @@ export const DiffStat = ({
 	const metrics = DIFF_STAT_METRICS[variant];
 	const added = <span style={{color: GUI_THEME.green}}>+{insertions}</span>;
 	const removed = <span style={{color: GUI_THEME.red}}>-{deletions}</span>;
-	const pill = bar && (
+	const pill = bar && metrics.bar && (
 		<DiffBar
 			insertions={insertions}
 			deletions={deletions}
-			width={metrics.barWidth}
-			height={metrics.barHeight}
-			fill={metrics.sizedFill ? diffFill(insertions + deletions) : 1}
+			width={metrics.bar.width}
+			height={metrics.bar.height}
 		/>
 	);
 
