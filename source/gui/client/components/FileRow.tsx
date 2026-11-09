@@ -249,6 +249,10 @@ export const FileRow = ({
 	additionsOnly?: boolean;
 }) => {
 	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
+	// The range under a drag still in progress; undefined while none is.
+	const [dragRange, setDragRange] = useState<
+		SelectedLineRange | null | undefined
+	>(undefined);
 	// Held here rather than in the composer so re-dragging the range keeps
 	// what was typed.
 	const [note, setNote] = useState('');
@@ -262,17 +266,19 @@ export const FileRow = ({
 		null,
 	);
 
-	const acceptSelection = (range: SelectedLineRange | null) => {
-		// Clears the old selection's composer once a new drag starts.
-		if (
-			range &&
-			additionsOnly &&
-			(range.side === 'deletions' || range.endSide === 'deletions')
-		) {
-			return setSelection(null);
-		}
+	// On a compacted diff only additions belong to a commit: a range
+	// touching deletions selects nothing.
+	const withinSides = (range: SelectedLineRange | null) =>
+		range &&
+		additionsOnly &&
+		(range.side === 'deletions' || range.endSide === 'deletions')
+			? null
+			: range;
 
-		setSelection(range);
+	const acceptSelection = (range: SelectedLineRange | null) => {
+		setDragRange(undefined);
+		// Clears the old selection's composer once a new drag starts.
+		setSelection(withinSides(range));
 	};
 
 	const clearSelection = () => {
@@ -386,7 +392,12 @@ export const FileRow = ({
 						file={file}
 						diffStyle={diffStyle}
 						renderKey={renderKey}
-						selectedLines={hoveredRange ?? selection}
+						selectedLines={
+							hoveredRange ?? (dragRange === undefined ? selection : dragRange)
+						}
+						onSelectionChange={
+							selectable ? range => setDragRange(withinSides(range)) : undefined
+						}
 						onSelectionEnd={selectable ? acceptSelection : undefined}
 						lineAnnotations={lineAnnotations}
 						renderCustomHeader={header}

@@ -210,3 +210,43 @@ test('selecting lines opens one composer under them; write, then comment or file
 
 	expect(pageErrors).toEqual([]);
 });
+
+test('a drag across line numbers lights the lines as it goes, before the release', async ({
+	page,
+	pageErrors,
+	repoRoot,
+}) => {
+	const stamp = Date.now();
+	await addTicket(page, `Live drag ${stamp}`);
+	const ref = (
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
+	)?.trim();
+	expect(ref).toBeTruthy();
+
+	const fileName = linkedFileName(ref!);
+	commitLinkedFile(repoRoot, ref!, 'add notes');
+	await page.reload();
+	await expect(page.locator('aside')).toContainText(`Live drag ${stamp}`);
+	await expandDiff(page, 'add notes', fileName);
+
+	const numbers = page.locator('[data-column-number]');
+	const first = await numbers.nth(0).boundingBox();
+	const third = await numbers.nth(2).boundingBox();
+	if (!first || !third) throw new Error('line numbers not on screen');
+
+	await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(third.x + third.width / 2, third.y + third.height / 2, {
+		steps: 5,
+	});
+
+	// Still held: the range is drawn while it is being chosen.
+	await expect(page.locator('[data-line][data-selected-line]')).toHaveCount(3);
+	await expect(page.getByTestId('selection-composer')).toHaveCount(0);
+
+	await page.mouse.up();
+	await expect(page.getByTestId('selection-composer')).toBeVisible();
+	await expect(page.locator('[data-line][data-selected-line]')).toHaveCount(3);
+
+	expect(pageErrors).toEqual([]);
+});
