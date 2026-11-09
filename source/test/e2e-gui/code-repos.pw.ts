@@ -918,3 +918,31 @@ test('a repo labelled in the panel is named so on its commits and in the filter'
 	fs.rmSync(upstream, {recursive: true, force: true});
 	expect(pageErrors).toEqual([]);
 });
+
+test("a connected repo's commits reach the ticket's diff pill without a reload", async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+	globalDir,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const title = `Pill ${stamp}`;
+	const ref = await addTicketForRef(page, title);
+	const card = page.locator('[draggable="true"]').filter({hasText: title});
+	await expect(card).not.toContainText('+2');
+
+	await withNoRepos({repoRoot, globalDir}, async () => {
+		await openRepos(page);
+		await connectRepo(page, `file://${makeUpstream(ref, `pill ${stamp}`)}`);
+		await page.keyboard.press('Escape');
+
+		// The repo's commit adds two lines; nothing but its arrival redraws them.
+		await expect(card).toContainText('+2');
+	});
+
+	expect(pageErrors).toEqual([]);
+});
