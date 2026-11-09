@@ -374,7 +374,7 @@ const refReadFromScan = async (
 // A fresh string: V8 keeps a slice's whole parent alive.
 const detached = (text: string): string => Buffer.from(text).toString();
 
-/** A source's commits naming the refs, and its whole order for predecessors. */
+/** A source's commits naming the refs, each with the commit before it. */
 const readRefSource = async (
 	source: CommitSource,
 	refs: string[],

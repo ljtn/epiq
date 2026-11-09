@@ -161,3 +161,42 @@ describe("the board's own repo", () => {
 		).toEqual(listed.map(({sha}) => union.get(sha)));
 	});
 });
+
+// A goal's many refs read the full scan, a ticket's few git's search: the two
+// paths must give one answer.
+describe('a ref set past the search limit', () => {
+	it('matches exactly what the search finds for the refs that exist', async () => {
+		commit(board, 'Ada', ['B8PYTCM start the parser']);
+		commit(board, 'Ada', ['b8pytcm keep going']);
+		commit(board, 'Bea', ['unrelated work']);
+		commit(board, 'Bea', ['wire it up', 'Epiq-Ref: W1TCS14, B8PYTCM']);
+		commit(board, 'Erik', ['W1TCS14X looks like a ref but is not']);
+		commit(board, 'Erik', ['W1TCS14 the last of it']);
+
+		const real = ['B8PYTCM', 'W1TCS14'];
+		// Well-formed refs that name no commit, enough to pass the limit.
+		const absent = Array.from(
+			{length: 15},
+			(_, index) => `ZZZZZ${String(index).padStart(2, '0')}`,
+		);
+
+		const shape = (commits: Awaited<ReturnType<typeof getCommitsForRefs>>) =>
+			value(commits).map(({sha, tickets, precedingSha}) => ({
+				sha,
+				tickets,
+				precedingSha,
+			}));
+
+		resetCommitTimelineCacheForTests();
+		const searched = shape(
+			await getCommitsForRefs({repoRoot: board, refs: real}),
+		);
+		resetCommitTimelineCacheForTests();
+		const scanned = shape(
+			await getCommitsForRefs({repoRoot: board, refs: [...real, ...absent]}),
+		);
+
+		expect(searched).toHaveLength(4);
+		expect(scanned).toEqual(searched);
+	});
+});
