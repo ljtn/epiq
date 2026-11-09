@@ -22,7 +22,6 @@ import {
 	STACKED_DIFF_WIDTH,
 } from './Aside';
 import {Empty} from './FormPrimitives';
-import {GoalProgressLine} from './GoalMarks';
 import {IconCheck} from './IconCheck';
 import {IconChevronRight} from './IconChevronRight';
 import {nodeRef} from '../../../lib/utils/node-ref.js';
@@ -245,7 +244,6 @@ export const GoalDetails = ({
 		goal.description ?? '',
 	);
 	const groups = groupsOf(goal.id, boards, boardId);
-	const share = goal.total > 0 ? goal.done / goal.total : 0;
 	const here =
 		boards
 			.find(board => board.id === boardId)
@@ -335,12 +333,6 @@ export const GoalDetails = ({
 								label="On this board"
 							/>
 						</div>
-						<GoalProgressLine
-							color={goal.color}
-							share={share}
-							thickness={4}
-							style={{marginTop: 16}}
-						/>
 					</Section>
 
 					{groups.length === 0 && (
