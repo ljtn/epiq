@@ -25,6 +25,7 @@ import {Empty} from './FormPrimitives';
 import {GoalProgressLine} from './GoalMarks';
 import {IconCheck} from './IconCheck';
 import {IconChevronRight} from './IconChevronRight';
+import {nodeRef} from '../../../lib/utils/node-ref.js';
 import {CopyRef} from './CopyRef';
 import {DescriptionField} from './DescriptionField';
 import {DetailsHeader} from './NodeDetails';
@@ -267,6 +268,7 @@ export const GoalDetails = ({
 				testId="goal-details"
 				kind="Goal"
 				title={goal.name}
+				refValue={nodeRef(goal.id)}
 				onClose={onClose}
 			/>
 
