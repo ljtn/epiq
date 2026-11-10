@@ -200,6 +200,28 @@ const buildComponents = (
 			</pre>
 		</InPre.Provider>
 	),
+	// Scrolls on its own when wider than the column, rather than the column.
+	table: ({children}) => (
+		<div style={{margin: '0 0 14px', overflowX: 'auto'}}>
+			<table style={{borderCollapse: 'collapse'}}>{children}</table>
+		</div>
+	),
+	// The column's alignment rides in on `style`; left otherwise, not th's centre.
+	th: ({children, style}) => (
+		<th
+			style={{
+				...TABLE_CELL_STYLE,
+				background: GUI_THEME.bg,
+				fontWeight: 600,
+				...style,
+			}}
+		>
+			{children}
+		</th>
+	),
+	td: ({children, style}) => (
+		<td style={{...TABLE_CELL_STYLE, ...style}}>{children}</td>
+	),
 	hr: () => (
 		<hr
 			style={{
@@ -210,6 +232,13 @@ const buildComponents = (
 		/>
 	),
 });
+
+const TABLE_CELL_STYLE: React.CSSProperties = {
+	padding: '6px 10px',
+	border: `1px solid ${GUI_THEME.asideEdge}`,
+	textAlign: 'left',
+	verticalAlign: 'top',
+};
 
 // A single newline is a line break, as it was typed, rather than CommonMark's
 // space; a blank line still starts a paragraph.
