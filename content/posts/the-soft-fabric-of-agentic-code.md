@@ -63,7 +63,7 @@ Picking the right data model is not an afterthought but a core feature of the ar
 
 On this project, the data model has proven essential for distributed live collaboration, and has made the system evolvable. New features have been added by deriving information from the logs or by adding another event type, never by migrating existing data. When image attachments were added, all it took was another event type, which newer clients recognized and older ones ignored.
 
-Not all systems live under the same constraints, and other visions call for other structural poles. In any event, one can expect the data model to outlive the code, and as such it must be considered a part of the load-bearing structure.
+One can expect the data model to outlive the code, and as such it must be considered part of the load-bearing structure.
 
 ## The aimless factory
 A massive amount of effort is going into setting up loops, harnesses and software factories, but little attention seems to be given to intentionality and vision. In the real world there are factories that overproduce to justify their existence because they are static, massive units built for predicted demand that never materialized. And so they produce high-quality garbage that no one wants. This happens in software too, which I can attest to first-hand (but that's another story).
