@@ -55,11 +55,11 @@ Suddenly not only were features cheap, but tests too. You could add a thousand t
 Pegs are now cheap, allowing us to lock the architecture firmly in place.
 
 ## The great inversion
-The observant reader might have noticed that there is a common denominator between all of the foundational poles in this project. They are all concerned with the data model.
+The observant reader might have noticed that there is a common denominator between all of the foundational poles. They are all concerned with the data model.
 
 A common notion is that data is soft and software is rigid. Agentic workflows have challenged, one might even say, inverted, this perceived relationship. What has not changed, however, is the cementing effect data has on a system. Data comes with migrations, uncharted sources, varying quality, risky transformations, all of which are petrifying to system evolution.
 
-Picking the right data model is not an afterthought, but a core feature of the architecture. Poles to stretch the soft tissue of code across, nailed to the ground with tests.
+Picking the right data model is not an afterthought but a core feature of the architecture. Poles to stretch the soft tissue of code across, nailed to the ground with tests.
 
 On this project, the data model has proven not only essential for distributed live collaboration, but has also resulted in an evolvable system. So far every new feature has been added by deriving information from the logs in a new way or by adding another event type, never by migrating existing data. When image attachments were added, for instance, all it took was another event type, which newer clients recognized, and older ones ignored. When advanced statistics were added, it was a matter of identifying derivable insights from the event log.
 
