@@ -48,7 +48,7 @@ These constraints were derived from a human vision. Without one, agents drift: a
 
 ## Pinning it down
 
-Once the poles were in place, post launch in summer 2026, a fabric factory opened its gates a meter away. Enter Claude Code. Introduced any earlier, it might have been to the detriment of the architecture. As it was, the agents arrived at the precise moment when a fabric of features had a frame to stretch across.
+With the poles in place after launch in summer 2026, a fabric factory opened its gates a meter away, enter Claude Code. Any earlier, it might have been to the detriment of the architecture. As it was, it arrived at the precise moment when a fabric of features had a frame to stretch across.
 
 Suddenly not only features were cheap, but tests too. You could add a thousand tent pegs for a single pole, firmly pinning it to the ground. The core is now pegged down with paranoid tests trying to break the concurrency model or the Git interactions. One test simulates a team of 20 using the tracker intensely every day for 10 years, verifying the board is still usable and responsive at scale.
 
