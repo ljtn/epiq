@@ -200,6 +200,13 @@ const buildComponents = (
 			</pre>
 		</InPre.Provider>
 	),
+	// Scrolls on its own when wider than the column, rather than the column.
+	table: ({children}) => (
+		<div style={{margin: '0 0 14px', overflowX: 'auto'}}>
+			<style>{TABLE_STYLES}</style>
+			<table className={TABLE_CLASS}>{children}</table>
+		</div>
+	),
 	hr: () => (
 		<hr
 			style={{
@@ -210,6 +217,39 @@ const buildComponents = (
 		/>
 	),
 });
+
+const TABLE_CLASS = 'epiq-md-table';
+// Fainter than the app's hover: a table is read, not clicked.
+const TABLE_HOVER = 'rgba(255, 255, 255, 0.025)';
+// Enough columns for any table typed by hand.
+const MAX_HOVER_COLUMNS = 12;
+
+// Pseudo-classes, which inline styles cannot reach. A hovered row lights, and
+// a hovered head lights its column. A column's alignment is inline, so it wins
+// over the left here.
+const TABLE_STYLES = `
+	.${TABLE_CLASS} { border-collapse: collapse; }
+	.${TABLE_CLASS} th, .${TABLE_CLASS} td {
+		padding: 6px 10px;
+		border: 1px solid ${GUI_THEME.asideEdge};
+		text-align: left;
+		vertical-align: top;
+		transition: background 120ms ease;
+	}
+	.${TABLE_CLASS} th {
+		font-weight: 600;
+		background-color: color-mix(in srgb, ${GUI_THEME.bg} 50%, transparent);
+	}
+	/* Over the head's own dark, not in place of it. */
+	.${TABLE_CLASS} th:hover {
+		background-image: linear-gradient(${TABLE_HOVER}, ${TABLE_HOVER});
+	}
+	.${TABLE_CLASS} tbody tr:hover td { background: ${TABLE_HOVER}; }
+${Array.from({length: MAX_HOVER_COLUMNS}, (_, index) => {
+	const column = `nth-child(${index + 1})`;
+	return `\t.${TABLE_CLASS}:has(th:${column}:hover) td:${column} { background: ${TABLE_HOVER}; }`;
+}).join('\n')}
+`;
 
 // A single newline is a line break, as it was typed, rather than CommonMark's
 // space; a blank line still starts a paragraph.
