@@ -40,7 +40,7 @@ None of these is exotic on its own, but together they are not a mainstream solut
 - Users are never asked to resolve merge conflicts
 - Several people, and agents, might edit at the same time, on- or offline
 
-These constraints were derived from a human vision. Without one, agents drift: ask for a red button, then a blue one, and you may get two button components rather than one configurable button.
+These constraints were derived from a human vision. Without one, agents drift. This is why, when you ask for a red button and then a blue one, you may get two button components rather than one configurable button.
 
 ## Pinning it down
 
