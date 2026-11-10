@@ -242,8 +242,7 @@ h1,
 	color: color-mix(in srgb, var(--text) 75%, transparent);
 }
 .sub-header {
-	margin-top: calc(var(--s) * 0.6);
-	font-size: calc(var(--s) * 0.3038);
+	font-size: clamp(12px, 1.3vw, 16px);
 	letter-spacing: 0.16em;
 	text-transform: uppercase;
 	color: color-mix(in srgb, var(--dim) 75%, transparent);
@@ -251,15 +250,12 @@ h1,
 /* At its floor the third line's spacing tightens so it keeps to one row. */
 @media (max-width: 620px) {
 	.sub-header {
-		font-size: max(12px, var(--s) * 7 / 34.56);
 		letter-spacing: 0.02em;
 	}
-	/* "as code" on its own line, so --s fits the 14 of "Issue tracking". */
+	/* "as code" wraps to its own line, so --s fits the 14 of "Issue tracking". */
 	.hero-title > * {
 		--s: min(90px, 100cqi / 7.15);
-	}
-	.hero-title h1 span {
-		display: block;
+		white-space: normal;
 	}
 }
 /* Below their floors the two smaller lines wrap rather than shrink further. */
@@ -268,10 +264,10 @@ h1,
 	text-wrap: balance;
 }
 .lead {
-	max-width: 820px;
+	max-width: 920px;
 	text-wrap: balance;
 	margin: 0 0 28px;
-	font-size: clamp(16px, 2.2vw, 24px);
+	font-size: clamp(18px, 2.6vw, 28px);
 	font-weight: 400;
 	line-height: 1.55;
 	color: var(--text);
