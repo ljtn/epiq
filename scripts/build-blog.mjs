@@ -253,6 +253,8 @@ function shell({ title, description, canonical, image, type = "website", depth, 
 ${head}
 		<link rel="alternate" type="application/rss+xml" title="Epiq blog" href="${FEED_URL}" />
 		<link rel="icon" href="${up}favicon.ico" sizes="any" />
+		<link rel="preload" href="${up}fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+		<link rel="preload" href="${up}fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
 		<link rel="stylesheet" href="${up}styles.css" />
 	</head>
 	<body>
