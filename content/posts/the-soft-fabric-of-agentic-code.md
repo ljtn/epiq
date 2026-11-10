@@ -67,6 +67,4 @@ Massive effort goes into setting up harnesses and software factories. In the rea
 ## Back to the tipi
 Agentic workflows can help us wrap up our framing in beautiful ornaments in no time and help us pin it firmly to the ground with a thousand pegs, but without well-understood, sturdy poles of architecture, we have nothing but a soft, formless mess. Ornate, but flat, wet and tangled.
 
-Starting from a vision, deriving constraints from it, and building intuition for the critical parts are still as important as they ever were.
-
 Does this resonate with you, or do you disagree? Please share your thoughts below.
