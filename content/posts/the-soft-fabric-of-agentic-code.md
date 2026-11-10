@@ -50,9 +50,9 @@ These constraints were derived from a human vision. Without one, agents drift: a
 
 With the poles in place after launch in summer 2026, a fabric factory opened its gates a meter away, enter Claude Code. Any earlier, it might have been to the detriment of the architecture. As it was, it arrived at the precise moment when a fabric of features had a frame to stretch across.
 
-Suddenly not only features were cheap, but tests too. You could add a thousand tent pegs for a single pole, firmly pinning it to the ground. The core is now pegged down with paranoid tests trying to break the concurrency model or the Git interactions. One test simulates a team of 20 using the tracker intensely every day for 10 years, verifying the board is still usable and responsive at scale.
+Suddenly not only were features cheap, but tests too. You could add a thousand tent pegs for a single pole, pinning it firmly to the ground. The core is now pegged down with tests trying to break the concurrency model or the Git interactions. There is a test simulating a team of 20 using the tracker intensely every day for 10 years.
 
-We live in an age where pegs are cheap, allowing us to lock the architecture firmly in place.
+Pegs are now cheap, allowing us to lock the architecture firmly in place.
 
 ## The great inversion
 The observant reader might have noticed that there is a common denominator between all of the foundational poles in this project. They are all concerned with the data model.
