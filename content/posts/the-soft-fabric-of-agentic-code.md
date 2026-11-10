@@ -71,6 +71,6 @@ Massive effort goes into setting up harnesses and software factories. In the rea
 ## Back to the tipi
 Agentic workflows can help us wrap up our framing in beautiful ornaments in no time and help us pin it firmly to the ground with a thousand pegs, but without well-understood, sturdy poles of architecture, we have nothing but a soft, formless mess. Ornate, but flat, wet and tangled.
 
-The art of not writing all the code is [knowing which parts you must build intuition for](./cost-of-cognitive-debt), starting from a vision, deriving the constraints, and raising the poles.
+Starting from a vision, deriving constraints from it, and building intuition for the critical parts are still as important as they ever were.
 
 Does this resonate with you, or do you disagree? Please share your thoughts below.
