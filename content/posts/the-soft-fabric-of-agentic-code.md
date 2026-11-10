@@ -59,7 +59,7 @@ The observant reader might have noticed that there is a common denominator betwe
 
 A common notion is that data is soft and software is rigid. Agentic workflows have challenged, one might even say, inverted, this perceived relationship. What has not changed, however, is the cementing effect data has on a system. Data comes with migrations, uncharted sources, varying quality, risky transformations, all of which are petrifying to system evolution.
 
-Picking the right data model is not an afterthought but a core feature of the architecture. Poles to stretch the soft tissue of code across, nailed to the ground with tests.
+Picking the right data model is not an afterthought but a core feature of the architecture. Poles to stretch the soft fabric of code across.
 
 On this project, the data model has proven essential for distributed live collaboration, and has made the system evolvable. New features have been added by deriving information from the logs or by adding another event type, never by migrating existing data. When image attachments were added, all it took was another event type, which newer clients recognized and older ones ignored.
 
