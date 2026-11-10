@@ -61,7 +61,7 @@ A common notion is that data is soft and software is rigid. Agentic workflows ha
 
 Picking the right data model is not an afterthought but a core feature of the architecture. Poles to stretch the soft fabric of code across.
 
-On this project, the data model has proven essential for distributed live collaboration, and has made the system evolvable. New features were added by deriving information from the logs or by adding another event type, never by migrating existing data. When image attachments were added, all it took was another event type, which newer clients recognized and older ones ignored.
+On this project, the data model has proven essential for distributed live collaboration, and has made the system evolvable. New features were added by deriving information from the logs or by adding another event type, never by migrating existing data. Adding image attachments meant one new event type, which newer clients recognized and older ones ignored.
 
 One can expect the data model to outlive the code, and as such it must be considered part of the load-bearing structure.
 
