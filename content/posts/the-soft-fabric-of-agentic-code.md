@@ -66,9 +66,7 @@ On this project, the data model has proven essential for distributed live collab
 One can expect the data model to outlive the code, and as such it must be considered part of the load-bearing structure.
 
 ## The aimless factory
-A massive amount of effort is going into setting up loops, harnesses and software factories, but little attention seems to be given to intentionality and vision. In the real world there are factories that overproduce to justify their existence because they are static, massive units built for predicted demand that never materialized. And so they produce high-quality garbage that no one wants. This happens in software too, which I can attest to first-hand (but that's another story).
-
-Sometimes you just need an axe, a few trees and a skilled craftsman. Intention, comprehension and vision beat big, aimless factories.
+Massive efforts go into setting up harnesses and software factories. In the real world there are factories that overproduce to justify their existence because they are static, massive units built for predicted demand that never materialized, producing high-quality garbage that no one asked for. This happens in software too. Intention, comprehension and vision are still key to providing value to the consumers.
 
 ## Back to the tipi
 Agentic workflows can help us wrap up our framing in beautiful ornaments in no time and help us pin it firmly to the ground with a thousand pegs, but without well-understood, sturdy poles of architecture, we have nothing but a soft, formless mess. Ornate, but flat, wet and tangled.
