@@ -22,10 +22,8 @@ We'd be helped by sturdy poles to stretch the fabric into its desired shape. In 
 
 That's the theory. Here is how it played out on my project.
 
-## A thousand doubts
-In the early summer of 2025 I started building Epiq, an issue tracker that keeps its state in the repository and syncs over Git.
-
-The architecture was forged in manual struggle with the code, endless rubber ducking, 11h meditation sessions (road trips) and a thousand doubts.
+## Picking the poles
+In the early summer of 2025 I started building Epiq, an issue tracker that keeps its state in the repository and syncs over Git. The architecture was shaped by manual struggle with the code, rubber ducking, and long road trips spent thinking it through.
 
 Trees in the forest of ideas were selected, pruned of false branches, logged, sharpened, and finally knit together. In the end, a few non-negotiable architectural poles emerged:
 
