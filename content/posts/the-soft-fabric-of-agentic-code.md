@@ -36,9 +36,7 @@ Trees in the forest of ideas were selected, pruned of false branches, logged, sh
 Upon these rests every later feature.
 
 ## Constraints over slop
-None of these is exotic on its own, but together they are not a mainstream solution. Had the workflow been 100% agentic, this architecture would have been an _unlikely_ outcome, since probabilistic models punish anything unorthodox.
-
-The solution is more likely given the constraints:
+None of these is exotic on its own, but together they are not a mainstream solution. They follow from the constraints:
 
 - Git is the only transport
 - Users are never asked to resolve merge conflicts
