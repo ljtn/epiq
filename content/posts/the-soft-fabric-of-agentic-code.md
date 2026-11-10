@@ -44,7 +44,7 @@ The solution is more likely given the constraints:
 - Users are never asked to resolve merge conflicts
 - Several people, and agents, might edit at the same time, on- or offline
 
-These constraints were derived from a human vision. Agents lacking a vision for the codebase is why, if you ask for a red button, and then for a blue button, you might get two different button components rather than a single configurable button.
+These constraints were derived from a human vision. Without one, agents drift: ask for a red button, then a blue one, and you may get two button components rather than one configurable button.
 
 ## Pinning it down
 
