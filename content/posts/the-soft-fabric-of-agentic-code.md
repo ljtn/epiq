@@ -25,7 +25,7 @@ That's the theory. Here is how it played out on my project.
 ## A thousand doubts
 In the early summer of 2025 I started building Epiq, an issue tracker that keeps its state in the repository and syncs over Git.
 
-Back then agentic workflows were but distant rumors. The architecture was forged in manual struggle with the code, endless rubber ducking, 11h meditation sessions (road trips) and a thousand doubts.
+The architecture was forged in manual struggle with the code, endless rubber ducking, 11h meditation sessions (road trips) and a thousand doubts.
 
 Trees in the forest of ideas were selected, pruned of false branches, logged, sharpened, and finally knit together. In the end, a few non-negotiable architectural poles emerged:
 
@@ -38,9 +38,8 @@ Upon these rests every later feature.
 ## Constraints over slop
 None of these is exotic on its own, but together they are not a mainstream solution. Had the workflow been 100% agentic, this architecture would have been an _unlikely_ outcome, since probabilistic models punish anything unorthodox.
 
-The solution becomes more likely when revealing the constraints:
+The solution is more likely given the constraints:
 
-- The board lives in the repo with the code (no server, vendor-agnostic)
 - Git is the only transport
 - Users are never asked to resolve merge conflicts
 - Several people, and agents, might edit at the same time, on- or offline
