@@ -972,6 +972,23 @@ export const App = () => {
 		windowIds,
 		isolatedIssueId,
 	]);
+	// The open board's count says how many its filter hides, so lanes reading (0)
+	// don't sit under "1 ticket". Only it: the time window is fetched per board.
+	const boardTicketCount = (board: GuiState['boards'][number]) => {
+		const total = board.swimlanes.reduce(
+			(sum, swimlane) => sum + swimlane.issues.length,
+			0,
+		);
+		return board.id === selectedBoardId && hiddenIssueCount > 0
+			? `${total - hiddenIssueCount} of ${plural(total, 'ticket')}`
+			: plural(total, 'ticket');
+	};
+	// The text box is the open board's: it empties once another board is on screen.
+	const textFilterBoardId = useRef(selectedBoardId);
+	useEffect(() => {
+		if (textFilterBoardId.current !== selectedBoardId) setTextFilter('');
+		textFilterBoardId.current = selectedBoardId;
+	}, [selectedBoardId]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 
 	// Reads every frame; the connection itself is `useBoardSocket`'s.
@@ -1703,8 +1720,23 @@ export const App = () => {
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		clearDragState();
+		if (nextBoardId === selectedBoardId) {
+			void navigate(`/board/${nodeRef(nextBoardId)}`);
+			return;
+		}
 
-		void navigate(`/board/${nodeRef(nextBoardId)}`);
+		// Another board starts unfiltered; scope and layout are views, so they stay.
+		// In the one navigation, so an unsent-text prompt that blocks it keeps the filter.
+		const params = new URLSearchParams();
+		writeSelectionParams(
+			params,
+			applySelectionPatch(selection, {
+				only: {},
+				windowOnly: false,
+				ticketOnly: false,
+			}),
+		);
+		void navigate(`/board/${nodeRef(nextBoardId)}?${params}`);
 	};
 
 	const openCreateIssueModal = (swimlaneId: string) => {
@@ -2020,15 +2052,7 @@ export const App = () => {
 												state?.boards.map(board => ({
 													id: board.id,
 													label: board.title,
-													// Counted here, as the TUI's board list says it.
-													hint: plural(
-														board.swimlanes.reduce(
-															(total, swimlane) =>
-																total + swimlane.issues.length,
-															0,
-														),
-														'ticket',
-													),
+													hint: boardTicketCount(board),
 												})) ?? []
 											}
 											placeholder="Loading…"
