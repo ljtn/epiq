@@ -9,7 +9,7 @@ const narrowToContributors = async (page: Page) => {
 	await page.keyboard.press('Escape');
 };
 
-test('the board switcher counts what the filter leaves on the board', async ({
+test('the board switcher counts every ticket, whatever the filter hides', async ({
 	page,
 	appUrl,
 	pageErrors,
@@ -28,13 +28,16 @@ test('the board switcher counts what the filter leaves on the board', async ({
 		.filter({hasText: 'Default'});
 
 	await page.getByTestId('board-switcher').click();
-	await expect(defaultOption).toContainText(/\d+ tickets?/);
-	await expect(defaultOption).not.toContainText(' of ');
+	await expect(defaultOption).toContainText(/\d+ tickets/);
+	const unfiltered = await defaultOption.textContent();
 	await page.keyboard.press('Escape');
 
 	await page.getByPlaceholder('Ref or title').fill(title);
+	await expect(
+		page.locator('[draggable="true"]').filter({hasText: 'Hidden'}),
+	).toHaveCount(0);
 	await page.getByTestId('board-switcher').click();
-	await expect(defaultOption).toContainText(/1 of \d+ tickets/);
+	await expect(defaultOption).toHaveText(unfiltered!);
 
 	expect(pageErrors).toEqual([]);
 });
