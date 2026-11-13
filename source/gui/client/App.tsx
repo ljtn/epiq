@@ -972,6 +972,17 @@ export const App = () => {
 		windowIds,
 		isolatedIssueId,
 	]);
+	// The open board's count says how many its filter hides, so lanes reading (0)
+	// don't sit under "1 ticket". Only it: the time window is fetched per board.
+	const boardTicketCount = (board: GuiState['boards'][number]) => {
+		const total = board.swimlanes.reduce(
+			(sum, swimlane) => sum + swimlane.issues.length,
+			0,
+		);
+		return board.id === selectedBoardId && hiddenIssueCount > 0
+			? `${total - hiddenIssueCount} of ${plural(total, 'ticket')}`
+			: plural(total, 'ticket');
+	};
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 
 	// Reads every frame; the connection itself is `useBoardSocket`'s.
@@ -2020,15 +2031,7 @@ export const App = () => {
 												state?.boards.map(board => ({
 													id: board.id,
 													label: board.title,
-													// Counted here, as the TUI's board list says it.
-													hint: plural(
-														board.swimlanes.reduce(
-															(total, swimlane) =>
-																total + swimlane.issues.length,
-															0,
-														),
-														'ticket',
-													),
+													hint: boardTicketCount(board),
 												})) ?? []
 											}
 											placeholder="Loading…"
