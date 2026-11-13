@@ -1714,6 +1714,11 @@ export const App = () => {
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		clearDragState();
+		// Another board starts unfiltered; scope and layout are views, so they stay.
+		if (nextBoardId !== selectedBoardId) {
+			changeSelection({only: {}, windowOnly: false, ticketOnly: false});
+			setTextFilter('');
+		}
 
 		void navigate(`/board/${nodeRef(nextBoardId)}`);
 	};
