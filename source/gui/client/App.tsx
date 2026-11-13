@@ -983,6 +983,12 @@ export const App = () => {
 			? `${total - hiddenIssueCount} of ${plural(total, 'ticket')}`
 			: plural(total, 'ticket');
 	};
+	// The text box is the open board's: it empties once another board is on screen.
+	const textFilterBoardId = useRef(selectedBoardId);
+	useEffect(() => {
+		if (textFilterBoardId.current !== selectedBoardId) setTextFilter('');
+		textFilterBoardId.current = selectedBoardId;
+	}, [selectedBoardId]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 
 	// Reads every frame; the connection itself is `useBoardSocket`'s.
@@ -1714,13 +1720,23 @@ export const App = () => {
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		clearDragState();
-		// Another board starts unfiltered; scope and layout are views, so they stay.
-		if (nextBoardId !== selectedBoardId) {
-			changeSelection({only: {}, windowOnly: false, ticketOnly: false});
-			setTextFilter('');
+		if (nextBoardId === selectedBoardId) {
+			void navigate(`/board/${nodeRef(nextBoardId)}`);
+			return;
 		}
 
-		void navigate(`/board/${nodeRef(nextBoardId)}`);
+		// Another board starts unfiltered; scope and layout are views, so they stay.
+		// In the one navigation, so an unsent-text prompt that blocks it keeps the filter.
+		const params = new URLSearchParams();
+		writeSelectionParams(
+			params,
+			applySelectionPatch(selection, {
+				only: {},
+				windowOnly: false,
+				ticketOnly: false,
+			}),
+		);
+		void navigate(`/board/${nodeRef(nextBoardId)}?${params}`);
 	};
 
 	const openCreateIssueModal = (swimlaneId: string) => {
