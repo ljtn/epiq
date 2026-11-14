@@ -3,6 +3,7 @@ import {DropIndicator} from '../App';
 import {GuiComment, GuiIssue, GuiSwimlane} from '../lib/gui-state.model';
 import {useCardDensityView} from '../lib/card-density';
 import {GUI_THEME} from '../lib/gui-theme';
+import {Button} from './Button';
 import {
 	cardActivity,
 	dwellLevel,
@@ -46,6 +47,8 @@ export const SwimlaneColumn = ({
 	onFilterByTag,
 	isolatedGoalId = null,
 	onFilterByGoal,
+	hiddenByFilter = 0,
+	onClearFilter,
 	isolatedAssigneeId,
 	onFilterByAssignee,
 	pickedIssueIds,
@@ -78,6 +81,8 @@ export const SwimlaneColumn = ({
 	onFilterByTag: (tagId: string) => void;
 	isolatedGoalId?: string | null;
 	onFilterByGoal?: (goalId: string) => void;
+	hiddenByFilter?: number;
+	onClearFilter?: () => void;
 	isolatedAssigneeId: string | null;
 	onFilterByAssignee: (assigneeId: string) => void;
 	pickedIssueIds: readonly string[];
@@ -349,7 +354,29 @@ export const SwimlaneColumn = ({
 				}}
 			>
 				{swimlane.issues.length === 0 ? (
-					<>{/* Show nothing */}</>
+					hiddenByFilter > 0 ? (
+						<div
+							data-testid="lane-hidden-by-filter"
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: 8,
+								color: GUI_THEME.dim,
+								padding: '8px 2px',
+								fontSize: 12,
+							}}
+						>
+							{hiddenByFilter} hidden by filter
+							<Button
+								variant="ghost"
+								dense
+								testId="lane-clear-filter"
+								onClick={onClearFilter}
+							>
+								Clear
+							</Button>
+						</div>
+					) : null
 				) : (
 					<>
 						{swimlane.issues.map((ticket, index) => (
