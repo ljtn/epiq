@@ -173,6 +173,7 @@ type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 // Module scope so an absent state does not hand the memos below a new object
 // on every render.
 const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
+const NO_HIDDEN = new Map<string, number>();
 
 // The board's page margin, shared by <main>'s padding and the row's end spacer.
 const BOARD_GUTTER = 4;
@@ -923,7 +924,7 @@ export const App = () => {
 	}, [selectedBoard, textFilter, selection.only.goal, state?.boards]);
 
 	// Returns the lanes untouched when nothing is filtered, keeping SwimlaneColumn's memo.
-	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
+	const {visibleSwimlanes, hiddenByLane} = useMemo(() => {
 		const swimlanes = selectedBoard?.swimlanes ?? [];
 		const query = textFilter.trim();
 		if (
@@ -932,9 +933,9 @@ export const App = () => {
 			windowIds === null &&
 			!isolatedIssueId
 		)
-			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
+			return {visibleSwimlanes: swimlanes, hiddenByLane: NO_HIDDEN};
 
-		let hidden = 0;
+		const hidden = new Map<string, number>();
 
 		const visible = swimlanes.map(swimlane => {
 			const issues = swimlane.issues.filter(
@@ -957,12 +958,12 @@ export const App = () => {
 					(!isolatedIssueId || issue.id === isolatedIssueId),
 			);
 
-			hidden += swimlane.issues.length - issues.length;
+			hidden.set(swimlane.id, swimlane.issues.length - issues.length);
 
 			return {...swimlane, issues};
 		});
 
-		return {visibleSwimlanes: visible, hiddenIssueCount: hidden};
+		return {visibleSwimlanes: visible, hiddenByLane: hidden};
 	}, [
 		selectedBoard,
 		boardFilter,
@@ -1706,6 +1707,11 @@ export const App = () => {
 		return () => clearTimeout(timeout);
 	}, [actionError]);
 
+	const clearBoardFilter = () => {
+		changeSelection({only: {}, windowOnly: false, ticketOnly: false});
+		setTextFilter('');
+	};
+
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		clearDragState();
@@ -1714,16 +1720,12 @@ export const App = () => {
 			return;
 		}
 
-		// Another board starts unfiltered; scope and layout are views, so they stay.
+		// The window and the one ticket are this board's; tag, contributor and goal follow you.
 		// In the one navigation, so an unsent-text prompt that blocks it keeps the filter.
 		const params = new URLSearchParams();
 		writeSelectionParams(
 			params,
-			applySelectionPatch(selection, {
-				only: {},
-				windowOnly: false,
-				ticketOnly: false,
-			}),
+			applySelectionPatch(selection, {windowOnly: false, ticketOnly: false}),
 		);
 		void navigate(`/board/${nodeRef(nextBoardId)}?${params}`);
 	};
@@ -2287,6 +2289,8 @@ export const App = () => {
 												onFilterByGoal={filterByGoal}
 												isolatedAssigneeId={isolatedAssigneeId}
 												onFilterByAssignee={filterByAssignee}
+												hiddenByFilter={hiddenByLane.get(swimlane.id) ?? 0}
+												onClearFilter={clearBoardFilter}
 												onCreateIssue={openCreateIssueModal}
 												dropSide={
 													swimlaneDropEdge?.swimlaneId === swimlane.id
