@@ -94,42 +94,6 @@ const DiffButton = ({
 	);
 };
 
-// Breathes for recent activity; driven on the element so re-renders don't restart it.
-const LiveDot = () => {
-	const ref = useRef<HTMLSpanElement | null>(null);
-	const color = GUI_THEME.accent;
-
-	useEffect(() => {
-		const dot = ref.current;
-		if (!dot) return;
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-		const animation = dot.animate(
-			[
-				{opacity: 1, boxShadow: `0 0 0 0 ${color}`},
-				{opacity: 0.55, boxShadow: `0 0 0 3px ${color}00`},
-				{opacity: 1, boxShadow: `0 0 0 0 ${color}`},
-			],
-			{duration: 1800, iterations: Infinity, easing: 'ease-in-out'},
-		);
-
-		return () => animation.cancel();
-	}, [color]);
-
-	return (
-		<span
-			ref={ref}
-			style={{
-				width: DENSE_MARKER_SIZE,
-				height: DENSE_MARKER_SIZE,
-				borderRadius: 999,
-				background: color,
-				flexShrink: 0,
-			}}
-		/>
-	);
-};
-
 // One line, its full text as tooltip only when cut. Measured on resize, not hover.
 const OneLineTitle = ({
 	title,
@@ -405,7 +369,6 @@ const DenseBody = ({
 						flexShrink: 0,
 					}}
 				>
-					{/* Squared, so a tag never reads as the round live dot. */}
 					{ticket.tags.slice(0, DENSE_MAX_TAGS).map(tag => (
 						<TagMark
 							key={tag.id}
@@ -435,16 +398,6 @@ const DenseBody = ({
 							style={{display: 'inline-flex', color: GUI_THEME.amber}}
 						>
 							<IconClock size={10} />
-						</span>
-					)}
-
-					{activity === 'live' && (
-						<span
-							data-testid="ticket-live"
-							title="Board activity in the last five minutes"
-							style={{display: 'inline-flex'}}
-						>
-							<LiveDot />
 						</span>
 					)}
 				</span>

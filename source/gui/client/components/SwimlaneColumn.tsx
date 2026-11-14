@@ -1,16 +1,10 @@
-import React, {useEffect, useState} from 'react';
+import React from 'react';
 import {DropIndicator} from '../App';
 import {GuiComment, GuiIssue, GuiSwimlane} from '../lib/gui-state.model';
 import {useCardDensityView} from '../lib/card-density';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
-import {
-	cardActivity,
-	dwellLevel,
-	dwellOf,
-	laneDwell,
-	liveExpiry,
-} from '../lib/lane-dwell';
+import {cardActivity, dwellLevel, dwellOf, laneDwell} from '../lib/lane-dwell';
 import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
 import {IconCheck} from './IconCheck';
@@ -119,21 +113,6 @@ export const SwimlaneColumn = ({
 	// the cards under it are answers to the same question.
 	const now = Date.now();
 	const dwell = live ? laneDwell(swimlane.issues, now) : null;
-
-	// Nothing else redraws a quiet board, so a live mark would outlast its five
-	// minutes: the column redraws itself once, as the first of them runs out.
-	const [, redraw] = useState(0);
-	const liveUntil = live ? liveExpiry(swimlane.issues, now) : Infinity;
-	useEffect(() => {
-		if (!Number.isFinite(liveUntil)) return;
-
-		const timer = setTimeout(
-			() => redraw(count => count + 1),
-			Math.max(0, liveUntil - Date.now()) + 50,
-		);
-
-		return () => clearTimeout(timer);
-	}, [liveUntil]);
 
 	const activityOf = (ticket: GuiIssue) =>
 		live
