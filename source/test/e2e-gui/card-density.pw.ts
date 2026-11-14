@@ -109,7 +109,7 @@ test('a card names its assignee, and the name and the tags narrow the board in e
 	expect(pageErrors).toEqual([]);
 });
 
-test('a dense card shows four tags and an ellipsis for the rest, and is live when just touched', async ({
+test('a dense card shows four tags and counts the rest, and is live when just touched', async ({
 	page,
 	pageErrors,
 }) => {
@@ -122,7 +122,9 @@ test('a dense card shows four tags and an ellipsis for the rest, and is live whe
 	await goDense(page);
 
 	await expect(card(page, title).getByTestId('ticket-tag')).toHaveCount(4);
-	await expect(card(page, title).getByTestId('ticket-tags-more')).toBeVisible();
+	const more = card(page, title).getByTestId('ticket-tags-more');
+	await expect(more).toHaveText('+1');
+	await expect(more).toHaveAttribute('title', `t5-${stamp}`);
 	// Written to a moment ago, so it is being worked on.
 	await expect(card(page, title).getByTestId('ticket-live')).toBeVisible();
 

@@ -392,8 +392,7 @@ const DenseBody = ({
 					/>
 				</span>
 
-				{/* What its commits came to: a bar one size on every row between
-				    what was added and what was removed. */}
+				{/* What its commits came to: the figures only, no bar. */}
 				<DiffButton diff={diff} onOpen={onOpenCode} variant="row" />
 
 				<span style={{flex: 1}} />
@@ -415,7 +414,7 @@ const DenseBody = ({
 							onFilter={() => onFilterByTag(tag.id)}
 						/>
 					))}
-					{/* The rest named on hover rather than run off the card. */}
+					{/* The rest counted, and named on hover, rather than run off the card. */}
 					{ticket.tags.length > DENSE_MAX_TAGS && (
 						<span
 							data-testid="ticket-tags-more"
@@ -425,7 +424,7 @@ const DenseBody = ({
 								.join(', ')}
 							style={{color: GUI_THEME.dim, lineHeight: 1}}
 						>
-							…
+							+{ticket.tags.length - DENSE_MAX_TAGS}
 						</span>
 					)}
 
