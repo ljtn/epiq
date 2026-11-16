@@ -4,6 +4,7 @@ import {
 	machineStepCommand,
 	nextSetupCommand,
 } from '../config/setup-utils.js';
+import {ACTOR_NAME_ENV} from '../config/actor-env.js';
 import {Mode} from '../model/action-map.model.js';
 import {replaceCmdInput} from '../state/cmd.state.js';
 import {
@@ -24,10 +25,13 @@ export const noteSetupAnswer = (): void => {
 	if (!getUserSetupStatus().isSetupDone) patchSetupSession({inProgress: true});
 };
 
-/** `:setup`: the machine questions again, each holding its current answer. */
+/**
+ * `:setup`: the machine questions again, each holding its current answer. Not
+ * the name while `EPIQ_USER_NAME` names this process: `config` refuses to change it.
+ */
 export const startSetupRerun = (): void => {
 	patchSetupSession({
-		rerunStep: MACHINE_STEPS[0],
+		rerunStep: process.env[ACTOR_NAME_ENV] ? 'editor' : MACHINE_STEPS[0],
 		inProgress: true,
 		justCompleted: false,
 	});

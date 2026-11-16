@@ -276,6 +276,15 @@ describe(':setup asks the machine questions again', () => {
 		expect(line()).toBe('init');
 	});
 
+	it('skips the name while an environment actor names this process', () => {
+		vi.stubEnv('EPIQ_USER_NAME', 'claude');
+		startSetupRerun();
+		openSetupRerunStep();
+		vi.unstubAllEnvs();
+
+		expect(line()).toBe('config editor vim');
+	});
+
 	it('ends on esc, keeping the answers given', async () => {
 		await answer('config username Jo');
 		leaveSetupRerun();
