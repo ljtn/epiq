@@ -42,15 +42,13 @@ test('a comment being edited survives a trip to another tab', async ({
 	await expect(page.locator('aside').getByText('as posted')).toBeVisible();
 
 	await page.getByTestId('edit-comment').click();
-	const editor = page.locator('aside textarea').first();
+	const editor = page.getByTestId('comment-editor');
 	await editor.fill('as rewritten');
 
 	await page.getByRole('button', {name: 'Overview'}).click();
 	await openComments(page);
 
-	await expect(page.locator('aside textarea').first()).toHaveValue(
-		'as rewritten',
-	);
+	await expect(page.getByTestId('comment-editor')).toHaveValue('as rewritten');
 });
 
 test('leaving the ticket with unsent text asks first', async ({
