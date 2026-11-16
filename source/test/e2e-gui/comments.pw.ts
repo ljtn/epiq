@@ -46,7 +46,7 @@ test('your own comment can be edited and deleted', async ({
 
 	// Edit: the body is prefilled, Escape backs out untouched.
 	await page.getByTestId('edit-comment').click();
-	const editor = page.locator('aside textarea').first();
+	const editor = page.getByTestId('comment-editor');
 	await expect(editor).toHaveValue('first draft');
 	await editor.press('Escape');
 	await expect(page.locator('aside').getByText('first draft')).toBeVisible();
@@ -67,6 +67,20 @@ test('your own comment can be edited and deleted', async ({
 	await expect(page.getByRole('button', {name: 'Comments (0)'})).toBeVisible();
 	await page.reload();
 	await expect(page.getByRole('button', {name: 'Comments (0)'})).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
+// A long thread needs no scroll to reply: the composer sits above it.
+test('the composer sits above the thread', async ({page, pageErrors}) => {
+	await addTicket(page, `Composer on top ${Date.now()}`);
+	await page.getByRole('button', {name: /^Comments/}).click();
+	await postComment(page, 'older');
+	await postComment(page, 'newer');
+
+	const composer = await page.getByTestId('comment-composer').boundingBox();
+	const newest = await page.locator('aside').getByText('newer').boundingBox();
+	expect(composer!.y).toBeLessThan(newest!.y);
 
 	expect(pageErrors).toEqual([]);
 });

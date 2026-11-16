@@ -136,7 +136,7 @@ test('selecting lines opens one composer under them; write, then comment or file
 
 	// Editing a diff comment edits its note; the link and snippet stay.
 	await page.getByTestId('edit-comment').click();
-	const editor = page.locator('aside textarea').first();
+	const editor = page.getByTestId('comment-editor');
 	await expect(editor).toHaveValue('looks off');
 	await editor.fill('looks fine after all');
 	await page.getByRole('button', {name: 'save'}).click();

@@ -183,6 +183,85 @@ export const IssueComments = ({
 
 	return (
 		<div>
+			{!readonly && (
+				// The composer: field and send row as one card, above the thread
+				// beside the newest comment, so a reply needs no scroll.
+				<div style={{...CARD, marginBottom: 16, overflow: 'hidden'}}>
+					<Textarea
+						// Uncapped: maxLength drops a long paste's tail silently. The
+						// counter and disabled button refuse it visibly instead.
+						maxLength={Number.MAX_SAFE_INTEGER}
+						ref={composerRef}
+						data-testid="comment-composer"
+						value={body}
+						placeholder="Write a comment"
+						onChange={event => setBody(event.target.value)}
+						onDragOver={composerImages.onDragOver}
+						onDragLeave={composerImages.onDragLeave}
+						onDrop={composerImages.onDrop}
+						onPaste={composerImages.onPaste}
+						onKeyDown={event => {
+							if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+								addComment();
+							}
+						}}
+						style={{
+							minHeight: 64,
+							...PROSE,
+							// The card is the field's edge.
+							border: 'none',
+							borderRadius: 0,
+							background: 'transparent',
+							padding: '12px 14px',
+							resize: 'none',
+							...composerImages.dropStyle,
+						}}
+					/>
+
+					<ActionRow
+						style={{
+							marginTop: 0,
+							padding: '8px 10px',
+							borderTop: `1px solid ${GUI_THEME.line}`,
+						}}
+					>
+						{composerImages.enabled && (
+							<AddImageButton
+								testId="comment-image-input"
+								busy={composerImages.busy}
+								onPick={composerImages.pickFiles}
+								inputRef={composerImages.inputRef}
+								onInputChange={composerImages.onInputChange}
+							/>
+						)}
+
+						{/* Hidden until halfway, so a one-liner is not nagged. */}
+						{length > MAX_COMMENT_LENGTH / 2 && (
+							<span
+								style={{
+									alignSelf: 'center',
+									fontSize: TEXT.meta,
+									color: tooLong ? GUI_THEME.red : GUI_THEME.dim,
+								}}
+							>
+								{tooLong
+									? `${length - MAX_COMMENT_LENGTH} over the limit`
+									: `${MAX_COMMENT_LENGTH - length} left`}
+							</span>
+						)}
+
+						<Button
+							variant="primary"
+							testId="comment-send"
+							disabled={tooLong || !body.trim()}
+							onClick={addComment}
+						>
+							Comment
+						</Button>
+					</ActionRow>
+				</div>
+			)}
+
 			{comments.length === 0 ? (
 				<Empty>No comments</Empty>
 			) : (
@@ -268,6 +347,7 @@ export const IssueComments = ({
 									<>
 										<Textarea
 											ref={editRef}
+											data-testid="comment-editor"
 											autoFocus
 											maxLength={Number.MAX_SAFE_INTEGER}
 											value={editing.text}
@@ -317,83 +397,6 @@ export const IssueComments = ({
 							</div>
 						);
 					})}
-				</div>
-			)}
-
-			{!readonly && (
-				// The composer: field and send row as one card.
-				<div style={{...CARD, marginTop: 16, overflow: 'hidden'}}>
-					<Textarea
-						// Uncapped: maxLength drops a long paste's tail silently. The
-						// counter and disabled button refuse it visibly instead.
-						maxLength={Number.MAX_SAFE_INTEGER}
-						ref={composerRef}
-						value={body}
-						placeholder="Write a comment"
-						onChange={event => setBody(event.target.value)}
-						onDragOver={composerImages.onDragOver}
-						onDragLeave={composerImages.onDragLeave}
-						onDrop={composerImages.onDrop}
-						onPaste={composerImages.onPaste}
-						onKeyDown={event => {
-							if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-								addComment();
-							}
-						}}
-						style={{
-							minHeight: 64,
-							...PROSE,
-							// The card is the field's edge.
-							border: 'none',
-							borderRadius: 0,
-							background: 'transparent',
-							padding: '12px 14px',
-							resize: 'none',
-							...composerImages.dropStyle,
-						}}
-					/>
-
-					<ActionRow
-						style={{
-							marginTop: 0,
-							padding: '8px 10px',
-							borderTop: `1px solid ${GUI_THEME.line}`,
-						}}
-					>
-						{composerImages.enabled && (
-							<AddImageButton
-								testId="comment-image-input"
-								busy={composerImages.busy}
-								onPick={composerImages.pickFiles}
-								inputRef={composerImages.inputRef}
-								onInputChange={composerImages.onInputChange}
-							/>
-						)}
-
-						{/* Hidden until halfway, so a one-liner is not nagged. */}
-						{length > MAX_COMMENT_LENGTH / 2 && (
-							<span
-								style={{
-									alignSelf: 'center',
-									fontSize: TEXT.meta,
-									color: tooLong ? GUI_THEME.red : GUI_THEME.dim,
-								}}
-							>
-								{tooLong
-									? `${length - MAX_COMMENT_LENGTH} over the limit`
-									: `${MAX_COMMENT_LENGTH - length} left`}
-							</span>
-						)}
-
-						<Button
-							variant="primary"
-							testId="comment-send"
-							disabled={tooLong || !body.trim()}
-							onClick={addComment}
-						>
-							Comment
-						</Button>
-					</ActionRow>
 				</div>
 			)}
 		</div>
