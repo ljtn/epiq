@@ -124,6 +124,7 @@ describe(':open availability', () => {
 			CmdKeywords.HELP,
 			CmdKeywords.INIT,
 			CmdKeywords.OPEN,
+			CmdKeywords.SETUP,
 			CmdKeywords.EXIT,
 		]);
 	});

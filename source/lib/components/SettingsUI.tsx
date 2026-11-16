@@ -4,6 +4,7 @@ import {theme} from '../theme/themes.js';
 import {truncateToWidth} from '../utils/string.utils.js';
 import {getUserSetupStatus} from '../config/setup-utils.js';
 import {EmailCandidates} from './EmailCandidates.js';
+import {useSetupSession} from '../state/setup-session.state.js';
 
 type Props = {
 	width: number;
@@ -78,6 +79,7 @@ export default function SettingsUI({width, height}: Props) {
 		claimedEmails,
 		emailSetupDeclined,
 	} = getUserSetupStatus();
+	const {rerunStep} = useSetupSession();
 	const steps = [
 		{
 			key: 'username',
@@ -94,7 +96,7 @@ export default function SettingsUI({width, height}: Props) {
 			message: 'Nice. Now pick your editor.',
 		},
 		{
-			key: 'autosync',
+			key: 'autoSync',
 			done: isSetAutoSync,
 			command: ':config autosync',
 			value: autoSync,
@@ -115,7 +117,10 @@ export default function SettingsUI({width, height}: Props) {
 		},
 	];
 
-	const activeStepIndex = steps.findIndex(step => !step.done);
+	// A rerun walks every machine step, answered or not.
+	const activeStepIndex = rerunStep
+		? steps.findIndex(step => step.key === rerunStep)
+		: steps.findIndex(step => !step.done);
 	const activeStep =
 		activeStepIndex === -1 ? undefined : steps[activeStepIndex];
 	return (
@@ -130,16 +135,23 @@ export default function SettingsUI({width, height}: Props) {
 			rowGap={1}
 		>
 			<Text color={theme.accent} bold>
-				Welcome! 🔹
+				{rerunStep ? 'Setup' : 'Welcome! 🔹'}
 			</Text>
 
-			<Text>Let's get you started - it's a breeze.</Text>
+			<Text>
+				{rerunStep
+					? 'Confirm each answer with enter, or change it first. Esc leaves setup.'
+					: "Let's get you started - it's a breeze."}
+			</Text>
 			<Text color={theme.secondary2}>
 				Remember - you can always search available commands by typing:
 				<Text color={theme.accent}> ? </Text>
 			</Text>
 
-			{activeStep && <Text color={theme.secondary2}>{activeStep.message}</Text>}
+			{/* A rerun's header already says what to do. */}
+			{activeStep && !rerunStep && (
+				<Text color={theme.secondary2}>{activeStep.message}</Text>
+			)}
 
 			<Box flexDirection="column">
 				{steps.map((step, index) => {
@@ -148,16 +160,17 @@ export default function SettingsUI({width, height}: Props) {
 					if (!shouldShow) return null;
 
 					const isActive = index === activeStepIndex;
+					const isDone = rerunStep ? index < activeStepIndex : step.done;
 
 					// Only the first step is typed from scratch, so only it shows the shortcut.
-					const isFirstAsk = isActive && activeStepIndex === 0;
+					const isFirstAsk = isActive && activeStepIndex === 0 && !rerunStep;
 
 					return (
 						<Box key={step.key} flexDirection="column" marginBottom={1}>
 							<StepRow
-								isDone={step.done}
+								isDone={isDone}
 								command={isFirstAsk ? ':config us' : step.command}
-								value={step.done ? formatValue(step.value) : undefined}
+								value={isDone ? formatValue(step.value) : undefined}
 								verb={isActive && !isFirstAsk ? 'Waiting:' : 'Type'}
 								hint={
 									isFirstAsk ? (

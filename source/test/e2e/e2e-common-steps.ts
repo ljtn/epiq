@@ -67,7 +67,8 @@ export const commonSteps = {
 		await tui.waitFor('Configure auto sync', 20_000);
 		await typeCommand(tui, `:config autoSync ${autoSync}`);
 
-		await tui.waitFor('Initialize project', 20_000);
+		// In every case setup ends on: the handover, or the screen saying what is next.
+		await tui.waitFor('Setup complete!', 20_000);
 	},
 
 	/**

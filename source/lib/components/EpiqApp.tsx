@@ -16,6 +16,7 @@ import {WorkspaceUI} from './WorkspaceUI.js';
 import {AutoSyncController} from './AutoSyncController.js';
 import {EventLogWatchController} from './EventLogWatchController.js';
 import {useSettingsState} from '../state/settings.state.js';
+import {useSetupSession} from '../state/setup-session.state.js';
 
 type EpiqAppProps = {
 	height: number;
@@ -25,6 +26,7 @@ type EpiqAppProps = {
 export default function EpiqApp({width, height}: EpiqAppProps) {
 	const state = useAppState();
 	const {autoSync, viewMode} = useSettingsState();
+	const setupSession = useSetupSession();
 
 	const filters = state.filters;
 
@@ -61,7 +63,8 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 
 	const {isSetupDone} = getUserSetupStatus();
 
-	const isSetupMode = !isSetupDone;
+	// A `:setup` rerun shows the steps again, over a board or not.
+	const isSetupMode = !isSetupDone || setupSession.rerunStep !== undefined;
 	const isUninitializedRepo = isSetupDone && !state.hasProjectDefinition;
 
 	// The setup and init screens carry their own instructions; the board's

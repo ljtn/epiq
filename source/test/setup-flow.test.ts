@@ -7,6 +7,7 @@ import {emailLinkKey} from '../lib/model/email-link.js';
 // Setup writes to disk and asks the repository whether a board exists yet.
 // Neither is what is under test here.
 let projectExists = true;
+let inGitRepository = true;
 
 vi.mock('../lib/config/user-config.js', () => ({
 	setConfig: vi.fn(() => succeeded('Wrote', null)),
@@ -30,6 +31,11 @@ vi.mock('../lib/project-setup/project-setup.js', async importOriginal => ({
 			? succeeded('Read', {})
 			: failed('Missing .epiq/project.json'),
 	),
+	readProjectId: vi.fn(() =>
+		projectExists
+			? succeeded('Read', 'BOARD')
+			: failed('Missing .epiq/project.json'),
+	),
 }));
 
 vi.mock('../lib/storage/paths.js', async importOriginal => ({
@@ -37,12 +43,22 @@ vi.mock('../lib/storage/paths.js', async importOriginal => ({
 	resolveClosestEpiqProjectRoot: vi.fn(() =>
 		succeeded('Resolved', process.cwd()),
 	),
+	isInsideGitRepository: vi.fn(() => inGitRepository),
 }));
 
 const {onConfirmCommandLineSequenceInput} = await import(
 	'../lib/actions/input/on-cmd-input-confirm.js'
 );
-const {advanceSetup} = await import('../lib/command-line/setup-flow.js');
+const {
+	advanceSetup,
+	leaveSetupRerun,
+	noteSetupAnswer,
+	openSetupRerunStep,
+	startSetupRerun,
+} = await import('../lib/command-line/setup-flow.js');
+const {getSetupSession, resetSetupSession} = await import(
+	'../lib/state/setup-session.state.js'
+);
 const {configCommand} = await import(
 	'../lib/command-line/commands/config.cmd.js'
 );
@@ -62,6 +78,8 @@ const WORKSPACE = '01J000000000000000000WSPC';
 const answer = async (line: string) => {
 	patchState({mode: Mode.COMMAND_LINE});
 	replaceCmdInput(line);
+	// As the `config` command does, before its answer lands.
+	if (line.startsWith('config')) noteSetupAnswer();
 
 	return onConfirmCommandLineSequenceInput();
 };
@@ -71,6 +89,8 @@ const line = () => getCmdState().value;
 
 beforeEach(() => {
 	projectExists = true;
+	inGitRepository = true;
+	resetSetupSession();
 	initWorkspaceState(nodes.workspace(WORKSPACE, 'Test Root', 'a'));
 	replaceCmdInput('');
 	patchState({mode: Mode.DEFAULT, readOnly: false});
@@ -111,19 +131,6 @@ describe('answering a step opens the next one', () => {
 		await answer('config autoSync off');
 
 		expect(line()).toBe('config emails jola@example.com');
-	});
-
-	it('asks for a board first when there is none', async () => {
-		projectExists = false;
-		patchSettingsState({
-			userName: 'Jonatan',
-			userId: 'USER',
-			preferredEditor: 'vim',
-		});
-
-		await answer('config autoSync off');
-
-		expect(line()).toBe('init');
 	});
 });
 
@@ -195,5 +202,85 @@ describe('the commands leave the mode to the hook', () => {
 
 		expect(getState().mode).toBe(Mode.IDENTITY);
 		expect(line()).toBe('config emails');
+	});
+});
+
+describe('finishing setup hands over', () => {
+	beforeEach(() => {
+		projectExists = false;
+		patchSettingsState({
+			userName: 'Jonatan',
+			userId: 'USER',
+			preferredEditor: 'vim',
+		});
+	});
+
+	it('asks to start a project in a git repository with none, init typed', async () => {
+		await answer('config autoSync off');
+
+		expect(getSetupSession().justCompleted).toBe(true);
+		expect(line()).toBe('init');
+		expect(getState().mode).toBe(Mode.COMMAND_LINE);
+	});
+
+	it('types nothing outside a git repository; the screen says what is next', async () => {
+		inGitRepository = false;
+
+		await answer('config autoSync off');
+
+		expect(getSetupSession().justCompleted).toBe(true);
+		expect(line()).toBe('');
+		expect(getState().mode).toBe(Mode.DEFAULT);
+	});
+
+	it('does not hand over again when a setting changes later', async () => {
+		patchSettingsState({autoSync: false});
+
+		await answer('config editor nano');
+
+		expect(getSetupSession().justCompleted).toBeFalsy();
+		expect(line()).toBe('');
+	});
+});
+
+describe(':setup asks the machine questions again', () => {
+	beforeEach(() => {
+		patchSettingsState({
+			userName: 'Jonatan',
+			userId: 'USER',
+			preferredEditor: 'vim',
+			autoSync: false,
+		});
+		startSetupRerun();
+		openSetupRerunStep();
+	});
+
+	it('opens each step holding its current answer', async () => {
+		expect(line()).toBe('config username Jonatan');
+
+		await answer('config username Jonatan');
+		expect(line()).toBe('config editor vim');
+
+		await answer('config editor nano');
+		expect(line()).toBe('config autoSync off');
+	});
+
+	it('hands over after the last step', async () => {
+		projectExists = false;
+		await answer('config username Jonatan');
+		await answer('config editor vim');
+		await answer('config autoSync off');
+
+		expect(getSetupSession().rerunStep).toBeUndefined();
+		expect(getSetupSession().justCompleted).toBe(true);
+		expect(line()).toBe('init');
+	});
+
+	it('ends on esc, keeping the answers given', async () => {
+		await answer('config username Jo');
+		leaveSetupRerun();
+
+		expect(getSetupSession().rerunStep).toBeUndefined();
+		expect(getSetupSession().inProgress).toBe(false);
 	});
 });

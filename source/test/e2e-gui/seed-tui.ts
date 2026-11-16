@@ -114,7 +114,7 @@ export const seedProject = async (): Promise<string> => {
 	// Off: an autosync tick mid-test would change state no assertion asked for.
 	await command(':config autoSync off');
 
-	await tui.waitFor('Initialize project');
+	await tui.waitFor('Setup complete!');
 
 	execSync('git init', {cwd: tui.cwd, stdio: 'ignore'});
 	await tui.waitFor('This folder is not an epiq project yet.');

@@ -800,6 +800,7 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.EXIT]: () =>
 		valid(CONFIRM_MSG + hintDefault(' and exit the application')),
 	[CmdKeywords.INIT]: () => valid(CONFIRM_MSG),
+	[CmdKeywords.SETUP]: () => valid(CONFIRM_MSG),
 	[CmdKeywords.OPEN]: validateOpenProjectCommand,
 	[CmdKeywords.PALETTE]: () => valid(CONFIRM_MSG),
 

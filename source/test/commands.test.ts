@@ -28,6 +28,11 @@ vi.mock('../lib/storage/paths.js', () => ({
 	// pre-ZFZFW9D log file name carries. Pointed at nothing, so these tests
 	// exercise the registry alone.
 	getEventsDirPath: vi.fn(() => '/repo/.epiq/events-does-not-exist'),
+	// Read by setup's status, which a `config` answer checks first.
+	resolveClosestEpiqProjectRoot: vi.fn(() => ({
+		status: 'fail',
+		message: 'No project',
+	})),
 }));
 
 // Only the ancestor walk is stubbed; the repo itself reads the real state

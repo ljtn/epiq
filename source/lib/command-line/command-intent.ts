@@ -17,6 +17,9 @@ export const getCommandIntent = (command: string): CommandIntent => {
 		case CmdKeywords.INIT:
 			return CmdIntent.Init;
 
+		case CmdKeywords.SETUP:
+			return CmdIntent.Setup;
+
 		case CmdKeywords.OPEN:
 			return CmdIntent.OpenProject;
 
@@ -95,6 +98,7 @@ export const CmdIntent = {
 	// Fundamentals (tight coupling to scope)
 	Exit: 'exit',
 	Init: 'init',
+	Setup: 'setup',
 	OpenProject: 'open-project',
 	None: 'none',
 	ViewHelp: 'view-help',
