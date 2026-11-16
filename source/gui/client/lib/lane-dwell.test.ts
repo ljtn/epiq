@@ -1,12 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {GuiIssue} from './gui-state.model';
-import {
-	cardActivity,
-	dwellLevel,
-	dwellOf,
-	laneDwell,
-	liveExpiry,
-} from './lane-dwell';
+import {cardActivity, dwellLevel, dwellOf, laneDwell} from './lane-dwell';
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -129,9 +123,8 @@ describe("a card's activity", () => {
 	const middleLane = {now: NOW, middle: true, laneMedian: 2 * DAY, laneSize: 5};
 	const quietFor = (ms: number) => ({lastEventAt: NOW - ms});
 
-	it('is live for five minutes after anything happens to it', () => {
-		expect(cardActivity(quietFor(4 * MINUTE), middleLane)).toBe('live');
-		expect(cardActivity(quietFor(6 * MINUTE), middleLane)).toBeNull();
+	it('says nothing of a ticket touched a moment ago', () => {
+		expect(cardActivity(quietFor(MINUTE), middleLane)).toBeNull();
 	});
 
 	it("is stalled when quiet past its lane's median stay", () => {
@@ -156,12 +149,5 @@ describe("a card's activity", () => {
 
 	it('says nothing of a ticket with no time to read', () => {
 		expect(cardActivity({}, middleLane)).toBeNull();
-	});
-
-	it("expires at the first live ticket's five minutes", () => {
-		expect(
-			liveExpiry([quietFor(MINUTE), quietFor(3 * MINUTE), quietFor(DAY)], NOW),
-		).toBe(NOW + 2 * MINUTE);
-		expect(liveExpiry([quietFor(DAY), {}], NOW)).toBe(Infinity);
 	});
 });
