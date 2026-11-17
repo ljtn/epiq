@@ -1040,12 +1040,14 @@ export const IssueDetails = ({
 				return (
 					<>
 						{issue ? (
+							// A column in both views: header, title and tabs stay put, and
+							// only what is under them scrolls.
 							<div
-								style={
-									laneView
-										? {display: 'flex', flexDirection: 'column', height: '100%'}
-										: undefined
-								}
+								style={{
+									display: 'flex',
+									flexDirection: 'column',
+									height: '100%',
+								}}
 							>
 								<FormHeader>
 									<div
@@ -1138,24 +1140,29 @@ export const IssueDetails = ({
 											onChange={onChangeTab}
 											showCounts={panelWidth >= TAB_COUNTS_WIDTH}
 										/>
-										{(
-											[
-												['overview', overviewPane],
-												['comments', commentsPane],
-												['code', commitsPane],
-												['stats', statsPane],
-											] as const
-										)
-											.filter(([tab]) => visitedTabs.includes(tab))
-											.map(([tab, pane]) => (
-												<div
-													key={tab}
-													data-testid={`tab-pane-${tab}`}
-													hidden={tab !== activeTab}
-												>
-													{pane}
-												</div>
-											))}
+										<div
+											data-testid="tab-scroll"
+											style={{flex: 1, minHeight: 0, overflowY: 'auto'}}
+										>
+											{(
+												[
+													['overview', overviewPane],
+													['comments', commentsPane],
+													['code', commitsPane],
+													['stats', statsPane],
+												] as const
+											)
+												.filter(([tab]) => visitedTabs.includes(tab))
+												.map(([tab, pane]) => (
+													<div
+														key={tab}
+														data-testid={`tab-pane-${tab}`}
+														hidden={tab !== activeTab}
+													>
+														{pane}
+													</div>
+												))}
+										</div>
 									</>
 								)}
 							</div>

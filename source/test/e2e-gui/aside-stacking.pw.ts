@@ -55,10 +55,13 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 		Array.from({length: 60}, (_, index) => `line ${index + 1}`).join('\n') +
 			'\n',
 	);
-	// Wide enough to reach under the series popover, so the two actually meet.
-	await page.evaluate(`localStorage.setItem('epiq.aside.width', '700')`);
+	// Docked to the bottom and as tall as the row, so the panel's scrolling body
+	// starts under the series popover and the two actually meet.
+	await page.evaluate(`localStorage.setItem('epiq.aside.height', '300')`);
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Stacking ${stamp}`);
+	await page.getByTestId('panel-menu').click();
+	await page.getByRole('button', {name: 'Dock to bottom'}).click();
 	await expandDiff(page, 'add notes', linkedFileName(ref!));
 
 	await waitForDiffHeader(page);
@@ -85,7 +88,7 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 		element.shadowRoot?.querySelector('[data-diffs-header]'),
 	);
 	const header = host.shadowRoot.querySelector('[data-diffs-header]');
-	const pane = aside.querySelector('[data-testid="aside-pane"]');
+	const pane = aside.querySelector('[data-testid="tab-scroll"]');
 
 	const popoverBox = popover.getBoundingClientRect();
 	// The middle of where the popover and the scrolling pane actually meet,
@@ -152,9 +155,9 @@ test('a diff keeps its file name in view while the panel scrolls past it', async
 		element.shadowRoot?.querySelector('[data-diffs-header]'),
 	);
 	const header = host.shadowRoot.querySelector('[data-diffs-header]');
-	// The pane inside the panel is what scrolls, and its top is where anything
-	// pinned to the top of the panel belongs.
-	const pane = aside.querySelector('[data-testid="aside-pane"]');
+	// The tab body is what scrolls, under the fixed tabs, and its top is
+	// where anything pinned to the top of the panel belongs.
+	const pane = aside.querySelector('[data-testid="tab-scroll"]');
 	const scrollportTop = pane.getBoundingClientRect().top;
 
 	pane.scrollTop += host.getBoundingClientRect().top - scrollportTop + 60;
@@ -189,7 +192,7 @@ test('a diff keeps its file name in view while the panel scrolls past it', async
 });
 
 // The same panel docked the other way, on a window too narrow for the lanes —
-// so the tabs scroll, and it is this pane doing it rather than a lane's own.
+// so the tab body scrolls, rather than a lane's own.
 test('a bottom-docked panel pins the file name too', async ({
 	page,
 	pageErrors,
@@ -224,7 +227,7 @@ test('a bottom-docked panel pins the file name too', async ({
 	const headerTop = await page.evaluate(`
 (() => {
 	const aside = document.querySelector('aside');
-	const pane = aside.querySelector('[data-testid="aside-pane"]');
+	const pane = aside.querySelector('[data-testid="tab-scroll"]');
 	const host = [...aside.querySelectorAll('*')].find(element =>
 		element.shadowRoot?.querySelector('[data-diffs-header]'),
 	);
