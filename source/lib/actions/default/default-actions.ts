@@ -258,8 +258,15 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Exit,
 		mode: Mode.DEFAULT,
-		description: '[q] exit context',
+		description: '[q] exit context, then quit',
 		action: () => {
+			// Nothing above: offer to quit, one enter away, rather than do nothing.
+			if (!getState().contextNode.parentNodeId) {
+				patchState({mode: Mode.COMMAND_LINE});
+				replaceCmdInput(CmdKeywords.EXIT);
+				return succeeded('Offering to quit', null);
+			}
+
 			navigationUtils.enterParentNode();
 			return succeeded('Exiting context', null);
 		},

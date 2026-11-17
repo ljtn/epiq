@@ -103,4 +103,15 @@ describe('parseCommandLine target', () => {
 	it('targets word with leading whitespace before command, modifier, and input', () => {
 		expect(parseCommandLine('   new issue My new issu').target).toBe('word');
 	});
+
+	it.each(['q', 'q!', 'quit', 'wq'])('reads %s as exit', alias => {
+		const parsed = parseCommandLine(alias);
+		expect(parsed.command).toBe('exit');
+		expect(parsed.isCommandKeyword).toBe(true);
+		expect(parsed.inputString).toBe('');
+	});
+
+	it('reads a word that only starts like an alias as no command', () => {
+		expect(parseCommandLine('qu').command).toBeNull();
+	});
 });

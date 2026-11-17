@@ -91,6 +91,8 @@ If it is your first run, this opens the interactive setup wizard that sets you u
 
 That’s it!
 
+To leave the terminal UI, type `:q` (or `:exit`, `:quit`). `q` steps back out a level, and at the top offers `:exit`, one enter away.
+
 Once your project is set up, you can also launch the browser user interface with:
 
 ```bash

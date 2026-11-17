@@ -275,7 +275,12 @@ const getAvailableBaseCommands = ({
 	}
 
 	if (!isRepositoryInitialized()) {
-		return [CmdKeywords.HELP, CmdKeywords.INIT, CmdKeywords.OPEN];
+		return [
+			CmdKeywords.HELP,
+			CmdKeywords.INIT,
+			CmdKeywords.OPEN,
+			CmdKeywords.EXIT,
+		];
 	}
 
 	if (readOnly) {
@@ -286,6 +291,7 @@ const getAvailableBaseCommands = ({
 			CmdKeywords.EXPORT,
 			CmdKeywords.CONFIG,
 			CmdKeywords.YANK,
+			CmdKeywords.EXIT,
 		];
 	}
 
