@@ -71,16 +71,71 @@ test('your own comment can be edited and deleted', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// A long thread needs no scroll to reply: the composer sits above it.
-test('the composer sits above the thread', async ({page, pageErrors}) => {
-	await addTicket(page, `Composer on top ${Date.now()}`);
+// "2 min ago" says when roughly; the hover says exactly.
+test('the age on a comment holds its full date for the hover', async ({
+	page,
+	pageErrors,
+}) => {
+	await addTicket(page, `Comment date ${Date.now()}`);
 	await page.getByRole('button', {name: /^Comments/}).click();
-	await postComment(page, 'older');
-	await postComment(page, 'newer');
+	await postComment(page, 'dated');
+
+	const age = page.getByTestId('comment-created-at');
+	await expect(age).toHaveText(/ago|just now/);
+	await expect(age).toHaveAttribute(
+		'title',
+		new RegExp(String(new Date().getFullYear())),
+	);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// Taller than the panel, so the thread scrolls.
+const postLongThread = async (page: Page, prefix: string) => {
+	for (const n of [1, 2, 3, 4]) {
+		await postComment(page, `${prefix} ${n}\n${'line\n'.repeat(15)}end ${n}`);
+	}
+};
+
+// Read top to bottom: the newest comment ends the thread, the composer under it.
+test('a thread opens at its end, the composer under the newest comment', async ({
+	page,
+	pageErrors,
+}) => {
+	const prefix = `Thread end ${Date.now()}`;
+	await addTicket(page, prefix);
+	await page.getByRole('button', {name: /^Comments/}).click();
+	await postLongThread(page, prefix);
+
+	await page.reload();
+	await page.getByRole('button', {name: /^Comments/}).click();
+	const oldest = page.locator('aside').getByText(`${prefix} 1`);
+	const newest = page.locator('aside').getByText(`end 4`);
+	await expect(newest).toBeInViewport();
+	await expect(oldest).not.toBeInViewport();
 
 	const composer = await page.getByTestId('comment-composer').boundingBox();
-	const newest = await page.locator('aside').getByText('newer').boundingBox();
-	expect(composer!.y).toBeLessThan(newest!.y);
+	expect(composer!.y).toBeGreaterThan((await newest.boundingBox())!.y);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// Scrolled up to read, a reply still needs no scroll back down.
+test('the composer and tabs stay in view over a scrolled thread', async ({
+	page,
+	pageErrors,
+}) => {
+	const prefix = `Thread scrolled ${Date.now()}`;
+	await addTicket(page, prefix);
+	await page.getByRole('button', {name: /^Comments/}).click();
+	await postLongThread(page, prefix);
+
+	await page.evaluate(
+		`document.querySelector('[data-testid="tab-scroll"]').scrollTop = 0`,
+	);
+	await expect(page.locator('aside').getByText(`${prefix} 1`)).toBeInViewport();
+	await expect(page.getByTestId('comment-composer')).toBeInViewport();
+	await expect(page.getByRole('button', {name: /^Comments/})).toBeInViewport();
 
 	expect(pageErrors).toEqual([]);
 });

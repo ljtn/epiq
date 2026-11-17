@@ -1,10 +1,23 @@
-import {useEffect, useRef} from 'react';
+import {useEffect, useLayoutEffect, useRef} from 'react';
+
+// Lower than the editor's: the composer stays on screen, under the thread.
+const COMPOSER_MAX_HEIGHT = 200;
+
+/** The nearest ancestor that scrolls vertically: the tab body, not ours. */
+const scrollParentOf = (element: HTMLElement): HTMLElement | null => {
+	for (let node = element.parentElement; node; node = node.parentElement) {
+		const {overflowY} = getComputedStyle(node);
+		if (overflowY === 'auto' || overflowY === 'scroll') return node;
+	}
+
+	return null;
+};
 import {GUI_THEME, PROSE, TEXT} from '../lib/gui-theme';
 import {Button} from './Button';
 import {CodeSnippet} from './CodeSnippet';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
-import {timeAgo} from '../lib/gui-format.helper';
+import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {CARD} from '../lib/card.style';
 import {
 	COMMENT_CARD_FOCUSED_STYLE,
@@ -115,11 +128,43 @@ export const IssueComments = ({
 		});
 	const composerRef = useRef<HTMLTextAreaElement | null>(null);
 	const focusedRef = useRef<HTMLDivElement | null>(null);
+	const rootRef = useRef<HTMLDivElement | null>(null);
+	// Whether the panel follows the end of the thread: true on open and while
+	// the reader stays at the bottom, false once they scroll up to read.
+	const pinnedRef = useRef(true);
 
 	// Runs once the card exists, which may be after the comments arrive.
 	useEffect(() => {
 		focusedRef.current?.scrollIntoView({block: 'center'});
 	}, [focusedCommentId, issueId, comments]);
+
+	// Opens at the thread's end and holds it while late images or new comments
+	// grow it. A link to one comment wins.
+	useLayoutEffect(() => {
+		const root = rootRef.current;
+		const scroller = root ? scrollParentOf(root) : null;
+		if (!root || !scroller) return;
+
+		pinnedRef.current = !focusedCommentId;
+		const toBottom = () => {
+			if (pinnedRef.current) scroller.scrollTop = scroller.scrollHeight;
+		};
+		const onScroll = () => {
+			const gap =
+				scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+			pinnedRef.current = gap < 24;
+		};
+
+		toBottom();
+		const observer = new ResizeObserver(toBottom);
+		observer.observe(root);
+		scroller.addEventListener('scroll', onScroll, {passive: true});
+
+		return () => {
+			observer.disconnect();
+			scroller.removeEventListener('scroll', onScroll);
+		};
+	}, [issueId, focusedCommentId]);
 
 	const composerImages = useImageInsert({
 		issueId,
@@ -141,7 +186,7 @@ export const IssueComments = ({
 		);
 
 	const editRef = useRef<HTMLTextAreaElement | null>(null);
-	useAutoGrow(composerRef, body, {maxHeight: AUTO_GROW_MAX_HEIGHT});
+	useAutoGrow(composerRef, body, {maxHeight: COMPOSER_MAX_HEIGHT});
 	useAutoGrow(editRef, editing?.text ?? '', {
 		active: Boolean(editing),
 		maxHeight: AUTO_GROW_MAX_HEIGHT,
@@ -173,95 +218,18 @@ export const IssueComments = ({
 
 		onAddComment?.(issueId, nextBody);
 		setBody('');
+		// Your own comment lands at the end; follow it there.
+		pinnedRef.current = true;
 	};
 
-	// Newest first: the most recent activity is what a reader coming back to
-	// a ticket wants to see without scrolling.
+	// Oldest first, read top to bottom like the TUI. The panel opens scrolled
+	// to the end, so the newest comment still needs no scroll.
 	const ordered = [...comments].sort(
-		(a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0),
+		(a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0),
 	);
 
 	return (
-		<div>
-			{!readonly && (
-				// The composer: field and send row as one card, above the thread
-				// beside the newest comment, so a reply needs no scroll.
-				<div style={{...CARD, marginBottom: 16, overflow: 'hidden'}}>
-					<Textarea
-						// Uncapped: maxLength drops a long paste's tail silently. The
-						// counter and disabled button refuse it visibly instead.
-						maxLength={Number.MAX_SAFE_INTEGER}
-						ref={composerRef}
-						data-testid="comment-composer"
-						value={body}
-						placeholder="Write a comment"
-						onChange={event => setBody(event.target.value)}
-						onDragOver={composerImages.onDragOver}
-						onDragLeave={composerImages.onDragLeave}
-						onDrop={composerImages.onDrop}
-						onPaste={composerImages.onPaste}
-						onKeyDown={event => {
-							if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-								addComment();
-							}
-						}}
-						style={{
-							minHeight: 64,
-							...PROSE,
-							// The card is the field's edge.
-							border: 'none',
-							borderRadius: 0,
-							background: 'transparent',
-							padding: '12px 14px',
-							resize: 'none',
-							...composerImages.dropStyle,
-						}}
-					/>
-
-					<ActionRow
-						style={{
-							marginTop: 0,
-							padding: '8px 10px',
-							borderTop: `1px solid ${GUI_THEME.line}`,
-						}}
-					>
-						{composerImages.enabled && (
-							<AddImageButton
-								testId="comment-image-input"
-								busy={composerImages.busy}
-								onPick={composerImages.pickFiles}
-								inputRef={composerImages.inputRef}
-								onInputChange={composerImages.onInputChange}
-							/>
-						)}
-
-						{/* Hidden until halfway, so a one-liner is not nagged. */}
-						{length > MAX_COMMENT_LENGTH / 2 && (
-							<span
-								style={{
-									alignSelf: 'center',
-									fontSize: TEXT.meta,
-									color: tooLong ? GUI_THEME.red : GUI_THEME.dim,
-								}}
-							>
-								{tooLong
-									? `${length - MAX_COMMENT_LENGTH} over the limit`
-									: `${MAX_COMMENT_LENGTH - length} left`}
-							</span>
-						)}
-
-						<Button
-							variant="primary"
-							testId="comment-send"
-							disabled={tooLong || !body.trim()}
-							onClick={addComment}
-						>
-							Comment
-						</Button>
-					</ActionRow>
-				</div>
-			)}
-
+		<div ref={rootRef}>
 			{comments.length === 0 ? (
 				<Empty>No comments</Empty>
 			) : (
@@ -303,6 +271,8 @@ export const IssueComments = ({
 									</div>
 									{comment.createdAt && (
 										<span
+											data-testid="comment-created-at"
+											title={formatAbsolute(comment.createdAt)}
 											style={{
 												color: GUI_THEME.dim,
 												fontSize: TEXT.meta,
@@ -397,6 +367,95 @@ export const IssueComments = ({
 							</div>
 						);
 					})}
+				</div>
+			)}
+
+			{!readonly && (
+				// Sticky: it ends the thread, and holds the panel's floor when the
+				// reader scrolls up, so a reply never needs a scroll back down.
+				<div
+					style={{
+						position: 'sticky',
+						bottom: 0,
+						zIndex: 1,
+						paddingTop: 16,
+						background: GUI_THEME.panel,
+					}}
+				>
+					<div style={{...CARD, overflow: 'hidden'}}>
+						<Textarea
+							// Uncapped: maxLength drops a long paste's tail silently. The
+							// counter and disabled button refuse it visibly instead.
+							maxLength={Number.MAX_SAFE_INTEGER}
+							ref={composerRef}
+							data-testid="comment-composer"
+							value={body}
+							placeholder="Write a comment"
+							onChange={event => setBody(event.target.value)}
+							onDragOver={composerImages.onDragOver}
+							onDragLeave={composerImages.onDragLeave}
+							onDrop={composerImages.onDrop}
+							onPaste={composerImages.onPaste}
+							onKeyDown={event => {
+								if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+									addComment();
+								}
+							}}
+							style={{
+								minHeight: 64,
+								...PROSE,
+								// The card is the field's edge.
+								border: 'none',
+								borderRadius: 0,
+								background: 'transparent',
+								padding: '12px 14px',
+								resize: 'none',
+								...composerImages.dropStyle,
+							}}
+						/>
+
+						<ActionRow
+							style={{
+								marginTop: 0,
+								padding: '8px 10px',
+								borderTop: `1px solid ${GUI_THEME.line}`,
+							}}
+						>
+							{composerImages.enabled && (
+								<AddImageButton
+									testId="comment-image-input"
+									busy={composerImages.busy}
+									onPick={composerImages.pickFiles}
+									inputRef={composerImages.inputRef}
+									onInputChange={composerImages.onInputChange}
+								/>
+							)}
+
+							{/* Hidden until halfway, so a one-liner is not nagged. */}
+							{length > MAX_COMMENT_LENGTH / 2 && (
+								<span
+									style={{
+										alignSelf: 'center',
+										fontSize: TEXT.meta,
+										color: tooLong ? GUI_THEME.red : GUI_THEME.dim,
+									}}
+								>
+									{tooLong
+										? `${length - MAX_COMMENT_LENGTH} over the limit`
+										: `${MAX_COMMENT_LENGTH - length} left`}
+								</span>
+							)}
+
+							<Button
+								variant="primary"
+								testId="comment-send"
+								disabled={tooLong || !body.trim()}
+								onClick={addComment}
+							>
+								Comment
+							</Button>
+						</ActionRow>
+					</div>
 				</div>
 			)}
 		</div>
