@@ -1,8 +1,5 @@
 import {useEffect, useLayoutEffect, useRef} from 'react';
 
-// Lower than the editor's: the composer stays on screen, under the thread.
-const COMPOSER_MAX_HEIGHT = 200;
-
 /** The nearest ancestor that scrolls vertically: the tab body, not ours. */
 const scrollParentOf = (element: HTMLElement): HTMLElement | null => {
 	for (let node = element.parentElement; node; node = node.parentElement) {
@@ -18,7 +15,6 @@ import {CodeSnippet} from './CodeSnippet';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
-import {CARD} from '../lib/card.style';
 import {
 	COMMENT_CARD_FOCUSED_STYLE,
 	COMMENT_CARD_STYLE,
@@ -33,9 +29,7 @@ import {
 	withDiffCommentNote,
 } from '../../../lib/utils/diff-comment.js';
 import {MarkdownContent} from './MarkdownContent';
-import {MAX_COMMENT_LENGTH} from '../../../lib/utils/text.limits.js';
-import {useImageInsert} from '../lib/image-insert';
-import {AddImageButton} from './AddImageButton';
+import {CommentComposer} from './CommentComposer';
 import {useTicketDraft} from '../lib/ticket-drafts';
 import {AUTO_GROW_MAX_HEIGHT, useAutoGrow} from '../lib/use-auto-grow';
 
@@ -114,19 +108,6 @@ export const IssueComments = ({
 	onUploadImages,
 	focusedCommentId = null,
 }: Props) => {
-	const [draft, setDraft] = useTicketDraft<string>(
-		issueId,
-		'comment',
-		text => text !== '',
-	);
-	const body = draft ?? '';
-	const setBody = (update: string | ((current: string) => string)) =>
-		setDraft(current => {
-			const next =
-				typeof update === 'function' ? update(current ?? '') : update;
-			return next === '' ? undefined : next;
-		});
-	const composerRef = useRef<HTMLTextAreaElement | null>(null);
 	const focusedRef = useRef<HTMLDivElement | null>(null);
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	// Whether the panel follows the end of the thread: true on open and while
@@ -166,12 +147,6 @@ export const IssueComments = ({
 		};
 	}, [issueId, focusedCommentId]);
 
-	const composerImages = useImageInsert({
-		issueId,
-		setValue: setBody,
-		textareaRef: composerRef,
-		onUploadImages: readonly ? undefined : onUploadImages,
-	});
 	// The comment being rewritten, if any. A diff-linked comment only exposes
 	// its note here; the marker and quoted snippet ride along untouched.
 	const [editingDraft, setEditingDraft] = useTicketDraft<{
@@ -186,7 +161,6 @@ export const IssueComments = ({
 		);
 
 	const editRef = useRef<HTMLTextAreaElement | null>(null);
-	useAutoGrow(composerRef, body, {maxHeight: COMPOSER_MAX_HEIGHT});
 	useAutoGrow(editRef, editing?.text ?? '', {
 		active: Boolean(editing),
 		maxHeight: AUTO_GROW_MAX_HEIGHT,
@@ -208,16 +182,8 @@ export const IssueComments = ({
 		setEditing(null);
 	};
 
-	// Trimmed, because that is what the server stores and measures.
-	const length = body.trim().length;
-	const tooLong = length > MAX_COMMENT_LENGTH;
-
-	const addComment = () => {
-		const nextBody = body.trim();
-		if (!nextBody || tooLong) return;
-
-		onAddComment?.(issueId, nextBody);
-		setBody('');
+	const addComment = (body: string) => {
+		onAddComment?.(issueId, body);
 		// Your own comment lands at the end; follow it there.
 		pinnedRef.current = true;
 	};
@@ -382,80 +348,11 @@ export const IssueComments = ({
 						background: GUI_THEME.panel,
 					}}
 				>
-					<div style={{...CARD, overflow: 'hidden'}}>
-						<Textarea
-							// Uncapped: maxLength drops a long paste's tail silently. The
-							// counter and disabled button refuse it visibly instead.
-							maxLength={Number.MAX_SAFE_INTEGER}
-							ref={composerRef}
-							data-testid="comment-composer"
-							value={body}
-							placeholder="Write a comment"
-							onChange={event => setBody(event.target.value)}
-							onDragOver={composerImages.onDragOver}
-							onDragLeave={composerImages.onDragLeave}
-							onDrop={composerImages.onDrop}
-							onPaste={composerImages.onPaste}
-							onKeyDown={event => {
-								if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-									addComment();
-								}
-							}}
-							style={{
-								minHeight: 64,
-								...PROSE,
-								// The card is the field's edge.
-								border: 'none',
-								borderRadius: 0,
-								background: 'transparent',
-								padding: '12px 14px',
-								resize: 'none',
-								...composerImages.dropStyle,
-							}}
-						/>
-
-						<ActionRow
-							style={{
-								marginTop: 0,
-								padding: '8px 10px',
-								borderTop: `1px solid ${GUI_THEME.line}`,
-							}}
-						>
-							{composerImages.enabled && (
-								<AddImageButton
-									testId="comment-image-input"
-									busy={composerImages.busy}
-									onPick={composerImages.pickFiles}
-									inputRef={composerImages.inputRef}
-									onInputChange={composerImages.onInputChange}
-								/>
-							)}
-
-							{/* Hidden until halfway, so a one-liner is not nagged. */}
-							{length > MAX_COMMENT_LENGTH / 2 && (
-								<span
-									style={{
-										alignSelf: 'center',
-										fontSize: TEXT.meta,
-										color: tooLong ? GUI_THEME.red : GUI_THEME.dim,
-									}}
-								>
-									{tooLong
-										? `${length - MAX_COMMENT_LENGTH} over the limit`
-										: `${MAX_COMMENT_LENGTH - length} left`}
-								</span>
-							)}
-
-							<Button
-								variant="primary"
-								testId="comment-send"
-								disabled={tooLong || !body.trim()}
-								onClick={addComment}
-							>
-								Comment
-							</Button>
-						</ActionRow>
-					</div>
+					<CommentComposer
+						issueId={issueId}
+						onSend={addComment}
+						onUploadImages={onUploadImages}
+					/>
 				</div>
 			)}
 		</div>
