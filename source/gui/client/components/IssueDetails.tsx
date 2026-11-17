@@ -1,3 +1,4 @@
+import {scrollGutter} from '../lib/scroll-gutter.style';
 import React, {useEffect, useRef, useState} from 'react';
 import {SANS_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
@@ -242,7 +243,17 @@ const Lane = ({
 					</IconButton>
 				)}
 			</div>
-			<div style={{flex: 1, minHeight: 0, overflowY: 'auto'}}>{children}</div>
+			{/* The scrollbar in the gap beside the lane, clear of its content. */}
+			<div
+				style={{
+					flex: 1,
+					minHeight: 0,
+					overflowY: 'auto',
+					...scrollGutter(LANE_GAP),
+				}}
+			>
+				{children}
+			</div>
 		</div>
 	);
 };
@@ -1142,7 +1153,13 @@ export const IssueDetails = ({
 										/>
 										<div
 											data-testid="tab-scroll"
-											style={{flex: 1, minHeight: 0, overflowY: 'auto'}}
+											style={{
+												flex: 1,
+												minHeight: 0,
+												overflowY: 'auto',
+												// The scrollbar in the panel's padding, clear of the cards.
+												...scrollGutter(ASIDE_PADDING),
+											}}
 										>
 											{(
 												[
