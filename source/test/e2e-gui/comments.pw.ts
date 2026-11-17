@@ -130,12 +130,16 @@ test('the composer and tabs stay in view over a scrolled thread', async ({
 	await page.getByRole('button', {name: /^Comments/}).click();
 	await postLongThread(page, prefix);
 
+	// Shadowed only while some of the thread is under it.
+	const strip = page.getByTestId('composer-strip');
+	await expect(strip).toHaveCSS('box-shadow', 'none');
 	await page.evaluate(
 		`document.querySelector('[data-testid="tab-scroll"]').scrollTop = 0`,
 	);
 	await expect(page.locator('aside').getByText(`${prefix} 1`)).toBeInViewport();
 	await expect(page.getByTestId('comment-composer')).toBeInViewport();
 	await expect(page.getByRole('button', {name: /^Comments/})).toBeInViewport();
+	await expect(strip).not.toHaveCSS('box-shadow', 'none');
 
 	expect(pageErrors).toEqual([]);
 });

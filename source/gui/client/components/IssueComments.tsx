@@ -1,4 +1,4 @@
-import {useEffect, useLayoutEffect, useRef} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 
 /** The nearest ancestor that scrolls vertically: the tab body, not ours. */
 const scrollParentOf = (element: HTMLElement): HTMLElement | null => {
@@ -113,6 +113,8 @@ export const IssueComments = ({
 	// Whether the panel follows the end of the thread: true on open and while
 	// the reader stays at the bottom, false once they scroll up to read.
 	const pinnedRef = useRef(true);
+	// Some of the thread is under the composer: its shadow says so.
+	const [hiddenBelow, setHiddenBelow] = useState(false);
 
 	// Runs once the card exists, which may be after the comments arrive.
 	useEffect(() => {
@@ -127,13 +129,16 @@ export const IssueComments = ({
 		if (!root || !scroller) return;
 
 		pinnedRef.current = !focusedCommentId;
+		const gapBelow = () =>
+			scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
 		const toBottom = () => {
 			if (pinnedRef.current) scroller.scrollTop = scroller.scrollHeight;
+			setHiddenBelow(gapBelow() > 1);
 		};
 		const onScroll = () => {
-			const gap =
-				scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+			const gap = gapBelow();
 			pinnedRef.current = gap < 24;
+			setHiddenBelow(gap > 1);
 		};
 
 		toBottom();
@@ -340,12 +345,17 @@ export const IssueComments = ({
 				// Sticky: it ends the thread, and holds the panel's floor when the
 				// reader scrolls up, so a reply never needs a scroll back down.
 				<div
+					data-testid="composer-strip"
 					style={{
 						position: 'sticky',
 						bottom: 0,
 						zIndex: 1,
 						paddingTop: 16,
 						background: GUI_THEME.panel,
+						boxShadow: hiddenBelow
+							? '0 -3px 4px -2px rgba(0, 0, 0, 0.25)'
+							: 'none',
+						transition: 'box-shadow 150ms ease',
 					}}
 				>
 					<CommentComposer
