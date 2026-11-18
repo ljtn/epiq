@@ -1,5 +1,6 @@
 import {queueAutoSync} from '../../../git/auto-sync.js';
 import {cmdValidity} from '../../command-line/cmd-validity.js';
+import {leaveSetupRerunFor} from '../../command-line/setup-flow.js';
 import {getCommandIntent} from '../../command-line/command-intent.js';
 import {CommandIntent} from '../../command-line/command-meta.js';
 import {commands} from '../../command-line/commands.js';
@@ -55,6 +56,7 @@ export const onConfirmCommandLineSequenceInput = async ({
 
 	const intent = getCommandIntent(command);
 
+	leaveSetupRerunFor(intent);
 	commandPending();
 
 	const {readOnly} = getState();

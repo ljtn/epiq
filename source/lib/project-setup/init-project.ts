@@ -3,6 +3,7 @@ import path from 'node:path';
 import {ensureLocalEpiqIgnored} from '../../git/ensure-local-events-ignored.js';
 import {git} from '../../git/git-commands.js';
 import {
+	EMPTY_TREE_SHA,
 	ensureWorktreesDir,
 	getRepoRootDir,
 	getWorktreesRoot,
@@ -10,6 +11,7 @@ import {
 import {
 	commitAndGetSha,
 	execGit,
+	execGitAllowFail,
 	hasInProgressGitOperation,
 	hasLocalBranch,
 	hasRemote,
@@ -20,6 +22,7 @@ import {
 	ensureInitialCommit,
 	ensureLocalStateBranch,
 	ensureStateBranchWorktree,
+	getWorktreeRootForBranch,
 	pushStateBranch,
 	stageStateBranchOwnEventFile,
 } from '../../git/git.js';
@@ -29,6 +32,7 @@ import {flushPendingLogs} from '../event/pending-log.js';
 import {AppEvent} from '../board/board-events.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {User} from '../state/settings.state.js';
+import {logger} from '../../logger.js';
 import {hasLocalProjectFile} from '../storage/paths.js';
 import {
 	ensureProjectFile,
@@ -123,6 +127,16 @@ export const initProject = async ({
 		return failAt(4, 'Epiq project already initialized');
 	}
 
+	// The project file is committed on HEAD's branch: on a detached HEAD it would
+	// land on no branch, and checking one out would leave the board unreachable.
+	const headBranch = await execGitAllowFail({
+		cwd: repoRoot,
+		args: ['symbolic-ref', '-q', 'HEAD'],
+	});
+	if (headBranch.exitCode !== 0) {
+		return failAt(4, 'HEAD is detached. Check out a branch first.');
+	}
+
 	// 5. the author of the default board
 	const {userId, userName} = user;
 	if (!userId || !userName) {
@@ -147,7 +161,11 @@ export const initProject = async ({
 	}
 
 	if (stateBranchExistsResult.value) {
-		return failAt(6, `State branch already exists: ${stateBranch}`);
+		const aborted = await dropAbortedStateBranch({repoRoot, stateBranch});
+		if (isFail(aborted)) return failAt(6, aborted.message);
+		// The board exists here, its project file only on another branch.
+		if (!aborted.value)
+			return adoptProject({repoRoot, stateBranch, from: 'local'});
 	}
 
 	// A fresh clone of an existing project adopts origin's identity, never mints one.
@@ -158,7 +176,7 @@ export const initProject = async ({
 	if (isFail(remoteBranchResult)) return failAt(6, remoteBranchResult.message);
 
 	if (remoteBranchResult.value) {
-		return adoptRemoteProject({repoRoot, stateBranch});
+		return adoptProject({repoRoot, stateBranch, from: 'remote'});
 	}
 
 	const createStateBranchResult = await createStateBranch({
@@ -168,6 +186,69 @@ export const initProject = async ({
 	if (isFail(createStateBranchResult)) {
 		return failAt(6, createStateBranchResult.message);
 	}
+
+	const written = await writeNewBoard({
+		repoRoot,
+		user: {userId, userName},
+		projectFileContents,
+	});
+	if (isFail(written)) {
+		// Half a board refuses every later init, so a failure takes it all back.
+		await undoInit({
+			repoRoot,
+			stateBranch,
+			stateBranchRoot: path.join(
+				getWorktreesRoot(),
+				projectFileContents.projectId,
+			),
+		});
+		return written;
+	}
+	const {stateBranchRoot, defaultEvents} = written.value;
+
+	const warnings: string[] = [];
+
+	// 14. try push original branch first.
+	const pushOriginalResult = await execGit({
+		cwd: repoRoot,
+		args: ['push', '-u', 'origin', 'HEAD'],
+	});
+	if (isFail(pushOriginalResult)) {
+		warnings.push(`[init:14] ${pushOriginalResult.message}`);
+	}
+
+	// 15. try push state branch / set upstream
+	const pushStateResult = await pushStateBranch({
+		repoRoot,
+		stateBranchRoot,
+	});
+	if (isFail(pushStateResult)) {
+		warnings.push(`[init:15] ${pushStateResult.message}`);
+	}
+
+	return succeeded('Project initialized', {
+		repoRoot,
+		projectId: projectFileContents.projectId,
+		stateBranch,
+		stateBranchRoot,
+		defaultEvents,
+		warnings,
+	});
+};
+
+// Steps 7 to 13: everything a failure must take back.
+const writeNewBoard = async ({
+	repoRoot,
+	user: {userId, userName},
+	projectFileContents,
+}: {
+	repoRoot: string;
+	user: User;
+	projectFileContents: EpiqProject;
+}): Promise<
+	Result<{stateBranchRoot: string; defaultEvents: readonly AppEvent[]}>
+> => {
+	const stateBranch = projectFileContents.stateBranch;
 
 	// 7. ensure ~/.epiq-global/worktrees/ exists
 	const ensureWorktreesDirResult = ensureWorktreesDir();
@@ -278,34 +359,98 @@ export const initProject = async ({
 		return failAt(13, commitProjectResult.message);
 	}
 
-	const warnings: string[] = [];
-
-	// 14. try push original branch first.
-	const pushOriginalResult = await execGit({
-		cwd: repoRoot,
-		args: ['push', '-u', 'origin', 'HEAD'],
-	});
-	if (isFail(pushOriginalResult)) {
-		warnings.push(`[init:14] ${pushOriginalResult.message}`);
-	}
-
-	// 15. try push state branch / set upstream
-	const pushStateResult = await pushStateBranch({
-		repoRoot,
-		stateBranchRoot,
-	});
-	if (isFail(pushStateResult)) {
-		warnings.push(`[init:15] ${pushStateResult.message}`);
-	}
-
-	return succeeded('Project initialized', {
-		repoRoot,
-		projectId: projectFileContents.projectId,
-		stateBranch,
+	return succeeded('Board written', {
 		stateBranchRoot,
 		defaultEvents: defaultEventsResult.value,
-		warnings,
 	});
+};
+
+// The repository files init writes. The tree was clean before it, so HEAD's
+// version of each is what was there.
+const restoreInitFiles = async (repoRoot: string): Promise<void> => {
+	for (const file of ['.epiq/project.json', '.gitignore']) {
+		const tracked = await execGitAllowFail({
+			cwd: repoRoot,
+			args: ['cat-file', '-e', `HEAD:${file}`],
+		});
+		if (tracked.exitCode === 0) {
+			await execGitAllowFail({
+				cwd: repoRoot,
+				args: ['checkout', 'HEAD', '--', file],
+			});
+			continue;
+		}
+		await execGitAllowFail({
+			cwd: repoRoot,
+			args: ['rm', '--cached', '-q', '--ignore-unmatch', '--', file],
+		});
+		fs.rmSync(path.join(repoRoot, file), {force: true});
+	}
+};
+
+// Everything a failed first init wrote: the new branch, its worktree, the files.
+const undoInit = async ({
+	repoRoot,
+	stateBranch,
+	stateBranchRoot,
+}: {
+	repoRoot: string;
+	stateBranch: string;
+	stateBranchRoot: string;
+}): Promise<void> => {
+	await execGitAllowFail({
+		cwd: repoRoot,
+		args: ['worktree', 'remove', '--force', stateBranchRoot],
+	});
+	fs.rmSync(stateBranchRoot, {recursive: true, force: true});
+	await execGitAllowFail({cwd: repoRoot, args: ['worktree', 'prune']});
+	await execGitAllowFail({cwd: repoRoot, args: ['branch', '-D', stateBranch]});
+	await restoreInitFiles(repoRoot);
+};
+
+/**
+ * A state branch whose tip holds nothing was left by an init that failed before
+ * its first commit (older versions did not take it back). Removed, so init can
+ * start over; true if it was. A branch with anything on it is a board: kept.
+ */
+const dropAbortedStateBranch = async ({
+	repoRoot,
+	stateBranch,
+}: {
+	repoRoot: string;
+	stateBranch: string;
+}): Promise<Result<boolean>> => {
+	const tree = await execGit({
+		cwd: repoRoot,
+		args: ['rev-parse', `${stateBranch}^{tree}`],
+	});
+	if (isFail(tree)) return failed(tree.message);
+	if (tree.value.stdout.trim() !== EMPTY_TREE_SHA) {
+		return succeeded('State branch holds a board', false);
+	}
+
+	const worktree = await getWorktreeRootForBranch({
+		repoRoot,
+		branch: stateBranch,
+	});
+	if (isFail(worktree)) return failed(worktree.message);
+	if (worktree.value) {
+		await execGitAllowFail({
+			cwd: repoRoot,
+			args: ['worktree', 'remove', '--force', worktree.value],
+		});
+		fs.rmSync(worktree.value, {recursive: true, force: true});
+		await execGitAllowFail({cwd: repoRoot, args: ['worktree', 'prune']});
+	}
+
+	const removed = await execGit({
+		cwd: repoRoot,
+		args: ['branch', '-D', stateBranch],
+	});
+	if (isFail(removed)) return failed(removed.message);
+
+	logger.info(`Removed ${stateBranch}, left empty by an earlier init`);
+	return succeeded('Removed an aborted state branch', true);
 };
 
 // Whether origin already has the state branch, i.e. this clone joins an existing project.
@@ -336,29 +481,38 @@ const hasRemoteStateBranch = async ({
  * Makes this clone a checkout of origin's project, committing the branch's
  * identity as `.epiq/project.json`. A branch without one is refused.
  */
-const adoptRemoteProject = async ({
+const adoptProject = async ({
 	repoRoot,
 	stateBranch,
+	from,
 }: {
 	repoRoot: string;
 	stateBranch: string;
+	// Origin's board for a fresh clone; this repository's own when its project
+	// file is only on another branch.
+	from: 'remote' | 'local';
 }): Promise<Result<InitProjectOutcome>> => {
-	const fetchResult = await execGit({
-		cwd: repoRoot,
-		args: ['fetch', 'origin', stateBranch],
-	});
-	if (isFail(fetchResult)) return failAt(6, fetchResult.message);
+	if (from === 'remote') {
+		const fetchResult = await execGit({
+			cwd: repoRoot,
+			args: ['fetch', 'origin', stateBranch],
+		});
+		if (isFail(fetchResult)) return failAt(6, fetchResult.message);
+	}
 
+	const source = from === 'remote' ? `origin/${stateBranch}` : stateBranch;
 	const identityResult = await execGit({
 		cwd: repoRoot,
-		args: ['show', `origin/${stateBranch}:${STATE_IDENTITY_PATH}`],
+		args: ['show', `${source}:${STATE_IDENTITY_PATH}`],
 	});
 
 	if (isFail(identityResult)) {
 		return failAt(
 			6,
 			[
-				`This repository is already an epiq project: origin has the state branch ${stateBranch}.`,
+				`This repository is already an epiq project: ${
+					from === 'remote' ? 'origin has' : 'it has'
+				} the state branch ${stateBranch}.`,
 				'Initialising again would mint a second id for the same board.',
 				'',
 				`The branch was written before branches carried their identity, so restore`,
@@ -377,7 +531,7 @@ const adoptRemoteProject = async ({
 	} catch (error) {
 		return failAt(
 			6,
-			`The identity on origin/${stateBranch} is not readable: ${
+			`The identity on ${source} is not readable: ${
 				error instanceof Error ? error.message : String(error)
 			}`,
 		);
@@ -390,14 +544,20 @@ const adoptRemoteProject = async ({
 		cwd: repoRoot,
 		pathspec: [STATE_IDENTITY_PATH],
 	});
-	if (isFail(stageResult)) return failAt(13, stageResult.message);
+	if (isFail(stageResult)) {
+		await restoreInitFiles(repoRoot);
+		return failAt(13, stageResult.message);
+	}
 
 	const commitResult = await git.commit({
 		cwd: repoRoot,
 		message: '[epiq:adopt-project]',
 		pathspec: [STATE_IDENTITY_PATH],
 	});
-	if (isFail(commitResult)) return failAt(13, commitResult.message);
+	if (isFail(commitResult)) {
+		await restoreInitFiles(repoRoot);
+		return failAt(13, commitResult.message);
+	}
 
 	const ensureWorktreesDirResult = ensureWorktreesDir();
 	if (isFail(ensureWorktreesDirResult)) {
@@ -429,7 +589,7 @@ const adoptRemoteProject = async ({
 	});
 	if (isFail(pushResult)) warnings.push(`[init:14] ${pushResult.message}`);
 
-	return succeeded('Adopted the project origin already holds', {
+	return succeeded('Adopted the existing project', {
 		repoRoot,
 		projectId: project.projectId,
 		stateBranch: project.stateBranch,

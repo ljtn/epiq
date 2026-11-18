@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
-import React from 'react';
+import React, {useEffect, useMemo, useRef} from 'react';
 import {
 	listRecentProjects,
 	RecentProject,
@@ -8,10 +8,9 @@ import {
 } from '../config/recent-projects.js';
 import {isFail} from '../model/result-types.js';
 import {theme} from '../theme/themes.js';
-import {useSetupSession} from '../state/setup-session.state.js';
 import {isInsideGitRepository} from '../storage/paths.js';
-import {useAppState} from '../state/state.js';
-import {useCmdState} from '../state/cmd.state.js';
+import {patchState, useAppState} from '../state/state.js';
+import {replaceCmdInput, useCmdState} from '../state/cmd.state.js';
 import {Mode} from '../model/action-map.model.js';
 
 type InitProjectUIProps = {
@@ -32,16 +31,28 @@ export const InitProjectUI: React.FC<InitProjectUIProps> = ({
 	height,
 }) => {
 	const recent = getRecentProjects();
-	const {justCompleted} = useSetupSession();
-	const inGitRepository = isInsideGitRepository(process.cwd());
 	const {mode} = useAppState();
 	const {value: line} = useCmdState();
-	// Just set up, in a repository, with the handover's `init` still in the line.
+	// Asked again as the line opens or closes, so a `git init` meanwhile counts;
+	// not on every keystroke.
+	const inGitRepository = useMemo(
+		() => isInsideGitRepository(process.cwd()),
+		[mode],
+	);
+
+	// A repository with no board offers one, once: `init` typed, enter or esc.
+	// Setup's last answer shows this screen before its line closes, so the offer
+	// waits for the line to be free.
+	const offerPending = useRef(inGitRepository);
+	useEffect(() => {
+		if (!offerPending.current || mode !== Mode.DEFAULT) return;
+		offerPending.current = false;
+		patchState({mode: Mode.COMMAND_LINE});
+		replaceCmdInput('init');
+	}, [mode]);
+
 	const asking =
-		justCompleted &&
-		inGitRepository &&
-		mode === Mode.COMMAND_LINE &&
-		line.trim() === 'init';
+		inGitRepository && mode === Mode.COMMAND_LINE && line.trim() === 'init';
 
 	return (
 		<Box
@@ -54,13 +65,7 @@ export const InitProjectUI: React.FC<InitProjectUIProps> = ({
 			borderColor={theme.secondary}
 			rowGap={1}
 		>
-			{justCompleted && (
-				<Text color={theme.accent} bold>
-					Setup complete! 🔹
-				</Text>
-			)}
-
-			{/* The handover asks; every other way here just says what to type. */}
+			{/* The offer asks; once it is skipped the screen just says what to type. */}
 			{!asking && (
 				<Text color={theme.accent} bold>
 					Initialize project

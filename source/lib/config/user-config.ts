@@ -7,12 +7,13 @@ import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {SettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';
 
+// Answers no setup question: whatever reads settings first on a new machine
+// (`epiq init`, the GUI) must leave setup to ask them all.
 export const SYSTEM_USER: EpiqConfig = {
 	logLevel: 'info',
 	userId: '',
 	userName: '',
 	preferredEditor: '',
-	autoSync: false,
 };
 
 const EpiqConfigSchema = z
@@ -193,7 +194,8 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		preferredEditor: preferredEditor ?? '',
 		userName: actor.userName,
 		userId: actor.userId,
-		autoSync: autoSync ?? false,
+		// Unanswered stays unset, so setup still asks; anything reading it treats unset as off.
+		autoSync: autoSync ?? null,
 		autoSyncIntervalMs: autoSyncIntervalMs ?? DEFAULT_AUTO_SYNC_INTERVAL_MS,
 		attachmentMaxKb: attachmentMaxKb ?? null,
 		viewMode: viewMode ?? 'dense',

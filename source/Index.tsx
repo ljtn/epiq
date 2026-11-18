@@ -11,6 +11,7 @@ import {formatUnknownError} from './lib/utils/logger.utils.js';
 import {EPIQ_VERSION} from './version.js';
 import './logger.js';
 import {bootTui} from './boot-tui.js';
+import {initFromCli} from './cli-init.js';
 import {getUserSetupStatus} from './lib/config/setup-utils.js';
 import {
 	openSetupRerunStep,
@@ -26,6 +27,9 @@ ${chalk.dim('Boot in directory:')}
 
 ${chalk.dim('Set up this machine (name, editor, auto sync):')}
   ${chalk.cyan('$ epiq setup')}
+
+${chalk.dim('Start a board in this repository, without the TUI:')}
+  ${chalk.cyan('$ epiq init')}
 
 ${chalk.dim('Launch GUI:')}
   ${chalk.cyan('$ epiq gui')}
@@ -54,8 +58,13 @@ const cli = meow(helpText, {
 });
 
 const command = cli.input[0];
-if (command && command !== 'gui' && command !== 'setup') {
+if (command && !['gui', 'setup', 'init'].includes(command)) {
 	console.error(chalk.red(`Unknown command: ${command}`));
+	process.exit(1);
+}
+// `epiq init foo` must not quietly start a board here instead of in foo.
+if (cli.input.length > 1) {
+	console.error(chalk.red(`Unexpected argument: ${cli.input[1]}`));
 	process.exit(1);
 }
 
@@ -115,7 +124,16 @@ process.stdout.on('resize', () => {
 	}
 });
 
-if (command === 'gui') {
+if (command === 'init') {
+	const initResult = await initFromCli(process.cwd());
+
+	if (isFail(initResult)) {
+		console.error(chalk.red(initResult.message));
+		process.exitCode = 1;
+	} else {
+		console.log(initResult.message);
+	}
+} else if (command === 'gui') {
 	const guiResult = await startGui({
 		repoRoot: process.cwd(),
 		open: cli.flags.open,
@@ -137,7 +155,7 @@ if (command === 'gui') {
 		logger.info(bootResult.message);
 		console.error(chalk.red(`Failed to boot Epiq:\n${bootResult.message}`));
 		process.exitCode = 1;
-	} else if (command === 'setup' && getUserSetupStatus().isSetupDone) {
+	} else if (command === 'setup' && getUserSetupStatus().isMachineSetupDone) {
 		// Unfinished, setup is already what the TUI opens on.
 		startSetupRerun();
 		openSetupRerunStep();

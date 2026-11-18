@@ -1,6 +1,7 @@
 import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
 import {getUserSetupStatus} from '../../config/setup-utils.js';
 import {materializeAll} from '../../board/board-log.js';
+import {loadProject} from '../../boot/load-project.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {initProject} from '../../project-setup/init-project.js';
 import {replaceCmdInput} from '../../state/cmd.state.js';
@@ -44,11 +45,16 @@ export const initCommand = async () => {
 	// 16. boot app from the same default events.
 	// Do not persist again here; authoritative persistence already happened
 	// in the state branch worktree above.
-	const materializeResults = materializeAll(initResult.value.defaultEvents);
-	const failures = materializeResults.filter(isFail);
-
-	if (failures.length > 0) {
-		return failAt(16, failures.map(f => f.message).join('\n'));
+	const {defaultEvents, repoRoot} = initResult.value;
+	if (defaultEvents.length === 0) {
+		// Adopted a board that already exists: it boots from its log.
+		const loadResult = await loadProject(repoRoot);
+		if (isFail(loadResult)) return failAt(16, loadResult.message);
+	} else {
+		const failures = materializeAll(defaultEvents).filter(isFail);
+		if (failures.length > 0) {
+			return failAt(16, failures.map(f => f.message).join('\n'));
+		}
 	}
 	const stateResult = getSafeState();
 	if (isFail(stateResult)) return failAt(16, stateResult.message);

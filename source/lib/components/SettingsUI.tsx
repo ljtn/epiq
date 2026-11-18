@@ -93,7 +93,8 @@ export default function SettingsUI({width, height}: Props) {
 			done: isSetPreferredEditor,
 			command: ':config editor',
 			value: preferredEditor,
-			message: 'Nice. Now pick your editor.',
+			message:
+				'Nice. Now pick your editor: used in the terminal app (TUI) to write descriptions and view code.',
 		},
 		{
 			key: 'autoSync',
@@ -113,7 +114,7 @@ export default function SettingsUI({width, height}: Props) {
 			// Last, because it is the only step that needs the board: it offers the
 			// addresses this repository's own history contains.
 			message:
-				'Last one. Claim the git addresses whose commits are yours, so the board calls them by your name.',
+				'Last one. Claim the git addresses whose commits are yours, so the board calls them by your Epiq name.',
 		},
 	];
 
@@ -143,11 +144,6 @@ export default function SettingsUI({width, height}: Props) {
 					? 'Confirm each answer with enter, or change it first. Esc leaves setup.'
 					: "Let's get you started - it's a breeze."}
 			</Text>
-			<Text color={theme.secondary2}>
-				Remember - you can always search available commands by typing:
-				<Text color={theme.accent}> ? </Text>
-			</Text>
-
 			{/* A rerun's header already says what to do. */}
 			{activeStep && !rerunStep && (
 				<Text color={theme.secondary2}>{activeStep.message}</Text>

@@ -12,6 +12,8 @@ import type {MachineStep} from '../state/setup-session.state.js';
 
 export const getUserSetupStatus = (): {
 	isSetupDone: boolean;
+	/** The machine's own questions, whatever the board here still asks. */
+	isMachineSetupDone: boolean;
 	isSetPreferredEditor: boolean;
 	isSetUserName: boolean;
 	isSetAutoSync: boolean;
@@ -42,6 +44,7 @@ export const getUserSetupStatus = (): {
 	return {
 		isSetupDone:
 			isSetPreferredEditor && isSetUserName && isSetAutoSync && isSetEmails,
+		isMachineSetupDone: isSetPreferredEditor && isSetUserName && isSetAutoSync,
 		isSetPreferredEditor,
 		isSetUserName,
 		userName: settings.userName,
@@ -124,7 +127,8 @@ export const nextSetupCommand = (): string | null => {
 
 	if (!status.isSetUserName) return 'config username ';
 	if (!status.isSetPreferredEditor) return 'config editor ';
-	if (!status.isSetAutoSync) return 'config autoSync ';
+	// On by default: enter keeps the board current without a manual sync.
+	if (!status.isSetAutoSync) return 'config autoSync on';
 
 	// Seeded with the first scanned address, else git's `user.email`, since the
 	// scan may not have run yet.

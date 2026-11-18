@@ -239,7 +239,7 @@ export const ensureLocalStateBranch = async ({
 	return createStateBranch({repoRoot, stateBranchName});
 };
 
-const getWorktreeRootForBranch = async ({
+export const getWorktreeRootForBranch = async ({
 	repoRoot,
 	branch,
 }: {

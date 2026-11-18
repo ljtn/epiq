@@ -1,3 +1,4 @@
+import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
@@ -62,22 +63,16 @@ export const resolveClosestEpiqRoot = (startDir: string): Result<string> => {
 	}
 };
 
+/** Inside a git work tree, as git itself judges it: worktrees and `GIT_DIR` included. */
+export const isInsideGitRepository = (startDir: string): boolean =>
+	spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
+		cwd: startDir,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'ignore'],
+	}).stdout?.trim() === 'true';
+
 // Named so callers can tell "there is no project here" apart from a boot that
 // failed for some other reason, without matching on prose.
-/** Inside a git repository: a `.git` directory, or a worktree's `.git` file, here or above. */
-export const isInsideGitRepository = (startDir: string): boolean => {
-	let dir = path.resolve(startDir);
-
-	while (true) {
-		if (fs.existsSync(path.join(dir, '.git'))) return true;
-
-		const parent = path.dirname(dir);
-		if (parent === dir) return false;
-
-		dir = parent;
-	}
-};
-
 export const NO_PROJECT_MESSAGE = 'No .epiq/project.json found in any parent';
 
 export const resolveClosestEpiqProjectRoot = (

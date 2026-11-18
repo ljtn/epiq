@@ -87,9 +87,11 @@ git init
 epiq
 ```
 
-If it is your first run, this opens the interactive setup wizard that sets you up in about 30 seconds. Once you are set up, it asks whether to start a project in this repository: enter to initialize, esc to skip.
+If it is your first run, this opens the interactive setup wizard that sets you up in about 30 seconds. In a repository without a project, it then asks whether to start one: enter to initialize, esc to skip. If the repository already has a board, on origin or on another branch, initializing picks that one up rather than starting a second.
 
 To change your name, editor or auto sync later, run `epiq setup` (or `:setup` inside epiq).
+
+In a script, `epiq init` starts the project without the TUI. It needs an author: the configured user, or one named by `EPIQ_USER_NAME` (or `--as`).
 
 That’s it!
 
@@ -110,7 +112,7 @@ On a machine with no display, or with `--no-open`, it serves without opening a b
 >
 > - Project definition in `./.epiq/project.json`
 > - Authoritative Git state at `~/.epiq-global/worktrees/<id>`
-> - Updates your `.gitignore` to ignore local-only `.epiq/log/`
+> - Updates your `.gitignore` to ignore local-only `.epiq/events/` and `.epiq/log/`
 >   Epiq manages a dedicated Git state branch and worktree automatically as the source of truth for synchronization.
 > - A local debug log at `.epiq/log/epiq.log` — check it first if sync, boot, or a Git operation is misbehaving.
 
