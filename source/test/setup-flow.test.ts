@@ -62,7 +62,6 @@ const {onConfirmCommandLineSequenceInput} = await import(
 	'../lib/actions/input/on-cmd-input-confirm.js'
 );
 const {
-	SETUP_DONE_MESSAGE,
 	advanceSetup,
 	leaveSetupOnEsc,
 	openSetupStep,
@@ -72,7 +71,9 @@ const {
 	startSetupRerun,
 } = await import('../lib/command-line/setup-flow.js');
 const {CmdIntent} = await import('../lib/command-line/command-intent.js');
-const {getUserSetupStatus} = await import('../lib/config/setup-utils.js');
+const {getUserSetupStatus, isSetupFinished} = await import(
+	'../lib/config/setup-utils.js'
+);
 const {getSetupSession, patchSetupSession, resetSetupSession} = await import(
 	'../lib/state/setup-session.state.js'
 );
@@ -350,55 +351,53 @@ describe('epiq setup', () => {
 		patchSetupSession({quitWhenDone: true});
 	});
 
-	it("quits after the first run's last answer, saying setup is done", async () => {
-		const write = vi
-			.spyOn(process.stdout, 'write')
-			.mockImplementation(() => true);
+	const machineSetUp = () =>
+		patchSettingsState({userName: 'Jonatan', userId: 'USER', autoSync: false});
 
-		try {
-			await answer('config username Jonatan');
-			expect(exit).not.toHaveBeenCalled();
-			expect(write).not.toHaveBeenCalled();
+	it("ends a first run's last answer on its success screen, exit waiting", async () => {
+		await answer('config username Jonatan');
+		expect(isSetupFinished()).toBe(false);
 
-			await answer('config autoSync off');
-			expect(exit).toHaveBeenCalledOnce();
-			expect(write).toHaveBeenCalledWith(`\n${SETUP_DONE_MESSAGE}\n`);
-		} finally {
-			write.mockRestore();
-		}
+		await answer('config autoSync off');
+		expect(isSetupFinished()).toBe(true);
+		expect(getState().mode).toBe(Mode.COMMAND_LINE);
+		expect(line()).toBe('exit');
+		expect(exit).not.toHaveBeenCalled();
+
+		await answer('exit');
+		expect(exit).toHaveBeenCalledOnce();
 	});
 
-	it("quits after a rerun's last answer", async () => {
-		patchSettingsState({
-			userName: 'Jonatan',
-			userId: 'USER',
-			autoSync: false,
-		});
+	it("ends a rerun's last answer on its success screen", async () => {
+		machineSetUp();
 		startSetupRerun();
 		openSetupRerunStep();
 
 		await answer('config username Jonatan');
-		expect(exit).not.toHaveBeenCalled();
+		expect(isSetupFinished()).toBe(false);
 
 		await answer('config autoSync off');
-		expect(exit).toHaveBeenCalledOnce();
+		expect(isSetupFinished()).toBe(true);
+		expect(line()).toBe('exit');
 	});
 
-	it('quits on esc once the machine is set up', () => {
-		patchSettingsState({
-			userName: 'Jonatan',
-			userId: 'USER',
-			autoSync: false,
-		});
+	it('esc on a rerun shows the success screen, and esc there quits', () => {
+		machineSetUp();
 		startSetupRerun();
-		leaveSetupOnEsc();
 
+		expect(leaveSetupOnEsc()).toBe(true);
+		expect(isSetupFinished()).toBe(true);
+		expect(line()).toBe('exit');
+		expect(exit).not.toHaveBeenCalled();
+
+		leaveSetupOnEsc();
 		expect(exit).toHaveBeenCalledOnce();
 	});
 
 	it('stays on esc while the machine still has questions', () => {
-		leaveSetupOnEsc();
+		expect(leaveSetupOnEsc()).toBe(false);
 
+		expect(isSetupFinished()).toBe(false);
 		expect(exit).not.toHaveBeenCalled();
 	});
 });
@@ -415,6 +414,7 @@ describe(':setup inside epiq', () => {
 		await answer('config autoSync off');
 		leaveSetupOnEsc();
 
+		expect(isSetupFinished()).toBe(false);
 		expect(exit).not.toHaveBeenCalled();
 	});
 });

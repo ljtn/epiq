@@ -7,8 +7,16 @@ import {getRenderedChildren, getState, patchState} from '../../state/state.js';
 // wrapping.
 export const NAV_JUMP_SIZE = 5;
 
+let releaseScreen = (): void => {};
+
+/** How the TUI takes its frame down, so every exit leaves a clean terminal. */
+export const setScreenRelease = (release: () => void): void => {
+	releaseScreen = release;
+};
+
 export const navigationUtils = {
 	exit() {
+		releaseScreen();
 		process.exit(0);
 	},
 

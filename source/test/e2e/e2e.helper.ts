@@ -49,6 +49,8 @@ export type TuiSession = {
 	cwd: string;
 	input: (...values: string[]) => void;
 	output: () => string;
+	/** The screen once every byte written so far has been drawn, even after exit. */
+	screen: () => Promise<string>;
 	waitFor: (
 		text: string | RegExp | ((output: string) => boolean),
 		timeoutMs?: number,
@@ -354,6 +356,10 @@ export const setupTui = (
 		},
 
 		output: getOutput,
+		screen: async () => {
+			await flushOutput();
+			return getOutput();
+		},
 		clear: clearOutput,
 
 		takeWritten: () => {
