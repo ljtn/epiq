@@ -1,4 +1,12 @@
-import {beforeAll, describe, expect, it, vi} from 'vitest';
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from 'vitest';
 import {cmdValidity} from '../lib/command-line/cmd-validity.js';
 import {CmdKeywords} from '../lib/command-line/cmd-keywords.js';
 import {MAX_COMMENT_LENGTH} from '../lib/utils/text.limits.js';
@@ -32,9 +40,11 @@ vi.mock('../lib/state/state.js', () => ({
 	}),
 }));
 
+const settings = vi.hoisted(() => ({preferredEditor: 'vim'}));
+
 vi.mock('../lib/state/settings.state.js', () => ({
 	getSettingsState: () => ({
-		preferredEditor: 'vim',
+		preferredEditor: settings.preferredEditor,
 		autoSync: true,
 		autoSyncIntervalMs: 15000,
 	}),
@@ -168,6 +178,47 @@ describe('cmdValidation', () => {
 
 			expect(result.validity).toBe(cmdValidity.Valid);
 			expect(result.message).toBe('<ENTER> to edit in vim');
+		});
+
+		// Setup asks no editor: an unset one falls back to the environment's.
+		describe('with no editor configured', () => {
+			const describeEdit = () =>
+				cmdValidation[CmdKeywords.EDIT].validate(
+					CmdKeywords.EDIT,
+					EditModifiers.DESCRIPTION,
+					'',
+				);
+
+			beforeEach(() => {
+				settings.preferredEditor = '';
+				vi.stubEnv('VISUAL', '');
+				vi.stubEnv('EDITOR', '');
+			});
+
+			afterEach(() => {
+				settings.preferredEditor = 'vim';
+				vi.unstubAllEnvs();
+			});
+
+			it('edits in $VISUAL first', () => {
+				vi.stubEnv('VISUAL', 'code --wait');
+				vi.stubEnv('EDITOR', 'nano');
+
+				expect(describeEdit().message).toBe('<ENTER> to edit in code --wait');
+			});
+
+			it('edits in $EDITOR without $VISUAL', () => {
+				vi.stubEnv('EDITOR', 'nano');
+
+				expect(describeEdit().message).toBe('<ENTER> to edit in nano');
+			});
+
+			it('says how to set one when the environment has none', () => {
+				const result = describeEdit();
+
+				expect(result.validity).toBe(cmdValidity.Invalid);
+				expect(result.message).toContain(':config editor <name>');
+			});
 		});
 
 		it('rejects unknown edit modifier', () => {

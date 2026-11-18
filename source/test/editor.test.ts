@@ -1,5 +1,5 @@
 import {EventEmitter} from 'node:events';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('node:child_process', () => ({
 	spawn: vi.fn(),
@@ -23,6 +23,7 @@ import {getSettingsState} from '../lib/state/settings.state.js';
 import {isFail, isSuccess} from '../lib/model/result-types.js';
 import {
 	buildEditorDiffCommand,
+	getEditorCandidates,
 	openEditorDiffNonBlocking,
 	openEditorOnFileNonBlocking,
 } from '../lib/editor/editor.js';
@@ -356,5 +357,37 @@ describe('openEditorDiffNonBlocking', () => {
 		child.emit('exit', 1);
 
 		expect(isFail(await pending)).toBe(true);
+	});
+});
+
+describe('getEditorCandidates', () => {
+	beforeEach(() => {
+		vi.stubEnv('VISUAL', '');
+		vi.stubEnv('EDITOR', 'nano');
+	});
+
+	afterEach(() => vi.unstubAllEnvs());
+
+	const withEditor = (preferredEditor: string) =>
+		vi.mocked(getSettingsState).mockReturnValue({
+			preferredEditor,
+		} as ReturnType<typeof getSettingsState>);
+
+	it('falls back to the environment with none configured', () => {
+		withEditor('');
+		expect(getEditorCandidates()).toEqual(['nano']);
+	});
+
+	it.each(['default', 'system'])(
+		'reads %s, which launches nothing, as unset',
+		value => {
+			withEditor(value);
+			expect(getEditorCandidates()).toEqual(['nano']);
+		},
+	);
+
+	it('tries the configured editor first', () => {
+		withEditor('code');
+		expect(getEditorCandidates()).toEqual(['code', 'nano']);
 	});
 });

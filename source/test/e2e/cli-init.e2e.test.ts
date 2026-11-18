@@ -156,7 +156,10 @@ describe('epiq init', () => {
 
 			const tui = setupTui([], {cwd: repo});
 			try {
-				const frame = await tui.waitFor('choose your username', 20_000);
+				const frame = await tui.waitFor(
+					'the name others see on the board',
+					20_000,
+				);
 				expect(frame).not.toContain('Do you want to start one here?');
 			} finally {
 				await tui.destroy();
@@ -170,9 +173,9 @@ describe('epiq init', () => {
 		async () => {
 			const setup = setupTui([], {cwd: tempDir()});
 			try {
-				await setup.waitFor('choose your username', 20_000);
+				await setup.waitFor('the name others see on the board', 20_000);
 				await typeCommand(setup, ':config username test');
-				await setup.waitFor('pick your editor', 20_000);
+				await setup.waitFor('Auto sync keeps the board current', 20_000);
 			} finally {
 				await setup.destroy();
 			}
@@ -183,11 +186,12 @@ describe('epiq init', () => {
 
 			const tui = setupTui([], {cwd: repo});
 			try {
-				const frame = await tui.waitFor('pick your editor', 20_000);
+				const frame = await tui.waitFor(
+					'Auto sync keeps the board current',
+					20_000,
+				);
 				expect(frame).not.toContain('Do you want to start one here?');
 
-				await typeCommand(tui, ':config editor vim');
-				await tui.waitFor('Configure auto sync', 20_000);
 				await typeCommand(tui, ':config autoSync off');
 				await commonSteps.declineEmails(tui);
 				await tui.waitFor('Todo (0)', 20_000);

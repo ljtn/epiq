@@ -819,7 +819,7 @@ export const createMcpServer = () => {
 		'epiq_project_init',
 		{
 			description:
-				'Set up a new Epiq board in the git repository at repoRoot (default: the current directory), which must have no uncommitted changes. The first time on a machine, ask the user for userName (how they appear on the board: theirs, never your agent identity), preferredEditor (e.g. "vim" or "code --wait") and autoSync (whether the TUI and GUI sync on their own); without them it fails naming what is missing, keeping what was given. Answers the machine already has stay. Commits the state branch and .epiq/project.json and tries to push both; a failed push is a warning.',
+				'Set up a new Epiq board in the git repository at repoRoot (default: the current directory), which must have no uncommitted changes. The first time on a machine, ask the user for userName (how they appear on the board: theirs, never your agent identity) and autoSync (whether the TUI and GUI sync on their own); without them it fails naming what is missing, keeping what was given. Answers the machine already has stay. Commits the state branch and .epiq/project.json and tries to push both; a failed push is a warning.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				userName: z.string().min(1).max(80).optional(),

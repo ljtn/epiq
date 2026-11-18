@@ -103,14 +103,11 @@ export const seedProject = async (): Promise<string> => {
 		tui.input('\r');
 	};
 
-	await tui.waitFor('choose your username');
+	await tui.waitFor('the name others see on the board');
 	// The slash is deliberate: file names cannot hold one, so a name read off a file differs.
 	await command(':config username claude/tester');
 
-	await tui.waitFor('pick your editor');
-	await command(':config editor vim');
-
-	await tui.waitFor('Configure auto sync');
+	await tui.waitFor('Auto sync keeps the board current');
 	// Off: an autosync tick mid-test would change state no assertion asked for.
 	await command(':config autoSync off');
 

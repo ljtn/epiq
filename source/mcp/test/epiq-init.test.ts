@@ -67,8 +67,9 @@ describe('epiq_project_init', () => {
 		expect(isFail(result)).toBe(true);
 		expect(result.message).toContain('Ask the user for:');
 		expect(result.message).toContain('userName');
-		expect(result.message).toContain('preferredEditor');
 		expect(result.message).toContain('autoSync');
+		// Optional: unset, the TUI edits in $VISUAL or $EDITOR.
+		expect(result.message).not.toContain('preferredEditor');
 		expect(fs.existsSync(path.join(repoRoot, '.epiq'))).toBe(false);
 		expect(fs.existsSync(getEpiqConfigPath())).toBe(false);
 	});
@@ -80,7 +81,6 @@ describe('epiq_project_init', () => {
 
 		expect(isFail(result)).toBe(true);
 		expect(result.message).not.toContain('userName');
-		expect(result.message).toContain('preferredEditor');
 		expect(result.message).toContain('autoSync');
 
 		const config = readConfig();
@@ -89,7 +89,7 @@ describe('epiq_project_init', () => {
 		expect(fs.existsSync(path.join(repoRoot, '.epiq'))).toBe(false);
 	});
 
-	it('treats autoSync false as answered', async () => {
+	it('sets up with a name and autoSync false, needing no editor', async () => {
 		const {repoRoot} = await setupPlainRepo();
 
 		const result = await initProjectTool({
@@ -98,10 +98,9 @@ describe('epiq_project_init', () => {
 			autoSync: false,
 		});
 
-		expect(isFail(result)).toBe(true);
-		expect(result.message).toContain('preferredEditor');
-		expect(result.message).not.toContain('autoSync');
+		expect(result.message).toBe('Project initialized');
 		expect(readConfig().autoSync).toBe(false);
+		expect(readConfig().preferredEditor).toBeFalsy();
 	});
 
 	it('sets up the board once every answer is in, and the other tools then work there', async () => {

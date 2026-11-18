@@ -1,4 +1,5 @@
 import {isValidEmail} from '../model/email-link.js';
+import {isValidUserName} from './actor-env.js';
 import {isFail, isSuccess} from '../model/result-types.js';
 import {
 	readProjectFile,
@@ -14,7 +15,6 @@ export const getUserSetupStatus = (): {
 	isSetupDone: boolean;
 	/** The machine's own questions, whatever the board here still asks. */
 	isMachineSetupDone: boolean;
-	isSetPreferredEditor: boolean;
 	isSetUserName: boolean;
 	isSetAutoSync: boolean;
 	isSetEmails: boolean;
@@ -22,12 +22,10 @@ export const getUserSetupStatus = (): {
 	/** So the screen can tell "claimed nothing" from "refused". */
 	emailSetupDeclined: boolean;
 	userName: string | null;
-	preferredEditor: string | null;
 	autoSync: boolean | null;
 } => {
 	const settings = getSettingsState();
 	const isSetUserName = Boolean(settings.userName?.trim());
-	const isSetPreferredEditor = Boolean(settings.preferredEditor?.trim());
 	const isSetAutoSync =
 		settings.autoSync === true || settings.autoSync === false;
 
@@ -42,13 +40,10 @@ export const getUserSetupStatus = (): {
 	const isSetEmails = claimedEmails.length > 0 || declined || boardId === null;
 
 	return {
-		isSetupDone:
-			isSetPreferredEditor && isSetUserName && isSetAutoSync && isSetEmails,
-		isMachineSetupDone: isSetPreferredEditor && isSetUserName && isSetAutoSync,
-		isSetPreferredEditor,
+		isSetupDone: isSetUserName && isSetAutoSync && isSetEmails,
+		isMachineSetupDone: isSetUserName && isSetAutoSync,
 		isSetUserName,
 		userName: settings.userName,
-		preferredEditor: settings.preferredEditor,
 		autoSync: settings.autoSync === undefined ? null : settings.autoSync,
 		isSetAutoSync: isSetAutoSync,
 		isSetEmails,
@@ -125,8 +120,13 @@ export const yesNoToBoolean = (
 export const nextSetupCommand = (): string | null => {
 	const status = getUserSetupStatus();
 
-	if (!status.isSetUserName) return 'config username ';
-	if (!status.isSetPreferredEditor) return 'config editor ';
+	// Proposed from git, so enter is enough; the line shows it to change first.
+	if (!status.isSetUserName) {
+		const {gitName} = getSettingsState();
+		return `config username ${
+			gitName && isValidUserName(gitName) ? gitName.trim() : ''
+		}`;
+	}
 	// On by default: enter keeps the board current without a manual sync.
 	if (!status.isSetAutoSync) return 'config autoSync on';
 
@@ -147,13 +147,11 @@ export const nextSetupCommand = (): string | null => {
 
 /** A machine step's command, holding the current answer, for a rerun to confirm or change. */
 export const machineStepCommand = (step: MachineStep): string => {
-	const {userName, preferredEditor, autoSync} = getSettingsState();
+	const {userName, autoSync} = getSettingsState();
 
 	switch (step) {
 		case 'username':
 			return `config username ${userName ?? ''}`;
-		case 'editor':
-			return `config editor ${preferredEditor ?? ''}`;
 		case 'autoSync':
 			return `config autoSync ${booleanToYesNo(autoSync) ?? ''}`;
 	}

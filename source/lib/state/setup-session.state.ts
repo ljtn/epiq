@@ -1,7 +1,7 @@
 import {useSyncExternalStore} from 'react';
 
 /** The questions about this machine, in the order setup asks them. */
-export const MACHINE_STEPS = ['username', 'editor', 'autoSync'] as const;
+export const MACHINE_STEPS = ['username', 'autoSync'] as const;
 export type MachineStep = (typeof MACHINE_STEPS)[number];
 
 export type SetupSession = {
