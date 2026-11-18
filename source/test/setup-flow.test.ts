@@ -62,6 +62,7 @@ const {onConfirmCommandLineSequenceInput} = await import(
 	'../lib/actions/input/on-cmd-input-confirm.js'
 );
 const {
+	SETUP_DONE_MESSAGE,
 	advanceSetup,
 	leaveSetupOnEsc,
 	openSetupStep,
@@ -349,12 +350,22 @@ describe('epiq setup', () => {
 		patchSetupSession({quitWhenDone: true});
 	});
 
-	it("quits after the first run's last answer", async () => {
-		await answer('config username Jonatan');
-		expect(exit).not.toHaveBeenCalled();
+	it("quits after the first run's last answer, saying setup is done", async () => {
+		const write = vi
+			.spyOn(process.stdout, 'write')
+			.mockImplementation(() => true);
 
-		await answer('config autoSync off');
-		expect(exit).toHaveBeenCalledOnce();
+		try {
+			await answer('config username Jonatan');
+			expect(exit).not.toHaveBeenCalled();
+			expect(write).not.toHaveBeenCalled();
+
+			await answer('config autoSync off');
+			expect(exit).toHaveBeenCalledOnce();
+			expect(write).toHaveBeenCalledWith(`\n${SETUP_DONE_MESSAGE}\n`);
+		} finally {
+			write.mockRestore();
+		}
 	});
 
 	it("quits after a rerun's last answer", async () => {
