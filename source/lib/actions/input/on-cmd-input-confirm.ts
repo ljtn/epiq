@@ -35,6 +35,8 @@ const READ_ONLY_COMMAND_INTENTS = new Set<CommandIntent>([
 	'filter',
 	'view-help',
 	'yank',
+	// Leaving changes nothing, and a peek or replay must not hold you in.
+	'exit',
 ]);
 
 export const onConfirmCommandLineSequenceInput = async ({

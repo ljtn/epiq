@@ -57,6 +57,8 @@ export type TuiSession = {
 	/** The raw bytes the TUI wrote since the last call; the first call starts recording. */
 	takeWritten: () => string;
 	destroy: () => Promise<void>;
+	/** Settles when the TUI's process ends. */
+	exited: Promise<void>;
 	pid: number;
 };
 
@@ -400,6 +402,7 @@ export const setupTui = (
 		},
 
 		destroy,
+		exited,
 		pid: child.pid,
 	};
 };

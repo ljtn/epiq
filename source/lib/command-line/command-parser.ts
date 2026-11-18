@@ -1,6 +1,15 @@
 import {isCmdKeyword} from './command-meta.js';
 import {getCmdModifiers} from './command-modifiers.js';
-import {CmdKeyword} from './cmd-keywords.js';
+import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
+
+// What people type to leave a terminal program; each runs `exit`, which the
+// completions list alone.
+const EXIT_ALIASES: ReadonlySet<string> = new Set(['q', 'q!', 'quit', 'wq']);
+
+const commandOf = (word: string): CmdKeyword | null => {
+	if (isCmdKeyword(word)) return word;
+	return EXIT_ALIASES.has(word) ? CmdKeywords.EXIT : null;
+};
 
 export type CommandTarget = 'command' | 'modifier' | 'word';
 
@@ -30,7 +39,7 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 	const isLastWordCompleted = /\s$/.test(raw);
 	const lastWord = getLastWord(raw);
 
-	const command = isCmdKeyword(firstWord) ? firstWord : null;
+	const command = commandOf(firstWord);
 	const isCommandKeyword = command !== null;
 	const hasCommand = firstWord !== '';
 
@@ -52,7 +61,11 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 
 	const inputToMatch = isLastWordCompleted ? '' : lastWord;
 
-	const inputString = extractInputString(trimmedStart, command, modifier);
+	const inputString = extractInputString(
+		trimmedStart,
+		command ? firstWord : null,
+		modifier,
+	);
 
 	return {
 		raw,
