@@ -64,6 +64,20 @@ export const resolveClosestEpiqRoot = (startDir: string): Result<string> => {
 
 // Named so callers can tell "there is no project here" apart from a boot that
 // failed for some other reason, without matching on prose.
+/** Inside a git repository: a `.git` directory, or a worktree's `.git` file, here or above. */
+export const isInsideGitRepository = (startDir: string): boolean => {
+	let dir = path.resolve(startDir);
+
+	while (true) {
+		if (fs.existsSync(path.join(dir, '.git'))) return true;
+
+		const parent = path.dirname(dir);
+		if (parent === dir) return false;
+
+		dir = parent;
+	}
+};
+
 export const NO_PROJECT_MESSAGE = 'No .epiq/project.json found in any parent';
 
 export const resolveClosestEpiqProjectRoot = (

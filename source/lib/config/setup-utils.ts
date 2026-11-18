@@ -8,6 +8,7 @@ import {getSettingsState} from '../state/settings.state.js';
 import {claimedEmailsOf} from '../state/email-claims.state.js';
 import {getOfferedEmails} from '../state/email-offers.state.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
+import type {MachineStep} from '../state/setup-session.state.js';
 
 export const getUserSetupStatus = (): {
 	isSetupDone: boolean;
@@ -115,7 +116,8 @@ export const yesNoToBoolean = (
 
 /**
  * The setup command to open next, so answering one step opens the next; null
- * once setup is done, when `:config` is an ordinary command again.
+ * once setup is done, when `:config` is an ordinary command again. Never `init`:
+ * setup is this machine's, a project is the repository's.
  */
 export const nextSetupCommand = (): string | null => {
 	const status = getUserSetupStatus();
@@ -123,7 +125,6 @@ export const nextSetupCommand = (): string | null => {
 	if (!status.isSetUserName) return 'config username ';
 	if (!status.isSetPreferredEditor) return 'config editor ';
 	if (!status.isSetAutoSync) return 'config autoSync ';
-	if (!isRepositoryInitialized()) return 'init';
 
 	// Seeded with the first scanned address, else git's `user.email`, since the
 	// scan may not have run yet.
@@ -138,4 +139,18 @@ export const nextSetupCommand = (): string | null => {
 	}
 
 	return null;
+};
+
+/** A machine step's command, holding the current answer, for a rerun to confirm or change. */
+export const machineStepCommand = (step: MachineStep): string => {
+	const {userName, preferredEditor, autoSync} = getSettingsState();
+
+	switch (step) {
+		case 'username':
+			return `config username ${userName ?? ''}`;
+		case 'editor':
+			return `config editor ${preferredEditor ?? ''}`;
+		case 'autoSync':
+			return `config autoSync ${booleanToYesNo(autoSync) ?? ''}`;
+	}
 };

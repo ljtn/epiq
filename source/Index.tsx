@@ -11,6 +11,11 @@ import {formatUnknownError} from './lib/utils/logger.utils.js';
 import {EPIQ_VERSION} from './version.js';
 import './logger.js';
 import {bootTui} from './boot-tui.js';
+import {getUserSetupStatus} from './lib/config/setup-utils.js';
+import {
+	openSetupRerunStep,
+	startSetupRerun,
+} from './lib/command-line/setup-flow.js';
 
 initUiState();
 
@@ -18,6 +23,9 @@ const helpText = `${chalk.bold('Epiq CLI')}
 
 ${chalk.dim('Boot in directory:')}
   ${chalk.cyan('$ epiq')}
+
+${chalk.dim('Set up this machine (name, editor, auto sync):')}
+  ${chalk.cyan('$ epiq setup')}
 
 ${chalk.dim('Launch GUI:')}
   ${chalk.cyan('$ epiq gui')}
@@ -46,7 +54,7 @@ const cli = meow(helpText, {
 });
 
 const command = cli.input[0];
-if (command && command !== 'gui') {
+if (command && command !== 'gui' && command !== 'setup') {
 	console.error(chalk.red(`Unknown command: ${command}`));
 	process.exit(1);
 }
@@ -129,5 +137,9 @@ if (command === 'gui') {
 		logger.info(bootResult.message);
 		console.error(chalk.red(`Failed to boot Epiq:\n${bootResult.message}`));
 		process.exitCode = 1;
+	} else if (command === 'setup' && getUserSetupStatus().isSetupDone) {
+		// Unfinished, setup is already what the TUI opens on.
+		startSetupRerun();
+		openSetupRerunStep();
 	}
 }

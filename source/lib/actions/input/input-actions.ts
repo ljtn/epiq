@@ -14,6 +14,7 @@ import {
 import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {onConfirmCommandLineSequenceInput} from './on-cmd-input-confirm.js';
+import {leaveSetupRerun} from '../../command-line/setup-flow.js';
 
 const COMMAND_INPUT_MODES = [Mode.COMMAND_LINE, Mode.PALETTE];
 
@@ -125,6 +126,7 @@ export const inputActions: ActionEntry[] = [
 			// The walk through the history ends with the line: the next one opens
 			// at the most recent command, as a fresh line always did.
 			resetCommandHistoryWalk();
+			leaveSetupRerun();
 			patchState({mode: Mode.DEFAULT});
 			return succeeded('Exiting command line', null);
 		},

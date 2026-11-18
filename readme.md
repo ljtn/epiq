@@ -87,7 +87,9 @@ git init
 epiq
 ```
 
-If it is your first run, this opens the interactive setup wizard that sets you up in about 30 seconds.
+If it is your first run, this opens the interactive setup wizard that sets you up in about 30 seconds. Once you are set up, it asks whether to start a project in this repository: enter to initialize, esc to skip.
+
+To change your name, editor or auto sync later, run `epiq setup` (or `:setup` inside epiq).
 
 That’s it!
 

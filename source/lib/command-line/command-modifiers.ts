@@ -128,6 +128,7 @@ const GLOBAL_COMMANDS = [
 	CmdKeywords.HELP,
 	CmdKeywords.EXPORT,
 	CmdKeywords.CONFIG,
+	CmdKeywords.SETUP,
 	CmdKeywords.YANK,
 ];
 
@@ -279,6 +280,7 @@ const getAvailableBaseCommands = ({
 			CmdKeywords.HELP,
 			CmdKeywords.INIT,
 			CmdKeywords.OPEN,
+			CmdKeywords.SETUP,
 			CmdKeywords.EXIT,
 		];
 	}
@@ -389,6 +391,7 @@ export const getCmdModifiers = (
 		[CmdKeywords.EXPORT]: [],
 		[CmdKeywords.SYNC]: [],
 		[CmdKeywords.INIT]: [],
+		[CmdKeywords.SETUP]: [],
 		// Reads the registry, so only when this is the command being completed.
 		[CmdKeywords.OPEN]:
 			keyword === CmdKeywords.OPEN ? getOpenProjectModifiers() : [],
