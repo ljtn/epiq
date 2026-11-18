@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
-import React, {useEffect, useMemo, useRef} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
 	listRecentProjects,
 	RecentProject,
@@ -44,15 +44,21 @@ export const InitProjectUI: React.FC<InitProjectUIProps> = ({
 	// Setup's last answer shows this screen before its line closes, so the offer
 	// waits for the line to be free.
 	const offerPending = useRef(inGitRepository);
+	const [asking, setAsking] = useState(false);
 	useEffect(() => {
 		if (!offerPending.current || mode !== Mode.DEFAULT) return;
 		offerPending.current = false;
 		patchState({mode: Mode.COMMAND_LINE});
 		replaceCmdInput('init');
+		setAsking(true);
 	}, [mode]);
 
-	const asking =
-		inGitRepository && mode === Mode.COMMAND_LINE && line.trim() === 'init';
+	// The offer is the screen's, not the line's: typing `:init` yourself asks
+	// nothing, and closing or editing the offered line withdraws it.
+	useEffect(() => {
+		if (asking && (mode !== Mode.COMMAND_LINE || line.trim() !== 'init'))
+			setAsking(false);
+	}, [asking, mode, line]);
 
 	return (
 		<Box
