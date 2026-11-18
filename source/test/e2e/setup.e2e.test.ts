@@ -97,9 +97,11 @@ describe('setup', () => {
 
 				tui.input(ENTER);
 				await tui.waitFor(commandLineShows('config autoSync off'), 20_000);
+				tui.takeWritten();
 				tui.input(ENTER);
 
 				expect(await quits(tui)).toBe(true);
+				expect(tui.takeWritten()).toContain("You're all set.");
 			} finally {
 				await tui.destroy();
 			}

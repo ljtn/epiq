@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {
 	getUserSetupStatus,
@@ -71,12 +72,19 @@ export const leaveSetupRerun = (): void => {
 	if (getSetupSession().rerunStep) patchSetupSession({rerunStep: undefined});
 };
 
+export const SETUP_DONE_MESSAGE = `${chalk.green(
+	'✔',
+)} You're all set. Run ${chalk.cyan('epiq')} in a repository, or ${chalk.cyan(
+	'epiq gui',
+)} to fire up in a browser.`;
+
 /** `epiq setup` quits once the machine is set up, never landing on a board or the init offer. */
 const quitIfDone = (): boolean => {
 	const {quitWhenDone, rerunStep} = getSetupSession();
 	if (!quitWhenDone || rerunStep) return false;
 	if (!getUserSetupStatus().isMachineSetupDone) return false;
 
+	process.stdout.write(`\n${SETUP_DONE_MESSAGE}\n`);
 	navigationUtils.exit();
 	return true;
 };
