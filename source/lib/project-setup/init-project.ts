@@ -75,6 +75,16 @@ const dirtyPaths = async (repoRoot: string): Promise<Result<string[]>> => {
 const failAt = (step: number, message: string) =>
 	failed(`[${step}] ${message}`);
 
+// A remote is not required: without one, init says so once instead of failing twice to push.
+export const NOT_PUSHED_NO_REMOTE =
+	'Not pushed: this repository has no remote. Add one to share the board.';
+
+const hasOrigin = async (repoRoot: string): Promise<boolean> => {
+	const result = await hasRemote({repoRoot});
+	// Unsure is treated as present: a push that fails says why.
+	return isFail(result) || result.value;
+};
+
 /**
  * Turns a git repo into an epiq project, for every interface. Nothing else may
  * commit or push in the user's repository.
@@ -208,22 +218,26 @@ export const initProject = async ({
 
 	const warnings: string[] = [];
 
-	// 14. try push original branch first.
-	const pushOriginalResult = await execGit({
-		cwd: repoRoot,
-		args: ['push', '-u', 'origin', 'HEAD'],
-	});
-	if (isFail(pushOriginalResult)) {
-		warnings.push(`[init:14] ${pushOriginalResult.message}`);
-	}
+	if (!(await hasOrigin(repoRoot))) {
+		warnings.push(NOT_PUSHED_NO_REMOTE);
+	} else {
+		// 14. try push original branch first.
+		const pushOriginalResult = await execGit({
+			cwd: repoRoot,
+			args: ['push', '-u', 'origin', 'HEAD'],
+		});
+		if (isFail(pushOriginalResult)) {
+			warnings.push(`[init:14] ${pushOriginalResult.message}`);
+		}
 
-	// 15. try push state branch / set upstream
-	const pushStateResult = await pushStateBranch({
-		repoRoot,
-		stateBranchRoot,
-	});
-	if (isFail(pushStateResult)) {
-		warnings.push(`[init:15] ${pushStateResult.message}`);
+		// 15. try push state branch / set upstream
+		const pushStateResult = await pushStateBranch({
+			repoRoot,
+			stateBranchRoot,
+		});
+		if (isFail(pushStateResult)) {
+			warnings.push(`[init:15] ${pushStateResult.message}`);
+		}
 	}
 
 	return succeeded('Project initialized', {
@@ -583,11 +597,15 @@ const adoptProject = async ({
 
 	const warnings: string[] = [];
 
-	const pushResult = await execGit({
-		cwd: repoRoot,
-		args: ['push', '-u', 'origin', 'HEAD'],
-	});
-	if (isFail(pushResult)) warnings.push(`[init:14] ${pushResult.message}`);
+	if (!(await hasOrigin(repoRoot))) {
+		warnings.push(NOT_PUSHED_NO_REMOTE);
+	} else {
+		const pushResult = await execGit({
+			cwd: repoRoot,
+			args: ['push', '-u', 'origin', 'HEAD'],
+		});
+		if (isFail(pushResult)) warnings.push(`[init:14] ${pushResult.message}`);
+	}
 
 	return succeeded('Adopted the existing project', {
 		repoRoot,
