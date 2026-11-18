@@ -147,6 +147,9 @@ export const initProject = async ({
 		return failAt(4, 'HEAD is detached. Check out a branch first.');
 	}
 
+	// Before anything is written, so a failure can put it back.
+	const before = snapshotInitFiles(repoRoot);
+
 	// 5. the author of the default board
 	const {userId, userName} = user;
 	if (!userId || !userName) {
@@ -175,7 +178,7 @@ export const initProject = async ({
 		if (isFail(aborted)) return failAt(6, aborted.message);
 		// The board exists here, its project file only on another branch.
 		if (!aborted.value)
-			return adoptProject({repoRoot, stateBranch, from: 'local'});
+			return adoptProject({repoRoot, stateBranch, from: 'local', before});
 	}
 
 	// A fresh clone of an existing project adopts origin's identity, never mints one.
@@ -186,7 +189,7 @@ export const initProject = async ({
 	if (isFail(remoteBranchResult)) return failAt(6, remoteBranchResult.message);
 
 	if (remoteBranchResult.value) {
-		return adoptProject({repoRoot, stateBranch, from: 'remote'});
+		return adoptProject({repoRoot, stateBranch, from: 'remote', before});
 	}
 
 	const createStateBranchResult = await createStateBranch({
@@ -211,6 +214,7 @@ export const initProject = async ({
 				getWorktreesRoot(),
 				projectFileContents.projectId,
 			),
+			before,
 		});
 		return written;
 	}
@@ -379,27 +383,47 @@ const writeNewBoard = async ({
 	});
 };
 
-// The repository files init writes. The tree was clean before it, so HEAD's
-// version of each is what was there.
-const restoreInitFiles = async (repoRoot: string): Promise<void> => {
-	for (const file of ['.epiq/project.json', '.gitignore']) {
-		const tracked = await execGitAllowFail({
-			cwd: repoRoot,
-			args: ['cat-file', '-e', `HEAD:${file}`],
-		});
-		if (tracked.exitCode === 0) {
-			await execGitAllowFail({
-				cwd: repoRoot,
-				args: ['checkout', 'HEAD', '--', file],
-			});
-			continue;
-		}
-		await execGitAllowFail({
-			cwd: repoRoot,
-			args: ['rm', '--cached', '-q', '--ignore-unmatch', '--', file],
-		});
-		fs.rmSync(path.join(repoRoot, file), {force: true});
+// The repository files init writes, as they were before it: a failure puts
+// them back exactly, ignored or not, and unstages them.
+const INIT_FILES = ['.epiq/project.json', '.gitignore'];
+type InitFilesBefore = Record<string, string | null>;
+
+const snapshotInitFiles = (repoRoot: string): InitFilesBefore =>
+	Object.fromEntries(
+		INIT_FILES.map(file => {
+			const full = path.join(repoRoot, file);
+			return [file, fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : null];
+		}),
+	);
+
+const restoreInitFiles = async (
+	repoRoot: string,
+	before: InitFilesBefore,
+): Promise<void> => {
+	// The tree was clean, so HEAD's index entries are what was staged.
+	await execGitAllowFail({
+		cwd: repoRoot,
+		args: ['reset', '-q', '--', ...INIT_FILES],
+	});
+	for (const file of INIT_FILES) {
+		const full = path.join(repoRoot, file);
+		const content = before[file];
+		if (content === null || content === undefined)
+			fs.rmSync(full, {force: true});
+		else fs.writeFileSync(full, content);
 	}
+};
+
+// Inside epiq's worktrees directory, the only place it deletes a folder by hand.
+const isOwnWorktree = (dir: string): boolean => {
+	const real = (p: string) => {
+		try {
+			return fs.realpathSync(p);
+		} catch {
+			return path.resolve(p);
+		}
+	};
+	return real(dir).startsWith(real(getWorktreesRoot()) + path.sep);
 };
 
 // Everything a failed first init wrote: the new branch, its worktree, the files.
@@ -407,19 +431,23 @@ const undoInit = async ({
 	repoRoot,
 	stateBranch,
 	stateBranchRoot,
+	before,
 }: {
 	repoRoot: string;
 	stateBranch: string;
 	stateBranchRoot: string;
+	before: InitFilesBefore;
 }): Promise<void> => {
 	await execGitAllowFail({
 		cwd: repoRoot,
 		args: ['worktree', 'remove', '--force', stateBranchRoot],
 	});
-	fs.rmSync(stateBranchRoot, {recursive: true, force: true});
+	if (isOwnWorktree(stateBranchRoot)) {
+		fs.rmSync(stateBranchRoot, {recursive: true, force: true});
+	}
 	await execGitAllowFail({cwd: repoRoot, args: ['worktree', 'prune']});
 	await execGitAllowFail({cwd: repoRoot, args: ['branch', '-D', stateBranch]});
-	await restoreInitFiles(repoRoot);
+	await restoreInitFiles(repoRoot, before);
 };
 
 /**
@@ -443,6 +471,18 @@ const dropAbortedStateBranch = async ({
 		return succeeded('State branch holds a board', false);
 	}
 
+	// Empty for a moment in every init: one running here right now is not aborted.
+	const committedAt = await execGit({
+		cwd: repoRoot,
+		args: ['log', '-1', '--format=%ct', stateBranch],
+	});
+	if (isFail(committedAt)) return failed(committedAt.message);
+	if (Date.now() / 1000 - Number(committedAt.value.stdout.trim()) < 60) {
+		return failed(
+			`${stateBranch} was created moments ago: another init may be running here. Try again in a minute.`,
+		);
+	}
+
 	const worktree = await getWorktreeRootForBranch({
 		repoRoot,
 		branch: stateBranch,
@@ -453,7 +493,9 @@ const dropAbortedStateBranch = async ({
 			cwd: repoRoot,
 			args: ['worktree', 'remove', '--force', worktree.value],
 		});
-		fs.rmSync(worktree.value, {recursive: true, force: true});
+		if (isOwnWorktree(worktree.value)) {
+			fs.rmSync(worktree.value, {recursive: true, force: true});
+		}
 		await execGitAllowFail({cwd: repoRoot, args: ['worktree', 'prune']});
 	}
 
@@ -499,9 +541,11 @@ const adoptProject = async ({
 	repoRoot,
 	stateBranch,
 	from,
+	before,
 }: {
 	repoRoot: string;
 	stateBranch: string;
+	before: InitFilesBefore;
 	// Origin's board for a fresh clone; this repository's own when its project
 	// file is only on another branch.
 	from: 'remote' | 'local';
@@ -559,7 +603,7 @@ const adoptProject = async ({
 		pathspec: [STATE_IDENTITY_PATH],
 	});
 	if (isFail(stageResult)) {
-		await restoreInitFiles(repoRoot);
+		await restoreInitFiles(repoRoot, before);
 		return failAt(13, stageResult.message);
 	}
 
@@ -569,7 +613,7 @@ const adoptProject = async ({
 		pathspec: [STATE_IDENTITY_PATH],
 	});
 	if (isFail(commitResult)) {
-		await restoreInitFiles(repoRoot);
+		await restoreInitFiles(repoRoot, before);
 		return failAt(13, commitResult.message);
 	}
 
