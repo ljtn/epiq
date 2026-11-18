@@ -266,10 +266,15 @@ describe('epiq init', () => {
 		"an empty state branch, left by an older version's failed init, does not block init",
 		() => {
 			const repo = committedRepo();
-			const empty = git(
-				repo,
-				'commit-tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904 -m aborted',
-			);
+			// Dated well back: one created moments ago may be another init's, mid-run.
+			const empty = execSync(
+				'git commit-tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904 -m aborted',
+				{
+					cwd: repo,
+					encoding: 'utf8',
+					env: {...process.env, GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z'},
+				},
+			).trim();
 			git(repo, `update-ref refs/heads/__epiq_state__ ${empty}`);
 
 			const {status, output} = runInit(repo);
@@ -277,6 +282,43 @@ describe('epiq init', () => {
 			expect(output).toContain('Project initialized');
 			expect(status).toBe(0);
 			expect(git(repo, 'rev-list --count __epiq_state__')).not.toBe('1');
+		},
+		testTimeout,
+	);
+
+	it(
+		'an empty state branch made moments ago is left alone: another init may own it',
+		() => {
+			const repo = committedRepo();
+			const empty = git(
+				repo,
+				'commit-tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904 -m running',
+			);
+			git(repo, `update-ref refs/heads/__epiq_state__ ${empty}`);
+			const before = gitFootprint(repo);
+
+			const {status, output} = runInit(repo);
+
+			expect(status).toBe(1);
+			expect(output).toContain('another init may be running');
+			expect(gitFootprint(repo)).toEqual(before);
+		},
+		testTimeout,
+	);
+
+	it(
+		'a failed init puts back a .gitignore that git itself ignores',
+		() => {
+			const repo = committedRepo();
+			fs.writeFileSync(path.join(repo, '.git/info/exclude'), '.gitignore\n');
+			fs.writeFileSync(path.join(repo, '.gitignore'), 'mine\n');
+			// Init then fails on its own: git refuses to stage an ignored file.
+
+			expect(runInit(repo).status).toBe(1);
+			expect(fs.readFileSync(path.join(repo, '.gitignore'), 'utf8')).toBe(
+				'mine\n',
+			);
+			expect(fs.existsSync(path.join(repo, '.epiq/project.json'))).toBe(false);
 		},
 		testTimeout,
 	);
