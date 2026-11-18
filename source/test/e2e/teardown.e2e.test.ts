@@ -63,7 +63,14 @@ describe('TUI e2e teardown', () => {
 
 		// Init pushes the state branch before the board renders, so this drives
 		// init by hand and waits for the push to be held rather than for a frame.
+		// A remote, since init pushes nothing without one; the push never reaches it.
+		const origin = path.join(holdDir, 'origin.git');
+		execSync(`git init --bare "${origin}"`, {stdio: 'ignore'});
 		execSync('git init', {cwd: tui.cwd, stdio: 'ignore'});
+		execSync(`git remote add origin "${origin}"`, {
+			cwd: tui.cwd,
+			stdio: 'ignore',
+		});
 		await tui.waitFor('This folder is not an epiq project yet.', 8_000);
 		await typeCommand(tui, ':init');
 		await waitForFile(path.join(holdDir, 'held'), 10_000);

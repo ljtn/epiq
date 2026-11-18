@@ -5,7 +5,10 @@ import {getWorktreesRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';
 import {getPersistFileName} from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
-import {initProject} from '../lib/project-setup/init-project.js';
+import {
+	initProject,
+	NOT_PUSHED_NO_REMOTE,
+} from '../lib/project-setup/init-project.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {
 	cloneRepo,
@@ -128,7 +131,7 @@ describe('initProject', () => {
 		expect(second.message).toBe('[4] Epiq project already initialized');
 	});
 
-	it('initializes without a remote, reporting the failed pushes as warnings', async () => {
+	it('initializes without a remote, saying once that nothing was pushed', async () => {
 		const repoRoot = makeTempDir();
 		await gitStdout(repoRoot, ['init', '-b', 'main']);
 		await gitStdout(repoRoot, ['config', 'user.email', 'test@example.com']);
@@ -143,9 +146,7 @@ describe('initProject', () => {
 		const result = await initProject({cwd: repoRoot, user});
 		if (isFail(result)) throw new Error(result.message);
 
-		expect(result.value.warnings).toHaveLength(2);
-		expect(result.value.warnings[0]).toMatch(/^\[init:14\]/);
-		expect(result.value.warnings[1]).toMatch(/^\[init:15\]/);
+		expect(result.value.warnings).toEqual([NOT_PUSHED_NO_REMOTE]);
 		expect(fs.existsSync(path.join(repoRoot, '.epiq', 'project.json'))).toBe(
 			true,
 		);
