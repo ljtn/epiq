@@ -17,6 +17,7 @@ import {
 	openSetupRerunStep,
 	startSetupRerun,
 } from './lib/command-line/setup-flow.js';
+import {patchSetupSession} from './lib/state/setup-session.state.js';
 
 initUiState();
 
@@ -155,9 +156,12 @@ if (command === 'init') {
 		logger.info(bootResult.message);
 		console.error(chalk.red(`Failed to boot Epiq:\n${bootResult.message}`));
 		process.exitCode = 1;
-	} else if (command === 'setup' && getUserSetupStatus().isMachineSetupDone) {
+	} else if (command === 'setup') {
+		patchSetupSession({quitWhenDone: true});
 		// Unfinished, setup is already what the TUI opens on.
-		startSetupRerun();
-		openSetupRerunStep();
+		if (getUserSetupStatus().isMachineSetupDone) {
+			startSetupRerun();
+			openSetupRerunStep();
+		}
 	}
 }

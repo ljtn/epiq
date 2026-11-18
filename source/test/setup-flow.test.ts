@@ -44,11 +44,26 @@ vi.mock('../lib/storage/paths.js', async importOriginal => ({
 	),
 }));
 
+const exit = vi.fn();
+vi.mock(
+	'../lib/actions/default/navigation-action-utils.js',
+	async importOriginal => {
+		const original = await importOriginal<
+			typeof import('../lib/actions/default/navigation-action-utils.js')
+		>();
+		return {
+			...original,
+			navigationUtils: {...original.navigationUtils, exit: () => exit()},
+		};
+	},
+);
+
 const {onConfirmCommandLineSequenceInput} = await import(
 	'../lib/actions/input/on-cmd-input-confirm.js'
 );
 const {
 	advanceSetup,
+	leaveSetupOnEsc,
 	leaveSetupRerun,
 	leaveSetupRerunFor,
 	openSetupRerunStep,
@@ -56,7 +71,7 @@ const {
 } = await import('../lib/command-line/setup-flow.js');
 const {CmdIntent} = await import('../lib/command-line/command-intent.js');
 const {getUserSetupStatus} = await import('../lib/config/setup-utils.js');
-const {getSetupSession, resetSetupSession} = await import(
+const {getSetupSession, patchSetupSession, resetSetupSession} = await import(
 	'../lib/state/setup-session.state.js'
 );
 const {configCommand} = await import(
@@ -86,6 +101,7 @@ const answer = async (line: string) => {
 const line = () => getCmdState().value;
 
 beforeEach(() => {
+	exit.mockClear();
 	projectExists = true;
 	resetSetupSession();
 	initWorkspaceState(nodes.workspace(WORKSPACE, 'Test Root', 'a'));
@@ -302,5 +318,77 @@ describe(':setup asks the machine questions again', () => {
 		leaveSetupRerun();
 
 		expect(getSetupSession().rerunStep).toBeUndefined();
+	});
+});
+
+// `epiq setup` is the machine's questions and nothing else: no board, no init offer.
+describe('epiq setup', () => {
+	beforeEach(() => {
+		projectExists = false;
+		patchSetupSession({quitWhenDone: true});
+	});
+
+	it("quits after the first run's last answer", async () => {
+		await answer('config username Jonatan');
+		await answer('config editor vim');
+		expect(exit).not.toHaveBeenCalled();
+
+		await answer('config autoSync off');
+		expect(exit).toHaveBeenCalledOnce();
+	});
+
+	it("quits after a rerun's last answer", async () => {
+		patchSettingsState({
+			userName: 'Jonatan',
+			userId: 'USER',
+			preferredEditor: 'vim',
+			autoSync: false,
+		});
+		startSetupRerun();
+		openSetupRerunStep();
+
+		await answer('config username Jonatan');
+		await answer('config editor vim');
+		expect(exit).not.toHaveBeenCalled();
+
+		await answer('config autoSync off');
+		expect(exit).toHaveBeenCalledOnce();
+	});
+
+	it('quits on esc once the machine is set up', () => {
+		patchSettingsState({
+			userName: 'Jonatan',
+			userId: 'USER',
+			preferredEditor: 'vim',
+			autoSync: false,
+		});
+		startSetupRerun();
+		leaveSetupOnEsc();
+
+		expect(exit).toHaveBeenCalledOnce();
+	});
+
+	it('stays on esc while the machine still has questions', () => {
+		leaveSetupOnEsc();
+
+		expect(exit).not.toHaveBeenCalled();
+	});
+});
+
+describe(':setup inside epiq', () => {
+	it('keeps the TUI open after its last answer', async () => {
+		patchSettingsState({
+			userName: 'Jonatan',
+			userId: 'USER',
+			preferredEditor: 'vim',
+			autoSync: false,
+		});
+		startSetupRerun();
+		await answer('config username Jonatan');
+		await answer('config editor vim');
+		await answer('config autoSync off');
+		leaveSetupOnEsc();
+
+		expect(exit).not.toHaveBeenCalled();
 	});
 });

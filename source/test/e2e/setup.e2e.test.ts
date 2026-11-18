@@ -5,17 +5,24 @@ import path from 'node:path';
 import {afterAll, describe, expect, it} from 'vitest';
 import {commonSteps, typeCommand} from './e2e-common-steps.js';
 import {
+	commandLineIsIdle,
 	commandLineShows,
 	ENTER,
 	removeTempRepo,
 	setupTui,
 } from './e2e.helper.js';
 
-// Setup is this machine's; a project is the repository's. Setup ends with its
-// own questions, and a repository with no board offers one, whatever led there.
+// Setup is this machine's; a project is the repository's. `epiq setup` quits
+// with its own questions; opening a repository with no board offers one.
 
 const testTimeout = 90_000;
 const ESC = '\x1B';
+
+const quits = (tui: ReturnType<typeof setupTui>) =>
+	Promise.race([
+		tui.exited.then(() => true),
+		new Promise<boolean>(resolve => setTimeout(() => resolve(false), 10_000)),
+	]);
 
 const gitRepo = () => {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-e2e-setup-'));
@@ -64,7 +71,7 @@ describe('setup', () => {
 	);
 
 	it(
-		'`epiq setup` asks again, each answer held, and leaves the board as it was',
+		'`epiq setup` asks again, each answer held, and quits',
 		async () => {
 			const tui = setupTui(['setup'], {cwd: repo});
 
@@ -82,9 +89,7 @@ describe('setup', () => {
 				await tui.waitFor(commandLineShows('config autoSync off'), 20_000);
 				tui.input(ENTER);
 
-				// The repository already has its board: no question, just the board.
-				const board = await tui.waitFor('Todo (0)', 20_000);
-				expect(board).not.toContain('Do you want to start one here?');
+				expect(await quits(tui)).toBe(true);
 			} finally {
 				await tui.destroy();
 			}
@@ -136,6 +141,23 @@ describe('setup', () => {
 					20_000,
 				);
 				expect(skipped).toContain('Initialize project');
+
+				// Typing the command yourself is not the offer: the screen stays put.
+				// A key right after ESC can be lost: retry until the line opens.
+				await tui.waitFor(commandLineIsIdle, 20_000);
+				for (let attempt = 0; attempt < 10; attempt++) {
+					tui.input(':');
+					const opened = await tui
+						.waitFor(frame => frame.includes('Mode: cmd-line'), 1_000)
+						.then(() => true)
+						.catch(() => false);
+					if (opened) break;
+				}
+
+				tui.input('init');
+				const typed = await tui.waitFor(commandLineShows('init'), 20_000);
+				expect(typed).toContain('Initialize project');
+				expect(typed).not.toContain('Do you want to start one here?');
 			} finally {
 				await tui.destroy();
 			}
@@ -167,9 +189,9 @@ describe('setup', () => {
 	);
 
 	it(
-		'outside a git repository says so rather than offering init',
+		'`epiq setup` in a repository with no board quits without offering one',
 		async () => {
-			const tui = setupTui(['setup']);
+			const tui = setupTui(['setup'], {cwd: boardless});
 
 			try {
 				await tui.waitFor(commandLineShows('config username test'), 20_000);
@@ -177,10 +199,11 @@ describe('setup', () => {
 				await tui.waitFor(commandLineShows('config editor vim'), 20_000);
 				tui.input(ENTER);
 				await tui.waitFor(commandLineShows('config autoSync off'), 20_000);
+				tui.takeWritten();
 				tui.input(ENTER);
 
-				const screen = await tui.waitFor('not a git repository', 20_000);
-				expect(screen).not.toContain('to skip');
+				expect(await quits(tui)).toBe(true);
+				expect(tui.takeWritten()).not.toContain('Do you want');
 			} finally {
 				await tui.destroy();
 			}

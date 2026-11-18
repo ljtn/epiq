@@ -7,6 +7,8 @@ export type MachineStep = (typeof MACHINE_STEPS)[number];
 export type SetupSession = {
 	// The step a `:setup` rerun is on; unset outside one.
 	rerunStep?: MachineStep;
+	// `epiq setup`: the process ends with the machine questions.
+	quitWhenDone?: boolean;
 };
 
 // Process memory, apart from the board's state, which a rebuild replaces.

@@ -1,4 +1,9 @@
-import {machineStepCommand, nextSetupCommand} from '../config/setup-utils.js';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
+import {
+	getUserSetupStatus,
+	machineStepCommand,
+	nextSetupCommand,
+} from '../config/setup-utils.js';
 import {ACTOR_NAME_ENV} from '../config/actor-env.js';
 import {Mode} from '../model/action-map.model.js';
 import {replaceCmdInput} from '../state/cmd.state.js';
@@ -59,6 +64,22 @@ export const leaveSetupRerun = (): void => {
 	if (getSetupSession().rerunStep) patchSetupSession({rerunStep: undefined});
 };
 
+/** `epiq setup` quits once the machine is set up, never landing on a board or the init offer. */
+const quitIfDone = (): boolean => {
+	const {quitWhenDone, rerunStep} = getSetupSession();
+	if (!quitWhenDone || rerunStep) return false;
+	if (!getUserSetupStatus().isMachineSetupDone) return false;
+
+	navigationUtils.exit();
+	return true;
+};
+
+/** Esc on the command line: ends a rerun, and `epiq setup` with it. */
+export const leaveSetupOnEsc = (): void => {
+	leaveSetupRerun();
+	quitIfDone();
+};
+
 /** Before a confirmed command runs: only an answer keeps a rerun going. */
 export const leaveSetupRerunFor = (intent: string): void => {
 	if (intent !== CmdIntent.Config) leaveSetupRerun();
@@ -91,6 +112,8 @@ export const advanceSetup = (): void => {
 			return;
 		}
 	}
+
+	if (quitIfDone()) return;
 
 	const next = nextSetupCommand();
 	if (next) {
