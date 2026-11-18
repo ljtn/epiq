@@ -7,10 +7,6 @@ export type MachineStep = (typeof MACHINE_STEPS)[number];
 export type SetupSession = {
 	// The step a `:setup` rerun is on; unset outside one.
 	rerunStep?: MachineStep;
-	// Setup was unfinished when an answer came in, so finishing it hands over.
-	inProgress?: boolean;
-	// Finished in this run: the next screen says so and offers what comes next.
-	justCompleted?: boolean;
 };
 
 // Process memory, apart from the board's state, which a rebuild replaces.

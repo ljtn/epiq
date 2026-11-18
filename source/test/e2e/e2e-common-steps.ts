@@ -67,8 +67,8 @@ export const commonSteps = {
 		await tui.waitFor('Configure auto sync', 20_000);
 		await typeCommand(tui, `:config autoSync ${autoSync}`);
 
-		// In every case setup ends on: the handover, or the screen saying what is next.
-		await tui.waitFor('Setup complete!', 20_000);
+		// Setup ends; with no board here, the folder's screen says what is next.
+		await tui.waitFor('This folder is not an epiq project yet.', 20_000);
 	},
 
 	/**
