@@ -676,8 +676,9 @@
 					<section id="config" class="docs-section">
 						<h2>Configuration</h2>
 						<p>
-							Adjust settings with
-							<code>:config &lt;setting&gt; &lt;value&gt;</code>.
+							Set any of these with
+							<code>:config &lt;setting&gt; &lt;value&gt;</code>, or rerun the
+							setup questions with <code>epiq setup</code>.
 						</p>
 						<table class="cmd-table">
 							<thead>
@@ -689,7 +690,10 @@
 							<tbody>
 								<tr>
 									<td><code>editor</code></td>
-									<td>Preferred external editor for descriptions</td>
+									<td>
+										External editor for descriptions (default:
+										<code>$VISUAL</code>, then <code>$EDITOR</code>)
+									</td>
 								</tr>
 								<tr>
 									<td><code>username</code></td>
