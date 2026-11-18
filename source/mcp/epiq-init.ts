@@ -21,21 +21,25 @@ type InitInput = {
 };
 
 // The TUI setup screen's questions, in order; required so the TUI doesn't greet
-// the user with setup on first open.
+// the user with setup on first open. The editor is optional: unset, the TUI uses
+// $VISUAL or $EDITOR.
 const SETUP_FIELDS = [
 	{
 		name: 'userName',
 		question: 'the name they want to appear under on the board',
+		required: true,
 	},
 	{
 		name: 'preferredEditor',
 		question:
 			'the command that opens a file for editing, e.g. "vim", "nano" or "code --wait"',
+		required: false,
 	},
 	{
 		name: 'autoSync',
 		question:
 			'whether the TUI and GUI should sync with the git remote on their own (true or false)',
+		required: true,
 	},
 ] as const;
 
@@ -124,6 +128,7 @@ export const initProjectTool = async (
 	const merged = {...config, ...patch};
 
 	const missing = SETUP_FIELDS.filter(field => {
+		if (!field.required) return false;
 		const value = merged[field.name];
 		return typeof value === 'boolean' ? false : !value?.trim();
 	});

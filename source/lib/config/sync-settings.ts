@@ -25,14 +25,12 @@ export type AutoSyncSettings = {
 
 /**
  * What stops auto sync running, whatever the preference says. Pure over the
- * pair: the GUI's loop calls it before the store is filled.
+ * identity: the GUI's loop calls it before the store is filled.
  */
 export const autoSyncBlockedReason = (identity: {
 	userName: string | null | undefined;
-	preferredEditor: string | null | undefined;
 }): string | null => {
 	if (!identity.userName?.trim()) return 'no username configured';
-	if (!identity.preferredEditor?.trim()) return 'no editor configured';
 
 	return null;
 };
@@ -46,10 +44,7 @@ const blockedReasonFor = (config: EpiqConfig): string | null => {
 
 	if (isFail(resolved)) {
 		return (
-			autoSyncBlockedReason({
-				userName: config.userName,
-				preferredEditor: config.preferredEditor,
-			}) ?? resolved.message
+			autoSyncBlockedReason({userName: config.userName}) ?? resolved.message
 		);
 	}
 

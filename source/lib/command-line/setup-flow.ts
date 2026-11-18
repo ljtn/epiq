@@ -30,7 +30,6 @@ const stepOfModifier = (modifier: string): MachineStep | undefined =>
 	((
 		{
 			[ConfigModifiers.USERNAME.toLowerCase()]: 'username',
-			[ConfigModifiers.EDITOR.toLowerCase()]: 'editor',
 			[ConfigModifiers.AUTOSYNC.toLowerCase()]: 'autoSync',
 		} as Record<string, MachineStep>
 	)[modifier.toLowerCase()]);
@@ -49,7 +48,7 @@ export const noteConfigAnswered = (modifier: string): void => {
  */
 export const startSetupRerun = (): void => {
 	patchSetupSession({
-		rerunStep: process.env[ACTOR_NAME_ENV] ? 'editor' : MACHINE_STEPS[0],
+		rerunStep: process.env[ACTOR_NAME_ENV] ? 'autoSync' : MACHINE_STEPS[0],
 	});
 };
 
@@ -57,6 +56,14 @@ export const startSetupRerun = (): void => {
 export const openSetupRerunStep = (): void => {
 	const {rerunStep} = getSetupSession();
 	if (rerunStep) openLine(machineStepCommand(rerunStep));
+};
+
+/** Unfinished setup opens on its next question, already typed. */
+export const openSetupStep = (): void => {
+	if (getUserSetupStatus().isSetupDone) return;
+
+	const next = nextSetupCommand();
+	if (next) openLine(next);
 };
 
 /** Esc, or any command but `config`: the rerun ends, the answers given so far stand. */

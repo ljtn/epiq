@@ -5,6 +5,8 @@ import {truncateToWidth} from '../utils/string.utils.js';
 import {getUserSetupStatus} from '../config/setup-utils.js';
 import {EmailCandidates} from './EmailCandidates.js';
 import {useSetupSession} from '../state/setup-session.state.js';
+import {useAppState} from '../state/state.js';
+import {Mode} from '../model/action-map.model.js';
 
 type Props = {
 	width: number;
@@ -15,9 +17,7 @@ type StepRowProps = {
 	isDone: boolean;
 	command: string;
 	value?: string;
-	/** How to reach the step: typed for the first, already in the line after. */
 	verb?: string;
-	hint?: React.ReactNode;
 };
 
 const StepRow: React.FC<StepRowProps> = ({
@@ -25,7 +25,6 @@ const StepRow: React.FC<StepRowProps> = ({
 	command,
 	value,
 	verb = 'Type',
-	hint,
 }) => {
 	return (
 		<Box>
@@ -44,7 +43,6 @@ const StepRow: React.FC<StepRowProps> = ({
 					</Text>
 				</>
 			)}
-			{hint}
 		</Box>
 	);
 };
@@ -69,10 +67,8 @@ const formatValue = (value: unknown) => {
 
 export default function SettingsUI({width, height}: Props) {
 	const {
-		isSetPreferredEditor,
 		isSetUserName,
 		userName,
-		preferredEditor,
 		autoSync,
 		isSetAutoSync,
 		isSetEmails,
@@ -80,28 +76,24 @@ export default function SettingsUI({width, height}: Props) {
 		emailSetupDeclined,
 	} = getUserSetupStatus();
 	const {rerunStep} = useSetupSession();
+	// Esc closes the line a step opened; the step then says what to type.
+	const lineOpen = useAppState().mode === Mode.COMMAND_LINE;
 	const steps = [
 		{
 			key: 'username',
 			done: isSetUserName,
 			command: ':config username',
 			value: userName,
-			message: 'First, choose your username.',
-		},
-		{
-			key: 'editor',
-			done: isSetPreferredEditor,
-			command: ':config editor',
-			value: preferredEditor,
 			message:
-				'Nice. Now pick your editor: used in the terminal app (TUI) to write descriptions and view code.',
+				'First, the name others see on the board. Enter keeps it, or change it first.',
 		},
 		{
 			key: 'autoSync',
 			done: isSetAutoSync,
 			command: ':config autosync',
 			value: autoSync,
-			message: 'Almost there. Configure auto sync.',
+			message:
+				'Auto sync keeps the board current with your team. Enter keeps it on.',
 		},
 		{
 			key: 'emails',
@@ -158,29 +150,13 @@ export default function SettingsUI({width, height}: Props) {
 					const isActive = index === activeStepIndex;
 					const isDone = rerunStep ? index < activeStepIndex : step.done;
 
-					// Only the first step is typed from scratch, so only it shows the shortcut.
-					const isFirstAsk = isActive && activeStepIndex === 0 && !rerunStep;
-
 					return (
 						<Box key={step.key} flexDirection="column" marginBottom={1}>
 							<StepRow
 								isDone={isDone}
-								command={isFirstAsk ? ':config us' : step.command}
+								command={step.command}
 								value={isDone ? formatValue(step.value) : undefined}
-								verb={isActive && !isFirstAsk ? 'Waiting:' : 'Type'}
-								hint={
-									isFirstAsk ? (
-										<Text color={theme.secondary2}>
-											{' then '}
-											<Text color={theme.accent}>tab</Text>
-											{' to auto-complete '}
-											{/* The chip the command becomes, taken from the step. */}
-											<Text backgroundColor={theme.secondary}>
-												{` ${step.command.split(' ').pop()} `}
-											</Text>
-										</Text>
-									) : undefined
-								}
+								verb={isActive && lineOpen ? 'Waiting:' : 'Type'}
 							/>
 							{/* The repository's addresses, so the step's numbers mean something. */}
 							{step.key === 'emails' && !step.done && <EmailCandidates />}

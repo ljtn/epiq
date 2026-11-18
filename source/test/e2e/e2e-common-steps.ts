@@ -58,13 +58,10 @@ export const commonSteps = {
 		autoSync: 'on' | 'off' = 'on',
 	) => {
 		// Headroom for a cold start on slow CI hardware, or under a full container.
-		await tui.waitFor('choose your username', 20_000);
+		await tui.waitFor('the name others see on the board', 20_000);
 		await typeCommand(tui, ':config username test');
 
-		await tui.waitFor('pick your editor', 20_000);
-		await typeCommand(tui, ':config editor vim');
-
-		await tui.waitFor('Configure auto sync', 20_000);
+		await tui.waitFor('Auto sync keeps the board current', 20_000);
 		await typeCommand(tui, `:config autoSync ${autoSync}`);
 
 		// Setup ends; with no board here, the folder's screen says what is next.

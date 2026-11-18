@@ -17,8 +17,6 @@ export const editorConfig = [
 	'webstorm',
 
 	// Generic
-	'default',
-	'system',
 	'$EDITOR',
 	'$VISUAL',
 ];

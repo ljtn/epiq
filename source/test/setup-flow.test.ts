@@ -64,6 +64,7 @@ const {onConfirmCommandLineSequenceInput} = await import(
 const {
 	advanceSetup,
 	leaveSetupOnEsc,
+	openSetupStep,
 	leaveSetupRerun,
 	leaveSetupRerunFor,
 	openSetupRerunStep,
@@ -118,27 +119,56 @@ beforeEach(() => {
 	});
 });
 
-describe('answering a step opens the next one', () => {
-	it('opens the editor step after the username', async () => {
-		await answer('config username Jonatan');
+describe('opening on unfinished setup', () => {
+	it("opens on the name, proposed from git's", () => {
+		openSetupStep();
 
-		expect(line()).toBe('config editor ');
+		expect(line()).toBe('config username Jonatan Lampa');
 		expect(getState().mode).toBe(Mode.COMMAND_LINE);
 	});
 
-	it('opens the auto sync step after the editor, on by default', async () => {
-		patchSettingsState({userName: 'Jonatan', userId: 'USER'});
+	it('proposes no git name too long to be a user name', () => {
+		patchSettingsState({gitName: 'x'.repeat(81)});
+		openSetupStep();
 
-		await answer('config editor vim');
+		expect(line()).toBe('config username ');
+	});
+
+	it('opens on an empty name without one from git', () => {
+		patchSettingsState({gitName: null});
+		openSetupStep();
+
+		expect(line()).toBe('config username ');
+	});
+
+	it('opens on the claim when a board still asks for one', () => {
+		patchSettingsState({userName: 'Jonatan', userId: 'USER', autoSync: true});
+		openSetupStep();
+
+		expect(line()).toBe('config emails jola@example.com');
+	});
+
+	it('opens nothing once setup is done', () => {
+		projectExists = false;
+		patchSettingsState({userName: 'Jonatan', userId: 'USER', autoSync: true});
+		openSetupStep();
+
+		expect(getState().mode).toBe(Mode.DEFAULT);
+	});
+});
+
+describe('answering a step opens the next one', () => {
+	it('opens auto sync after the name, on by default, asking no editor', async () => {
+		await answer('config username Jonatan');
 
 		expect(line()).toBe('config autoSync on');
+		expect(getState().mode).toBe(Mode.COMMAND_LINE);
 	});
 
 	it('opens the claiming step after auto sync, seeded with the git address', async () => {
 		patchSettingsState({
 			userName: 'Jonatan',
 			userId: 'USER',
-			preferredEditor: 'vim',
 		});
 
 		await answer('config autoSync off');
@@ -152,7 +182,6 @@ describe('once setup is done', () => {
 		patchSettingsState({
 			userName: 'Jonatan',
 			userId: 'USER',
-			preferredEditor: 'vim',
 			autoSync: false,
 		});
 
@@ -196,7 +225,6 @@ describe('the commands leave the mode to the hook', () => {
 		patchSettingsState({
 			userName: 'Jonatan',
 			userId: 'USER',
-			preferredEditor: 'vim',
 			autoSync: false,
 		});
 		patchState({mode: Mode.DEFAULT});
@@ -226,7 +254,6 @@ describe('finishing setup', () => {
 		patchSettingsState({
 			userName: 'Jonatan',
 			userId: 'USER',
-			preferredEditor: 'vim',
 		});
 	});
 
@@ -243,7 +270,6 @@ describe('setup status', () => {
 		patchSettingsState({
 			userName: 'Jonatan',
 			userId: 'USER',
-			preferredEditor: 'vim',
 			autoSync: false,
 		});
 
@@ -259,7 +285,6 @@ describe(':setup asks the machine questions again', () => {
 		patchSettingsState({
 			userName: 'Jonatan',
 			userId: 'USER',
-			preferredEditor: 'vim',
 			autoSync: false,
 		});
 		startSetupRerun();
@@ -270,16 +295,12 @@ describe(':setup asks the machine questions again', () => {
 		expect(line()).toBe('config username Jonatan');
 
 		await answer('config username Jonatan');
-		expect(line()).toBe('config editor vim');
-
-		await answer('config editor nano');
 		expect(line()).toBe('config autoSync off');
 	});
 
 	it('ends after the last step, closing the line', async () => {
 		projectExists = false;
 		await answer('config username Jonatan');
-		await answer('config editor vim');
 		await answer('config autoSync off');
 
 		expect(getSetupSession().rerunStep).toBeUndefined();
@@ -310,7 +331,7 @@ describe(':setup asks the machine questions again', () => {
 		openSetupRerunStep();
 		vi.unstubAllEnvs();
 
-		expect(line()).toBe('config editor vim');
+		expect(line()).toBe('config autoSync off');
 	});
 
 	it('ends on esc, keeping the answers given', async () => {
@@ -330,7 +351,6 @@ describe('epiq setup', () => {
 
 	it("quits after the first run's last answer", async () => {
 		await answer('config username Jonatan');
-		await answer('config editor vim');
 		expect(exit).not.toHaveBeenCalled();
 
 		await answer('config autoSync off');
@@ -341,14 +361,12 @@ describe('epiq setup', () => {
 		patchSettingsState({
 			userName: 'Jonatan',
 			userId: 'USER',
-			preferredEditor: 'vim',
 			autoSync: false,
 		});
 		startSetupRerun();
 		openSetupRerunStep();
 
 		await answer('config username Jonatan');
-		await answer('config editor vim');
 		expect(exit).not.toHaveBeenCalled();
 
 		await answer('config autoSync off');
@@ -359,7 +377,6 @@ describe('epiq setup', () => {
 		patchSettingsState({
 			userName: 'Jonatan',
 			userId: 'USER',
-			preferredEditor: 'vim',
 			autoSync: false,
 		});
 		startSetupRerun();
@@ -380,12 +397,10 @@ describe(':setup inside epiq', () => {
 		patchSettingsState({
 			userName: 'Jonatan',
 			userId: 'USER',
-			preferredEditor: 'vim',
 			autoSync: false,
 		});
 		startSetupRerun();
 		await answer('config username Jonatan');
-		await answer('config editor vim');
 		await answer('config autoSync off');
 		leaveSetupOnEsc();
 

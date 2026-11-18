@@ -87,9 +87,9 @@ git init
 epiq
 ```
 
-If it is your first run, this opens the interactive setup wizard that sets you up in about 30 seconds. In a repository without a project, it then asks whether to start one: enter to initialize, esc to skip. If the repository already has a board, on origin or on another branch, initializing picks that one up rather than starting a second.
+If it is your first run, epiq asks two questions, your name (proposed from git) and auto sync (on), so two presses of enter set you up. In a repository without a project, it then asks whether to start one: enter to initialize, esc to skip. If the repository already has a board, on origin or on another branch, initializing picks that one up rather than starting a second.
 
-To change your name, editor or auto sync later, run `epiq setup` (or `:setup` inside epiq).
+To change your name or auto sync later, run `epiq setup` (or `:setup` inside epiq). The TUI edits in `$VISUAL` or `$EDITOR`; pick another with `:config editor code --wait`.
 
 In a script, `epiq init` starts the project without the TUI. It needs an author: the configured user, or one named by `EPIQ_USER_NAME` (or `--as`).
 

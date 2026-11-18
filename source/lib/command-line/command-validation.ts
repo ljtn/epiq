@@ -6,6 +6,7 @@ import {
 } from '../config/auto-sync-interval.js';
 import {booleanToYesNo, YesNo} from '../config/setup-utils.js';
 import {editorConfig} from '../editor/editor-config.js';
+import {getEditorCandidates} from '../editor/editor.js';
 import {safeDateFromUlid} from '../event/date-utils.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
@@ -688,12 +689,14 @@ const validateEditCommand: Validator = ({modifier, inputString}) => {
 			return valid(CONFIRM_MSG);
 
 		case EditModifiers.DESCRIPTION: {
-			const {preferredEditor} = getSettingsState();
-			if (!preferredEditor) {
-				return invalid({message: 'No editor selected'});
+			const [editor] = getEditorCandidates();
+			if (!editor) {
+				return invalid({
+					message: hintAlert('No editor: set one with :config editor <name>'),
+				});
 			}
 
-			return valid(hintDefault('<ENTER> to edit in ') + preferredEditor);
+			return valid(hintDefault('<ENTER> to edit in ') + editor);
 		}
 
 		default:

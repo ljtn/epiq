@@ -47,6 +47,8 @@ export function tokenizeEditorCommand(editor: string): string[] {
 	return tokens;
 }
 
+const UNSET_EDITORS: ReadonlySet<string> = new Set(['default', 'system']);
+
 // Spawning by argv means nothing expands these placeholders for us. Apply only
 // to the configured setting: an env var containing "$EDITOR" would otherwise
 // resolve against itself forever.
@@ -54,6 +56,8 @@ function resolveEditorPlaceholder(editor: string): string | undefined {
 	const trimmed = editor.trim();
 	if (trimmed === '$EDITOR') return process.env['EDITOR'];
 	if (trimmed === '$VISUAL') return process.env['VISUAL'];
+	// Not launchable: read as unset, so the environment's editor applies.
+	if (UNSET_EDITORS.has(trimmed)) return undefined;
 	return trimmed;
 }
 

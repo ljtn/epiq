@@ -184,21 +184,13 @@ describe('effectiveAutoSyncIntervalMs', () => {
 });
 
 describe('autoSyncBlockedReason', () => {
-	it('names the missing editor, which is what silently stops both loops', () => {
-		expect(autoSyncBlockedReason({userName: 'jola', preferredEditor: ''})).toBe(
-			'no editor configured',
+	it('runs without an editor: a GUI user never picks one', () => {
+		expect(autoSyncBlockedReason({userName: 'jola'})).toBeNull();
+	});
+
+	it('names a missing username', () => {
+		expect(autoSyncBlockedReason({userName: null})).toBe(
+			'no username configured',
 		);
-	});
-
-	it('names a missing username first', () => {
-		expect(
-			autoSyncBlockedReason({userName: null, preferredEditor: 'vim'}),
-		).toBe('no username configured');
-	});
-
-	it('says nothing when auto sync would run', () => {
-		expect(
-			autoSyncBlockedReason({userName: 'jola', preferredEditor: 'vim'}),
-		).toBeNull();
 	});
 });

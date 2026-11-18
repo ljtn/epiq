@@ -31,6 +31,8 @@ const gitRepo = () => {
 };
 
 const repo = gitRepo();
+// The name setup proposes on a first run.
+execSync('git config user.name test', {cwd: repo, stdio: 'ignore'});
 const boardless = gitRepo();
 
 afterAll(() => {
@@ -40,16 +42,26 @@ afterAll(() => {
 
 describe('setup', () => {
 	it(
-		'ends on the offer of a board in a git repository with none, and enter starts one',
+		'a first run opens on the git name, asks no editor, and ends on the offer of a board',
 		async () => {
 			const tui = setupTui([], {cwd: repo});
 
 			try {
-				await tui.waitFor('choose your username', 20_000);
-				await typeCommand(tui, ':config username test');
-				await tui.waitFor('pick your editor', 20_000);
-				await typeCommand(tui, ':config editor vim');
-				await tui.waitFor('Configure auto sync', 20_000);
+				await tui.waitFor(
+					frame =>
+						frame.includes('the name others see on the board') &&
+						commandLineShows('config username test')(frame),
+					20_000,
+				);
+				tui.input(ENTER);
+
+				const sync = await tui.waitFor(
+					frame =>
+						frame.includes('Auto sync keeps the board current') &&
+						commandLineShows('config autoSync on')(frame),
+					20_000,
+				);
+				expect(sync).not.toContain('editor');
 				await typeCommand(tui, ':config autoSync off');
 
 				const offer = await tui.waitFor(
@@ -83,8 +95,6 @@ describe('setup', () => {
 					20_000,
 				);
 
-				tui.input(ENTER);
-				await tui.waitFor(commandLineShows('config editor vim'), 20_000);
 				tui.input(ENTER);
 				await tui.waitFor(commandLineShows('config autoSync off'), 20_000);
 				tui.input(ENTER);
@@ -195,8 +205,6 @@ describe('setup', () => {
 
 			try {
 				await tui.waitFor(commandLineShows('config username test'), 20_000);
-				tui.input(ENTER);
-				await tui.waitFor(commandLineShows('config editor vim'), 20_000);
 				tui.input(ENTER);
 				await tui.waitFor(commandLineShows('config autoSync off'), 20_000);
 				tui.takeWritten();
