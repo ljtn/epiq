@@ -126,7 +126,9 @@ export const inputActions: ActionEntry[] = [
 			// The walk through the history ends with the line: the next one opens
 			// at the most recent command, as a fresh line always did.
 			resetCommandHistoryWalk();
-			leaveSetupOnEsc();
+			if (leaveSetupOnEsc()) {
+				return succeeded('Setup is done', null);
+			}
 			patchState({mode: Mode.DEFAULT});
 			return succeeded('Exiting command line', null);
 		},

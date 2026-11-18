@@ -34,10 +34,14 @@ const repo = gitRepo();
 // The name setup proposes on a first run.
 execSync('git config user.name test', {cwd: repo, stdio: 'ignore'});
 const boardless = gitRepo();
+execSync('git config user.name test', {cwd: boardless, stdio: 'ignore'});
+// A machine of its own, so `epiq setup` there is a first run.
+const freshGlobal = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-e2e-global-'));
 
 afterAll(() => {
 	removeTempRepo(repo);
 	removeTempRepo(boardless);
+	removeTempRepo(freshGlobal);
 });
 
 describe('setup', () => {
@@ -83,7 +87,7 @@ describe('setup', () => {
 	);
 
 	it(
-		'`epiq setup` asks again, each answer held, and quits',
+		'`epiq setup` asks again, each answer held, ends on its success screen, and exits clean',
 		async () => {
 			const tui = setupTui(['setup'], {cwd: repo});
 
@@ -97,11 +101,21 @@ describe('setup', () => {
 
 				tui.input(ENTER);
 				await tui.waitFor(commandLineShows('config autoSync off'), 20_000);
-				tui.takeWritten();
 				tui.input(ENTER);
 
+				const done = await tui.waitFor(
+					frame =>
+						frame.includes("You're all set.") &&
+						commandLineShows('exit')(frame),
+					20_000,
+				);
+				expect(done).toContain('epiq gui');
+				expect(done).not.toContain('Initialize project');
+
+				tui.input(ENTER);
 				expect(await quits(tui)).toBe(true);
-				expect(tui.takeWritten()).toContain("You're all set.");
+				// Exiting takes the frame down: nothing of the TUI is left behind.
+				expect((await tui.screen()).trim()).toBe('');
 			} finally {
 				await tui.destroy();
 			}
@@ -201,7 +215,7 @@ describe('setup', () => {
 	);
 
 	it(
-		'`epiq setup` in a repository with no board quits without offering one',
+		'`epiq setup` in a repository with no board never offers one, and esc exits clean',
 		async () => {
 			const tui = setupTui(['setup'], {cwd: boardless});
 
@@ -212,8 +226,77 @@ describe('setup', () => {
 				tui.takeWritten();
 				tui.input(ENTER);
 
+				await tui.waitFor("You're all set.", 20_000);
+				tui.input(ESC);
 				expect(await quits(tui)).toBe(true);
-				expect(tui.takeWritten()).not.toContain('Do you want');
+
+				const written = tui.takeWritten();
+				expect(written).not.toContain('Initialize project');
+				expect(written).not.toContain('Do you want');
+				expect((await tui.screen()).trim()).toBe('');
+			} finally {
+				await tui.destroy();
+			}
+		},
+		testTimeout,
+	);
+
+	it(
+		'a first `epiq setup` in a repository with no board goes straight to its success screen',
+		async () => {
+			const tui = setupTui(['setup'], {
+				cwd: boardless,
+				env: {EPIQ_GLOBAL_DIR: freshGlobal},
+			});
+			tui.takeWritten();
+
+			try {
+				await tui.waitFor(
+					frame =>
+						frame.includes('the name others see on the board') &&
+						commandLineShows('config username test')(frame),
+					20_000,
+				);
+				tui.input(ENTER);
+				await tui.waitFor(commandLineShows('config autoSync on'), 20_000);
+				tui.input(ENTER);
+
+				await tui.waitFor(
+					frame =>
+						frame.includes("You're all set.") &&
+						commandLineShows('exit')(frame),
+					20_000,
+				);
+				// Not one frame of the init offer on the way.
+				expect(tui.takeWritten()).not.toContain('Initialize project');
+
+				tui.input(ENTER);
+				expect(await quits(tui)).toBe(true);
+				expect((await tui.screen()).trim()).toBe('');
+			} finally {
+				await tui.destroy();
+			}
+		},
+		testTimeout,
+	);
+
+	it(
+		'esc on an `epiq setup` rerun shows the success screen, exit waiting',
+		async () => {
+			const tui = setupTui(['setup'], {cwd: repo});
+
+			try {
+				await tui.waitFor(commandLineShows('config username test'), 20_000);
+				tui.input(ESC);
+
+				await tui.waitFor(
+					frame =>
+						frame.includes("You're all set.") &&
+						commandLineShows('exit')(frame),
+					20_000,
+				);
+				tui.input(ENTER);
+				expect(await quits(tui)).toBe(true);
 			} finally {
 				await tui.destroy();
 			}

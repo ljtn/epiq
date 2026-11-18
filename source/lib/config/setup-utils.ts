@@ -1,3 +1,4 @@
+import {getSetupSession} from '../state/setup-session.state.js';
 import {isValidEmail} from '../model/email-link.js';
 import {isValidUserName} from './actor-env.js';
 import {isFail, isSuccess} from '../model/result-types.js';
@@ -155,4 +156,14 @@ export const machineStepCommand = (step: MachineStep): string => {
 		case 'autoSync':
 			return `config autoSync ${booleanToYesNo(autoSync) ?? ''}`;
 	}
+};
+
+/** `epiq setup` has nothing left to ask: its success screen shows. */
+export const isSetupFinished = (): boolean => {
+	const {quitWhenDone, rerunStep} = getSetupSession();
+	return (
+		Boolean(quitWhenDone) &&
+		!rerunStep &&
+		getUserSetupStatus().isMachineSetupDone
+	);
 };

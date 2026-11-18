@@ -1,7 +1,7 @@
-import chalk from 'chalk';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {
 	getUserSetupStatus,
+	isSetupFinished,
 	machineStepCommand,
 	nextSetupCommand,
 } from '../config/setup-utils.js';
@@ -72,27 +72,25 @@ export const leaveSetupRerun = (): void => {
 	if (getSetupSession().rerunStep) patchSetupSession({rerunStep: undefined});
 };
 
-export const SETUP_DONE_MESSAGE = `${chalk.green(
-	'✔',
-)} You're all set. Run ${chalk.cyan('epiq')} in a repository, or ${chalk.cyan(
-	'epiq gui',
-)} to fire up in a browser.`;
-
-/** `epiq setup` quits once the machine is set up, never landing on a board or the init offer. */
-const quitIfDone = (): boolean => {
-	const {quitWhenDone, rerunStep} = getSetupSession();
-	if (!quitWhenDone || rerunStep) return false;
-	if (!getUserSetupStatus().isMachineSetupDone) return false;
-
-	process.stdout.write(`\n${SETUP_DONE_MESSAGE}\n`);
-	navigationUtils.exit();
+/** `epiq setup` ends on its success screen, `exit` waiting on the line. */
+const finishIfDone = (): boolean => {
+	if (!isSetupFinished()) return false;
+	openLine('exit');
 	return true;
 };
 
-/** Esc on the command line: ends a rerun, and `epiq setup` with it. */
-export const leaveSetupOnEsc = (): void => {
+/**
+ * Esc on the command line: ends a rerun, and `epiq setup` with it; on the
+ * success screen, exits. True when the line stays open.
+ */
+export const leaveSetupOnEsc = (): boolean => {
+	if (isSetupFinished()) {
+		navigationUtils.exit();
+		return true;
+	}
+
 	leaveSetupRerun();
-	quitIfDone();
+	return finishIfDone();
 };
 
 /** Before a confirmed command runs: only an answer keeps a rerun going. */
@@ -128,7 +126,7 @@ export const advanceSetup = (): void => {
 		}
 	}
 
-	if (quitIfDone()) return;
+	if (finishIfDone()) return;
 
 	const next = nextSetupCommand();
 	if (next) {

@@ -18,6 +18,7 @@ import {
 	openSetupRerunStep,
 	startSetupRerun,
 } from './lib/command-line/setup-flow.js';
+import {setScreenRelease} from './lib/actions/default/navigation-action-utils.js';
 import {patchSetupSession} from './lib/state/setup-session.state.js';
 
 initUiState();
@@ -27,7 +28,7 @@ const helpText = `${chalk.bold('Epiq CLI')}
 ${chalk.dim('Boot in directory:')}
   ${chalk.cyan('$ epiq')}
 
-${chalk.dim('Set up this machine (name, editor, auto sync):')}
+${chalk.dim('Set up this machine, or change it later (name, auto sync):')}
   ${chalk.cyan('$ epiq setup')}
 
 ${chalk.dim('Start a board in this repository, without the TUI:')}
@@ -99,6 +100,10 @@ const renderNode = (node: React.ReactNode): Result<void> => {
 				incrementalRendering: true,
 				// Ink reads a `CI` variable as non-interactive and draws nothing.
 				interactive: Boolean(process.stdout.isTTY),
+			});
+			setScreenRelease(() => {
+				ink?.unmount();
+				process.stdout.write('\x1B[2J\x1B[H');
 			});
 			return succeeded('Rendered app', undefined);
 		}

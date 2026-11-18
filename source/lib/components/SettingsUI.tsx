@@ -167,3 +167,28 @@ export default function SettingsUI({width, height}: Props) {
 		</Box>
 	);
 }
+
+/** `epiq setup`'s last screen: what to run next, and `exit` waiting on the line. */
+export function SetupDoneUI({width, height}: Props) {
+	return (
+		<Box
+			height={height - 4}
+			flexDirection="column"
+			width={width}
+			paddingTop={1}
+			paddingLeft={2}
+			borderStyle="round"
+			borderColor={theme.secondary}
+			rowGap={1}
+		>
+			<Text color={theme.accent} bold>
+				✔ You're all set.
+			</Text>
+			<Text>
+				Run <Text color={theme.accent}>epiq</Text> in a repository, or{' '}
+				<Text color={theme.accent}>epiq gui</Text> to fire up in a browser.
+			</Text>
+			<Text color={theme.secondary2}>Press enter to exit.</Text>
+		</Box>
+	);
+}
