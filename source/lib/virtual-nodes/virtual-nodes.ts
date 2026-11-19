@@ -273,7 +273,7 @@ export const materializeTicketVirtualNodes = (
 		name: FieldNames.HISTORY,
 		parentNodeId: node.id,
 		rank: ranks.log,
-		value: getLog(node),
+		value: ticketHistory(node),
 		readonly: true,
 		childRenderAxis: 'vertical',
 	});
@@ -301,21 +301,21 @@ export type LogEvolutionForEvent<A extends AppEvent['action']> = Extract<
 	{action: A}
 >['payload'][];
 
-const getLog = (node: Ticket) => {
-	const orderedLog = [...node.log].reverse();
-	const logActionEvolution: LogActionEvolution = new Map();
+// Oldest first, so each line is told only what came before it; shown newest first.
+export const ticketHistory = (node: Pick<Ticket, 'log'>): string => {
+	const earlier: LogActionEvolution = new Map();
 
-	for (const event of orderedLog) {
-		const evolution = logActionEvolution.get(event.action) ?? [];
+	const lines = node.log.map(event => {
+		const evolution = earlier.get(event.action) ?? [];
+		const line = formatLogLine(event, evolution);
+
 		evolution.push(event.payload);
-		logActionEvolution.set(event.action, evolution);
-	}
+		earlier.set(event.action, evolution);
 
-	return orderedLog
-		.map(event =>
-			formatLogLine(event, logActionEvolution.get(event.action) ?? []),
-		)
-		.join('\n');
+		return line;
+	});
+
+	return lines.reverse().join('\n');
 };
 
 // Virtual fields serve only the TUI and dominate replay, so the GUI and MCP turn
