@@ -534,6 +534,24 @@ if (CHECK) {
 	if (missing.length > 0) {
 		pastBoardMissing = `halfway back, the board has no ${missing.join(', ')}`;
 	}
+
+	// One history: the workspace's genesis is the only event with no parent.
+	// By id: a pending log not yet folded repeats lines of the main one.
+	const {parsePersistedEventsFile} = await import(
+		'../../lib/board/board-log.js'
+	);
+	const roots = new Set<string>();
+	for (const file of fs.readdirSync(eventsDir)) {
+		if (!file.endsWith('.jsonl')) continue;
+		const parsed = parsePersistedEventsFile(path.join(eventsDir, file));
+		if (parsed.status === 'fail') throw new Error(parsed.message);
+		for (const entry of parsed.value ?? []) {
+			if (!entry.id[1]) roots.add(entry.id[0]);
+		}
+	}
+	if (roots.size !== 1) {
+		pastBoardMissing ||= `the log has ${roots.size} roots, not one history`;
+	}
 }
 
 if (CHECK) {
