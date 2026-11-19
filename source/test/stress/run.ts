@@ -360,9 +360,20 @@ let historyMs = 0;
 let ticketCodeMs = 0;
 if (biggest) {
 	const refs = goalMembers(biggest.id).map(ticket => nodeRef(ticket.id));
+	// A history names tickets all over the board; one commit in a hundred is
+	// the goal's, a few dozen per ticket rather than thousands.
+	const {getState} = await import('../../lib/state/state.js');
+	const {isTicketNode} = await import('../../lib/model/context.model.js');
+	const boardRefs = Object.values(getState().nodes)
+		.filter(isTicketNode)
+		.map(ticket => nodeRef(ticket.id));
+	const refFor = (n: number) =>
+		n % 100 === 0
+			? refs[(n / 100) % refs.length]
+			: boardRefs[n % boardRefs.length];
 	const start = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
 	const stream = Array.from({length: COMMITS}, (_, n) => {
-		const message = `${refs[n % refs.length]} change ${n}\n`;
+		const message = `${refFor(n)} change ${n}\n`;
 		const body = `${'line\n'.repeat(1 + (n % 20))}${n}\n`;
 		return [
 			'commit refs/heads/main',
