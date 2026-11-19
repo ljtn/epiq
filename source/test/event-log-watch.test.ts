@@ -131,6 +131,15 @@ const appendFromAnotherProcess = (
 	);
 };
 
+// Past any mtime tick, as a log is a moment after it was written.
+const settleLogs = (stateBranchRoot: string) => {
+	const dir = path.join(stateBranchRoot, '.epiq', 'events');
+	const long = new Date(Date.now() - 60_000);
+	for (const file of fs.readdirSync(dir)) {
+		fs.utimesSync(path.join(dir, file), long, long);
+	}
+};
+
 useTempHome();
 
 let originalGlobalDir: string | undefined;
@@ -177,7 +186,10 @@ describe('reloadIfEventLogMoved', () => {
 		expect(isFail(moved)).toBe(false);
 		expect(titles()).toContain('landed from another process');
 
-		// Its own reload accounted for the log, so a second pass stays put.
+		// A log read within its mtime tick is not trusted yet: once it settles,
+		// a reload accounts for it and the next pass stays put.
+		settleLogs(stateBranchRoot);
+		await reloadIfEventLogMoved();
 		const again = await reloadIfEventLogMoved();
 		expect(again.status).toBe('success');
 		expect(again.message).toBe('Log unchanged');

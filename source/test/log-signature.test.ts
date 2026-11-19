@@ -7,6 +7,7 @@ import {
 	accountedSignature,
 	accountFor,
 	clearAccountedSignature,
+	isSettledSignature,
 	logSignature,
 	noteOwnAppend,
 	signatureAfterOwnAppend,
@@ -23,6 +24,16 @@ const write = (actor: string, text: string) =>
 
 const append = (actor: string, text: string) =>
 	fs.appendFileSync(path.join(eventsDir(), fileFor(actor)), text);
+
+// Accounts for the log as a boot does, once every file is past its mtime tick.
+const accountSettled = () => {
+	const long = new Date(Date.now() - 60_000);
+	for (const file of fs.readdirSync(eventsDir())) {
+		fs.utimesSync(path.join(eventsDir(), file), long, long);
+	}
+	accountFor(root, logSignature(root));
+	if (accountedSignature(root) === null) throw new Error('not accounted');
+};
 
 describe('what this process has accounted for', () => {
 	beforeEach(() => {
@@ -82,12 +93,31 @@ describe('what this process has accounted for', () => {
 		});
 	});
 
+	// A same-length rewrite inside the tick would share the signature.
+	it('does not take a log written a moment ago as accounted for', () => {
+		write('u-1', 'a\n');
+		accountFor(root, logSignature(root));
+
+		expect(accountedSignature(root)).toBeNull();
+	});
+
+	it('waits out a coarse filesystem’s whole-second tick', () => {
+		const second = Math.floor(Date.now() / 1000) * 1000 - 60_000;
+		const signature = `${fileFor('u-1')}:2:${second}`;
+
+		expect(isSettledSignature(signature, second + 1_500)).toBe(false);
+		expect(isSettledSignature(signature, second + 3_500)).toBe(true);
+		expect(
+			isSettledSignature(`${fileFor('u-1')}:2:${second + 0.5}`, second + 10),
+		).toBe(true);
+	});
+
 	it('is nothing until something says so', () => {
 		expect(accountedSignature(root)).toBeNull();
 	});
 
 	it('is only for the project it was taken in', () => {
-		accountFor(root, logSignature(root));
+		accountSettled();
 
 		expect(accountedSignature('/somewhere/else')).toBeNull();
 	});
@@ -98,7 +128,7 @@ describe('what this process has accounted for', () => {
 		// the process is behind it.
 		it('moves on, so the next read has nothing to catch up on', () => {
 			write('u-1', 'a\n');
-			accountFor(root, logSignature(root));
+			accountSettled();
 
 			append('u-1', 'b\n');
 			noteOwnAppend(root, fileFor('u-1'), 2);
@@ -112,7 +142,7 @@ describe('what this process has accounted for', () => {
 		it('forgets what it knew when a teammate wrote too', () => {
 			write('u-1', 'a\n');
 			write('u-2', 'x\n');
-			accountFor(root, logSignature(root));
+			accountSettled();
 
 			append('u-2', 'y\n');
 			append('u-1', 'b\n');
@@ -123,7 +153,7 @@ describe('what this process has accounted for', () => {
 
 		it('forgets when a teammate’s log appears', () => {
 			write('u-1', 'a\n');
-			accountFor(root, logSignature(root));
+			accountSettled();
 
 			write('u-3', 'z\n');
 			append('u-1', 'b\n');
@@ -135,7 +165,7 @@ describe('what this process has accounted for', () => {
 		it('forgets when a log disappears', () => {
 			write('u-1', 'a\n');
 			write('u-2', 'x\n');
-			accountFor(root, logSignature(root));
+			accountSettled();
 
 			fs.rmSync(path.join(eventsDir(), fileFor('u-2')));
 			append('u-1', 'b\n');
@@ -148,7 +178,7 @@ describe('what this process has accounted for', () => {
 		// them wrote is not in this board.
 		it('forgets when another process of the same actor wrote to its file too', () => {
 			write('u-1', 'a\n');
-			accountFor(root, logSignature(root));
+			accountSettled();
 
 			append('u-1', 'theirs\n');
 			append('u-1', 'b\n');
