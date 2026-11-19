@@ -258,9 +258,12 @@ describe('epiq-time-travel', () => {
 
 			expect(loadMergedEventsBefore).toHaveBeenCalledTimes(1);
 			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 4000);
-			expect(
-				results.map(result => isSuccess(result) && result.value?.superseded),
-			).toEqual([true, true, true, undefined]);
+			expect(results.map(result => isSuccess(result) && result.value)).toEqual([
+				{superseded: true},
+				{superseded: true},
+				{superseded: true},
+				{asOfTime: 4000},
+			]);
 		});
 	});
 
