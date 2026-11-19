@@ -109,20 +109,36 @@ const parseEventFileActor = (
 	return succeeded('Parsed event file actor', result.data);
 };
 
-export const getPersistedAction = (entry: object): Result<string> => {
-	const keys = Object.keys(entry).filter(key => key !== 'id' && key !== 'v');
+// The one key that is not the envelope's, counted without copying the entry.
+const actionBesides = (
+	entry: object,
+	envelope: ReadonlySet<string>,
+): Result<string> => {
+	let action: string | undefined;
+	let count = 0;
 
-	if (keys.length !== 1) {
+	for (const key of Object.keys(entry)) {
+		if (envelope.has(key)) continue;
+		count++;
+		action = key;
+	}
+
+	if (count !== 1) {
 		return failed(
-			`Invalid persisted event: expected exactly 1 action key, got ${keys.length}`,
+			`Invalid persisted event: expected exactly 1 action key, got ${count}`,
 		);
 	}
 
-	if (!keys[0] || !(keys[0] in entry)) {
+	if (!action) {
 		return failed('Invalid persisted event: action key is missing or invalid');
 	}
-	return succeeded('Resolved persisted action', keys[0]);
+	return succeeded('Resolved persisted action', action);
 };
+
+const PERSISTED_KEYS = new Set(['id', 'v']);
+
+export const getPersistedAction = (entry: object): Result<string> =>
+	actionBesides(entry, PERSISTED_KEYS);
 
 const hasPersistedActionPayload = (
 	entry: object,
@@ -493,9 +509,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		knownActions.has(action);
 
 	const fromPersistedEvent = (entry: ReconstructedEvent): Result<Event<M>> => {
-		const {userId, userName, ...persistedEntry} = entry;
-
-		const actionResult = getPersistedAction(persistedEntry);
+		const actionResult = actionBesides(entry, ENVELOPE_KEYS);
 		if (isFail(actionResult)) {
 			return failed(actionResult.message);
 		}
@@ -506,7 +520,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			return failed('Persisted event is missing id');
 		}
 
-		if (!hasPersistedActionPayload(persistedEntry, action)) {
+		if (!hasPersistedActionPayload(entry, action)) {
 			return failed(`Persisted event is missing payload for action: ${action}`);
 		}
 
@@ -514,8 +528,8 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		return succeeded('Decoded persisted event', {
 			id: eventId,
 			action,
-			payload: persistedEntry[action],
-			userId,
+			payload: entry[action],
+			userId: entry.userId,
 		} as Event<M>);
 	};
 

@@ -4,7 +4,11 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {ulid} from 'ulid';
 
-import {clearEdgeCache, loadMergedEvents} from '../lib/board/board-log.js';
+import {
+	clearEdgeCache,
+	loadMergedEvents,
+	loadMergedEventsWithUnreadable,
+} from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
 
 // A log file's parse is cached while the file is unchanged; it must never answer
@@ -216,6 +220,27 @@ describe('the remembered parse of a log file', () => {
 		fs.rmSync(logPath('u-2'));
 
 		expect(titlesOf()).toEqual(['mine']);
+	});
+
+	// Boot locks history on what is unreadable, so an answer from memory must
+	// still name it.
+	it('reports an unreadable line again when the log is unchanged', () => {
+		const {text} = genesis();
+		const file = logPath('u-1');
+		fs.writeFileSync(
+			file,
+			text + '{"v":1,"id":["01H000000000000000000000ZZ"\n',
+		);
+		settle(file);
+
+		const unreadableOf = () => {
+			const result = loadMergedEventsWithUnreadable(root);
+			if (isFail(result)) throw new Error(result.message);
+			return result.value.unreadable.map(entry => entry.reason);
+		};
+
+		expect(unreadableOf()).toEqual(['corrupt-line']);
+		expect(unreadableOf()).toEqual(['corrupt-line']);
 	});
 
 	// The caller concatenates and sorts what it is handed; doing that to the
