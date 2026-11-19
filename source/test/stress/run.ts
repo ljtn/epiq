@@ -506,6 +506,36 @@ console.log(
 	`\n  peak rss ${mb(process.memoryUsage().rss)}   ` + `project at ${REPO}\n`,
 );
 
+// Halfway back, the board must be there to hold its tickets: a history that
+// does not hang off it leaves every past moment empty.
+let pastBoardMissing: string | false = false;
+if (CHECK) {
+	const {checkoutStateAt, returnToLive} = await import(
+		'../../mcp/epiq-time-travel.js'
+	);
+	const {getState} = await import('../../lib/state/state.js');
+
+	ok(
+		await checkoutStateAt({
+			repoRoot: REPO,
+			targetTime: Date.now() - (YEARS / 2) * 365 * 24 * 60 * 60 * 1000,
+		}),
+	);
+	const contexts = new Set(
+		Object.values(getState().nodes)
+			.filter(node => !node.isDeleted)
+			.map(node => node.context),
+	);
+	ok(await returnToLive({repoRoot: REPO}));
+
+	const missing = ['WORKSPACE', 'BOARD', 'SWIMLANE', 'TICKET'].filter(
+		context => !contexts.has(context as never),
+	);
+	if (missing.length > 0) {
+		pastBoardMissing = `halfway back, the board has no ${missing.join(', ')}`;
+	}
+}
+
 if (CHECK) {
 	const read = Math.max(afterWrite, steady, afterSecond);
 	const over = [
@@ -531,6 +561,7 @@ if (CHECK) {
 			`a goal tab took ${goalTabMs.toFixed(
 				1,
 			)} ms, budget ${BUDGET_GOAL_TAB_MS} ms`,
+		pastBoardMissing,
 	].filter(Boolean);
 
 	for (const line of over) console.log(`  over budget: ${line}`);
