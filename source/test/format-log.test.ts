@@ -6,6 +6,7 @@ import {isFail, Result} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
 import {bigIntToHex} from '../lib/utils/rank.js';
+import {ticketHistory} from '../lib/virtual-nodes/virtual-nodes.js';
 
 const stripAnsi = (value: string): string =>
 	// eslint-disable-next-line no-control-regex
@@ -128,5 +129,25 @@ describe('attachment history log entries', () => {
 				}),
 			),
 		).toBe('Removed attachment');
+	});
+});
+
+describe('a ticket history of moves within one lane', () => {
+	it('labels each move against the one before it, not the first', () => {
+		initWorkspaceState(nodes.workspace('root', 'Root', rank()));
+		const move = (n: number, at: string) =>
+			event(`01H0000000000000000000030${n}`, 'move.node', {
+				id: 'ticket',
+				parent: 'lane',
+				rank: at,
+			});
+
+		const lines = stripAnsi(
+			ticketHistory({log: [move(1, 'a0'), move(2, 'c0'), move(3, 'b0')]}),
+		).split('\n');
+
+		expect(lines[0]).toContain('Moved up');
+		expect(lines[1]).toContain('Moved down');
+		expect(lines[2]).toContain('Moved issue to');
 	});
 });
