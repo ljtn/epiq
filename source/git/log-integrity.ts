@@ -40,7 +40,8 @@ export const findStrandedEventLogs = (root: string): Result<string[]> => {
 	}
 };
 
-export type EventLogSnapshot = ReadonlyMap<string, string[]>;
+/** Each log's bytes as they were; decoded only if a file did not just grow. */
+export type EventLogSnapshot = ReadonlyMap<string, Buffer>;
 
 const eventsDirIn = (root: string): string =>
 	path.join(root, EPIQ_DIR_NAME, EVENTS_DIR_NAME);
@@ -51,7 +52,7 @@ const eventsDirIn = (root: string): string =>
  */
 export const snapshotEventLogs = (root: string): EventLogSnapshot => {
 	const dir = eventsDirIn(root);
-	const snapshot = new Map<string, string[]>();
+	const snapshot = new Map<string, Buffer>();
 
 	try {
 		if (!fs.existsSync(dir)) return snapshot;
@@ -64,10 +65,7 @@ export const snapshotEventLogs = (root: string): EventLogSnapshot => {
 			if (isPendingFileName(name)) continue;
 
 			try {
-				snapshot.set(
-					name,
-					linesIn(fs.readFileSync(path.join(dir, name), 'utf8')),
-				);
+				snapshot.set(name, fs.readFileSync(path.join(dir, name)));
 			} catch (error) {
 				// Gone since the listing: nothing of it to protect, and the rest
 				// of the logs still deserve the net.
@@ -93,6 +91,17 @@ const isRestorable = (line: string): boolean => {
 	}
 };
 
+const NEWLINE = 0x0a;
+
+// Every whole line of `before` is still there: its bytes are a prefix ending at
+// a line break, which no multi-byte character contains. A last line without one
+// may since have grown into a different line.
+const onlyGrew = (before: Buffer, after: Buffer): boolean =>
+	before.length === 0 ||
+	(before[before.length - 1] === NEWLINE &&
+		after.length >= before.length &&
+		after.subarray(0, before.length).equals(before));
+
 /**
  * Re-appends any line the snapshot had that the file lost; safe since events
  * dedupe by id and file order is not load-bearing. Returns the repaired files.
@@ -106,15 +115,17 @@ export const restoreDroppedEventLines = (
 	const dir = eventsDirIn(root);
 	const repaired: string[] = [];
 
-	for (const [name, lines] of snapshot) {
-		if (lines.length === 0) continue;
-
+	for (const [name, before] of snapshot) {
 		const filePath = path.join(dir, name);
 
 		try {
-			const content = fs.existsSync(filePath)
-				? fs.readFileSync(filePath, 'utf8')
-				: null;
+			const bytes = fs.existsSync(filePath) ? fs.readFileSync(filePath) : null;
+
+			if (bytes !== null && onlyGrew(before, bytes)) continue;
+
+			const content = bytes === null ? null : bytes.toString('utf8');
+			const lines = linesIn(before.toString('utf8'));
+			if (lines.length === 0) continue;
 
 			const present = new Set(content === null ? [] : linesIn(content));
 
