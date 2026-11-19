@@ -264,10 +264,25 @@ const recoverToLiveAfterFailure = (
 };
 
 // Rewinds the shared state singleton to `targetTime`, read-only.
+// Requests numbered as they arrive: a drag sends one every few frames, and a
+// checkout queued behind a newer one would only be undone by it.
+let latestRequest = 0;
+
+export type Checkout = {asOfTime: number; superseded?: true};
+
 export const checkoutStateAt = (
 	input: ToolInput & {targetTime: number},
-): Promise<Result<{asOfTime: number}>> =>
-	runExclusive(async () => {
+): Promise<Result<Checkout>> => {
+	const request = ++latestRequest;
+
+	return runExclusive(async () => {
+		if (request !== latestRequest) {
+			return succeeded('Superseded by a later request', {
+				asOfTime: input.targetTime,
+				superseded: true,
+			});
+		}
+
 		const stateBranchRootResult = resolveStateBranchRoot(input.repoRoot);
 		if (isFail(stateBranchRootResult)) {
 			return failed(stateBranchRootResult.message);
@@ -310,12 +325,13 @@ export const checkoutStateAt = (
 			asOfTime: input.targetTime,
 		});
 	});
+};
 
 // Rewinds to just after one event (exclusive cut, hence +1), judged by its
 // effective time so a far-future id lands where its scrubber dot sits.
 export const checkoutStateAtEvent = async (
 	input: ToolInput & {eventId: string},
-): Promise<Result<{asOfTime: number}>> => {
+): Promise<Result<Checkout>> => {
 	const stateBranchRootResult = resolveStateBranchRoot(input.repoRoot);
 	if (isFail(stateBranchRootResult)) {
 		return failed(stateBranchRootResult.message);
@@ -332,8 +348,10 @@ export const checkoutStateAtEvent = async (
 	return checkoutStateAt({repoRoot: input.repoRoot, targetTime: time + 1});
 };
 
-export const returnToLive = (input: ToolInput = {}): Promise<Result<true>> =>
-	runExclusive(async () => {
+export const returnToLive = (input: ToolInput = {}): Promise<Result<true>> => {
+	latestRequest++;
+
+	return runExclusive(async () => {
 		const stateBranchRootResult = resolveStateBranchRoot(input.repoRoot);
 		if (isFail(stateBranchRootResult)) {
 			return failed(stateBranchRootResult.message);
@@ -344,3 +362,4 @@ export const returnToLive = (input: ToolInput = {}): Promise<Result<true>> =>
 
 		return succeeded('Returned to live state', true);
 	});
+};
