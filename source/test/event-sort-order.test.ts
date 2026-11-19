@@ -1,4 +1,5 @@
 import {describe, expect, it} from 'vitest';
+import {seededRandom} from './helpers/seeded-random.js';
 import {sortEvents} from '../lib/event/event-load.js';
 import type {ReconstructedEvent} from '../lib/event/event-load.js';
 
@@ -58,11 +59,7 @@ const referenceSort = (events: ReconstructedEvent[]): ReconstructedEvent[] => {
 
 // Small ids so siblings, duplicates, cycles and dangling parents are common.
 const randomLog = (seed: number, size: number): ReconstructedEvent[] => {
-	let state = seed;
-	const random = (n: number) => {
-		state = (state * 1103515245 + 12345) % 2147483648;
-		return state % n;
-	};
+	const random = seededRandom(seed);
 	const id = () => `E${String(random(size)).padStart(4, '0')}`;
 
 	return Array.from({length: size}, (_, index) => {
