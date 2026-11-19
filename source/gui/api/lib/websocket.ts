@@ -103,6 +103,10 @@ import {parseGuiMessage} from './websocket.schema.js';
 import {getUpdateInfo} from '../../../lib/version/version-check.js';
 import {EPIQ_VERSION} from '../../../version.js';
 import {issueDetail, issuePreview, slimStateResult} from './slim-state.js';
+import {boardWarmed} from './board-warmup.js';
+
+// A board reply each socket is still waiting for.
+const stateInFlight = new WeakMap<WebSocket, Promise<void>>();
 
 /** The ceiling on one frame: far above the longest description, far below `ws`'s 100 MiB default. */
 export const MAX_SOCKET_FRAME_BYTES = 1024 * 1024;
@@ -145,12 +149,26 @@ const sendSocket = (socket: WebSocket, body: unknown) => {
 	socket.send(JSON.stringify(body));
 };
 
-const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
+// Resolves once the frame is written, failed or not: a big one is still being
+// written after `send` returns, and anything synchronous after it waits.
+const sendSocketFlushed = (socket: WebSocket, body: unknown): Promise<void> =>
+	new Promise(resolve => {
+		socket.send(JSON.stringify(body), () => resolve());
+	});
+
+// `flushed` waits until the frame is written. Only off the board lock: a
+// client that stops reading would otherwise hold it for good.
+const sendGuiState = async (
+	socket: WebSocket,
+	repoRoot: string,
+	{flushed = false}: {flushed?: boolean} = {},
+) => {
 	const payload = slimStateResult(await getGuiState({repoRoot}));
+	const send = flushed ? sendSocketFlushed : sendSocket;
 
 	// Only a missing project shows the init screen; other failures are transient.
 	if (isFail(payload) && payload.message === NO_PROJECT_MESSAGE) {
-		return sendSocket(socket, {
+		return send(socket, {
 			type: 'state:unavailable',
 			payload: {
 				message: payload.message,
@@ -160,7 +178,7 @@ const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
 		});
 	}
 
-	return sendSocket(socket, {type: 'state', payload});
+	return send(socket, {type: 'state', payload});
 };
 
 const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
@@ -257,6 +275,10 @@ export const setupWebsocket = (
 				// Echoed back rather than forwarded into the API: the client pairs
 				// the timeline and commit replies by it.
 				if (type === 'timeline:get') {
+					// Its index build is synchronous: after this socket's board, not
+					// in the gap while the board's boot awaits git.
+					await stateInFlight.get(socket);
+
 					const {requestId, ...query} = message.payload ?? {};
 					return sendSocket(socket, {
 						type: 'timeline',
@@ -679,7 +701,17 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'state:get') {
-					return sendGuiState(socket, repoRoot);
+					const sent = boardWarmed().then(() =>
+						sendGuiState(socket, repoRoot, {flushed: true}),
+					);
+					stateInFlight.set(
+						socket,
+						sent.then(
+							() => undefined,
+							() => undefined,
+						),
+					);
+					return sent;
 				}
 
 				if (type === 'sync') {

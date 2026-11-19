@@ -47,6 +47,13 @@ vi.mock('../git/sync-lock.js', () => ({
 	isSyncLockHeldAt: async () => syncLocked,
 }));
 
+const readConnectedReposMock = vi.fn(() =>
+	succeeded('repos', {live: [], overLimit: []}),
+);
+vi.mock('../lib/commits/commits.js', () => ({
+	readConnectedRepos: () => readConnectedReposMock(),
+}));
+
 const {createLogPublisher, startGuiLogWatch} = await import(
 	'../gui/api/lib/api-log-watch.js'
 );
@@ -77,6 +84,20 @@ beforeEach(() => {
 afterEach(() => {
 	stop?.();
 	stop = null;
+});
+
+// Reading the repos at construction read the whole log before the server
+// listened, so before the browser opened.
+describe('the GUI log publisher', () => {
+	it('reads no repos until the board is booted, then once', () => {
+		readConnectedReposMock.mockClear();
+		const publisher = createLogPublisher({project: {repoRoot}});
+		expect(readConnectedReposMock).not.toHaveBeenCalled();
+
+		publisher.rememberRepos();
+		publisher.rememberRepos();
+		expect(readConnectedReposMock).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe('GUI log watch', () => {
