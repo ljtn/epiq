@@ -7,6 +7,9 @@ import {WebSocket} from 'ws';
 vi.mock('../mcp/epiq-api.js', () => ({
 	deriveGuiState: vi.fn(),
 	getGuiState: vi.fn(),
+	getIssueComments: vi.fn(),
+	getIssueDescription: vi.fn(),
+	getIssueHistory: vi.fn(),
 }));
 
 vi.mock('../mcp/epiq-time-travel.js', () => ({
@@ -25,7 +28,13 @@ vi.mock('../lib/commits/commits.js', () => ({
 	openCommitDiffInEditor: vi.fn(),
 }));
 
-import {getGuiState} from '../mcp/epiq-api.js';
+import {
+	deriveGuiState,
+	getGuiState,
+	getIssueComments,
+	getIssueDescription,
+	getIssueHistory,
+} from '../mcp/epiq-api.js';
 import {getEventTimeline} from '../mcp/epiq-time-travel.js';
 import {succeeded} from '../lib/model/result-types.js';
 import {setupWebsocket} from '../gui/api/lib/websocket.js';
@@ -122,5 +131,31 @@ describe('a client opening the board', () => {
 
 		await waitFor(() => received.includes('timeline'), 'the timeline');
 		expect(order).toEqual(['timeline']);
+	});
+
+	// The open ticket asks again on every board change; deriving the whole
+	// board for it took a quarter of a second at a million events.
+	it('answers an open ticket from that ticket alone', async () => {
+		vi.mocked(getIssueDescription).mockReturnValue(succeeded('d', 'Text'));
+		vi.mocked(getIssueComments).mockReturnValue(
+			succeeded('c', [{id: 'c1'}] as never),
+		);
+		vi.mocked(getIssueHistory).mockReturnValue(succeeded('h', [] as never));
+
+		const replies: unknown[] = [];
+		client.on('message', raw => {
+			const message = JSON.parse(raw.toString()) as {
+				type: string;
+				payload: unknown;
+			};
+			if (message.type === 'issue') replies.push(message.payload);
+		});
+		send('issue:get', {issueId: '01H00000000000000000000004'});
+
+		await waitFor(() => replies.length > 0, 'the issue reply');
+		expect(replies[0]).toMatchObject({
+			value: {description: 'Text', comments: [{id: 'c1'}], history: []},
+		});
+		expect(deriveGuiState).not.toHaveBeenCalled();
 	});
 });

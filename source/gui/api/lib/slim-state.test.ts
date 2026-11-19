@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {ApiState} from '../../../mcp/api-state.model.js';
-import {issueDetail, slimStateForBoard} from './slim-state.js';
+import {slimStateForBoard} from './slim-state.js';
 
 const state = (): ApiState =>
 	({
@@ -53,23 +53,5 @@ describe('slimStateForBoard', () => {
 	it('survives a state missing its collections', () => {
 		// This sits on the broadcast path; a malformed state must not silence it.
 		expect(() => slimStateForBoard({} as ApiState)).not.toThrow();
-	});
-});
-
-describe('issueDetail', () => {
-	it('returns the description and comments the slimmed state left out', () => {
-		expect(issueDetail(state(), 'i1')).toEqual({
-			issueId: 'i1',
-			description: 'a long description',
-			comments: state().commentsByIssueId['i1'],
-		});
-	});
-
-	it('is empty for an issue that is not there', () => {
-		expect(issueDetail(state(), 'nope')).toEqual({
-			issueId: 'nope',
-			description: '',
-			comments: [],
-		});
 	});
 });

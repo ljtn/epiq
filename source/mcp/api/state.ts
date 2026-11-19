@@ -87,6 +87,40 @@ export const getIssueDescription = (issueId: string): Result<string> => {
 	);
 };
 
+type ApiComment = ApiState['commentsByIssueId'][string][number];
+
+const apiComment = (
+	comment: ReturnType<typeof nodeRepo.getCommentsByIssue>[number],
+): ApiComment => ({
+	id: comment.id,
+	issueId: comment.issue,
+	body: comment.md,
+	// The author is optional in the log; `identityOf` decides how a missing one shows.
+	author: identityOf(
+		comment.authorId,
+		nodeRepo.getContributor(comment.authorId)?.name,
+	),
+	createdAt: ulidTimeMs(comment.id),
+});
+
+/**
+ * One ticket's comments, off the state rather than `deriveGuiState`: the open
+ * ticket asks again on every board change. Missing or deleted reads as none.
+ */
+export const getIssueComments = (issueId: string): Result<ApiComment[]> => {
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const node = stateResult.value.nodes[issueId];
+
+	return succeeded(
+		'Issue comments',
+		node && isTicketNode(node) && !node.isDeleted
+			? nodeRepo.getCommentsByIssue(issueId).map(apiComment)
+			: [],
+	);
+};
+
 // Reads whatever is currently materialized, live or a historical checkout. Must
 // never boot: booting discards an active time-travel checkout.
 export const deriveGuiState = (): Result<ApiState> => {
@@ -149,18 +183,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 		if (issue.isDeleted || !sentIssueIds.has(issue.id)) continue;
 
 		commentsByIssueId[issue.id] = (commentsByIssue.get(issue.id) ?? []).map(
-			comment => {
-				const contributor = nodeRepo.getContributor(comment.authorId);
-
-				return {
-					id: comment.id,
-					issueId: comment.issue,
-					body: comment.md,
-					// The author is optional in the log; `identityOf` decides how a missing one shows.
-					author: identityOf(comment.authorId, contributor?.name),
-					createdAt: ulidTimeMs(comment.id),
-				};
-			},
+			apiComment,
 		);
 	}
 
