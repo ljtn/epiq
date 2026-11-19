@@ -1,5 +1,31 @@
-import {decodeTime} from 'ulid';
+import {decodeTime as decodeTimeSlowly} from 'ulid';
 import {failed, Result, succeeded} from '../model/result-types.js';
+
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const DIGITS = new Int8Array(128).fill(-1);
+for (const [value, char] of [...CROCKFORD].entries()) {
+	DIGITS[char.charCodeAt(0)] = value;
+	DIGITS[char.toLowerCase().charCodeAt(0)] = value;
+}
+const ULID_LENGTH = 26;
+const TIME_LENGTH = 10;
+const TIME_MAX = 2 ** 48 - 1;
+
+// The ulid package's decodeTime, without its per-character arrays. Anything
+// but ASCII goes to it: its upper-casing can change the length.
+export const decodeTime = (id: string): number => {
+	if (id.length !== ULID_LENGTH) return decodeTimeSlowly(id);
+
+	let time = 0;
+	for (let index = 0; index < TIME_LENGTH; index++) {
+		const code = id.charCodeAt(index);
+		const digit = code < 128 ? DIGITS[code]! : -1;
+		if (digit < 0) return decodeTimeSlowly(id);
+		time = time * 32 + digit;
+	}
+
+	return time > TIME_MAX ? decodeTimeSlowly(id) : time;
+};
 
 // Honest clock skew between machines is minutes; a decoded time further ahead
 // than this is not a fact about time. Also bounds the mint seed in event-persist.

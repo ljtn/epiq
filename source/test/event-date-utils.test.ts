@@ -1,7 +1,8 @@
 import {describe, expect, it} from 'vitest';
-import {ulid} from 'ulid';
+import {decodeTime as decodeTimeSlowly, ulid} from 'ulid';
 import {
 	clampUlidTime,
+	decodeTime,
 	safeDateFromUlid,
 	toEffectiveUlidTimes,
 	ulidTimeMs,
@@ -105,5 +106,31 @@ describe('safeDateFromUlid', () => {
 
 		expect(result.value.getTime()).toBeGreaterThanOrEqual(before);
 		expect(result.value.getTime()).toBeLessThanOrEqual(after);
+	});
+});
+
+describe('decodeTime', () => {
+	it('decodes as the ulid package does, and fails where it fails', () => {
+		const ids = [
+			'01ARZ3NDEKTSV4RRFFQ69G5FAV',
+			'01arz3ndektsv4rrffq69g5fav',
+			'7ZZZZZZZZZZZZZZZZZZZZZZZZZ',
+			'80000000000000000000000000',
+			'0000000000000000000000000I',
+			'01ARZ3NDEI TSV4RRFFQ69G5FA',
+			'0ßARZ3NDEKTSV4RRFFQ69G5FA',
+			'01ARZ3NDEKTSV4RRFFQ69G5FAVX',
+			'',
+		];
+		const outcome = (decode: (id: string) => number, id: string) => {
+			try {
+				return decode(id);
+			} catch (error) {
+				return (error as Error).message;
+			}
+		};
+		for (const id of ids) {
+			expect(outcome(decodeTime, id)).toEqual(outcome(decodeTimeSlowly, id));
+		}
 	});
 });

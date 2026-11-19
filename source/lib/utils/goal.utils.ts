@@ -5,7 +5,7 @@ import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {Goal} from '../model/app-state.model.js';
 import {isTicketNode, Ticket} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
-import {getSafeState} from '../state/state.js';
+import {getSafeState, isDeferringDerive} from '../state/state.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getMutedStringColor} from './color.js';
 import {sanitizeInlineText} from './string.utils.js';
@@ -113,8 +113,8 @@ const ticketBoards = (ticket: Ticket): string[] => {
 	return board ? [board] : [];
 };
 
-// Goal membership and per-board goals, cached per state object (every write
-// replaces it; the nodes map is mutated in batches).
+// Goal membership and per-board goals, cached per state object, which every
+// write outside a replay batch replaces; inside one the nodes map is mutated.
 type Membership = {
 	members: Map<string, Ticket[]>;
 	onBoard: Map<string, Map<string, Ticket[]>>;
@@ -126,7 +126,8 @@ const membership = (): Membership => {
 	const state = stateOrNone();
 	if (!state)
 		return {members: new Map(), onBoard: new Map(), closed: new Set()};
-	const cached = membershipCache.get(state);
+	const batching = isDeferringDerive();
+	const cached = batching ? undefined : membershipCache.get(state);
 	if (cached) return cached;
 
 	const members = new Map<string, Ticket[]>();
@@ -155,7 +156,7 @@ const membership = (): Membership => {
 	}
 
 	const result = {members, onBoard, closed};
-	membershipCache.set(state, result);
+	if (!batching) membershipCache.set(state, result);
 	return result;
 };
 

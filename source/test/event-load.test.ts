@@ -18,6 +18,7 @@ import {
 import {persist} from '../lib/board/board-log.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {isFail} from '../lib/model/result-types.js';
+import {clearParseCache} from '../lib/event/event-load.js';
 
 describe('getSortedEvents', () => {
 	const event = (
@@ -1208,5 +1209,53 @@ describe('loadEventActors', () => {
 		// Bob authored, and the guard that refuses removing an author must see it.
 		expect(actorIds.has('01H0000000000000000000000E')).toBe(true);
 		expect(decodedIds.has('01H0000000000000000000000E')).toBe(false);
+	});
+});
+
+describe('loadMergedEvents on a log past the parse cache', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	// The cache holds 300k lines.
+	const seedLog = (files: number, linesPerFile: number): string => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-big-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+
+		const lineId = (n: number) => `01H${String(n).padStart(23, '0')}`;
+		for (let file = 0; file < files; file++) {
+			const lines = Array.from({length: linesPerFile}, (_, index) => {
+				const n = file * linesPerFile + index;
+				return `{"v":1,"id":["${lineId(n + 1)}","${lineId(n)}"],"x":{}}`;
+			});
+			const filePath = path.join(
+				eventsDir,
+				`01ARZ3NDEKTSV4RRFFQ69G5FA${file}.a.jsonl`,
+			);
+			fs.writeFileSync(filePath, lines.join('\n') + '\n');
+			// Settled: a file written within a clock tick is never cached.
+			fs.utimesSync(filePath, new Date(0), new Date(0));
+		}
+
+		return root;
+	};
+
+	const logReadsOfSecondLoad = (root: string): number => {
+		clearParseCache();
+		loadMergedEvents(root);
+		const read = vi.spyOn(fs, 'readFileSync');
+		loadMergedEvents(root);
+
+		return read.mock.calls.filter(([file]) => String(file).endsWith('.jsonl'))
+			.length;
+	};
+
+	it('rereads only what did not fit, not every file', () => {
+		expect(logReadsOfSecondLoad(seedLog(4, 80_000))).toBe(1);
+	});
+
+	it('keeps one file bigger than the cache', () => {
+		expect(logReadsOfSecondLoad(seedLog(1, 310_000))).toBe(0);
 	});
 });
