@@ -31,6 +31,7 @@ import {
 	setStateEntry,
 	updateState,
 } from '../state/state.js';
+import {groupChildrenByParent} from './children.js';
 import {getOrderedChildren} from './rank.js';
 
 /**
@@ -420,22 +421,21 @@ export const nodeRepo = {
 		const readonlyFail = failIfReadonly(node, 'delete');
 		if (readonlyFail) return readonlyFail;
 
-		const idsToDelete = new Set<string>();
+		// One pass: inside a replay batch, each child lookup would scan every node.
+		const children = groupChildrenByParent(nodes, []);
 
-		const collectDescendants = (id: string) => {
-			const current = nodes[id];
-			if (!current || idsToDelete.has(id)) return;
+		const idsToDelete = new Set<string>();
+		const pending = [nodeId];
+
+		while (pending.length > 0) {
+			const id = pending.pop()!;
+			if (!nodes[id] || idsToDelete.has(id)) continue;
 
 			idsToDelete.add(id);
+			for (const child of children[id] ?? []) pending.push(child.id);
+		}
 
-			for (const child of getOrderedChildren(current.id)) {
-				collectDescendants(child.id);
-			}
-		};
-
-		collectDescendants(nodeId);
-
-		const nextNodes = {...structuredClone(nodes)};
+		const nextNodes = {...nodes};
 
 		for (const id of idsToDelete) {
 			if (!nextNodes[id]) return failed('Unable to locate node to delete');
