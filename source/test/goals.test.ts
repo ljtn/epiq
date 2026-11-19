@@ -257,6 +257,19 @@ describe('a closed goal', () => {
 		expect(sent[1]).toBeUndefined();
 	});
 
+	it('windows the closed lane by when a ticket closed, not when it was filed', async () => {
+		const {repoRoot, file} = await seed();
+		const filedLongAgo = await file('Filed long ago, closed today');
+
+		const twoYears = 2 * 365 * 24 * 60 * 60 * 1000;
+		const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + twoYears);
+		unwrap(await closeIssue({repoRoot, issueId: filedLongAgo}));
+		const sent = issueOf(filedLongAgo);
+		clock.mockRestore();
+
+		expect(sent).toBeDefined();
+	});
+
 	it('takes an empty goal as open', async () => {
 		const {repoRoot} = await seed();
 		unwrap(await createGoal({repoRoot, name: 'Planned'}));

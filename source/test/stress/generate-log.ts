@@ -22,10 +22,13 @@ export type GenerateInput = {
 	tagNames: string[];
 	// Open tickets held steady, as a team keeps its board readable.
 	openTickets?: number;
-	// How many goals the decade's tickets are grouped under, one after another
-	// as the years go by; every other ticket joins the goal of its time.
+	// How many goals there are, one after another as the years go by; the first
+	// tickets filed in each one's time join it, up to TICKETS_PER_GOAL.
 	goals?: number;
 };
+
+// A goal is a month's piece of work, not the month's every ticket.
+const TICKETS_PER_GOAL = 12;
 
 // Roughly what a person does to a ticket, in the proportions a board sees: far
 // more tagging, commenting and moving than creating.
@@ -126,6 +129,7 @@ export const generateLog = async (
 
 	// No room for a ticket's join at a millisecond a step.
 	const goalCount = step > 1 ? input.goals ?? 0 : 0;
+	const goalSizes = new Map<string, number>();
 
 	let preambleAt =
 		start - (input.actors.length + input.tagNames.length + goalCount);
@@ -190,10 +194,13 @@ export const generateLog = async (
 				refId,
 			);
 
-			// Every other ticket, halfway to the next event, so the join sorts
-			// after the ticket it names.
-			if (goalCount > 0 && Math.floor(i / shape.length) % 2 === 0) {
-				const goal = goalIds[Math.floor((i / input.events) * goalCount)]!;
+			// Halfway to the next event, so the join sorts after the ticket it names.
+			const goal =
+				goalCount > 0
+					? goalIds[Math.floor((i / input.events) * goalCount)]!
+					: undefined;
+			if (goal && (goalSizes.get(goal) ?? 0) < TICKETS_PER_GOAL) {
+				goalSizes.set(goal, (goalSizes.get(goal) ?? 0) + 1);
 				write(
 					'add.issue.goal',
 					{id: ticket.id, goal},

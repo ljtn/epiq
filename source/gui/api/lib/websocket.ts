@@ -643,7 +643,8 @@ export const setupWebsocket = (
 						payload: result,
 					});
 
-					if (isFail(result)) return;
+					// A superseded scrub changed nothing; the newer one broadcasts.
+					if (isFail(result) || result.value?.superseded) return;
 
 					return broadcastDerivedState();
 				}
@@ -659,7 +660,7 @@ export const setupWebsocket = (
 						payload: result,
 					});
 
-					if (isFail(result)) return;
+					if (isFail(result) || result.value?.superseded) return;
 
 					return broadcastDerivedState();
 				}

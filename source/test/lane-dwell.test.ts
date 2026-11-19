@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {ulid} from 'ulid';
 import {AppEvent, EventAction} from '../lib/board/board-events.model.js';
-import {laneEntryTime} from '../lib/utils/lane-dwell.js';
+import {laneEntryTime, laneVisits} from '../lib/utils/lane-dwell.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -90,5 +90,38 @@ describe('laneEntryTime', () => {
 		];
 
 		expect(laneEntryTime(log, created)).toBeLessThanOrEqual(Date.now());
+	});
+});
+
+describe('laneEntryTime against laneVisits', () => {
+	it('is the last visit, over moves, reorders, closes and undecodable ids', () => {
+		const created = Date.now() - 1000 * HOUR_MS;
+		let seed = 7;
+		const random = (n: number) => {
+			seed = (seed * 1103515245 + 12345) % 2147483648;
+			return seed % n;
+		};
+		const actions: EventAction[] = [
+			'move.node',
+			'close.issue',
+			'reopen.issue',
+			'edit.title',
+			'add.issue.tag',
+		];
+
+		for (let run = 0; run < 500; run++) {
+			const log = Array.from({length: random(12)}, (_, index) => {
+				const event = at(
+					created + index * HOUR_MS,
+					actions[random(actions.length)]!,
+					{id: 'i1', parent: ['a', 'b', 'closed'][random(3)], rank: 'a'},
+				);
+				return random(15) === 0 ? {...event, id: 'not-a-ulid'} : event;
+			});
+
+			expect(laneEntryTime(log, created)).toBe(
+				laneVisits(log, created).at(-1)?.enteredAt ?? created,
+			);
+		}
 	});
 });

@@ -244,6 +244,26 @@ describe('epiq-time-travel', () => {
 		});
 	});
 
+	describe('checkoutStateAt during a drag', () => {
+		it('replays only the newest of the checkouts queued together', async () => {
+			vi.mocked(loadMergedEventsBefore).mockReturnValue(
+				succeeded('events', {appliedEvents: [], unappliedEvents: []} as never),
+			);
+
+			const results = await Promise.all(
+				[1000, 2000, 3000, 4000].map(targetTime =>
+					checkoutStateAt({targetTime}),
+				),
+			);
+
+			expect(loadMergedEventsBefore).toHaveBeenCalledTimes(1);
+			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 4000);
+			expect(
+				results.map(result => isSuccess(result) && result.value?.superseded),
+			).toEqual([true, true, true, undefined]);
+		});
+	});
+
 	describe('getEventTimeline', () => {
 		it('returns an empty timeline when there is no event history', async () => {
 			vi.mocked(loadMergedEvents).mockReturnValue(succeeded('events', []));

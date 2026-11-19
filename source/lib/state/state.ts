@@ -295,6 +295,11 @@ export function setStateEntry<K extends StateMapKey>(
 
 	collection[id] = value;
 
+	// Already the batch's own map: copying the state per write is most of a replay.
+	if (deferredBase?.[key] === collection && prev[key] === collection) {
+		return succeeded('State updated', null);
+	}
+
 	// The batch still carries what it wrote, or the flush finds nothing to derive.
 	const nextBase = {...prev, [key]: collection} as BaseState;
 

@@ -1,11 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {decodeTime} from 'ulid';
 import {z} from 'zod';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
-import {toEffectiveUlidTimes} from './date-utils.js';
+import {decodeTime, toEffectiveUlidTimes} from './date-utils.js';
 import {EventCatalog} from './event-catalog.js';
 import {
 	isSupportedSchemaVersion,
@@ -14,6 +13,7 @@ import {
 } from './event-envelope.js';
 import {ActionOf, Actor, Event, EventMap} from './event.model.js';
 import {
+	isSettledSignature,
 	isVanished,
 	listEventFiles,
 	logSignature,
@@ -109,20 +109,36 @@ const parseEventFileActor = (
 	return succeeded('Parsed event file actor', result.data);
 };
 
-export const getPersistedAction = (entry: object): Result<string> => {
-	const keys = Object.keys(entry).filter(key => key !== 'id' && key !== 'v');
+// The one key that is not the envelope's, counted without copying the entry.
+const actionBesides = (
+	entry: object,
+	envelope: ReadonlySet<string>,
+): Result<string> => {
+	let action: string | undefined;
+	let count = 0;
 
-	if (keys.length !== 1) {
+	for (const key of Object.keys(entry)) {
+		if (envelope.has(key)) continue;
+		count++;
+		action = key;
+	}
+
+	if (count !== 1) {
 		return failed(
-			`Invalid persisted event: expected exactly 1 action key, got ${keys.length}`,
+			`Invalid persisted event: expected exactly 1 action key, got ${count}`,
 		);
 	}
 
-	if (!keys[0] || !(keys[0] in entry)) {
+	if (!action) {
 		return failed('Invalid persisted event: action key is missing or invalid');
 	}
-	return succeeded('Resolved persisted action', keys[0]);
+	return succeeded('Resolved persisted action', action);
 };
+
+const PERSISTED_KEYS = new Set(['id', 'v']);
+
+export const getPersistedAction = (entry: object): Result<string> =>
+	actionBesides(entry, PERSISTED_KEYS);
 
 const hasPersistedActionPayload = (
 	entry: object,
@@ -154,9 +170,20 @@ const rememberParse = (
 	quarantined: UnreadableEvent[],
 ): void => {
 	const previous = parseCache.get(filePath);
-	if (previous) parseCacheLines -= linesOf(previous);
-
 	const next = {stamp, entries, quarantined};
+
+	// A full cache turns a new file away: loads read files in one order, so
+	// evicting for it would evict the next file read, and every load would miss.
+	if (
+		!previous &&
+		parseCache.size > 0 &&
+		(parseCacheLines + linesOf(next) > PARSE_CACHE_MAX_LINES ||
+			parseCache.size >= PARSE_CACHE_MAX_FILES)
+	) {
+		return;
+	}
+
+	if (previous) parseCacheLines -= linesOf(previous);
 
 	// Deleted first, so a re-remembered file moves to the back of the eviction order.
 	parseCache.delete(filePath);
@@ -317,80 +344,109 @@ export const sortEvents = (
 	reconstructedEvents: ReconstructedEvent[],
 	genesis: string,
 ): ReconstructedEvent[] => {
-	const byEventId = new Map<string, ReconstructedEvent>();
-	const childrenByRef = new Map<string | null, ReconstructedEvent[]>();
+	const events = reconstructedEvents;
+	const count = events.length;
 
-	for (const event of reconstructedEvents) {
-		const eventId = event.id[0];
-		const refId = event.id[1] ?? null;
-
-		byEventId.set(eventId, event);
-
-		const children = childrenByRef.get(refId) ?? [];
-		children.push(event);
-		childrenByRef.set(refId, children);
+	// Ids as numbers, one per distinct id: a duplicate shares its number.
+	const idNumbers = new Map<string, number>();
+	const idOf = new Int32Array(count);
+	for (let index = 0; index < count; index++) {
+		const eventId = events[index]!.id[0];
+		let number = idNumbers.get(eventId);
+		if (number === undefined) {
+			number = idNumbers.size;
+			idNumbers.set(eventId, number);
+		}
+		idOf[index] = number;
 	}
 
-	for (const children of childrenByRef.values()) {
-		children.sort(compareEvents);
+	const NO_PARENT = -1;
+	const UNKNOWN_PARENT = -2;
+	const parentOf = new Int32Array(count);
+	const childCounts = new Int32Array(idNumbers.size + 1);
+	for (let index = 0; index < count; index++) {
+		const refId = events[index]!.id[1] ?? null;
+		const parent =
+			refId === null ? NO_PARENT : idNumbers.get(refId) ?? UNKNOWN_PARENT;
+		parentOf[index] = parent;
+		if (parent >= 0) childCounts[parent + 1]!++;
+	}
+
+	// Each id's children are childIndex[childStart[id] .. childStart[id + 1]].
+	const childStart = childCounts;
+	for (let id = 1; id < childStart.length; id++) {
+		childStart[id]! += childStart[id - 1]!;
+	}
+	const childIndex = new Int32Array(childStart[idNumbers.size]!);
+	const filled = childStart.slice(0, idNumbers.size);
+	for (let index = 0; index < count; index++) {
+		const parent = parentOf[index]!;
+		if (parent >= 0) childIndex[filled[parent]!++] = index;
+	}
+
+	const byEvent = (a: number, b: number) =>
+		compareEvents(events[a]!, events[b]!);
+	for (let id = 0; id < idNumbers.size; id++) {
+		const from = childStart[id]!;
+		const to = childStart[id + 1]!;
+		if (to - from > 1) childIndex.subarray(from, to).sort(byEvent);
 	}
 
 	const result: ReconstructedEvent[] = [];
-	const placed = new Set<string>();
+	const placed = new Uint8Array(idNumbers.size);
+	// Each event is pushed once by its parent, plus the root.
+	const stack = new Int32Array(count + 1);
 
 	// An explicit stack: the forest is one chain as long as the log.
-	const visit = (root: ReconstructedEvent) => {
-		const stack: ReconstructedEvent[] = [root];
+	const visit = (root: number) => {
+		let top = 0;
+		stack[top++] = root;
 
-		while (stack.length > 0) {
-			const event = stack.pop() as ReconstructedEvent;
-			const eventId = event.id[0];
+		while (top > 0) {
+			const index = stack[--top]!;
+			const id = idOf[index]!;
 
-			if (placed.has(eventId)) continue;
+			if (placed[id]) continue;
 
-			result.push(event);
-			placed.add(eventId);
+			result.push(events[index]!);
+			placed[id] = 1;
 
 			// Reversed, so the lowest-ULID sibling is popped first.
-			const children = childrenByRef.get(eventId) ?? [];
-			for (let index = children.length - 1; index >= 0; index--) {
-				stack.push(children[index] as ReconstructedEvent);
+			for (
+				let child = childStart[id + 1]! - 1;
+				child >= childStart[id]!;
+				child--
+			) {
+				stack[top++] = childIndex[child]!;
 			}
 		}
 	};
 
+	const sortedIndexes = (keep: (index: number) => boolean): number[] => {
+		const kept: number[] = [];
+		for (let index = 0; index < count; index++)
+			if (keep(index)) kept.push(index);
+		return kept.sort(byEvent);
+	};
+
 	// Only genesis may be a root: a forged `refId: null` would sort before history.
 	// Exactly one action key, or extra keys smuggle a payload past the check.
-	const roots = (childrenByRef.get(null) ?? []).filter(event => {
-		const keys = Object.keys(event).filter(key => !ENVELOPE_KEYS.has(key));
+	const roots = sortedIndexes(index => {
+		if (parentOf[index] !== NO_PARENT) return false;
+		const keys = Object.keys(events[index]!).filter(
+			key => !ENVELOPE_KEYS.has(key),
+		);
 		return keys.length === 1 && keys[0] === genesis;
 	});
-	for (const root of roots) {
-		visit(root);
-	}
+	for (const root of roots) visit(root);
 
-	const orphanRoots = reconstructedEvents
-		.filter(event => {
-			const eventId = event.id[0];
-			const refId = event.id[1] ?? null;
+	const orphanRoots = sortedIndexes(
+		index => !placed[idOf[index]!] && parentOf[index]! < 0,
+	);
+	for (const orphanRoot of orphanRoots) visit(orphanRoot);
 
-			if (placed.has(eventId)) return false;
-
-			return refId === null || !byEventId.has(refId);
-		})
-		.sort(compareEvents);
-
-	for (const orphanRoot of orphanRoots) {
-		visit(orphanRoot);
-	}
-
-	const remaining = reconstructedEvents
-		.filter(event => !placed.has(event.id[0]))
-		.sort(compareEvents);
-
-	for (const event of remaining) {
-		visit(event);
-	}
+	const remaining = sortedIndexes(index => !placed[idOf[index]!]);
+	for (const index of remaining) visit(index);
 
 	return result;
 };
@@ -453,9 +509,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		knownActions.has(action);
 
 	const fromPersistedEvent = (entry: ReconstructedEvent): Result<Event<M>> => {
-		const {userId, userName, ...persistedEntry} = entry;
-
-		const actionResult = getPersistedAction(persistedEntry);
+		const actionResult = actionBesides(entry, ENVELOPE_KEYS);
 		if (isFail(actionResult)) {
 			return failed(actionResult.message);
 		}
@@ -466,7 +520,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			return failed('Persisted event is missing id');
 		}
 
-		if (!hasPersistedActionPayload(persistedEntry, action)) {
+		if (!hasPersistedActionPayload(entry, action)) {
 			return failed(`Persisted event is missing payload for action: ${action}`);
 		}
 
@@ -474,8 +528,8 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		return succeeded('Decoded persisted event', {
 			id: eventId,
 			action,
-			payload: persistedEntry[action],
-			userId,
+			payload: entry[action],
+			userId: entry.userId,
 		} as Event<M>);
 	};
 
@@ -570,6 +624,15 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	let edgeCache: {root: string; signature: string; edge: string | null} | null =
 		null;
 
+	// The whole ordered log, by signature: a time-travel scrub and the timeline
+	// read it again after every boot, unchanged.
+	let sortedCache: {
+		root: string;
+		signature: string;
+		sorted: ReconstructedEvent[];
+		quarantined: UnreadableEvent[];
+	} | null = null;
+
 	function loadAllPersistedEvents(
 		eventsRoot: string,
 		unreadable?: UnreadableEvent[],
@@ -578,6 +641,19 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		// Before the read, never after, as with the parse cache.
 		const signature = logSignature(eventsRoot);
+
+		if (
+			sortedCache &&
+			sortedCache.root === eventsRoot &&
+			sortedCache.signature === signature
+		) {
+			if (unreadable) {
+				for (const entry of sortedCache.quarantined) unreadable.push(entry);
+			}
+
+			// A copy, so a caller reordering its list cannot reorder the cache.
+			return succeeded('All events loaded, unchanged', [...sortedCache.sorted]);
+		}
 
 		if (!fs.existsSync(dir)) {
 			return succeeded('No events found', []);
@@ -622,6 +698,10 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		const sorted = sortEvents(entries, catalog.genesis);
 
+		sortedCache = isSettledSignature(signature)
+			? {root: eventsRoot, signature, sorted, quarantined}
+			: null;
+
 		// The causal order's tail, which is what the next write points at.
 		// Recorded here because this is the one place that has just paid for it.
 		edgeCache = {
@@ -630,7 +710,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			edge: sorted.at(-1)?.id?.[0] ?? null,
 		};
 
-		return succeeded('All events loaded', sorted);
+		return succeeded('All events loaded', [...sorted]);
 	}
 
 	// Boot paths use this to lock where history is unreadable; readers wanting
@@ -812,6 +892,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	// For tests, which mock the filesystem; clears the parse cache too.
 	function clearEdgeCache(): void {
 		edgeCache = null;
+		sortedCache = null;
 		clearParseCache();
 	}
 

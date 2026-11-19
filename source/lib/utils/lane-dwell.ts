@@ -59,4 +59,22 @@ export const lastEventTime = (
 export const laneEntryTime = (
 	log: readonly AppEvent[],
 	createdAt: number,
-): number => laneVisits(log, createdAt).at(-1)?.enteredAt ?? createdAt;
+): number => {
+	// Back from the end, over the last run of moves into one lane: the last
+	// of `laneVisits` without walking the whole log.
+	let lane: string | null = null;
+	let enteredAt = createdAt;
+
+	for (let index = log.length - 1; index >= 0; index--) {
+		const event = log[index]!;
+		const laneId = parentOf(event);
+		if (laneId === null) continue;
+		if (lane !== null && laneId !== lane) break;
+
+		lane = laneId;
+		const time = getEventTime(event);
+		enteredAt = time === null ? createdAt : clampUlidTime(time);
+	}
+
+	return enteredAt;
+};
