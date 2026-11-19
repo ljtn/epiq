@@ -156,12 +156,19 @@ const sendSocketFlushed = (socket: WebSocket, body: unknown): Promise<void> =>
 		socket.send(JSON.stringify(body), () => resolve());
 	});
 
-const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
+// `flushed` waits until the frame is written. Only off the board lock: a
+// client that stops reading would otherwise hold it for good.
+const sendGuiState = async (
+	socket: WebSocket,
+	repoRoot: string,
+	{flushed = false}: {flushed?: boolean} = {},
+) => {
 	const payload = slimStateResult(await getGuiState({repoRoot}));
+	const send = flushed ? sendSocketFlushed : sendSocket;
 
 	// Only a missing project shows the init screen; other failures are transient.
 	if (isFail(payload) && payload.message === NO_PROJECT_MESSAGE) {
-		return sendSocketFlushed(socket, {
+		return send(socket, {
 			type: 'state:unavailable',
 			payload: {
 				message: payload.message,
@@ -171,7 +178,7 @@ const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
 		});
 	}
 
-	return sendSocketFlushed(socket, {type: 'state', payload});
+	return send(socket, {type: 'state', payload});
 };
 
 const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
@@ -694,7 +701,9 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'state:get') {
-					const sent = boardWarmed().then(() => sendGuiState(socket, repoRoot));
+					const sent = boardWarmed().then(() =>
+						sendGuiState(socket, repoRoot, {flushed: true}),
+					);
 					stateInFlight.set(
 						socket,
 						sent.then(
