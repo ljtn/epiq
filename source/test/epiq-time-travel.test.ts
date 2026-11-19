@@ -258,9 +258,12 @@ describe('epiq-time-travel', () => {
 
 			expect(loadMergedEventsBefore).toHaveBeenCalledTimes(1);
 			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 4000);
-			expect(
-				results.map(result => isSuccess(result) && result.value?.superseded),
-			).toEqual([true, true, true, undefined]);
+			expect(results.map(result => isSuccess(result) && result.value)).toEqual([
+				{superseded: true},
+				{superseded: true},
+				{superseded: true},
+				{asOfTime: 4000},
+			]);
 		});
 	});
 
@@ -2147,7 +2150,7 @@ describe('epiq-time-travel', () => {
 
 			expect(isSuccess(result)).toBe(true);
 			if (isFail(result)) return;
-			expect(result.value.asOfTime).toBe(1234);
+			expect(result.value).toEqual({asOfTime: 1234});
 		});
 
 		it('fails without checking out a historical state when materialization fails', async () => {
@@ -2271,7 +2274,7 @@ describe('epiq-time-travel', () => {
 			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 5001);
 			expect(isSuccess(result)).toBe(true);
 			if (isFail(result)) return;
-			expect(result.value.asOfTime).toBe(5001);
+			expect(result.value).toEqual({asOfTime: 5001});
 		});
 
 		// Resolved by effective time server-side, so a far-future id can't check

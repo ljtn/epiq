@@ -268,7 +268,10 @@ const recoverToLiveAfterFailure = (
 // checkout queued behind a newer one would only be undone by it.
 let latestRequest = 0;
 
-export type Checkout = {asOfTime: number; superseded?: true};
+// A superseded checkout moved nothing, so it names no time.
+export type Checkout =
+	| {asOfTime: number; superseded?: undefined}
+	| {superseded: true};
 
 export const checkoutStateAt = (
 	input: ToolInput & {targetTime: number},
@@ -277,10 +280,7 @@ export const checkoutStateAt = (
 
 	return runExclusive(async () => {
 		if (request !== latestRequest) {
-			return succeeded('Superseded by a later request', {
-				asOfTime: input.targetTime,
-				superseded: true,
-			});
+			return succeeded('Superseded by a later request', {superseded: true});
 		}
 
 		const stateBranchRootResult = resolveStateBranchRoot(input.repoRoot);
