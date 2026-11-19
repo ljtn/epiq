@@ -11,6 +11,8 @@ import {isFail} from '../../lib/model/result-types.js';
 
 export type GenerateInput = {
 	stateRoot: string;
+	// The log's tail before this history, which its first events hang off.
+	edge?: string | null;
 	laneIds: string[];
 	actors: {userId: string; userName: string}[];
 	events: number;
@@ -80,7 +82,7 @@ export const generateLog = async (
 	const step = Math.max(1, Math.floor((input.years * YEAR_MS) / input.events));
 
 	// The tail of the causal order, advanced globally, as a team that syncs often.
-	let edge: string | null = null;
+	let edge: string | null = input.edge ?? null;
 
 	// A minority of events ref an older edge instead: concurrent work, which is
 	// what makes getSortedEvents do more than walk a list.
