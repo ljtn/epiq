@@ -46,6 +46,16 @@ export const logSignature = (stateBranchRoot: string): string => {
 	}
 };
 
+// No file written within a clock tick: two same-length writes in one tick share a signature.
+export const isSettledSignature = (
+	signature: string,
+	now = Date.now(),
+): boolean =>
+	signature
+		.split('|')
+		.filter(Boolean)
+		.every(part => now - Number(part.slice(part.lastIndexOf(':') + 1)) > 2);
+
 const entries = (signature: string): Map<string, string> =>
 	new Map(
 		signature

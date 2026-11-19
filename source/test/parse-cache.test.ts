@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {ulid} from 'ulid';
 
 import {clearEdgeCache, loadMergedEvents} from '../lib/board/board-log.js';
@@ -236,5 +236,63 @@ describe('the remembered parse of a log file', () => {
 		handed.value.reverse();
 
 		expect(titlesOf()).toEqual(before);
+	});
+});
+
+describe('the parse cache on a log past its size', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	// The cache holds 300k lines.
+	const seedLog = (files: number, linesPerFile: number): string => {
+		const bigRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-big-'));
+		const eventsDir = path.join(bigRoot, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+
+		const lineId = (n: number) => `01H${String(n).padStart(23, '0')}`;
+		for (let file = 0; file < files; file++) {
+			const lines = Array.from({length: linesPerFile}, (_, index) => {
+				const n = file * linesPerFile + index;
+				return `{"v":1,"id":["${lineId(n + 1)}","${lineId(n)}"],"x":{}}`;
+			});
+			const filePath = path.join(
+				eventsDir,
+				`01ARZ3NDEKTSV4RRFFQ69G5FA${file}.a.jsonl`,
+			);
+			fs.writeFileSync(filePath, lines.join('\n') + '\n');
+			// Settled: a file written within a clock tick is never cached.
+			fs.utimesSync(filePath, new Date(0), new Date(0));
+		}
+
+		return bigRoot;
+	};
+
+	const logReadsOfSecondLoad = (bigRoot: string): number => {
+		clearEdgeCache();
+		loadMergedEvents(bigRoot);
+		// A new actor's log, so the second load is not answered whole.
+		fs.writeFileSync(
+			path.join(
+				bigRoot,
+				'.epiq',
+				'events',
+				'01ARZ3NDEKTSV4RRFFQ69G5FAZ.b.jsonl',
+			),
+			'{"v":1,"id":["01H99999999999999999999999",null],"x":{}}\n',
+		);
+		const read = vi.spyOn(fs, 'readFileSync');
+		loadMergedEvents(bigRoot);
+
+		return read.mock.calls.filter(([file]) => String(file).endsWith('.jsonl'))
+			.length;
+	};
+
+	it('rereads only the new file and what did not fit', () => {
+		expect(logReadsOfSecondLoad(seedLog(4, 80_000))).toBe(2);
+	});
+
+	it('keeps one file bigger than the cache', () => {
+		expect(logReadsOfSecondLoad(seedLog(1, 310_000))).toBe(1);
 	});
 });

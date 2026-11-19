@@ -13,6 +13,7 @@ import {
 } from './event-envelope.js';
 import {ActionOf, Actor, Event, EventMap} from './event.model.js';
 import {
+	isSettledSignature,
 	isVanished,
 	listEventFiles,
 	logSignature,
@@ -609,6 +610,15 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	let edgeCache: {root: string; signature: string; edge: string | null} | null =
 		null;
 
+	// The whole ordered log, by signature: a time-travel scrub and the timeline
+	// read it again after every boot, unchanged.
+	let sortedCache: {
+		root: string;
+		signature: string;
+		sorted: ReconstructedEvent[];
+		quarantined: UnreadableEvent[];
+	} | null = null;
+
 	function loadAllPersistedEvents(
 		eventsRoot: string,
 		unreadable?: UnreadableEvent[],
@@ -617,6 +627,19 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		// Before the read, never after, as with the parse cache.
 		const signature = logSignature(eventsRoot);
+
+		if (
+			sortedCache &&
+			sortedCache.root === eventsRoot &&
+			sortedCache.signature === signature
+		) {
+			if (unreadable) {
+				for (const entry of sortedCache.quarantined) unreadable.push(entry);
+			}
+
+			// A copy, so a caller reordering its list cannot reorder the cache.
+			return succeeded('All events loaded, unchanged', [...sortedCache.sorted]);
+		}
 
 		if (!fs.existsSync(dir)) {
 			return succeeded('No events found', []);
@@ -661,6 +684,10 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		const sorted = sortEvents(entries, catalog.genesis);
 
+		sortedCache = isSettledSignature(signature)
+			? {root: eventsRoot, signature, sorted, quarantined}
+			: null;
+
 		// The causal order's tail, which is what the next write points at.
 		// Recorded here because this is the one place that has just paid for it.
 		edgeCache = {
@@ -669,7 +696,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			edge: sorted.at(-1)?.id?.[0] ?? null,
 		};
 
-		return succeeded('All events loaded', sorted);
+		return succeeded('All events loaded', [...sorted]);
 	}
 
 	// Boot paths use this to lock where history is unreadable; readers wanting
@@ -851,6 +878,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	// For tests, which mock the filesystem; clears the parse cache too.
 	function clearEdgeCache(): void {
 		edgeCache = null;
+		sortedCache = null;
 		clearParseCache();
 	}
 
