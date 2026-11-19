@@ -268,12 +268,14 @@ export const materializeTicketVirtualNodes = (
 	});
 	if (isFail(attachmentsResult)) return attachmentsResult;
 
+	// Empty, like Diff: the history is drawn from the ticket's log when it is
+	// opened, so a replay formats no ticket's whole history.
 	const logResult = createOrUpdateVirtualField({
 		id: getLogNodeId(node.id),
 		name: FieldNames.HISTORY,
 		parentNodeId: node.id,
 		rank: ranks.log,
-		value: ticketHistory(node),
+		value: '',
 		readonly: true,
 		childRenderAxis: 'vertical',
 	});

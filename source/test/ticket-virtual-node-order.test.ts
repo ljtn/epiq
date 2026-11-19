@@ -7,6 +7,9 @@ import {getOrderedChildren} from '../lib/repository/rank.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
+import {nodeRepo} from '../lib/repository/node-repo.js';
+import {Ticket} from '../lib/model/context.model.js';
+import {ticketHistory} from '../lib/virtual-nodes/virtual-nodes.js';
 
 // A ticket's detail rows in TUI draw order. The e2e suites navigate them by
 // arrow count, so an inserted row should fail here first.
@@ -79,9 +82,9 @@ describe('a ticket’s virtual rows', () => {
 		]);
 	});
 
-	// Nothing reads a value off it, and building one would mean a git read on
-	// every ticket of every replay. It exists to be navigated into.
-	it('leave Diff empty, unlike History, which carries its rendered log', () => {
+	// Neither carries a value: Diff would need a git read, and History, a format
+	// of every ticket's whole log, on every replay. Each is drawn when opened.
+	it('leave Diff and History empty, for the view to draw when opened', () => {
 		const rows = getOrderedChildren(IDS.ticket);
 
 		const diff = rows.find(row => row.title === 'Diff');
@@ -89,8 +92,9 @@ describe('a ticket’s virtual rows', () => {
 
 		expect(diff?.props).toMatchObject({value: ''});
 		expect(diff?.readonly).toBe(true);
-		expect(history?.props).toMatchObject({
-			value: expect.stringContaining('Created with title') as unknown as string,
-		});
+		expect(history?.props).toMatchObject({value: ''});
+		expect(ticketHistory(nodeRepo.getNode(IDS.ticket) as Ticket)).toContain(
+			'Created with title',
+		);
 	});
 });
