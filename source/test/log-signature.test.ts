@@ -96,6 +96,9 @@ describe('what this process has accounted for', () => {
 	// A same-length rewrite inside the tick would share the signature.
 	it('does not take a log written a moment ago as accounted for', () => {
 		write('u-1', 'a\n');
+		// Ahead of now, so it is inside its tick however long the test takes.
+		const ahead = new Date(Date.now() + 60_000);
+		fs.utimesSync(path.join(eventsDir(), fileFor('u-1')), ahead, ahead);
 		accountFor(root, logSignature(root));
 
 		expect(accountedSignature(root)).toBeNull();
