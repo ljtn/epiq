@@ -114,11 +114,11 @@ export const deriveGuiState = (): Result<ApiState> => {
 		}
 
 		if (isTicketNode(node) && node.parentNodeId) {
-			// The closed lane is windowed; it would be most of the payload. A
-			// goal's tickets are spared: its panel is the way in to them.
+			// The closed lane is windowed by when a ticket closed; it would be most
+			// of the payload. A goal's tickets are spared: its panel is the way in to them.
 			if (
 				node.parentNodeId === CLOSED_SWIMLANE_ID &&
-				ulidTimeMs(node.id) < closedSince &&
+				laneEntryTime(node.log ?? [], ulidTimeMs(node.id)) < closedSince &&
 				!getTicketGoal(node)
 			) {
 				continue;
