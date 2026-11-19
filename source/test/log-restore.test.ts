@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, describe, expect, it} from 'vitest';
+import {seededRandom} from './helpers/seeded-random.js';
 import {
 	restoreDroppedEventLines,
 	snapshotEventLogs,
@@ -233,11 +234,7 @@ const referenceRestore = (
 
 describe('restoreDroppedEventLines against the reference', () => {
 	it('repairs exactly as the line-by-line check did, over random rewrites', () => {
-		let seed = 11;
-		const random = (n: number) => {
-			seed = (seed * 1103515245 + 12345) % 2147483648;
-			return (seed >>> 16) % n;
-		};
+		const random = seededRandom(11);
 		const text = (lines: string[], newline: boolean) =>
 			lines.join('\n') + (newline && lines.length > 0 ? '\n' : '');
 		const wide = (n: number) =>

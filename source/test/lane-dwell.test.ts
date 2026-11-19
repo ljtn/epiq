@@ -1,4 +1,5 @@
 import {describe, expect, it} from 'vitest';
+import {seededRandom} from './helpers/seeded-random.js';
 import {ulid} from 'ulid';
 import {AppEvent, EventAction} from '../lib/board/board-events.model.js';
 import {laneEntryTime, laneVisits} from '../lib/utils/lane-dwell.js';
@@ -96,11 +97,7 @@ describe('laneEntryTime', () => {
 describe('laneEntryTime against laneVisits', () => {
 	it('is the last visit, over moves, reorders, closes and undecodable ids', () => {
 		const created = Date.now() - 1000 * HOUR_MS;
-		let seed = 7;
-		const random = (n: number) => {
-			seed = (seed * 1103515245 + 12345) % 2147483648;
-			return seed % n;
-		};
+		const random = seededRandom(7);
 		const actions: EventAction[] = [
 			'move.node',
 			'close.issue',
