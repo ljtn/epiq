@@ -38,30 +38,6 @@ export const slimStateResult = (result: Result<ApiState>): Result<ApiState> =>
 		? result
 		: succeeded(result.message, slimStateForBoard(result.value));
 
-const findIssue = (state: ApiState, issueId: string) =>
-	(state.boards ?? [])
-		.flatMap(board => board.swimlanes ?? [])
-		.flatMap(swimlane => swimlane.issues ?? [])
-		.find(candidate => candidate.id === issueId);
-
-// What the slimmed state leaves out, for the one ticket whose details are open.
-export const issueDetail = (
-	state: ApiState,
-	issueId: string,
-): {
-	issueId: string;
-	description: string;
-	comments: ApiState['commentsByIssueId'][string];
-} => {
-	const issue = findIssue(state, issueId);
-
-	return {
-		issueId,
-		description: issue?.description ?? '',
-		comments: state.commentsByIssueId?.[issueId] ?? [],
-	};
-};
-
 // Long enough for the sentence that says what a ticket is, short enough that
 // the card stays a hint rather than becoming the ticket.
 const EXCERPT_LENGTH = 280;

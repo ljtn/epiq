@@ -28,6 +28,7 @@ import {
 	editSwimlaneTitle,
 	editIssueTitle,
 	getGuiState,
+	getIssueComments,
 	getIssueDescription,
 	getIssueHistory,
 	getPersonalStats,
@@ -102,7 +103,7 @@ import {isForeignOrigin} from './origin-guard.js';
 import {parseGuiMessage} from './websocket.schema.js';
 import {getUpdateInfo} from '../../../lib/version/version-check.js';
 import {EPIQ_VERSION} from '../../../version.js';
-import {issueDetail, issuePreview, slimStateResult} from './slim-state.js';
+import {issuePreview, slimStateResult} from './slim-state.js';
 import {boardWarmed} from './board-warmup.js';
 
 // A board reply each socket is still waiting for.
@@ -287,18 +288,24 @@ export const setupWebsocket = (
 					});
 				}
 
-				// The text the board never draws, for the ticket that is open.
+				// The text the board never draws, for the ticket that is open: read off
+				// that ticket, since the panel asks again on every board change.
 				if (type === 'issue:get') {
 					const issueId = message.payload?.issueId;
-					const state = deriveGuiState();
+					const description = getIssueDescription(issueId);
+					const comments = getIssueComments(issueId);
 					const history = getIssueHistory(issueId);
 
 					return sendSocket(socket, {
 						type: 'issue',
-						payload: isFail(state)
-							? state
+						payload: isFail(description)
+							? description
+							: isFail(comments)
+							? comments
 							: succeeded('Issue detail', {
-									...issueDetail(state.value, issueId),
+									issueId,
+									description: description.value,
+									comments: comments.value,
 									history: isFail(history) ? [] : history.value,
 							  }),
 					});

@@ -3,6 +3,7 @@ export {
 	getEpiqState,
 	deriveGuiState,
 	getGuiState,
+	getIssueComments,
 	getIssueDescription,
 } from './api/state.js';
 export {
