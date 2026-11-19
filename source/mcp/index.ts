@@ -45,5 +45,9 @@ const {setVirtualNodesEnabled} = await import(
 );
 setVirtualNodesEnabled(false);
 
+// Its state is only what events derive, so a reload may apply just what is new.
+const {setSuffixReplay} = await import('../lib/board/board-replayed.js');
+setSuffixReplay(true);
+
 const {startMcpServer} = await import('./server.js');
 await startMcpServer();
