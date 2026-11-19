@@ -149,12 +149,19 @@ const sendSocket = (socket: WebSocket, body: unknown) => {
 	socket.send(JSON.stringify(body));
 };
 
+// Resolves once the frame is written, failed or not: a big one is still being
+// written after `send` returns, and anything synchronous after it waits.
+const sendSocketFlushed = (socket: WebSocket, body: unknown): Promise<void> =>
+	new Promise(resolve => {
+		socket.send(JSON.stringify(body), () => resolve());
+	});
+
 const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
 	const payload = slimStateResult(await getGuiState({repoRoot}));
 
 	// Only a missing project shows the init screen; other failures are transient.
 	if (isFail(payload) && payload.message === NO_PROJECT_MESSAGE) {
-		return sendSocket(socket, {
+		return sendSocketFlushed(socket, {
 			type: 'state:unavailable',
 			payload: {
 				message: payload.message,
@@ -164,7 +171,7 @@ const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
 		});
 	}
 
-	return sendSocket(socket, {type: 'state', payload});
+	return sendSocketFlushed(socket, {type: 'state', payload});
 };
 
 const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
