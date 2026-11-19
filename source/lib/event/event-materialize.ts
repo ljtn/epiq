@@ -137,13 +137,16 @@ export const createMaterializer = <M extends EventMap>(
 	}
 
 	// One batch for the whole replay; per-event batches make replay quadratic.
+	// `continues` applies events after ones already applied: genesis is behind
+	// it, so another is skipped as a full replay would skip it.
 	const materializeAll = <const T extends readonly Event<M>[]>(
 		events: T,
+		{continues = false}: {continues?: boolean} = {},
 	): MaterializeResults<M, T> => {
 		const result = catalog.replay.batch(() => {
 			// Nested calls join the outer batch.
 			const owned = batch === null;
-			if (owned) batch = {genesisApplied: false};
+			if (owned) batch = {genesisApplied: continues};
 
 			let flushed = false;
 

@@ -18,6 +18,11 @@ import {
 	partitionMaterializeResults,
 } from './board-log.js';
 import {AppEvent} from './board-events.model.js';
+import {
+	forgetReplayed,
+	rememberReplayed,
+	unappliedSuffix,
+} from './board-replayed.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {AnyContext} from '../model/context.model.js';
@@ -263,6 +268,7 @@ export function bootStateFromEventLog(
 	}
 
 	if (!eventLog.length) {
+		forgetReplayed();
 		const workspace = nodes.workspace(
 			'temporary-uninitialized-workspace',
 			'Workspace',
@@ -281,17 +287,29 @@ export function bootStateFromEventLog(
 	}
 
 	if (!eventLog.some(e => e.action === 'init.workspace')) {
+		forgetReplayed();
 		return failed('Initialized Epiq project has no workspace init event');
 	}
 
-	const results = materializeAll(eventLog);
+	// Only what is new, where the state already holds the rest exactly.
+	const suffix = unappliedSuffix(eventLog);
+	let results = suffix
+		? materializeAll(suffix, {continues: true})
+		: materializeAll(eventLog);
+
+	// A suffix that fails is replayed in full, which reports it the same way.
+	const fullAfterAll =
+		suffix !== null && partitionMaterializeResults(results).fatal.length > 0;
+	if (fullAfterAll) results = materializeAll(eventLog);
 
 	const {fatal, skipped} = partitionMaterializeResults(results);
 	if (fatal.length > 0) {
+		forgetReplayed();
 		return failed(
 			`Materializing failed:\n${fatal.map(x => x.message).join('\n')}`,
 		);
 	}
+	rememberReplayed(eventLog);
 	logSkippedEvents(skipped);
 	navigateToInitialNode();
 
@@ -301,5 +319,10 @@ export function bootStateFromEventLog(
 
 	reportUnreadableEvents(unreadable);
 
-	return succeeded('State booted successfully', null);
+	return succeeded(
+		suffix && !fullAfterAll
+			? `State extended by ${suffix.length} event(s)`
+			: 'State booted successfully',
+		null,
+	);
 }

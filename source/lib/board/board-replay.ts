@@ -13,6 +13,7 @@ import {
 } from '../virtual-nodes/virtual-nodes.js';
 import {ReplayHooks} from '../event/event-catalog.js';
 import {AppEvent, AppEventMap} from './board-events.model.js';
+import {forgetReplayed} from './board-replayed.js';
 
 // What the board keeps beside its state as events apply: each node's own log,
 // the app-wide log, and the virtual fields a ticket derives from both.
@@ -166,6 +167,9 @@ export const boardReplayHooks: ReplayHooks<AppEventMap> = {
 	batch: fn => withDeferredDerive(fn),
 
 	afterApply(event, {batched, bypassLogging}) {
+		// The state now holds what no log does; the next reload must replay it all.
+		if (bypassLogging) forgetReplayed();
+
 		const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
 
 		if (batched) {
