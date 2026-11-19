@@ -222,6 +222,28 @@ describe('the remembered parse of a log file', () => {
 		expect(titlesOf()).toEqual(['mine']);
 	});
 
+	// FAT keeps even seconds: a write and a same-length rewrite a second later
+	// share a whole-second stamp that is already past a fine tick.
+	it('sees a same-length rewrite on a filesystem with whole-second stamps', () => {
+		const {tail, text} = genesis();
+		const file = logPath('u-1');
+		const second = new Date(Math.floor((Date.now() - 500) / 1000) * 1000);
+
+		fs.writeFileSync(
+			file,
+			text + issue(ulid(1_700_000_001_000), tail, 'first'),
+		);
+		fs.utimesSync(file, second, second);
+		expect(titlesOf()).toEqual(['first']);
+
+		fs.writeFileSync(
+			file,
+			text + issue(ulid(1_700_000_001_000), tail, 'other'),
+		);
+		fs.utimesSync(file, second, second);
+		expect(titlesOf()).toEqual(['other']);
+	});
+
 	// Boot locks history on what is unreadable, so an answer from memory must
 	// still name it.
 	it('reports an unreadable line again when the log is unchanged', () => {

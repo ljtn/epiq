@@ -691,17 +691,22 @@ describe('replaying goal events', () => {
 	});
 
 	it('keeps both goals two machines named alike, and finds the older', async () => {
-		const {repoRoot, file, actor} = await seed();
+		const {repoRoot, branchRoot, file, actor} = await seed();
 		const make = (id: string) => ({
 			id,
 			...actor,
 			action: 'create.goal',
 			payload: {id, name: 'Launch'},
 		});
-		materializeAll([
-			make('01M5Z00000000000000000000E'),
-			make('01M5Z00000000000000000000F'),
-		] as AppEvent[]);
+		unwrap(
+			materializeAndPersistAll(
+				[
+					make('01M5Z00000000000000000000E'),
+					make('01M5Z00000000000000000000F'),
+				] as AppEvent[],
+				branchRoot,
+			),
+		);
 		const part = await file('Part');
 
 		unwrap(await setIssueGoal({repoRoot, issueId: part, goal: 'Launch'}));

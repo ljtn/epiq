@@ -46,7 +46,17 @@ export const logSignature = (stateBranchRoot: string): string => {
 	}
 };
 
-// No file written within a clock tick: two same-length writes in one tick share a signature.
+// Two same-length writes within one mtime tick share a stamp, so a stamp is
+// trusted only once the tick is over. A whole-second stamp is a coarse
+// filesystem's (FAT keeps even seconds and may round up), so it waits longer.
+// A network share stamps by its server's clock; one lagging ours by more than
+// the window still reads as settled, which no window can fix.
+const FINE_TICK_MS = 2;
+const COARSE_TICK_MS = 3000;
+
+export const isSettledStamp = (ageMs: number, wholeSecond: boolean): boolean =>
+	ageMs > (wholeSecond ? COARSE_TICK_MS : FINE_TICK_MS);
+
 export const isSettledSignature = (
 	signature: string,
 	now = Date.now(),
@@ -54,7 +64,10 @@ export const isSettledSignature = (
 	signature
 		.split('|')
 		.filter(Boolean)
-		.every(part => now - Number(part.slice(part.lastIndexOf(':') + 1)) > 2);
+		.every(part => {
+			const mtimeMs = Number(part.slice(part.lastIndexOf(':') + 1));
+			return isSettledStamp(now - mtimeMs, mtimeMs % 1000 === 0);
+		});
 
 const entries = (signature: string): Map<string, string> =>
 	new Map(
@@ -110,7 +123,11 @@ export const accountFor = (
 	stateBranchRoot: string,
 	signature: string,
 ): void => {
-	accounted = {root: stateBranchRoot, signature};
+	// Unsettled, a same-length rewrite could still share this signature. Own
+	// appends advance it without this check: they add exactly their bytes.
+	accounted = isSettledSignature(signature)
+		? {root: stateBranchRoot, signature}
+		: null;
 };
 
 export const noteOwnAppend = (

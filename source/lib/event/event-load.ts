@@ -14,6 +14,7 @@ import {
 import {ActionOf, Actor, Event, EventMap} from './event.model.js';
 import {
 	isSettledSignature,
+	isSettledStamp,
 	isVanished,
 	listEventFiles,
 	logSignature,
@@ -210,11 +211,8 @@ export const clearParseCache = (): void => {
 	parseCacheLines = 0;
 };
 
-// A file written within a clock tick of the read is not cached: two same-length
-// writes in one tick share a stamp (Linux mtime is millisecond-grained).
-const RACY_WRITE_WINDOW_MS = 2n;
-
 const MS_IN_NS = 1_000_000n;
+const SECOND_IN_NS = 1_000_000_000n;
 
 type FileStamp = {value: string; settled: boolean};
 
@@ -224,9 +222,10 @@ const fileStamp = (filePath: string): FileStamp | null => {
 
 		return {
 			value: `${size}:${mtimeNs}`,
-			settled:
-				BigInt(Date.now()) * MS_IN_NS - mtimeNs >
-				RACY_WRITE_WINDOW_MS * MS_IN_NS,
+			settled: isSettledStamp(
+				Number(BigInt(Date.now()) * MS_IN_NS - mtimeNs) / 1e6,
+				mtimeNs % SECOND_IN_NS === 0n,
+			),
 		};
 	} catch {
 		return null;
