@@ -103,7 +103,7 @@ process.chdir(REPO);
 // commands.ts first: the init command sits in an import cycle with it.
 await import('../../lib/command-line/commands.js');
 const {createDefaultEvents} = await import('../../lib/board/board-boot.js');
-const {materializeAll, partitionMaterializeResults} = await import(
+const {getEdgeRef, materializeAll, partitionMaterializeResults} = await import(
 	'../../lib/board/board-log.js'
 );
 const {patchSettingsState} = await import('../../lib/state/settings.state.js');
@@ -117,6 +117,13 @@ patchSettingsState({
 	preferredEditor: 'vim',
 	autoSync: false,
 });
+
+// The board is made before the history it holds, so a scrub to any past
+// moment finds its workspace, board and lanes. Real time resumes after.
+const realNow = Date.now;
+const madeAt = realNow() - (YEARS + 1) * 365 * 24 * 60 * 60 * 1000;
+const clockStart = realNow();
+Date.now = () => madeAt + (realNow() - clockStart);
 
 const defaults = createDefaultEvents({userId: 'u-000', userName: 'person000'});
 if (defaults.status === 'fail') throw new Error(defaults.message);
@@ -152,6 +159,7 @@ for (const title of ['Review', 'Blocked']) {
 }
 
 const lanes = ok(await api.listSwimlanes({repoRoot: REPO})) as {id: string}[];
+Date.now = realNow;
 
 const stateRoot = ok(getStateBranchRoot({repoRoot: REPO}));
 if (!stateRoot) throw new Error('no state branch root');
@@ -165,6 +173,8 @@ console.log(
 const generated = await step('generate the log', () =>
 	generateLog({
 		stateRoot,
+		// Hung off the board's own events: one history, not a second root.
+		edge: ok(getEdgeRef(stateRoot)),
 		laneIds: lanes.map(lane => lane.id),
 		actors: Array.from({length: ACTORS}, (_, i) => ({
 			userId: `u-${String(i).padStart(3, '0')}`,
