@@ -103,6 +103,10 @@ import {parseGuiMessage} from './websocket.schema.js';
 import {getUpdateInfo} from '../../../lib/version/version-check.js';
 import {EPIQ_VERSION} from '../../../version.js';
 import {issueDetail, issuePreview, slimStateResult} from './slim-state.js';
+import {boardWarmed} from './board-warmup.js';
+
+// A board reply each socket is still waiting for.
+const stateInFlight = new WeakMap<WebSocket, Promise<void>>();
 
 /** The ceiling on one frame: far above the longest description, far below `ws`'s 100 MiB default. */
 export const MAX_SOCKET_FRAME_BYTES = 1024 * 1024;
@@ -257,6 +261,10 @@ export const setupWebsocket = (
 				// Echoed back rather than forwarded into the API: the client pairs
 				// the timeline and commit replies by it.
 				if (type === 'timeline:get') {
+					// Its index build is synchronous: after this socket's board, not
+					// in the gap while the board's boot awaits git.
+					await stateInFlight.get(socket);
+
 					const {requestId, ...query} = message.payload ?? {};
 					return sendSocket(socket, {
 						type: 'timeline',
@@ -679,7 +687,15 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'state:get') {
-					return sendGuiState(socket, repoRoot);
+					const sent = boardWarmed().then(() => sendGuiState(socket, repoRoot));
+					stateInFlight.set(
+						socket,
+						sent.then(
+							() => undefined,
+							() => undefined,
+						),
+					);
+					return sent;
 				}
 
 				if (type === 'sync') {

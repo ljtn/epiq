@@ -29,6 +29,7 @@ import {
 } from './instance.js';
 import {startGuiAutoSync} from './lib/api-autosync.js';
 import {createLogPublisher, startGuiLogWatch} from './lib/api-log-watch.js';
+import {warmBoard} from './lib/board-warmup.js';
 import {refuseCrossSiteRequest} from './lib/origin-guard.js';
 import {GuiProject} from './lib/gui-project.js';
 import {fetchReposAndBroadcast, setupWebsocket} from './lib/websocket.js';
@@ -553,6 +554,8 @@ export const startGuiServer = async (input: {
 	}
 
 	const publisher = createLogPublisher({project});
+	// Not awaited: the browser opens while the board loads.
+	void warmBoard(project.repoRoot, publisher.rememberRepos);
 	const guiAutoSync = startGuiAutoSync({
 		project,
 		publisher,

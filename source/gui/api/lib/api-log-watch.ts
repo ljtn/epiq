@@ -46,7 +46,12 @@ export const createLogPublisher = (input: {project: GuiProject}) => {
 			? null
 			: JSON.stringify([repos.value.live, repos.value.overLimit]);
 	};
-	let publishedRepos = reposOf();
+	// Taken once the board is booted, when it is a read of live state rather
+	// than of the whole log; before then, on the first publish.
+	let publishedRepos: string | null | undefined;
+	const rememberRepos = (): void => {
+		publishedRepos ??= reposOf();
+	};
 
 	// Recorded before the derive: an underivable log is retried only once it changes.
 	let attempted: string | null = currentSignature();
@@ -58,6 +63,8 @@ export const createLogPublisher = (input: {project: GuiProject}) => {
 
 		// Git may have lines off the logs until the sync restores them.
 		if (await isSyncLockHeldAt(stateBranchRoot)) return;
+
+		rememberRepos();
 
 		const signature = logSignature(stateBranchRoot);
 		if (signature === attempted) return;
@@ -80,7 +87,7 @@ export const createLogPublisher = (input: {project: GuiProject}) => {
 		}
 	};
 
-	return {publishIfLogMoved};
+	return {publishIfLogMoved, rememberRepos};
 };
 
 export type LogPublisher = ReturnType<typeof createLogPublisher>;
