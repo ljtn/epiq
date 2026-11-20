@@ -65,7 +65,6 @@ const appendEventToNodeLog = (
 
 	nodeRepo.updateNode({
 		...node,
-		log: [...(node.log ?? []), event],
 		history: foldHistory(
 			node.history,
 			nodeId,
@@ -171,7 +170,6 @@ const flushReplayBatch = (batch: ReplayBatch): ReturnFail | null => {
 
 		nodeRepo.updateNode({
 			...node,
-			log: [...(node.log ?? []), ...events],
 			history: foldHistory(
 				node.history,
 				nodeId,

@@ -5,11 +5,9 @@ import {
 	forgetCheckpoints,
 	materializeCut,
 } from '../lib/board/board-checkpoints.js';
-import {resolveReopenParentFromLog} from '../lib/board/log-utils.js';
 import {
 	enteredLaneAt,
 	foldHistory,
-	loggedEvents,
 	lastEventAt,
 	parentsEver,
 	visitsOf,
@@ -21,8 +19,6 @@ import {
 } from '../lib/board/board-log.js';
 import {MAX_ULID_AHEAD_MS} from '../lib/event/date-utils.js';
 import {succeeded} from '../lib/model/result-types.js';
-import {NavNode} from '../lib/model/navigation-node.model.js';
-import {AnyContext} from '../lib/model/context.model.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {setVirtualNodesEnabled} from '../lib/virtual-nodes/virtual-nodes.js';
@@ -30,7 +26,9 @@ import {
 	laneEntryTime,
 	laneVisits,
 	lastEventTime,
-} from '../lib/utils/lane-dwell.js';
+	reopenParentFromLog,
+} from './helpers/log-reference.js';
+import {getAffectedNodeIds} from '../lib/board/board-replay.js';
 import {randomLog, rank, unwrap} from './helpers/random-board-log.js';
 import {seededRandom} from './helpers/seeded-random.js';
 
@@ -62,24 +60,65 @@ const timed = (seed: number, log: AppEvent[]): AppEvent[] => {
 	});
 };
 
-// The rule `ticket-boards` reads a log by: any event naming the node and a parent.
-const parentsFromLog = (node: NavNode<AnyContext>): string[] => {
+// A node's log as the app-wide one holds it: every applied event that affects
+// it, in order. Exact for a ticket, which is never another node's parent; a
+// lane's would also need its children's parents as they were.
+// An add of a node that exists builds it afresh, so its log starts at the last.
+const CREATES = new Set([
+	'init.workspace',
+	'add.workspace',
+	'add.board',
+	'add.swimlane',
+	'add.issue',
+	'add.field',
+]);
+
+const referenceLog = (nodeId: string): Array<[number, AppEvent]> => {
+	const located = getState()
+		.eventLog.map((event, position): [number, AppEvent] => [position, event])
+		.filter(([, event]) => getAffectedNodeIds(event).includes(nodeId));
+	const created = located.findLastIndex(
+		([, event]) =>
+			CREATES.has(event.action) &&
+			(event.payload as {id?: string}).id === nodeId,
+	);
+	return located.slice(Math.max(created, 0));
+};
+
+// The rule `ticket-boards` read a log by: any event naming the node and a parent.
+const parentsFromLog = (
+	nodeId: string,
+	current: string | null,
+	log: readonly AppEvent[],
+): string[] => {
 	const parents = new Set<string>();
-	if (node.parentNodeId) parents.add(node.parentNodeId);
-	for (const entry of node.log ?? []) {
+	if (current) parents.add(current);
+	for (const entry of log) {
 		const payload = entry.payload as {id?: string; parent?: string};
-		if (payload.id === node.id && payload.parent) parents.add(payload.parent);
+		if (payload.id === nodeId && payload.parent) parents.add(payload.parent);
 	}
 	return [...parents];
 };
 
 const expectFoldedEqualsLog = () => {
 	for (const node of Object.values(getState().nodes)) {
-		const log = node.log ?? [];
-		const createdAt = T0 - 5;
 		const {history} = node;
 		const where = node.id;
+		const located = referenceLog(node.id);
+		const log = located.map(([, event]) => event);
 
+		expect(parentsEver(history, node.parentNodeId), where).toEqual(
+			parentsFromLog(node.id, node.parentNodeId, log),
+		);
+		if (node.context !== 'TICKET') {
+			expect(history?.logged ?? [], where).toEqual([]);
+			continue;
+		}
+
+		const createdAt = T0 - 5;
+		expect(history?.logged ?? [], where).toEqual(
+			located.map(([position]) => position),
+		);
 		expect(visitsOf(history, createdAt), where).toEqual(
 			laneVisits(log, createdAt),
 		);
@@ -93,19 +132,8 @@ const expectFoldedEqualsLog = () => {
 			log.findLast(event => event.action === 'close.issue')?.id ?? null,
 		);
 		expect(history?.reopenParent ?? null, where).toBe(
-			resolveReopenParentFromLog(node as NavNode<'TICKET'>),
+			reopenParentFromLog(node.id, log),
 		);
-		expect(parentsEver(history, node.parentNodeId), where).toEqual(
-			parentsFromLog(node),
-		);
-		// The same objects, in the same order: the log, without a copy of it.
-		if (node.context === 'TICKET') {
-			const found = loggedEvents(history, getState().eventLog);
-			expect(found.length, where).toBe(log.length);
-			found.forEach((event, index) => expect(event, where).toBe(log[index]));
-		} else {
-			expect(history?.logged ?? [], where).toEqual([]);
-		}
 	}
 };
 

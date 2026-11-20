@@ -17,7 +17,6 @@ export const nodes = {
 		childRenderAxis: 'vertical',
 		parentNodeId: null,
 		readonly: true,
-		log: [],
 	}),
 
 	board: (
@@ -36,7 +35,6 @@ export const nodes = {
 		childRenderAxis: 'horizontal',
 		parentNodeId,
 		readonly,
-		log: [],
 	}),
 
 	swimlane: (
@@ -55,7 +53,6 @@ export const nodes = {
 		childNavigationAcrossParents: true,
 		parentNodeId,
 		readonly: false,
-		log: [],
 	}),
 
 	field: ({
@@ -84,7 +81,6 @@ export const nodes = {
 		childRenderAxis,
 		parentNodeId,
 		readonly: false,
-		log: [],
 		isVirtual,
 	}),
 
@@ -112,7 +108,6 @@ export const nodes = {
 		childRenderAxis,
 		parentNodeId,
 		readonly: false,
-		log: [],
 		isVirtual,
 	}),
 
@@ -131,7 +126,6 @@ export const nodes = {
 		childRenderAxis: 'vertical',
 		parentNodeId,
 		readonly: false,
-		log: [],
 	}),
 
 	text: ({
@@ -163,7 +157,6 @@ export const nodes = {
 		childRenderAxis: 'vertical',
 		parentNodeId,
 		readonly,
-		log: [],
 		isVirtual,
 	}),
 
@@ -193,7 +186,6 @@ export const nodes = {
 		childRenderAxis: 'vertical',
 		parentNodeId,
 		readonly,
-		log: [],
 		isVirtual,
 	}),
 };
