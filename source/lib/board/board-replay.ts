@@ -14,6 +14,7 @@ import {
 } from '../virtual-nodes/virtual-nodes.js';
 import {ReplayHooks} from '../event/event-catalog.js';
 import {AppEvent, AppEventMap} from './board-events.model.js';
+import {foldHistory} from './node-history.js';
 
 // What the board keeps beside its state as events apply: each node's own log,
 // the app-wide log, and the virtual fields a ticket derives from both.
@@ -53,6 +54,7 @@ const appendEventToNodeLog = (nodeId: string, event: AppEvent): void => {
 	nodeRepo.updateNode({
 		...node,
 		log: [...(node.log ?? []), event],
+		history: foldHistory(node.history, nodeId, [event]),
 	});
 };
 
@@ -180,7 +182,11 @@ const flushReplayBatch = (batch: ReplayBatch): ReturnFail | null => {
 		const node = nodeRepo.getNode(nodeId);
 		if (!node) continue;
 
-		nodeRepo.updateNode({...node, log: [...(node.log ?? []), ...events]});
+		nodeRepo.updateNode({
+			...node,
+			log: [...(node.log ?? []), ...events],
+			history: foldHistory(node.history, nodeId, events),
+		});
 	}
 
 	if (batch.appLog.length > 0) {
