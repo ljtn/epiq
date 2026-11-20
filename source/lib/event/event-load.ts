@@ -713,6 +713,10 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		signature: string;
 		sorted: ReconstructedEvent[];
 		quarantined: UnreadableEvent[];
+		// Built on the first own append: every id held, and every parent a
+		// held entry names that is not one of them.
+		ids?: Set<string>;
+		waiting?: Set<string>;
 	} | null = null;
 
 	function loadAllPersistedEvents(
@@ -991,12 +995,22 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		// Last only if nothing held is this id already, or waits on it as a
 		// parent: a hostile line can name an id before it exists.
-		const id = entry.id[0];
-		for (const other of held.sorted) {
-			if (other.id[0] === id || other.id[1] === id) return;
+		if (!held.ids || !held.waiting) {
+			held.ids = new Set(held.sorted.map(other => other.id[0]));
+			held.waiting = new Set();
+			for (const other of held.sorted) {
+				const parent = other.id[1];
+				if (parent && !held.ids.has(parent)) held.waiting.add(parent);
+			}
 		}
+		const id = entry.id[0];
+		if (held.ids.has(id) || held.waiting.has(id)) return;
 
-		sortedCache = {...held, signature: next, sorted: [...held.sorted, entry]};
+		// In place: every read hands out a copy, so nothing else holds this array.
+		held.sorted.push(entry);
+		held.ids.add(id);
+		held.signature = next;
+		sortedCache = held;
 	}
 
 	function advanceEdgeRef(
