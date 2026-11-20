@@ -218,6 +218,41 @@ describe('batched replay equals per-event replay', () => {
 		]);
 	});
 
+	// Concurrent work can order a ticket's events before its lane exists. One
+	// at a time, the lane's log never sees them; a batch must not either, or
+	// clients that replayed and clients that applied live disagree.
+	it('agrees on a log entry for a node that did not exist yet', () => {
+		eventSeq = 1000;
+		const lateLane = '01H00000000000000000000L01';
+		const ticket = '01H00000000000000000000T99';
+		const log: AppEvent[] = [
+			...buildEvents(1),
+			event('add.issue', {
+				id: ticket,
+				name: 'Early',
+				parent: lateLane,
+				rank: rank(),
+			}),
+			event('delete.node', {id: ticket}),
+			event('add.swimlane', {
+				id: lateLane,
+				name: 'Late',
+				parent: IDS.board,
+				rank: rank(),
+			}),
+		];
+
+		const batched = replayBatched(log);
+		const oneByOne = replayOneByOne(log);
+
+		// A ticket's virtual rows are the TUI's view, not the log's.
+		const logged = (state: typeof batched) =>
+			Object.values(state.nodes).filter(node => !node.isVirtual);
+
+		expect(batched.nodes[lateLane]?.log).toEqual(oneByOne.nodes[lateLane]?.log);
+		expect(logged(batched)).toEqual(logged(oneByOne));
+	});
+
 	it('agrees on the node set itself', () => {
 		const log = buildEvents(40);
 

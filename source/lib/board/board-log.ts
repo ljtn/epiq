@@ -51,6 +51,7 @@ export const {
 	materializeAll,
 	fromPersistedEvent,
 	decodeReconstructedEvents,
+	loadOrderedEntries,
 	loadMergedEventsWithUnreadable,
 	loadEventActors,
 	loadActorNames,
@@ -88,6 +89,7 @@ export {
 	type CompositeId,
 } from '../event/event-envelope.js';
 export {
+	appliedAtTime,
 	effectiveEventTimes,
 	parsePersistedEventsFile,
 	splitEventsAtTime,
