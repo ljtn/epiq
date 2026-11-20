@@ -91,6 +91,8 @@ export {
 export {
 	appliedAtTime,
 	effectiveEventTimes,
+	indexForCuts,
+	type CutIndex,
 	parsePersistedEventsFile,
 	splitEventsAtTime,
 	type ReconstructedEvent,

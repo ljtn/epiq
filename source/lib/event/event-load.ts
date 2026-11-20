@@ -465,30 +465,71 @@ export const effectiveEventTimes = (
 		}),
 	);
 
+/** A causal order's ids as numbers and each event's parent as one, for cuts. */
+export type CutIndex = {
+	times: ReadonlyArray<number | null>;
+	idOf: Int32Array;
+	parentOf: Int32Array;
+	ids: number;
+};
+
+// A parent the order does not hold, which never excludes its child.
+const NO_PARENT = -1;
+
+export const indexForCuts = (
+	events: ReadonlyArray<Pick<ReconstructedEvent, 'id'>>,
+): CutIndex => {
+	const numbers = new Map<string, number>();
+	const idOf = new Int32Array(events.length);
+	for (let index = 0; index < events.length; index++) {
+		const id = events[index]!.id[0];
+		let number = numbers.get(id);
+		if (number === undefined) {
+			number = numbers.size;
+			numbers.set(id, number);
+		}
+		idOf[index] = number;
+	}
+
+	const parentOf = new Int32Array(events.length);
+	for (let index = 0; index < events.length; index++) {
+		const refId = events[index]!.id[1];
+		parentOf[index] = refId ? numbers.get(refId) ?? NO_PARENT : NO_PARENT;
+	}
+
+	return {
+		times: effectiveEventTimes(events),
+		idOf,
+		parentOf,
+		ids: numbers.size,
+	};
+};
+
 /**
  * Which events a cut at `targetTime` applies, by index into the causal order:
- * those before it whose parent it also applies. `times` from `effectiveEventTimes`.
+ * those before it whose parent it also applies.
  */
 export const appliedAtTime = (
 	events: ReadonlyArray<Pick<ReconstructedEvent, 'id'>>,
 	targetTime: number,
-	times: ReadonlyArray<number | null> = effectiveEventTimes(events),
+	index: CutIndex = indexForCuts(events),
 ): Uint8Array => {
-	const unappliedIds = new Set<string>();
+	const {times, idOf, parentOf} = index;
+	const excluded = new Uint8Array(index.ids);
 	const applied = new Uint8Array(events.length);
 
-	for (let index = 0; index < events.length; index++) {
-		const [eventId, refId] = events[index]!.id;
-		const time = times[index] ?? null;
+	for (let position = 0; position < events.length; position++) {
+		const time = times[position] ?? null;
+		const parent = parentOf[position]!;
 
 		if (
 			time === null ||
 			time >= targetTime ||
-			(refId && unappliedIds.has(refId))
+			(parent !== NO_PARENT && excluded[parent])
 		) {
-			unappliedIds.add(eventId);
+			excluded[idOf[position]!] = 1;
 		} else {
-			applied[index] = 1;
+			applied[position] = 1;
 		}
 	}
 
