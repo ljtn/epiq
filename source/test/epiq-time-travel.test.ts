@@ -22,9 +22,13 @@ vi.mock('../lib/board/board-log.js', async () => ({
 	)),
 	loadEffectiveEventTimes: vi.fn(),
 	loadMergedEvents: vi.fn(),
-	loadMergedEventsBefore: vi.fn(),
 	loadActorNames: vi.fn(() => new Map<string, string>()),
 	materializeAll: vi.fn(),
+}));
+
+vi.mock('../lib/board/board-checkpoints.js', () => ({
+	forgetCheckpoints: vi.fn(),
+	materializeCut: vi.fn(),
 }));
 
 vi.mock('../lib/state/state.js', () => ({
@@ -93,9 +97,9 @@ import {clearTimelineCache} from '../mcp/timeline-index.js';
 import {
 	loadEffectiveEventTimes,
 	loadMergedEvents,
-	loadMergedEventsBefore,
 } from '../lib/board/board-log.js';
 import {materializeAll} from '../lib/board/board-log.js';
+import {materializeCut} from '../lib/board/board-checkpoints.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {fileManager} from '../lib/storage/file-manager.js';
 import {
@@ -203,6 +207,9 @@ describe('epiq-time-travel', () => {
 
 		vi.mocked(resetState).mockReturnValue(succeeded('reset', ''));
 		vi.mocked(materializeAll).mockReturnValue([]);
+		vi.mocked(materializeCut).mockReturnValue(
+			succeeded('cut', {applied: 0, skipped: [], unappliedEvents: []}),
+		);
 
 		vi.mocked(readProjectFile).mockReturnValue(
 			succeeded('project', {stateBranch: '__epiq_state__'} as never),
@@ -228,9 +235,10 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('reports scrub with the checked-out time after a successful checkout', async () => {
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [{id: '1'}],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 1,
+					skipped: [],
 					unappliedEvents: [{id: '2'}],
 				} as never),
 			);
@@ -246,18 +254,18 @@ describe('epiq-time-travel', () => {
 
 	describe('checkoutStateAt during a drag', () => {
 		it('replays only the newest of the checkouts queued together', async () => {
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {appliedEvents: [], unappliedEvents: []} as never),
-			);
-
 			const results = await Promise.all(
 				[1000, 2000, 3000, 4000].map(targetTime =>
 					checkoutStateAt({targetTime}),
 				),
 			);
 
-			expect(loadMergedEventsBefore).toHaveBeenCalledTimes(1);
-			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 4000);
+			expect(materializeCut).toHaveBeenCalledTimes(1);
+			expect(materializeCut).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.any(Function),
+				4000,
+			);
 			expect(results.map(result => isSuccess(result) && result.value)).toEqual([
 				{superseded: true},
 				{superseded: true},
@@ -2128,18 +2136,21 @@ describe('epiq-time-travel', () => {
 
 	describe('checkoutStateAt', () => {
 		it('materializes events before the target time and marks state read-only', async () => {
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [{id: '1'}],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 1,
+					skipped: [],
 					unappliedEvents: [{id: '2'}],
 				} as never),
 			);
 
 			const result = await checkoutStateAt({targetTime: 1234});
 
-			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 1234);
-			expect(resetState).toHaveBeenCalled();
-			expect(materializeAll).toHaveBeenCalledWith([{id: '1'}]);
+			expect(materializeCut).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.any(Function),
+				1234,
+			);
 
 			expect(patchState).toHaveBeenCalledWith({
 				readOnly: true,
@@ -2154,14 +2165,15 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('fails without checking out a historical state when materialization fails', async () => {
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [{id: '1'}],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 1,
+					skipped: [],
 					unappliedEvents: [],
 				} as never),
 			);
 
-			vi.mocked(materializeAll).mockReturnValue([failed('boom')]);
+			vi.mocked(materializeCut).mockReturnValue(failed('boom'));
 
 			const result = await checkoutStateAt({targetTime: 1234});
 
@@ -2174,9 +2186,10 @@ describe('epiq-time-travel', () => {
 		// resetState runs before materializing, so a failure must degrade to
 		// "live" rather than leave an empty board that reads as writable.
 		it('re-materializes the live head and marks state live when materialization fails', async () => {
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [{id: 'old'}],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 1,
+					skipped: [],
 					unappliedEvents: [{id: 'new'}],
 				} as never),
 			);
@@ -2184,10 +2197,8 @@ describe('epiq-time-travel', () => {
 				succeeded('events', [{id: 'old'}, {id: 'new'}] as never),
 			);
 
-			// Only the historical slice fails; the head still materializes.
-			vi.mocked(materializeAll).mockImplementation(events =>
-				events.length === 1 ? [failed('boom')] : [],
-			);
+			// Only the historical cut fails; the head still materializes.
+			vi.mocked(materializeCut).mockReturnValue(failed('boom'));
 
 			const result = await checkoutStateAt({targetTime: 1234});
 
@@ -2203,24 +2214,17 @@ describe('epiq-time-travel', () => {
 
 		it('clears the tracked as-of time when materialization fails', async () => {
 			// Sets the as-of clock, which the failing checkout must clear.
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 0,
+					skipped: [],
 					unappliedEvents: [],
 				} as never),
 			);
 			await checkoutStateAt({targetTime: 777});
 
 			vi.mocked(loadMergedEvents).mockReturnValue(succeeded('events', []));
-			vi.mocked(materializeAll).mockImplementation(events =>
-				events.length === 1 ? [failed('boom')] : [],
-			);
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [{id: 'old'}],
-					unappliedEvents: [],
-				} as never),
-			);
+			vi.mocked(materializeCut).mockReturnValue(failed('boom'));
 
 			await checkoutStateAt({targetTime: 1234});
 
@@ -2232,13 +2236,14 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('reports the original failure first when the recovery to live also fails', async () => {
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [{id: 'old'}],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 1,
+					skipped: [],
 					unappliedEvents: [],
 				} as never),
 			);
-			vi.mocked(materializeAll).mockReturnValue([failed('boom')]);
+			vi.mocked(materializeCut).mockReturnValue(failed('boom'));
 			vi.mocked(loadMergedEvents).mockReturnValue(failed('log unreadable'));
 
 			const result = await checkoutStateAt({targetTime: 1234});
@@ -2254,9 +2259,10 @@ describe('epiq-time-travel', () => {
 
 	describe('checkoutStateAtEvent', () => {
 		beforeEach(() => {
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [{id: 'a'}],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 1,
+					skipped: [],
 					unappliedEvents: [{id: 'b'}],
 				} as never),
 			);
@@ -2271,7 +2277,11 @@ describe('epiq-time-travel', () => {
 
 			const result = await checkoutStateAtEvent({eventId: 'evt-1'});
 
-			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 5001);
+			expect(materializeCut).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.any(Function),
+				5001,
+			);
 			expect(isSuccess(result)).toBe(true);
 			if (isFail(result)) return;
 			expect(result.value).toEqual({asOfTime: 5001});
@@ -2286,7 +2296,11 @@ describe('epiq-time-travel', () => {
 
 			await checkoutStateAtEvent({eventId: 'poisoned'});
 
-			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 1001);
+			expect(materializeCut).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.any(Function),
+				1001,
+			);
 		});
 
 		it('fails without touching state when the event is not in the log', async () => {
@@ -2297,7 +2311,7 @@ describe('epiq-time-travel', () => {
 			const result = await checkoutStateAtEvent({eventId: 'missing'});
 
 			expect(isSuccess(result)).toBe(false);
-			expect(loadMergedEventsBefore).not.toHaveBeenCalled();
+			expect(materializeCut).not.toHaveBeenCalled();
 			expect(resetState).not.toHaveBeenCalled();
 		});
 
@@ -2309,7 +2323,7 @@ describe('epiq-time-travel', () => {
 			const result = await checkoutStateAtEvent({eventId: 'evt-1'});
 
 			expect(isSuccess(result)).toBe(false);
-			expect(loadMergedEventsBefore).not.toHaveBeenCalled();
+			expect(materializeCut).not.toHaveBeenCalled();
 		});
 
 		it('fails when the event times cannot be read', async () => {
@@ -2349,9 +2363,10 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('clears the tracked as-of time so status reports live again', async () => {
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 0,
+					skipped: [],
 					unappliedEvents: [],
 				} as never),
 			);
@@ -2368,9 +2383,10 @@ describe('epiq-time-travel', () => {
 
 		// Live flags plus a stale as-of clock is the incoherence to avoid.
 		it('clears the tracked as-of time when materialization fails', async () => {
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 0,
+					skipped: [],
 					unappliedEvents: [],
 				} as never),
 			);
@@ -2456,9 +2472,10 @@ describe('epiq-time-travel', () => {
 				log.push('sync:end');
 			});
 
-			vi.mocked(loadMergedEventsBefore).mockReturnValue(
-				succeeded('events', {
-					appliedEvents: [{id: '1'}],
+			vi.mocked(materializeCut).mockReturnValue(
+				succeeded('cut', {
+					applied: 1,
+					skipped: [],
 					unappliedEvents: [],
 				} as never),
 			);

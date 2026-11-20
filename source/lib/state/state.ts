@@ -20,13 +20,16 @@ import {buildActionIndex} from './action-helper.js';
 import {emailsOf} from '../model/email-link.js';
 import {setClaimedEmailsReader} from './email-claims.state.js';
 
-type DerivedKeys =
-	| 'availableActions'
-	| 'actionIndex'
-	| 'availableHints'
-	| 'breadCrumb'
-	| 'contextNode'
-	| 'selectedNode';
+const DERIVED = [
+	'availableActions',
+	'actionIndex',
+	'availableHints',
+	'breadCrumb',
+	'contextNode',
+	'selectedNode',
+] as const;
+type DerivedKeys = (typeof DERIVED)[number];
+const DERIVED_KEYS: ReadonlySet<string> = new Set(DERIVED);
 export type BaseState = Omit<AppState, DerivedKeys>;
 
 // -----------------------------
@@ -258,6 +261,37 @@ export const isDeferringDerive = (): boolean => deferring;
 
 export const patchState = (patch: Partial<BaseState>) =>
 	updateState(old => ({...old, ...patch}));
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+	value !== null &&
+	typeof value === 'object' &&
+	Object.getPrototypeOf(value) === Object.prototype;
+
+/**
+ * The base state, copied so a replay writing into the live one cannot reach
+ * it: keyed maps shallow, since a batch writes them in place but replaces
+ * their entries; the repo registry whole, since its handlers write into it.
+ * Lists are shared: every write replaces them.
+ */
+export const copyBaseState = (state: AppState): BaseState => {
+	const copy: Record<string, unknown> = {};
+
+	for (const [key, value] of Object.entries(state)) {
+		if (DERIVED_KEYS.has(key)) continue;
+		copy[key] =
+			key === 'repos'
+				? structuredClone(value)
+				: isPlainRecord(value)
+				? {...value}
+				: value;
+	}
+
+	return copy as BaseState;
+};
+
+/** Puts back a state `copyBaseState` took, copied again so it stays as taken. */
+export const restoreBaseState = (base: BaseState): Result<string> =>
+	updateState(() => copyBaseState(base as AppState));
 
 // The keyed collections of the base state — the ones a single event writes one
 // entry of.

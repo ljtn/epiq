@@ -4,8 +4,13 @@ import {isWorkspaceAction} from './timeline-index.js';
 import {
 	loadEffectiveEventTimes,
 	loadMergedEvents,
-	loadMergedEventsBefore,
+	loadOrderedEntries,
 } from '../lib/board/board-log.js';
+import {
+	forgetCheckpoints,
+	materializeCut,
+} from '../lib/board/board-checkpoints.js';
+import {isSettledSignature, logSignature} from '../lib/event/log-signature.js';
 import {
 	logSkippedEvents,
 	materializeAll,
@@ -288,29 +293,22 @@ export const checkoutStateAt = (
 			return failed(stateBranchRootResult.message);
 		}
 
-		const eventsBeforeResult = loadMergedEventsBefore(
-			stateBranchRootResult.value,
+		const root = stateBranchRootResult.value;
+		// Before the read, as every cache keyed on it; kept only once settled.
+		const signature = logSignature(root);
+		const cut = materializeCut(
+			signature,
+			() => loadOrderedEntries(root),
 			input.targetTime,
 		);
-		if (isFail(eventsBeforeResult)) return failed(eventsBeforeResult.message);
+		if (!isSettledSignature(signature)) forgetCheckpoints();
 
-		const {appliedEvents, unappliedEvents} = eventsBeforeResult.value;
+		// The cut may have reset the singleton, so bailing out plainly would
+		// leave the board gone while still reporting live.
+		if (isFail(cut)) return recoverToLiveAfterFailure(root, cut.message);
+		logSkippedEvents(cut.value.skipped);
 
-		const resetResult = resetState();
-		if (isFail(resetResult)) return resetResult;
-
-		const materializeResults = materializeAll(appliedEvents);
-		const {fatal, skipped} = partitionMaterializeResults(materializeResults);
-
-		// The reset above already emptied the singleton, so bailing out plainly
-		// would leave the board gone while still reporting live.
-		if (fatal.length > 0) {
-			return recoverToLiveAfterFailure(
-				stateBranchRootResult.value,
-				fatal.map(x => x.message).join(', '),
-			);
-		}
-		logSkippedEvents(skipped);
+		const {unappliedEvents} = cut.value;
 
 		patchState({
 			readOnly: true,

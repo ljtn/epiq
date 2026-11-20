@@ -465,6 +465,36 @@ export const effectiveEventTimes = (
 		}),
 	);
 
+/**
+ * Which events a cut at `targetTime` applies, by index into the causal order:
+ * those before it whose parent it also applies. `times` from `effectiveEventTimes`.
+ */
+export const appliedAtTime = (
+	events: ReadonlyArray<Pick<ReconstructedEvent, 'id'>>,
+	targetTime: number,
+	times: ReadonlyArray<number | null> = effectiveEventTimes(events),
+): Uint8Array => {
+	const unappliedIds = new Set<string>();
+	const applied = new Uint8Array(events.length);
+
+	for (let index = 0; index < events.length; index++) {
+		const [eventId, refId] = events[index]!.id;
+		const time = times[index] ?? null;
+
+		if (
+			time === null ||
+			time >= targetTime ||
+			(refId && unappliedIds.has(refId))
+		) {
+			unappliedIds.add(eventId);
+		} else {
+			applied[index] = 1;
+		}
+	}
+
+	return applied;
+};
+
 export const splitEventsAtTime = (
 	events: ReconstructedEvent[],
 	targetTime: number,
@@ -472,31 +502,11 @@ export const splitEventsAtTime = (
 	appliedEvents: ReconstructedEvent[];
 	unappliedEvents: ReconstructedEvent[];
 } => {
-	const unappliedIds = new Set<string>();
-	const appliedEvents: ReconstructedEvent[] = [];
-	const unappliedEvents: ReconstructedEvent[] = [];
-
-	const times = effectiveEventTimes(events);
-
-	for (let index = 0; index < events.length; index++) {
-		const event = events[index]!;
-		const eventId = event.id[0];
-		const refId = event.id[1];
-
-		const time = times[index] ?? null;
-		const shouldBeApplied = time !== null && time < targetTime;
-
-		if (!shouldBeApplied || (refId && unappliedIds.has(refId))) {
-			unappliedIds.add(eventId);
-			unappliedEvents.push(event);
-		} else {
-			appliedEvents.push(event);
-		}
-	}
+	const applied = appliedAtTime(events, targetTime);
 
 	return {
-		appliedEvents,
-		unappliedEvents,
+		appliedEvents: events.filter((_, index) => applied[index]),
+		unappliedEvents: events.filter((_, index) => !applied[index]),
 	};
 };
 
@@ -920,9 +930,16 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		);
 	}
 
+	// The causal order undecoded: entries keep their parent links, which a cut
+	// at a time reads. A copy, from the ordered-log cache when unchanged.
+	const loadOrderedEntries = (
+		stateBranchRoot: string,
+	): Result<ReconstructedEvent[]> => loadAllPersistedEvents(stateBranchRoot);
+
 	return {
 		fromPersistedEvent,
 		decodeReconstructedEvents,
+		loadOrderedEntries,
 		loadMergedEventsWithUnreadable,
 		loadEventActors,
 		loadActorNames,
