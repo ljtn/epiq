@@ -2339,7 +2339,20 @@ describe('epiq-time-travel', () => {
 	});
 
 	describe('returnToLive', () => {
-		it('re-materializes the full event log and marks state live', async () => {
+		it('goes back to live from the nearest checkpoint', async () => {
+			const result = await returnToLive();
+
+			expect(materializeCut).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.any(Function),
+				null,
+			);
+			expect(materializeAll).not.toHaveBeenCalled();
+			expect(isSuccess(result)).toBe(true);
+		});
+
+		it('re-materializes the full event log where the checkpoint path fails, and marks state live', async () => {
+			vi.mocked(materializeCut).mockReturnValue(failed('no checkpoint'));
 			vi.mocked(loadMergedEvents).mockReturnValue(
 				succeeded('events', [{id: '1'}, {id: '2'}] as never),
 			);
@@ -2392,6 +2405,7 @@ describe('epiq-time-travel', () => {
 			);
 			await checkoutStateAt({targetTime: 4242});
 
+			vi.mocked(materializeCut).mockReturnValue(failed('no checkpoint'));
 			vi.mocked(loadMergedEvents).mockReturnValue(
 				succeeded('events', [{id: '1'}] as never),
 			);

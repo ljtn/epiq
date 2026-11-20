@@ -248,6 +248,32 @@ const restoreLiveState = (stateBranchRoot: string): Result<true> => {
 	return succeeded('Restored live state', true);
 };
 
+// The live board from the deepest checkpoint; a full replay where that fails.
+// Takes NO lock, as `restoreLiveState`.
+const restoreLiveFromCheckpoint = (stateBranchRoot: string): Result<true> => {
+	const signature = logSignature(stateBranchRoot);
+	const cut = materializeCut(
+		signature,
+		() => loadOrderedEntries(stateBranchRoot),
+		null,
+	);
+	if (!isSettledSignature(signature)) forgetCheckpoints();
+	if (isFail(cut)) return restoreLiveState(stateBranchRoot);
+
+	currentAsOfTime = null;
+	logSkippedEvents(cut.value.skipped);
+
+	patchState({
+		readOnly: false,
+		readOnlyReason: undefined,
+		timeMode: 'live',
+		unappliedEvents: [],
+		replay: null,
+	});
+
+	return succeeded('Restored live state', true);
+};
+
 // For failures after `resetState()` emptied the singleton while its flags still
 // claim live: degrade to a real live state rather than a phantom checkout.
 const recoverToLiveAfterFailure = (
@@ -355,7 +381,9 @@ export const returnToLive = (input: ToolInput = {}): Promise<Result<true>> => {
 			return failed(stateBranchRootResult.message);
 		}
 
-		const restoreResult = restoreLiveState(stateBranchRootResult.value);
+		const restoreResult = restoreLiveFromCheckpoint(
+			stateBranchRootResult.value,
+		);
 		if (isFail(restoreResult)) return failed(restoreResult.message);
 
 		return succeeded('Returned to live state', true);

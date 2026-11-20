@@ -208,3 +208,61 @@ describe('the cut index of a log that grew', () => {
 		}
 	});
 });
+
+// Live is every entry, an undecodable time included, which a cut at any time,
+// however late, leaves out.
+describe('the live board from a checkpoint', () => {
+	const fullReplay = (entries: ReconstructedEvent[]) => {
+		unwrap(resetState());
+		materializeAll(unwrap(decodeReconstructedEvents(entries)));
+		return derived();
+	};
+
+	it('lands where replaying every entry does, undecodable times included', () => {
+		for (let seed = 1; seed <= 8; seed++) {
+			const base = entriesOf(seed, randomLog(seed, 50));
+			// Tickets filed under ids that carry no time.
+			const lane = (
+				base.find(entry => 'add.swimlane' in entry) as unknown as {
+					'add.swimlane': {id: string};
+				}
+			)['add.swimlane'].id;
+			const timeless = [0, 1, 2].map(
+				index =>
+					({
+						v: 1,
+						id: [
+							`not-a-time-${seed}-${index}`.padEnd(26, 'x'),
+							base.at(-1)!.id[0],
+						],
+						'add.issue': {
+							id: `timeless-${seed}-${index}`,
+							name: 'No time',
+							parent: lane,
+							rank: rank(),
+						},
+						userId: 'u1',
+						userName: 'one',
+					} as unknown as ReconstructedEvent),
+			);
+			const entries = getSortedEvents([...base, ...timeless]);
+
+			forgetCheckpoints();
+			for (const cut of [
+				T0 + 30 * 60_000,
+				Date.UTC(2100, 0, 1),
+				null,
+				T0 + 10 * 60_000,
+				null,
+			]) {
+				unwrap(
+					materializeCut(`live-${seed}`, () => succeeded('', entries), cut, {
+						budget: 8,
+						minGap: 4,
+					}),
+				);
+				if (cut === null) expect(derived()).toBe(fullReplay(entries));
+			}
+		}
+	});
+});
