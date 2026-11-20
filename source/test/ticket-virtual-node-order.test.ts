@@ -5,7 +5,8 @@ import {AppEvent} from '../lib/board/board-events.model.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getOrderedChildren} from '../lib/repository/rank.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {initWorkspaceState} from '../lib/state/state.js';
+import {getState, initWorkspaceState} from '../lib/state/state.js';
+import {loggedEvents} from '../lib/board/node-history.js';
 import {midRank} from '../lib/utils/rank.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
 import {Ticket} from '../lib/model/context.model.js';
@@ -93,8 +94,9 @@ describe('a ticket’s virtual rows', () => {
 		expect(diff?.props).toMatchObject({value: ''});
 		expect(diff?.readonly).toBe(true);
 		expect(history?.props).toMatchObject({value: ''});
-		expect(ticketHistory(nodeRepo.getNode(IDS.ticket) as Ticket)).toContain(
-			'Created with title',
-		);
+		const ticket = nodeRepo.getNode(IDS.ticket) as Ticket;
+		expect(
+			ticketHistory(loggedEvents(ticket.history, getState().eventLog)),
+		).toContain('Created with title');
 	});
 });

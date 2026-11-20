@@ -9,6 +9,7 @@ import {resolveReopenParentFromLog} from '../lib/board/log-utils.js';
 import {
 	enteredLaneAt,
 	foldHistory,
+	loggedEvents,
 	lastEventAt,
 	parentsEver,
 	visitsOf,
@@ -97,6 +98,14 @@ const expectFoldedEqualsLog = () => {
 		expect(parentsEver(history, node.parentNodeId), where).toEqual(
 			parentsFromLog(node),
 		);
+		// The same objects, in the same order: the log, without a copy of it.
+		if (node.context === 'TICKET') {
+			const found = loggedEvents(history, getState().eventLog);
+			expect(found.length, where).toBe(log.length);
+			found.forEach((event, index) => expect(event, where).toBe(log[index]));
+		} else {
+			expect(history?.logged ?? [], where).toEqual([]);
+		}
 	}
 };
 

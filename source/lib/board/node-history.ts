@@ -20,6 +20,9 @@ export type NodeHistory = {
 	parents: string[];
 	// Fold state: the latest parent the node's own events named.
 	lastParent: string | null;
+	// Where a ticket's events sit in the app-wide event log, in order: its
+	// history, without a copy of it.
+	logged: number[];
 };
 
 // Shared by every node that has none: most never gain an ahead time, and many
@@ -34,6 +37,7 @@ export const emptyHistory = (): NodeHistory => ({
 	reopenParent: null,
 	parents: NONE,
 	lastParent: null,
+	logged: NONE,
 });
 
 // The events that can put a ticket somewhere else. Closing and reopening carry
@@ -65,6 +69,8 @@ export const foldHistory = (
 	history: NodeHistory | undefined,
 	nodeId: string,
 	events: readonly AppEvent[],
+	// Each event's place in the app-wide log, for a node whose history is shown.
+	positions: readonly number[] | null = null,
 	now = Date.now(),
 ): NodeHistory => {
 	const next = history ?? emptyHistory();
@@ -117,6 +123,10 @@ export const foldHistory = (
 		reopenParent,
 		parents,
 		lastParent,
+		logged:
+			positions && positions.length > 0
+				? [...next.logged, ...positions]
+				: next.logged,
 	};
 };
 
@@ -164,3 +174,9 @@ export const parentsEver = (
 ): string[] => [
 	...new Set([...(current ? [current] : []), ...(history?.parents ?? [])]),
 ];
+
+/** A ticket's own events, oldest first, from the app-wide log it sits in. */
+export const loggedEvents = (
+	history: NodeHistory | undefined,
+	eventLog: readonly AppEvent[],
+): AppEvent[] => (history?.logged ?? []).map(position => eventLog[position]!);

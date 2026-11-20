@@ -2,7 +2,8 @@ import {Box, Text} from 'ink';
 import React, {useMemo} from 'react';
 import {isFieldListNode, Ticket} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {getRenderedChildren, useAppState} from '../state/state.js';
+import {getRenderedChildren, getState, useAppState} from '../state/state.js';
+import {loggedEvents} from '../board/node-history.js';
 import {theme} from '../theme/themes.js';
 import {getVisibleCommentCount} from '../utils/comment.utils.js';
 import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
@@ -135,7 +136,9 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	if (isInsideLog) {
 		const logNode = nodeRepo.getNode(logNodeId);
 		// Formatted only here, when it is shown: "x ago" is then as of now.
-		const logValue = ticketHistory(ticket);
+		const logValue = ticketHistory(
+			loggedEvents(ticket.history, getState().eventLog),
+		);
 
 		const editorRows = inlineEditorRowCount(height);
 
