@@ -13,7 +13,7 @@ import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
 import {
 	groupChildrenByParent,
-	groupChildrenOfSome,
+	regroupChildren,
 } from '../repository/children.js';
 import {buildBreadCrumb} from '../utils/nav-tree.js';
 import {buildActionIndex} from './action-helper.js';
@@ -220,6 +220,7 @@ export function withDeferredDerive<T>(fn: () => T): Result<T> {
 	deferring = true;
 	deferredBase = null;
 	dirtyParents = new Set();
+	dirtyNodes.clear();
 
 	// Returns null when the batch wrote nothing, as on a boot before the workspace
 	// exists.
@@ -333,6 +334,7 @@ export function setStateEntry<K extends StateMapKey>(
 		const after = value as NavNode<AnyContext>;
 		if (before?.parentNodeId) dirtyParents?.add(before.parentNodeId);
 		if (after.parentNodeId) dirtyParents?.add(after.parentNodeId);
+		dirtyNodes.add(id);
 	}
 
 	collection[id] = value;
@@ -364,6 +366,8 @@ export const useAppState = () =>
 // Which parents a batch's in-place node writes touched, or null when only a
 // full rebuild is right.
 let dirtyParents: Set<string> | null = null;
+// And which nodes it wrote: the only ones that can have joined a parent.
+const dirtyNodes = new Set<string>();
 
 // The node map the current index was grouped from. A batch writes that map in
 // place, so it is the same object at the flush; anything else is a new one.
@@ -387,7 +391,7 @@ const buildChildIndex = (
 
 	if (incremental) {
 		index = {...previous};
-		const touched = groupChildrenOfSome(nodes, dirtyParents!);
+		const touched = regroupChildren(nodes, previous, dirtyParents!, dirtyNodes);
 
 		for (const parentId of dirtyParents!) {
 			const children = touched[parentId];
@@ -400,6 +404,7 @@ const buildChildIndex = (
 
 	indexedNodes = nodes;
 	dirtyParents = new Set();
+	dirtyNodes.clear();
 
 	return index;
 };
