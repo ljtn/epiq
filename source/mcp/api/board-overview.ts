@@ -3,6 +3,7 @@
 // ridden along on the board broadcast.
 
 import {nodesOf} from '../../lib/state/state.js';
+import {byRank} from '../../lib/repository/children.js';
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
 import {
 	isBoardNode,
@@ -33,9 +34,7 @@ export const getBoardOverview = (input: {
 	const boardLanes = nodesOf('SWIMLANE').filter(
 		node => isSwimlaneNode(node) && node.parentNodeId === board.id,
 	);
-	const lanes = boardLanes
-		.filter(lane => !lane.isDeleted)
-		.sort((a, b) => a.rank.localeCompare(b.rank));
+	const lanes = boardLanes.filter(lane => !lane.isDeleted).sort(byRank);
 
 	return succeeded(
 		'Derived board overview',

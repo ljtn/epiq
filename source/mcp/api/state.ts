@@ -1,3 +1,4 @@
+import {byRank} from '../../lib/repository/children.js';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
@@ -216,55 +217,51 @@ export const deriveGuiState = (): Result<ApiState> => {
 	}
 
 	return succeeded('Retrieved Epiq GUI state', {
-		boards: boards
-			.sort((a, b) => a.rank.localeCompare(b.rank))
-			.map(b => ({
-				id: b.id,
-				ref: nodeRef(b.id),
-				title: b.title,
-				readonly: Boolean(b.readonly) || forceReadonly,
-				...descriptionOf(b.id),
-				goals: apiBoardGoals(b.id),
-				swimlanes: (swimlanesByBoardId.get(b.id) ?? [])
-					.sort((a, b) => a.rank.localeCompare(b.rank))
-					.map(
-						swimlane =>
-							({
-								id: swimlane.id,
-								title: swimlane.title,
-								readonly: Boolean(swimlane.readonly) || forceReadonly,
-								issues: (ticketsBySwimlaneId.get(swimlane.id) ?? [])
-									.sort((a, b) => a.rank.localeCompare(b.rank))
-									.map(issue => ({
-										id: issue.id,
-										ref: nodeRef(issue.id),
-										title: sanitizeInlineText(issue.title),
-										description: issue.props.description ?? '',
-										createdAt: ulidTimeMs(issue.id),
-										enteredLaneAt: laneEntryTime(
-											issue.log ?? [],
-											ulidTimeMs(issue.id),
-										),
-										lastEventAt: lastEventTime(
-											issue.log ?? [],
-											ulidTimeMs(issue.id),
-										),
-										readonly: Boolean(issue.readonly) || forceReadonly,
-										tags: getIssueTags(issue),
-										assignees: getIssueAssignees(issue),
-										...goalFields(issue),
-										parentNodeId: issue.parentNodeId!,
-										isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
-										boardIds: boardsEverOnOf(issue),
-									})),
-								parentNodeId: swimlane.parentNodeId!,
-								...descriptionOf(swimlane.id),
-								...rulesOf(swimlane),
-								countsDone: isDoneLane(swimlane.id),
-								doneByName: isNamedDone(swimlane),
-							} satisfies ApiSwimlane),
-					),
-			})),
+		boards: boards.sort(byRank).map(b => ({
+			id: b.id,
+			ref: nodeRef(b.id),
+			title: b.title,
+			readonly: Boolean(b.readonly) || forceReadonly,
+			...descriptionOf(b.id),
+			goals: apiBoardGoals(b.id),
+			swimlanes: (swimlanesByBoardId.get(b.id) ?? []).sort(byRank).map(
+				swimlane =>
+					({
+						id: swimlane.id,
+						title: swimlane.title,
+						readonly: Boolean(swimlane.readonly) || forceReadonly,
+						issues: (ticketsBySwimlaneId.get(swimlane.id) ?? [])
+							.sort(byRank)
+							.map(issue => ({
+								id: issue.id,
+								ref: nodeRef(issue.id),
+								title: sanitizeInlineText(issue.title),
+								description: issue.props.description ?? '',
+								createdAt: ulidTimeMs(issue.id),
+								enteredLaneAt: laneEntryTime(
+									issue.log ?? [],
+									ulidTimeMs(issue.id),
+								),
+								lastEventAt: lastEventTime(
+									issue.log ?? [],
+									ulidTimeMs(issue.id),
+								),
+								readonly: Boolean(issue.readonly) || forceReadonly,
+								tags: getIssueTags(issue),
+								assignees: getIssueAssignees(issue),
+								...goalFields(issue),
+								parentNodeId: issue.parentNodeId!,
+								isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
+								boardIds: boardsEverOnOf(issue),
+							})),
+						parentNodeId: swimlane.parentNodeId!,
+						...descriptionOf(swimlane.id),
+						...rulesOf(swimlane),
+						countsDone: isDoneLane(swimlane.id),
+						doneByName: isNamedDone(swimlane),
+					} satisfies ApiSwimlane),
+			),
+		})),
 		tags: nodeRepo.getTags().map(x => ({...x, ...identityOf(x.id, x.name)})),
 		goals: apiGoals(),
 		contributors: Object.values(stateResult.value.contributors).map(x => ({
