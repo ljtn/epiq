@@ -4,7 +4,7 @@ import {resolveActorId} from '../../board/board-log.js';
 import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {isAddCommentEvent} from '../../utils/comment.utils.js';
+import {nodeRepo} from '../../repository/node-repo.js';
 import {getPersistRoot} from '../../storage/paths.js';
 import {actorOf} from '../../board/board-events.model.js';
 
@@ -34,13 +34,12 @@ export const deleteCommand = async () => {
 			return failed('Unable to resolve comment issue');
 		}
 
-		const commentEvent = ticket.log
-			?.filter(isAddCommentEvent)
-			.find(event => event.payload.id === commentId);
+		const comment = nodeRepo.getComment(commentId);
+		if (!comment || comment.issue !== ticket.id) {
+			return failed('Unable to resolve comment');
+		}
 
-		if (!commentEvent) return failed('Unable to resolve comment');
-
-		if (commentEvent.payload.author !== userRes.value.userId) {
+		if (comment.authorId !== userRes.value.userId) {
 			return failed('You can only delete your own comments');
 		}
 
