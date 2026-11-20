@@ -1,3 +1,4 @@
+import {createHash, type Hash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {z} from 'zod';
@@ -148,67 +149,44 @@ const hasPersistedActionPayload = (
 
 // Parsed files, keyed by a stat stamp taken BEFORE the read, so a write landing
 // in between is reparsed next time rather than cached as seen.
-const parseCache = new Map<
-	string,
-	{stamp: string; entries: ReconstructedEvent[]; quarantined: UnreadableEvent[]}
->();
+const NEWLINE = 0x0a;
 
-// Caps on lines (events and quarantined lines alike) and on entries.
-const PARSE_CACHE_MAX_LINES = 300_000;
-const PARSE_CACHE_MAX_FILES = 512;
-
-let parseCacheLines = 0;
-
-const linesOf = (entry: {
+type RememberedParse = {
+	stamp: string;
 	entries: ReconstructedEvent[];
 	quarantined: UnreadableEvent[];
-}): number => entry.entries.length + entry.quarantined.length;
+	// What was parsed: its length and lines, and a hash, so a file that only
+	// grew is parsed from where this stopped.
+	bytes: number;
+	lines: number;
+	hash: string;
+	// The hash's state after those bytes, so the next only adds what is new.
+	hasher: Hash;
+};
 
-const rememberParse = (
-	filePath: string,
-	stamp: string,
-	entries: ReconstructedEvent[],
-	quarantined: UnreadableEvent[],
-): void => {
-	const previous = parseCache.get(filePath);
-	const next = {stamp, entries, quarantined};
+// No cap on lines: the ordered log keeps every entry alive whatever this
+// holds, so dropping a file only made the next load parse it again.
+const parseCache = new Map<string, RememberedParse>();
+const PARSE_CACHE_MAX_FILES = 512;
 
-	// A full cache turns a new file away: loads read files in one order, so
-	// evicting for it would evict the next file read, and every load would miss.
-	if (
-		!previous &&
-		parseCache.size > 0 &&
-		(parseCacheLines + linesOf(next) > PARSE_CACHE_MAX_LINES ||
-			parseCache.size >= PARSE_CACHE_MAX_FILES)
-	) {
+const rememberParse = (filePath: string, next: RememberedParse): void => {
+	// A full cache turns a new file away rather than evicting one: loads read
+	// files in one order, so evicting would evict the next file read.
+	if (!parseCache.has(filePath) && parseCache.size >= PARSE_CACHE_MAX_FILES) {
 		return;
 	}
 
-	if (previous) parseCacheLines -= linesOf(previous);
-
-	// Deleted first, so a re-remembered file moves to the back of the eviction order.
-	parseCache.delete(filePath);
 	parseCache.set(filePath, next);
-	parseCacheLines += linesOf(next);
-
-	for (const [key, value] of parseCache) {
-		if (
-			parseCacheLines <= PARSE_CACHE_MAX_LINES &&
-			parseCache.size <= PARSE_CACHE_MAX_FILES
-		) {
-			break;
-		}
-		if (key === filePath) continue;
-
-		parseCache.delete(key);
-		parseCacheLines -= linesOf(value);
-	}
 };
+
+const hashOf = (bytes: Buffer): string =>
+	createHash('sha1').update(bytes).digest('hex');
+
+const digestOf = (hasher: Hash): string => hasher.copy().digest('hex');
 
 /** The tests drive the log through mocks, where a stamp says nothing. */
 export const clearParseCache = (): void => {
 	parseCache.clear();
-	parseCacheLines = 0;
 };
 
 const MS_IN_NS = 1_000_000n;
@@ -255,19 +233,33 @@ export const parsePersistedEventsFile = (
 		return succeeded('Parsed persisted events file', [...remembered.entries]);
 	}
 
-	let content: string;
+	let bytes: Buffer;
 	try {
-		content = fs.readFileSync(filePath, 'utf8');
+		bytes = fs.readFileSync(filePath);
 	} catch (error) {
 		if (isVanished(error)) return succeeded('Event file missing', null);
 		throw error;
 	}
 
-	const entries: ReconstructedEvent[] = [];
 	const fileName = path.basename(filePath);
+
+	// Only grown: the bytes parsed before are still the file's start and end
+	// on a line break, so only what follows them is new.
+	const grown =
+		remembered &&
+		bytes.length > remembered.bytes &&
+		bytes[remembered.bytes - 1] === NEWLINE &&
+		hashOf(bytes.subarray(0, remembered.bytes)) === remembered.hash
+			? remembered
+			: undefined;
+
+	const from = grown?.bytes ?? 0;
+	const text = bytes.subarray(from).toString('utf8');
+	const entries: ReconstructedEvent[] = grown ? [...grown.entries] : [];
 	// Collected separately from the caller's list so the entry can be remembered
 	// with the events it belongs to, and replayed on a hit.
-	const quarantined: UnreadableEvent[] = [];
+	const quarantined: UnreadableEvent[] = grown ? [...grown.quarantined] : [];
+	const firstLine = grown?.lines ?? 0;
 
 	// An unparseable envelope has no id to keep its place: skip the line, never
 	// fail the load, as union merge spreads it to every clone.
@@ -280,7 +272,8 @@ export const parsePersistedEventsFile = (
 		});
 	};
 
-	for (const [index, line] of content.split('\n').entries()) {
+	const lines = text.split('\n');
+	for (const [index, line] of lines.entries()) {
 		const trimmed = line.trim();
 		if (!trimmed) continue;
 
@@ -288,7 +281,7 @@ export const parsePersistedEventsFile = (
 		try {
 			raw = JSON.parse(trimmed);
 		} catch {
-			quarantine(index + 1, 'invalid JSON');
+			quarantine(firstLine + index + 1, 'invalid JSON');
 			continue;
 		}
 
@@ -296,7 +289,7 @@ export const parsePersistedEventsFile = (
 		// chain.
 		const parsedResult = parsePersistedEnvelope(raw);
 		if (isFail(parsedResult)) {
-			quarantine(index + 1, parsedResult.message);
+			quarantine(firstLine + index + 1, parsedResult.message);
 			continue;
 		}
 
@@ -309,9 +302,21 @@ export const parsePersistedEventsFile = (
 
 	if (unreadable) for (const entry of quarantined) unreadable.push(entry);
 
-	// Cached only with a readable, settled stamp.
+	// Cached only with a readable, settled stamp. Lines so far: all but the
+	// piece after the last break, which a later append continues.
 	if (stamp?.settled) {
-		rememberParse(filePath, stamp.value, entries, quarantined);
+		const hasher = (grown ? grown.hasher.copy() : createHash('sha1')).update(
+			bytes.subarray(from),
+		);
+		rememberParse(filePath, {
+			stamp: stamp.value,
+			entries,
+			quarantined,
+			bytes: bytes.length,
+			lines: firstLine + lines.length - 1,
+			hash: digestOf(hasher),
+			hasher,
+		});
 	}
 
 	return succeeded('Parsed persisted events file', [...entries]);
