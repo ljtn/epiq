@@ -28,6 +28,7 @@ import {
 	type ReconstructedEvent,
 } from './board-log.js';
 import {AppEvent} from './board-events.model.js';
+import {deepFreeze, FREEZE_EVENTS} from '../event/event-parse.js';
 
 // How many may be held at once: the gap between two, and so the most a cut
 // replays, is the log's length over this.
@@ -179,10 +180,13 @@ export const materializeCut = (
 				const state = copyBaseState(getState());
 				if (state.eventLog.length > store.log.length)
 					store.log = state.eventLog;
+				const kept = {...state, eventLog: []};
+				// Shares every entry with the live state: none may be written in place.
+				if (FREEZE_EVENTS) deepFreeze(kept);
 				checkpoints.push({
 					index,
 					genesisSeen,
-					state: {...state, eventLog: []},
+					state: kept,
 					logLength: state.eventLog.length,
 				});
 				checkpoints.sort((left, right) => left.index - right.index);

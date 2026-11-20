@@ -16,7 +16,7 @@ import {
 } from '../lib/board/board-log.js';
 import {succeeded} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {initWorkspaceState, resetState} from '../lib/state/state.js';
+import {getState, initWorkspaceState, resetState} from '../lib/state/state.js';
 import {setVirtualNodesEnabled} from '../lib/virtual-nodes/virtual-nodes.js';
 import {derived, randomLog, rank, unwrap} from './helpers/random-board-log.js';
 import {seededRandom} from './helpers/seeded-random.js';
@@ -109,6 +109,25 @@ describe('a cut from the nearest checkpoint', () => {
 				expect(fromCheckpoint).toBe(replayedCut(entries, cut));
 			}
 		}
+	});
+
+	it('freezes what a checkpoint shares with the live state', () => {
+		const entries = entriesOf(3, randomLog(3, 40));
+		unwrap(
+			materializeCut(
+				'frozen',
+				() => succeeded('', entries),
+				Date.UTC(2100, 0, 1),
+				{
+					budget: 8,
+					minGap: 4,
+				},
+			),
+		);
+		const node = Object.values(getState().nodes)[0]!;
+		expect(() => {
+			(node as {title: string}).title = 'in place';
+		}).toThrow();
 	});
 
 	it('reads the log again once its key changes', () => {
