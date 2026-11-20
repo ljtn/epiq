@@ -1,4 +1,5 @@
 import {beforeEach, describe, expect, it} from 'vitest';
+import {loggedEvents} from '../lib/board/node-history.js';
 import {
 	isConvergenceFail,
 	materialize,
@@ -10,7 +11,7 @@ import {isTicketNode} from '../lib/model/context.model.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {initWorkspaceState} from '../lib/state/state.js';
+import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {bigIntToHex, midRank} from '../lib/utils/rank.js';
 
 const IDS = {
@@ -238,7 +239,10 @@ describe('event materialize', () => {
 
 		expectOk(result);
 		expect(
-			nodeRepo.getNode(IDS.issue)?.log?.some(entry => entry.id === rename.id),
+			loggedEvents(
+				nodeRepo.getNode(IDS.issue)?.history,
+				getState().eventLog,
+			).some(entry => entry.id === rename.id),
 		).toBe(true);
 	});
 
@@ -254,7 +258,10 @@ describe('event materialize', () => {
 
 		expectOk(result);
 		expect(
-			nodeRepo.getNode(IDS.issue)?.log?.some(entry => entry.id === rename.id),
+			loggedEvents(
+				nodeRepo.getNode(IDS.issue)?.history,
+				getState().eventLog,
+			).some(entry => entry.id === rename.id),
 		).toBe(false);
 	});
 

@@ -143,7 +143,7 @@ describe('a ticket history of moves within one lane', () => {
 			});
 
 		const lines = stripAnsi(
-			ticketHistory({log: [move(1, 'a0'), move(2, 'c0'), move(3, 'b0')]}),
+			ticketHistory([move(1, 'a0'), move(2, 'c0'), move(3, 'b0')]),
 		).split('\n');
 
 		expect(lines[0]).toContain('Moved up');

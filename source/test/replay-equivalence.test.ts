@@ -249,7 +249,9 @@ describe('batched replay equals per-event replay', () => {
 		const logged = (state: typeof batched) =>
 			Object.values(state.nodes).filter(node => !node.isVirtual);
 
-		expect(batched.nodes[lateLane]?.log).toEqual(oneByOne.nodes[lateLane]?.log);
+		expect(batched.nodes[lateLane]?.history).toEqual(
+			oneByOne.nodes[lateLane]?.history,
+		);
 		expect(logged(batched)).toEqual(logged(oneByOne));
 	});
 

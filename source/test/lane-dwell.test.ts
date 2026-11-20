@@ -2,7 +2,17 @@ import {describe, expect, it} from 'vitest';
 import {seededRandom} from './helpers/seeded-random.js';
 import {ulid} from 'ulid';
 import {AppEvent, EventAction} from '../lib/board/board-events.model.js';
-import {laneEntryTime, laneVisits} from '../lib/utils/lane-dwell.js';
+import {
+	enteredLaneAt,
+	foldHistory,
+	visitsOf,
+} from '../lib/board/node-history.js';
+
+// The lane rules, read from a history folded from `log`.
+const laneEntryTime = (log: AppEvent[], createdAt: number) =>
+	enteredLaneAt(foldHistory(undefined, 'i1', log), createdAt);
+const laneVisits = (log: AppEvent[], createdAt: number) =>
+	visitsOf(foldHistory(undefined, 'i1', log), createdAt);
 
 const HOUR_MS = 60 * 60 * 1000;
 

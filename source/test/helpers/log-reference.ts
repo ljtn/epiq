@@ -1,5 +1,9 @@
-import {clampUlidTime, getEventTime} from '../event/date-utils.js';
-import {AppEvent} from '../board/board-events.model.js';
+// The rules a node's log was read by before the log went: the reference its
+// folded history is checked against.
+
+import {AppEvent} from '../../lib/board/board-events.model.js';
+import {LaneVisit} from '../../lib/board/node-history.js';
+import {clampUlidTime, getEventTime} from '../../lib/event/date-utils.js';
 
 // The events that can put a ticket somewhere else. Closing and reopening carry
 // a parent for the same reason a move does, so both land here.
@@ -14,8 +18,6 @@ const parentOf = (event: AppEvent): string | null => {
 			return null;
 	}
 };
-
-export type LaneVisit = {laneId: string; enteredAt: number};
 
 /**
  * Every lane the ticket has been in, oldest first, from its log. A move to
@@ -77,4 +79,35 @@ export const laneEntryTime = (
 	}
 
 	return enteredAt;
+};
+
+export const reopenParentFromLog = (
+	nodeId: string,
+	log: readonly AppEvent[],
+): string | null => {
+	for (let i = log.length - 1; i >= 0; i--) {
+		const entry = log[i];
+		if (!entry) continue;
+
+		if (entry.action !== 'close.issue') continue;
+		if (entry.payload.id !== nodeId) continue;
+
+		for (let j = i - 1; j >= 0; j--) {
+			const previousEntry = log[j];
+
+			if (
+				previousEntry &&
+				'id' in previousEntry.payload &&
+				previousEntry.payload.id === nodeId &&
+				'parent' in previousEntry.payload &&
+				previousEntry.payload.parent
+			) {
+				return previousEntry.payload.parent;
+			}
+		}
+
+		return null;
+	}
+
+	return null;
 };

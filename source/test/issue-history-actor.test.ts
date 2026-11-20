@@ -1,5 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {isFail} from '../lib/model/result-types.js';
+import {emptyHistory} from '../lib/board/node-history.js';
 
 // Reads materialized state and never boots, which is the point of it — so it
 // never reaches the log file names either. `loadActorNames` records that split
@@ -13,6 +14,7 @@ vi.mock('../lib/event/event-load.js', async importOriginal => ({
 
 const state = {
 	nodes: {} as Record<string, unknown>,
+	eventLog: [] as unknown[],
 	contributors: {} as Record<string, {id: string; name: string}>,
 };
 
@@ -31,14 +33,15 @@ const ALICE = '01J00000000000000000ALICE';
 const STRANGER = '01J000000000000000STRANGE';
 
 const withLog = (authorIds: string[]) => {
+	state.eventLog = authorIds.map((userId, index) => ({
+		id: `01J0000000000000000000000${index}`,
+		action: 'edit.title',
+		payload: {id: ISSUE, name: 'x'},
+		userId,
+	}));
 	state.nodes[ISSUE] = {
 		id: ISSUE,
-		log: authorIds.map((userId, index) => ({
-			id: `01J0000000000000000000000${index}`,
-			action: 'edit.title',
-			payload: {id: ISSUE, name: 'x'},
-			userId,
-		})),
+		history: {...emptyHistory(), logged: authorIds.map((_, index) => index)},
 	};
 };
 
