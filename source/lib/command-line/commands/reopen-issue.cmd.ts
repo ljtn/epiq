@@ -1,7 +1,6 @@
 import {ulid} from 'ulid';
 import {materializeAndPersistAll} from '../../board/board-log.js';
 import {resolveActorId} from '../../board/board-log.js';
-import {resolveReopenParentFromLog} from '../../board/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../../board/static-ids.js';
 import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
@@ -40,7 +39,7 @@ export const reopenIssueCommand = async () => {
 
 	if (!isTicketNode(ticket)) return failed('Target node is not issue');
 
-	const previousParentId = resolveReopenParentFromLog(ticket);
+	const previousParentId = ticket.history?.reopenParent ?? null;
 	if (!previousParentId) {
 		return failed('Unable to resolve previous parent from issue history');
 	}

@@ -51,7 +51,7 @@ export const getBoardOverview = (input: {
 				.map(ticket => ({
 					id: ticket.id,
 					parentNodeId: ticket.parentNodeId,
-					log: ticket.log ?? [],
+					history: ticket.history,
 					createdAt: ulidTimeMs(ticket.id),
 				})),
 			now: Date.now(),

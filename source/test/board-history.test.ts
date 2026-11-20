@@ -126,7 +126,7 @@ describe('a swimlane that changes board', () => {
 // A lane's log carries every event of every ticket in it, so reading it once
 // per ticket made a board's read quadratic in its size.
 describe('reading the boards of a lane full of tickets', () => {
-	it('reads the lane log once, not once per ticket', async () => {
+	it('reads no lane log, only the lane history', async () => {
 		const {repoRoot, home, lane} = await seed();
 		const tickets: Ticket[] = [];
 		for (const title of ['one', 'two', 'three']) {
@@ -150,6 +150,6 @@ describe('reading the boards of a lane full of tickets', () => {
 			expect(boardsEverOnOf(ticket)).toEqual([home.id]);
 		}
 
-		expect(reads).toBe(1);
+		expect(reads).toBe(0);
 	});
 });

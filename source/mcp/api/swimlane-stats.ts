@@ -15,7 +15,7 @@ import {
 	SwimlaneCode,
 	SwimlaneStats,
 } from '../../lib/stats/swimlane-stats.model.js';
-import {laneVisits} from '../../lib/utils/lane-dwell.js';
+import {visitsOf} from '../../lib/board/node-history.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {getIssueStats} from '../epiq-issue-stats.js';
 import {getStateResult} from './boot.js';
@@ -71,7 +71,7 @@ export const getSwimlaneStats = async (input: {
 
 	// Every ticket: a lane's traffic is mostly tickets that have left it.
 	const journeys = tickets.map(ticket =>
-		laneVisits(ticket.log ?? [], ulidTimeMs(ticket.id)),
+		visitsOf(ticket.history, ulidTimeMs(ticket.id)),
 	);
 
 	const flow = deriveLaneFlow(
