@@ -13,13 +13,14 @@ import {
 	persist,
 } from '../lib/board/board-log.js';
 import {
+	saveSnapshot,
 	setTailBoot,
 	syncBoardWithLog,
 	unreadableInLog,
 } from '../lib/board/board-tail.js';
 import {setSuffixReplay} from '../lib/board/board-replayed.js';
 import {logSignature} from '../lib/event/log-signature.js';
-import {flushPendingLogs} from '../lib/event/pending-log.js';
+import {flushPendingLogs, getPendingLogPath} from '../lib/event/pending-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';
@@ -220,4 +221,55 @@ describe('a board kept current from the log tail alone', () => {
 		// own writes and syncs must keep the tail, the first boot aside.
 		expect(modes.filter(mode => mode === 'full').length).toBeLessThanOrEqual(3);
 	}, 120_000);
+});
+
+describe('a write applied and then lost', () => {
+	it('leaves no tail to boot from, and nothing to save, until a full boot', async () => {
+		const lost = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-tail-lost-'));
+		try {
+			const dir = getEventsDirPath(lost);
+			const defaults = unwrap(createDefaultEvents(me)) as AppEvent[];
+			for (const event of defaults) unwrap(persist({event, rootDir: lost}));
+			const lane = defaults.find(event => event.action === 'add.swimlane')!
+				.payload as {id: string};
+			const settle = (at: number) => {
+				for (const name of fs.readdirSync(dir)) {
+					fs.utimesSync(path.join(dir, name), new Date(at), new Date(at));
+				}
+			};
+			const sync = () =>
+				unwrap(syncBoardWithLog(lost, logSignature(lost), () => true));
+
+			vi.stubEnv('EPIQ_SNAPSHOT', '1');
+			unwrap(initWorkspaceState(nodes.workspace('root', 'Root', 'a0')));
+			settle(Date.UTC(2023, 0, 1));
+			expect(sync()).toBe('full');
+			expect(saveSnapshot(lost)).toBe(true);
+
+			// The log cannot take the line: applied, never written.
+			const pending = getPendingLogPath(lost, getPersistFileName(me));
+			fs.chmodSync(pending, 0o444);
+			const results = materializeAndPersistAll(
+				[
+					{
+						id: ulid(),
+						action: 'add.issue',
+						payload: {id: ulid(), name: 'Lost', parent: lane.id, rank: rank()},
+						userId: me.userId,
+					} as AppEvent,
+				],
+				lost,
+			);
+			fs.chmodSync(pending, 0o644);
+			expect(isFail(results)).toBe(true);
+
+			expect(saveSnapshot(lost)).toBe(false);
+			settle(Date.UTC(2023, 0, 2));
+			expect(sync()).toBe('full');
+			expect(digestOf(getState())).toBe((await coldBoot(lost)).board);
+		} finally {
+			vi.unstubAllEnvs();
+			fs.rmSync(lost, {recursive: true, force: true});
+		}
+	});
 });

@@ -5,6 +5,7 @@ import {
 	resultStatuses,
 	succeeded,
 } from '../model/result-types.js';
+import {announceStateAhead} from './own-append.js';
 import {EventCatalog} from './event-catalog.js';
 import {clearAccountedSignature} from './log-signature.js';
 import {Materializer} from './event-materialize.js';
@@ -54,6 +55,7 @@ export const createWriter = <M extends EventMap>(
 			// The state now holds what no log does, so nothing may take it for
 			// the log's until it is derived again.
 			clearAccountedSignature();
+			announceStateAhead(rootDir);
 			return persistResult;
 		}
 

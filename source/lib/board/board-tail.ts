@@ -15,7 +15,7 @@ import {
 	isSettledStamp,
 } from '../event/log-signature.js';
 import {logSkippedEvents} from '../event/event-materialize.js';
-import {onOwnAppend} from '../event/own-append.js';
+import {onOwnAppend, onStateAhead} from '../event/own-append.js';
 import {READABLE_SCHEMA_VERSIONS} from '../event/event-envelope.js';
 import {
 	readSnapshot,
@@ -106,6 +106,12 @@ onOwnAppend((root, filePath, line) => {
 	if (held && ++sinceSaved >= SAVE_EVERY) saveSoon(root);
 });
 
+// A write applied and then lost: the state is past every log, so only a full
+// boot is exact, and nothing may be saved until one.
+onStateAhead(root => {
+	if (held?.root === root) held = null;
+});
+
 // Nothing below reads an event once applied: let them all go.
 const dropEvents = (): void => {
 	forgetReplayed();
@@ -151,7 +157,8 @@ const snapshotPathFor = (root: string): string =>
 export const saveSnapshot = (root: string): boolean => {
 	const key = keyNow();
 	if (!enabled || !held || held.root !== root || !key) return false;
-	if (isCheckedOutInThePast()) return false;
+	// Only a live board between replays is the replay of the tail it holds.
+	if (isCheckedOutInThePast() || getState().replay !== null) return false;
 
 	const parts: Record<string, unknown> = {
 		root,
@@ -314,7 +321,7 @@ export const syncBoardWithLog = (
 	}
 
 	// A process's first boot starts from a snapshot, where one is good.
-	const fromSnapshot = enabled && !held && loadSnapshot(root);
+	const fromSnapshot = enabled && held?.root !== root && loadSnapshot(root);
 
 	const fromTail = bootFromTail(root);
 	if (isFail(fromTail)) return failed(fromTail.message);
