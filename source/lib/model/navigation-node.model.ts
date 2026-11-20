@@ -1,4 +1,5 @@
 import {AppEvent} from '../../lib/board/board-events.model.js';
+import type {NodeHistory} from '../../lib/board/node-history.js';
 import {AnyContext} from './context.model.js';
 
 export type EmptyProps = Record<string, never>;
@@ -61,5 +62,7 @@ export type NavNode<U extends AnyContext> = {
 	childNavigationAcrossParents?: boolean;
 	readonly: boolean;
 	log: AppEvent[];
+	// What its own events add up to; absent until one is folded in.
+	history?: NodeHistory;
 	isVirtual?: boolean;
 };
