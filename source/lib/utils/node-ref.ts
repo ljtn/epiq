@@ -8,8 +8,11 @@ export const nodeRef = (id: string): string =>
 
 // Matching ignores case and tolerates a typed hyphen, so `5jzcs5m`,
 // `5JZ-CS5M`, and `zcs5` all find the node.
+export const normalizeRef = (query: string): string =>
+	query.replace(/-/g, '').trim().toUpperCase();
+
 export const nodeRefMatches = (id: string, query: string): boolean => {
-	const normalizedQuery = query.replace(/-/g, '').trim().toUpperCase();
+	const normalizedQuery = normalizeRef(query);
 	if (!normalizedQuery) return true;
 
 	return nodeRef(id).includes(normalizedQuery);

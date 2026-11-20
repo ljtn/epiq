@@ -26,6 +26,7 @@ import {
 	succeeded,
 } from '../model/result-types.js';
 import {
+	entryIdsOfIssue,
 	getState,
 	patchState,
 	setStateEntry,
@@ -213,9 +214,10 @@ export const nodeRepo = {
 	},
 
 	getCommentsByIssue(issueId: string): CommentState[] {
-		return Object.values(getState().comments ?? {}).filter(
-			comment => comment.issue === issueId && !comment.deleted,
-		);
+		const comments = getState().comments ?? {};
+		return entryIdsOfIssue('comments', issueId)
+			.map(id => comments[id]!)
+			.filter(comment => comment.issue === issueId && !comment.deleted);
 	},
 
 	// Every issue's comments, in one pass over them.
@@ -288,9 +290,12 @@ export const nodeRepo = {
 	},
 
 	getAttachmentsByIssue(issueId: string): AttachmentState[] {
-		return Object.values(getState().attachments ?? {}).filter(
-			attachment => attachment.issue === issueId && !attachment.deleted,
-		);
+		const attachments = getState().attachments ?? {};
+		return entryIdsOfIssue('attachments', issueId)
+			.map(id => attachments[id]!)
+			.filter(
+				attachment => attachment.issue === issueId && !attachment.deleted,
+			);
 	},
 
 	// The same one pass, for the same reason.
