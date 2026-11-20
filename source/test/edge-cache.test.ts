@@ -1,13 +1,15 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {ulid} from 'ulid';
 
 import {
 	advanceEdgeRef,
+	advanceSortedLog,
 	clearEdgeCache,
 	getEdgeRef,
+	loadOrderedEntries,
 } from '../lib/board/board-log.js';
 
 // A real directory, because what the cache watches is the log's own files and a
@@ -204,5 +206,91 @@ describe('the causal edge', () => {
 		expect(getEdgeRef(other).value).toBeNull();
 
 		fs.rmSync(other, {recursive: true, force: true});
+	});
+});
+
+// The ordered log, extended by this process's own line rather than read again.
+describe('the ordered log after an own append', () => {
+	beforeEach(() => {
+		clearEdgeCache();
+		root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-sorted-'));
+		fs.mkdirSync(eventsDir(), {recursive: true});
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+		fs.rmSync(root, {recursive: true, force: true});
+	});
+
+	const settle = () => {
+		const long = new Date(Date.now() - 60_000);
+		for (const file of fs.readdirSync(eventsDir())) {
+			fs.utimesSync(path.join(eventsDir(), file), long, long);
+		}
+	};
+
+	// As persist does: the line into this actor's pending log, then the hook.
+	const appendOwn = (id: string, parent: string) => {
+		const filePath = path.join(eventsDir(), 'u-1~pending-x-1.person.jsonl');
+		const text = line(id, parent);
+		fs.appendFileSync(filePath, text);
+		advanceSortedLog(root, filePath, text, Buffer.byteLength(text));
+	};
+
+	const loadIds = () =>
+		(loadOrderedEntries(root).value ?? []).map(entry => entry.id[0]);
+
+	const freshOrder = () => {
+		clearEdgeCache();
+		return loadOrderedEntries(root).value;
+	};
+
+	it('places it last, as reading the log again would, without reading it', () => {
+		const tail = writeChain('u-1', 4, baseTime);
+		settle();
+		loadOrderedEntries(root);
+
+		appendOwn(ulid(baseTime + 10), tail);
+		const read = vi.spyOn(fs, 'readFileSync');
+		const extended = loadOrderedEntries(root).value;
+		expect(read).not.toHaveBeenCalled();
+		read.mockRestore();
+
+		expect(extended).toEqual(freshOrder());
+	});
+
+	// A hostile line can name an id as its parent before that id exists: held
+	// as an orphan, it moves under the new event once that is there.
+	it('reads the log again when a held line already waits on the new id', () => {
+		const tail = writeChain('u-1', 4, baseTime);
+		const next = ulid(baseTime + 10);
+		fs.writeFileSync(
+			path.join(eventsDir(), fileFor('u-2')),
+			line(ulid(baseTime - 5), next),
+		);
+		settle();
+		expect(loadOrderedEntries(root).value?.at(-1)?.id[0]).toBe(tail);
+
+		appendOwn(next, tail);
+
+		expect(loadOrderedEntries(root).value).toEqual(freshOrder());
+	});
+
+	// The order keeps one event per id, wherever it was placed first.
+	it('reads the log again when the new id is already held', () => {
+		const tail = writeChain('u-1', 4, baseTime);
+		const first = loadIds()[0]!;
+		const taken = ulid(baseTime);
+		fs.writeFileSync(
+			path.join(eventsDir(), fileFor('u-2')),
+			line(taken, first),
+		);
+		settle();
+		clearEdgeCache();
+		expect(loadOrderedEntries(root).value?.at(-1)?.id[0]).toBe(tail);
+
+		appendOwn(taken, tail);
+
+		expect(loadOrderedEntries(root).value).toEqual(freshOrder());
 	});
 });

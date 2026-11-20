@@ -20,6 +20,7 @@ import {
 import {
 	appliedAtTime,
 	decodeReconstructedEvents,
+	extendCutIndex,
 	indexForCuts,
 	type CutIndex,
 	materializeAll,
@@ -63,6 +64,14 @@ export const forgetCheckpoints = (): void => {
 	held = null;
 };
 
+// `after` begins with exactly `before`'s entries, the same objects.
+const grewFrom = (
+	before: ReconstructedEvent[],
+	after: ReconstructedEvent[],
+): boolean =>
+	after.length >= before.length &&
+	before.every((entry, index) => after[index] === entry);
+
 const heapAllowsAnother = (): boolean =>
 	process.memoryUsage().heapUsed <
 	v8.getHeapStatistics().heap_size_limit * HEAP_SHARE;
@@ -87,14 +96,24 @@ export const materializeCut = (
 		const entries = loadEntries();
 		if (isFail(entries)) return failed(entries.message);
 
-		held = {
-			key,
-			entries: entries.value,
-			cutIndex: indexForCuts(entries.value),
-			gap: Math.max(minGap, Math.ceil(entries.value.length / budget)),
-			checkpoints: [],
-			log: [],
-		};
+		// The same entries with own writes after them: every checkpoint still
+		// stands, and the index only grows.
+		const extended =
+			held && grewFrom(held.entries, entries.value)
+				? extendCutIndex(held.cutIndex, entries.value, held.entries.length)
+				: null;
+
+		held =
+			held && extended
+				? {...held, key, entries: entries.value, cutIndex: extended}
+				: {
+						key,
+						entries: entries.value,
+						cutIndex: indexForCuts(entries.value),
+						gap: Math.max(minGap, Math.ceil(entries.value.length / budget)),
+						checkpoints: [],
+						log: [],
+				  };
 	}
 
 	const store = held;
