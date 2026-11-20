@@ -3,7 +3,6 @@ import path from 'node:path';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
-import {decodeTime, toEffectiveUlidTimes} from './date-utils.js';
 import {EventCatalog} from './event-catalog.js';
 import {isSupportedSchemaVersion} from './event-envelope.js';
 import {ActionOf, Event, EventMap} from './event.model.js';
@@ -15,6 +14,7 @@ import {
 	signatureAfterOwnAppend,
 } from './log-signature.js';
 import {appendToOrder, sortEvents, sortEventsIndexed} from './event-order.js';
+import {effectiveEventTimes, splitEventsAtTime} from './event-cuts.js';
 import {
 	clearParseCache,
 	deepFreeze,
@@ -36,6 +36,14 @@ export {
 	type ReconstructedEvent,
 	type UnreadableEvent,
 } from './event-parse.js';
+export {
+	appliedAtTime,
+	effectiveEventTimes,
+	extendCutIndex,
+	indexForCuts,
+	splitEventsAtTime,
+	type CutIndex,
+} from './event-cuts.js';
 export {
 	appendToOrder,
 	sortEvents,
@@ -132,56 +140,6 @@ const addedSince = (
 		}
 	}
 	return added;
-};
-
-// The time a checkout cut judges each event by: raw where honest, inherited
-// where poisoned. Computed once, so every consumer agrees.
-export const effectiveEventTimes = (
-	events: ReadonlyArray<Pick<ReconstructedEvent, 'id'>>,
-): Array<number | null> =>
-	toEffectiveUlidTimes(
-		events.map(event => {
-			try {
-				return decodeTime(event.id[0]);
-			} catch {
-				return null;
-			}
-		}),
-	);
-
-export const splitEventsAtTime = (
-	events: ReconstructedEvent[],
-	targetTime: number,
-): {
-	appliedEvents: ReconstructedEvent[];
-	unappliedEvents: ReconstructedEvent[];
-} => {
-	const unappliedIds = new Set<string>();
-	const appliedEvents: ReconstructedEvent[] = [];
-	const unappliedEvents: ReconstructedEvent[] = [];
-
-	const times = effectiveEventTimes(events);
-
-	for (let index = 0; index < events.length; index++) {
-		const event = events[index]!;
-		const eventId = event.id[0];
-		const refId = event.id[1];
-
-		const time = times[index] ?? null;
-		const shouldBeApplied = time !== null && time < targetTime;
-
-		if (!shouldBeApplied || (refId && unappliedIds.has(refId))) {
-			unappliedIds.add(eventId);
-			unappliedEvents.push(event);
-		} else {
-			appliedEvents.push(event);
-		}
-	}
-
-	return {
-		appliedEvents,
-		unappliedEvents,
-	};
 };
 
 export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {

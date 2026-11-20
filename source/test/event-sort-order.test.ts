@@ -2,6 +2,8 @@ import {describe, expect, it} from 'vitest';
 import {seededRandom} from './helpers/seeded-random.js';
 import {
 	appendToOrder,
+	appliedAtTime,
+	indexForCuts as indexForCutsOf,
 	sortEvents,
 	sortEventsIndexed,
 } from '../lib/event/event-load.js';
@@ -85,6 +87,44 @@ describe('sortEvents', () => {
 		for (let seed = 1; seed <= 300; seed++) {
 			const log = randomLog(seed, 5 + (seed % 120));
 			expect(sortEvents([...log], GENESIS)).toEqual(referenceSort(log));
+		}
+	});
+});
+
+// The cut rule before ids were numbered, kept as the reference.
+const referenceApplied = (
+	events: ReconstructedEvent[],
+	times: Array<number | null>,
+	target: number,
+): number[] => {
+	const unapplied = new Set<string>();
+	return events.map(({id: [eventId, refId]}, index) => {
+		const time = times[index] ?? null;
+		if (time === null || time >= target || (refId && unapplied.has(refId))) {
+			unapplied.add(eventId);
+			return 0;
+		}
+		return 1;
+	});
+};
+
+describe('appliedAtTime', () => {
+	it('cuts as the reference does, over hostile logs and every time', () => {
+		for (let seed = 1; seed <= 200; seed++) {
+			const log = sortEvents(randomLog(seed, 5 + (seed % 60)), GENESIS);
+			const random = seededRandom(seed);
+			const times = log.map(() =>
+				random(12) === 0 ? null : random(50) * 1000,
+			);
+			const index = {
+				...indexForCutsOf(log),
+				times,
+			};
+			for (let target = 0; target <= 51_000; target += 1000) {
+				expect([...appliedAtTime(log, target, index)]).toEqual(
+					referenceApplied(log, times, target),
+				);
+			}
 		}
 	});
 });

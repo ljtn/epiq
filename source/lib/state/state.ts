@@ -28,13 +28,16 @@ import {buildActionIndex} from './action-helper.js';
 import {emailsOf} from '../model/email-link.js';
 import {setClaimedEmailsReader} from './email-claims.state.js';
 
-type DerivedKeys =
-	| 'availableActions'
-	| 'actionIndex'
-	| 'availableHints'
-	| 'breadCrumb'
-	| 'contextNode'
-	| 'selectedNode';
+const DERIVED = [
+	'availableActions',
+	'actionIndex',
+	'availableHints',
+	'breadCrumb',
+	'contextNode',
+	'selectedNode',
+] as const;
+type DerivedKeys = (typeof DERIVED)[number];
+const DERIVED_KEYS: ReadonlySet<string> = new Set(DERIVED);
 export type BaseState = Omit<AppState, DerivedKeys>;
 
 // -----------------------------
@@ -132,6 +135,7 @@ setClaimedEmailsReader(contributor =>
 
 export function initWorkspaceState(workspace: Workspace) {
 	_initialWorkspace = workspace;
+	generation++;
 	const repoRootResult = resolveClosestEpiqProjectRoot(process.cwd());
 
 	let hasProjectDefinition = false;
@@ -432,6 +436,44 @@ const buildChildIndex = (
 
 export const getRenderedChildren = (id: string): NavNode<AnyContext>[] => {
 	return getState()?.renderedChildrenIndex[id] ?? [];
+};
+
+// Bumped whenever the state is replaced wholesale, so a record of what it was
+// built from can tell it no longer describes it.
+let generation = 0;
+export const stateGeneration = (): number => generation;
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+	value !== null &&
+	typeof value === 'object' &&
+	Object.getPrototypeOf(value) === Object.prototype;
+
+/**
+ * The base state, copied so a replay writing into the live one cannot reach
+ * it: keyed maps shallow, since a batch writes them in place but replaces
+ * their entries; the repo registry whole, since its handlers write into it.
+ * Lists are shared: every write replaces them.
+ */
+export const copyBaseState = (state: AppState): BaseState => {
+	const copy: Record<string, unknown> = {};
+
+	for (const [key, value] of Object.entries(state)) {
+		if (DERIVED_KEYS.has(key)) continue;
+		copy[key] =
+			key === 'repos'
+				? structuredClone(value)
+				: isPlainRecord(value)
+				? {...value}
+				: value;
+	}
+
+	return copy as BaseState;
+};
+
+/** Puts back a state `copyBaseState` took, copied again so it stays as taken. */
+export const restoreBaseState = (base: BaseState): Result<string> => {
+	generation++;
+	return updateState(() => copyBaseState(base as AppState));
 };
 
 export const resetState = (): Result<string> => {

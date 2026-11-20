@@ -93,6 +93,10 @@ export {
 	effectiveEventTimes,
 	parsePersistedEventsFile,
 	splitEventsAtTime,
+	appliedAtTime,
+	extendCutIndex,
+	indexForCuts,
+	type CutIndex,
 	type ReconstructedEvent,
 	type UnreadableEvent,
 } from '../event/event-load.js';
