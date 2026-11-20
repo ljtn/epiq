@@ -19,7 +19,7 @@ import {nodeRepo} from '../../lib/repository/node-repo.js';
 import {recordRecentProject} from '../../lib/config/recent-projects.js';
 import {identityOf} from '../../lib/model/identity.js';
 import {getStringColor} from '../../lib/utils/color.js';
-import {laneEntryTime, lastEventTime} from '../../lib/utils/lane-dwell.js';
+import {enteredLaneAt, lastEventAt} from '../../lib/board/node-history.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {getAttachmentFileName} from '../../lib/media/media-store.js';
@@ -153,7 +153,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 			// of the payload. A goal's tickets are spared: its panel is the way in to them.
 			if (
 				node.parentNodeId === CLOSED_SWIMLANE_ID &&
-				laneEntryTime(node.log ?? [], ulidTimeMs(node.id)) < closedSince &&
+				enteredLaneAt(node.history, ulidTimeMs(node.id)) < closedSince &&
 				!getTicketGoal(node)
 			) {
 				continue;
@@ -230,14 +230,11 @@ export const deriveGuiState = (): Result<ApiState> => {
 								title: sanitizeInlineText(issue.title),
 								description: issue.props.description ?? '',
 								createdAt: ulidTimeMs(issue.id),
-								enteredLaneAt: laneEntryTime(
-									issue.log ?? [],
+								enteredLaneAt: enteredLaneAt(
+									issue.history,
 									ulidTimeMs(issue.id),
 								),
-								lastEventAt: lastEventTime(
-									issue.log ?? [],
-									ulidTimeMs(issue.id),
-								),
+								lastEventAt: lastEventAt(issue.history, ulidTimeMs(issue.id)),
 								readonly: Boolean(issue.readonly) || forceReadonly,
 								tags: getIssueTags(issue),
 								assignees: getIssueAssignees(issue),

@@ -1,9 +1,8 @@
-// How a board runs, from its tickets' logs: throughput, rework, and where time
+// How a board runs, from its tickets' histories: throughput, rework, and where time
 // goes. Pure.
 
-import {AppEvent} from '../board/board-events.model.js';
 import {clampUlidTime, getEventTime} from '../event/date-utils.js';
-import {laneVisits} from '../utils/lane-dwell.js';
+import {LaneVisit, NodeHistory, visitsOf} from '../board/node-history.js';
 import {medianOfSorted} from '../utils/number.js';
 import {BoardOverview} from './board-overview.model.js';
 
@@ -26,7 +25,7 @@ const weekStarts = (now: number, count: number): number[] => {
 export type OverviewTicket = {
 	id: string;
 	parentNodeId: string | null;
-	log: readonly AppEvent[];
+	history: NodeHistory | undefined;
 	createdAt: number;
 };
 
@@ -61,7 +60,7 @@ export const deriveBoardOverview = ({
 
 	const journeys = tickets.map(ticket => ({
 		ticket,
-		visits: laneVisits(ticket.log, ticket.createdAt),
+		visits: visitsOf(ticket.history, ticket.createdAt),
 	}));
 	const ours = journeys.filter(({visits}) =>
 		visits.some(visit => onBoard(visit.laneId)),
@@ -69,13 +68,13 @@ export const deriveBoardOverview = ({
 
 	// Never past now: a peer's clock running ahead would otherwise put a close
 	// in no week at all.
-	const timeOf = (event: AppEvent) => {
+	const timeOf = (event: {id: string}) => {
 		const t = getEventTime(event);
 		return t === null ? null : Math.min(clampUlidTime(t, now), now);
 	};
 
 	// A move to a lane earlier than the last board lane it stood in.
-	const wentBack = (visits: ReturnType<typeof laneVisits>) => {
+	const wentBack = (visits: LaneVisit[]) => {
 		const positions = visits.flatMap(visit => {
 			const index = laneIndex.get(visit.laneId);
 			return index === undefined ? [] : [index];
@@ -88,10 +87,10 @@ export const deriveBoardOverview = ({
 
 	// The ticket's last close, counted only when it left from this board.
 	const closes = ours.flatMap(({ticket, visits}) => {
-		const last = ticket.log.findLast(event => event.action === 'close.issue');
+		const last = ticket.history?.lastCloseId;
 		if (!last || onBoard(ticket.parentNodeId)) return [];
 
-		const closedAt = timeOf(last);
+		const closedAt = timeOf({id: last});
 		const before = visits.at(-2)?.laneId;
 		if (closedAt === null || !onBoard(before)) return [];
 

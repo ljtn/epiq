@@ -1,6 +1,7 @@
 import {decodeTime, ulid} from 'ulid';
 import {describe, expect, it} from 'vitest';
 import {AppEvent} from '../lib/board/board-events.model.js';
+import {foldHistory} from '../lib/board/node-history.js';
 import {
 	deriveBoardOverview,
 	OverviewTicket,
@@ -31,7 +32,7 @@ const ticket = (
 ): OverviewTicket => ({
 	id,
 	parentNodeId,
-	log,
+	history: foldHistory(undefined, id, log),
 	createdAt: decodeTime(log[0]!.id),
 });
 

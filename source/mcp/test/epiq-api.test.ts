@@ -13,6 +13,7 @@ import {
 import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {AnyContext} from '../../lib/model/context.model.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
+import {emptyHistory} from '../../lib/board/node-history.js';
 
 // Fixture ids must be real ULIDs; the label is transliterated into Crockford
 // base32 so it stays readable.
@@ -154,10 +155,6 @@ vi.mock('../../lib/board/board-boot.js', () => ({
 	bootStateFromEventLog: vi.fn(() => succeeded('booted', null)),
 }));
 
-vi.mock('../../lib/board/log-utils.js', () => ({
-	resolveReopenParentFromLog: vi.fn(() => 'swimlane-1'),
-}));
-
 vi.mock('../../lib/config/user-config.js', () => ({
 	loadSettingsFromConfig: vi.fn(
 		() =>
@@ -247,6 +244,8 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 		isDeleted: false,
 		rank: 'z0',
 		props: {description: '', tags: [], assignees: []},
+		// Closed from swimlane-1, which a reopen returns it to.
+		history: {...emptyHistory(), reopenParent: 'swimlane-1'},
 	},
 	'board-2': {
 		id: 'board-2',
