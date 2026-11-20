@@ -1010,6 +1010,19 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 	// The whole ordered log, by signature: a time-travel scrub and the timeline
 	// read it again after every boot, unchanged.
+	// The array the last load's order was copied from: the held order, which
+	// only ever grows in place, or a fresh sort.
+	let lastOrder: ReconstructedEvent[] | null = null;
+
+	// That order decoded, as far as `length`: the order growing past it needs
+	// only its new entries decoded.
+	let decodedCache: {
+		order: ReconstructedEvent[];
+		length: number;
+		events: Event<M>[];
+		unreadable: UnreadableEvent[];
+	} | null = null;
+
 	let sortedCache: {
 		root: string;
 		signature: string;
@@ -1042,9 +1055,11 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			}
 
 			// A copy, so a caller reordering its list cannot reorder the cache.
+			lastOrder = sortedCache.sorted;
 			return succeeded('All events loaded, unchanged', [...sortedCache.sorted]);
 		}
 
+		lastOrder = null;
 		if (!fs.existsSync(dir)) {
 			return succeeded('No events found', []);
 		}
@@ -1136,6 +1151,8 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			}
 		}
 
+		lastOrder = sorted;
+
 		// The causal order's tail, which is what the next write points at.
 		// Recorded here because this is the one place that has just paid for it.
 		edgeCache = {
@@ -1162,13 +1179,30 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			return failed(allEvents.message);
 		}
 
-		const decoded = decodeReconstructedEvents(allEvents.value, unreadable);
+		const order = allEvents.value;
+		const held =
+			decodedCache &&
+			decodedCache.order === lastOrder &&
+			order.length >= decodedCache.length
+				? decodedCache
+				: null;
+		const from = held?.length ?? 0;
+		const fresh: UnreadableEvent[] = [];
+		const decoded = decodeReconstructedEvents(order.slice(from), fresh);
 		if (isFail(decoded)) return failed(decoded.message);
 
-		return succeeded('Loaded merged events', {
-			events: decoded.value,
-			unreadable,
-		});
+		const events = held ? held.events : [];
+		const lost = held ? held.unreadable : [];
+		for (const event of decoded.value) events.push(event);
+		for (const entry of fresh) lost.push(entry);
+		decodedCache = lastOrder
+			? {order: lastOrder, length: order.length, events, unreadable: lost}
+			: null;
+
+		for (const entry of lost) unreadable.push(entry);
+
+		// A copy, so a caller reordering its list cannot reorder the cache.
+		return succeeded('Loaded merged events', {events: [...events], unreadable});
 	}
 
 	// Actors come off file names, so they survive an undecodable payload.
@@ -1384,6 +1418,8 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	function clearEdgeCache(): void {
 		edgeCache = null;
 		sortedCache = null;
+		lastOrder = null;
+		decodedCache = null;
 		clearParseCache();
 	}
 

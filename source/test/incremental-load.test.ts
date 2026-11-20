@@ -4,7 +4,7 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {ulid} from 'ulid';
 import * as warm from '../lib/board/board-log.js';
-import {isFail} from '../lib/model/result-types.js';
+import {isFail, succeeded} from '../lib/model/result-types.js';
 import {seededRandom} from './helpers/seeded-random.js';
 
 // Every load a long-lived process makes, from whatever it holds, must equal a
@@ -21,31 +21,45 @@ const THEIRS = [
 	'01ARZ3NDEKTSV4RRFFQ69G5FAX.other.jsonl',
 ];
 
+// Now and then a line that orders but does not decode: an action from a newer
+// build, or a newer schema version.
 const lineOf = (id: string, parent: string | null, n: number) =>
 	`${JSON.stringify({
-		v: 1,
+		v: parent && n % 13 === 7 ? 99 : 1,
 		id: parent ? [id, parent] : [id],
-		...(parent
-			? {'edit.title': {id: 'x', name: `n${n}`}}
-			: {'init.workspace': {id: 'w', name: 'W'}}),
+		...(!parent
+			? {'init.workspace': {id: 'w', name: 'W'}}
+			: n % 11 === 5
+			? {'future.action': {id: 'x'}}
+			: {'edit.title': {id: 'x', name: `n${n}`}}),
 	})}\n`;
 
+// A process that holds nothing, its result put together from the order and a
+// decode of it, never from the merged load the warm side runs.
 const coldLoad = async () => {
 	vi.resetModules();
 	const cold = (await import(
 		'../lib/board/board-log.js'
 	)) as typeof import('../lib/board/board-log.js');
-	return cold.loadMergedEventsWithUnreadable(root);
+	const merged = cold.loadMergedEventsWithUnreadable(root);
+	if (isFail(merged)) return merged;
+
+	const order = cold.loadOrderedEntries(root);
+	if (isFail(order)) return order;
+	const unreadable = merged.value.unreadable.filter(
+		entry => entry.reason === 'corrupt-line',
+	);
+	const decoded = cold.decodeReconstructedEvents(order.value, unreadable);
+	if (isFail(decoded)) return decoded;
+
+	return succeeded('', {events: decoded.value, unreadable});
 };
 
-const ids = (
+const loaded = (
 	result: ReturnType<typeof warm.loadMergedEventsWithUnreadable>,
 ) => {
 	if (isFail(result)) throw new Error(result.message);
-	return {
-		order: result.value.events.map(event => event.id),
-		unreadable: result.value.unreadable,
-	};
+	return result.value;
 };
 
 beforeEach(() => {
@@ -237,8 +251,8 @@ describe('a load from what the process holds', () => {
 					touch(file);
 				}
 
-				const fromHeld = ids(warm.loadMergedEventsWithUnreadable(root));
-				expect(fromHeld).toEqual(ids(await coldLoad()));
+				const fromHeld = loaded(warm.loadMergedEventsWithUnreadable(root));
+				expect(fromHeld).toEqual(loaded(await coldLoad()));
 			}
 		}
 	}, 120_000);
