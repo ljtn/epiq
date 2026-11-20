@@ -290,8 +290,10 @@ export const copyBaseState = (state: AppState): BaseState => {
 };
 
 /** Puts back a state `copyBaseState` took, copied again so it stays as taken. */
-export const restoreBaseState = (base: BaseState): Result<string> =>
-	updateState(() => copyBaseState(base as AppState));
+export const restoreBaseState = (base: BaseState): Result<string> => {
+	generation++;
+	return updateState(() => copyBaseState(base as AppState));
+};
 
 // The keyed collections of the base state — the ones a single event writes one
 // entry of.

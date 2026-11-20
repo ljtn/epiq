@@ -15,6 +15,7 @@ import {
 	getState,
 	resetState,
 	restoreBaseState,
+	withDeferredDerive,
 } from '../state/state.js';
 import {
 	appliedAtTime,
@@ -139,33 +140,41 @@ export const materializeCut = (
 		return succeeded('Applied', null);
 	};
 
-	// The applied prefix, a gap at a time, checkpointing each boundary reached.
-	while (index < firstExcluded) {
-		const next = Math.min(firstExcluded, (Math.floor(index / gap) + 1) * gap);
-		const result = apply(entries.slice(index, next));
-		if (isFail(result)) return result;
-		index = next;
+	// One derive at the end: a checkpoint copies only the base state, which
+	// each gap's flush keeps current.
+	const replayed = withDeferredDerive((): Result<null> => {
+		// The applied prefix, a gap at a time, checkpointing each boundary reached.
+		while (index < firstExcluded) {
+			const next = Math.min(firstExcluded, (Math.floor(index / gap) + 1) * gap);
+			const result = apply(entries.slice(index, next));
+			if (isFail(result)) return result;
+			index = next;
 
-		const known = checkpoints.some(checkpoint => checkpoint.index === index);
-		if (index % gap === 0 && !known && heapAllowsAnother()) {
-			const state = copyBaseState(getState());
-			if (state.eventLog.length > store.log.length) store.log = state.eventLog;
-			checkpoints.push({
-				index,
-				genesisSeen,
-				state: {...state, eventLog: []},
-				logLength: state.eventLog.length,
-			});
-			checkpoints.sort((left, right) => left.index - right.index);
+			const known = checkpoints.some(checkpoint => checkpoint.index === index);
+			if (index % gap === 0 && !known && heapAllowsAnother()) {
+				const state = copyBaseState(getState());
+				if (state.eventLog.length > store.log.length)
+					store.log = state.eventLog;
+				checkpoints.push({
+					index,
+					genesisSeen,
+					state: {...state, eventLog: []},
+					logLength: state.eventLog.length,
+				});
+				checkpoints.sort((left, right) => left.index - right.index);
+			}
 		}
-	}
 
-	// Past it, only what the cut applies.
-	const rest = entries
-		.slice(firstExcluded)
-		.filter((_, offset) => applied[firstExcluded + offset]);
-	const tail = apply(rest);
-	if (isFail(tail)) return tail;
+		// Past it, only what the cut applies.
+		const rest = entries
+			.slice(firstExcluded)
+			.filter((_, offset) => applied[firstExcluded + offset]);
+		return apply(rest);
+	});
+	if (isFail(replayed)) return failed(replayed.message);
+	if (replayed.value && isFail(replayed.value)) {
+		return failed(replayed.value.message);
+	}
 
 	return succeeded('Materialized the cut', {applied: count, skipped});
 };
