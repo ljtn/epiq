@@ -1,8 +1,12 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+import {pathToFileURL} from 'node:url';
+import {build} from 'esbuild';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
+	buildIdFor,
 	readSnapshot,
 	snapshotKey,
 	writeSnapshot,
@@ -112,5 +116,75 @@ describe('a snapshot file', () => {
 
 		expect(readSnapshot(file, key())).toEqual(parts);
 		expect(fs.readdirSync(dir)).toEqual(['board.snapshot']);
+	});
+});
+
+describe('the build a snapshot is keyed on', () => {
+	it('is the bundle itself for a binary, and every script beside a bundle', () => {
+		const data = 'data:text/javascript;base64,AAAA';
+		expect(buildIdFor(data)).toBe(buildIdFor(data));
+		expect(buildIdFor(data)).not.toBe(buildIdFor(`${data}B`));
+
+		fs.writeFileSync(path.join(dir, 'mcp.js'), 'main');
+		fs.writeFileSync(path.join(dir, 'chunk-a.js'), 'a');
+		const url = pathToFileURL(path.join(dir, 'mcp.js')).href;
+		const before = buildIdFor(url);
+		expect(before).toEqual(expect.any(String));
+
+		// A change to a chunk the entry imports is another build.
+		fs.writeFileSync(path.join(dir, 'chunk-a.js'), 'b');
+		expect(buildIdFor(url)).not.toBe(before);
+	});
+
+	it('is none from sources unless asked for', () => {
+		const source = pathToFileURL(path.join(dir, 'snapshot-file.ts')).href;
+		vi.stubEnv('EPIQ_SNAPSHOT', '');
+		expect(buildIdFor(source)).toBeNull();
+		vi.stubEnv('EPIQ_SNAPSHOT', '1');
+		expect(buildIdFor(source)).toBe('sources');
+		vi.unstubAllEnvs();
+	});
+
+	// The ways a process really starts: an npm bin symlink to the bundle, and a
+	// single-file binary importing its bundle from a data URL.
+	it('is found by a real bundle, run through a symlink or from a data URL', async () => {
+		const out = path.join(dir, 'dist');
+		await build({
+			stdin: {
+				contents: `import {currentBuildId} from ${JSON.stringify(
+					path.resolve('source/lib/event/snapshot-file.ts'),
+				)}; console.log(JSON.stringify(currentBuildId()));`,
+				resolveDir: process.cwd(),
+				loader: 'ts',
+			},
+			bundle: true,
+			platform: 'node',
+			format: 'esm',
+			outfile: path.join(out, 'mcp.js'),
+			logLevel: 'silent',
+		});
+		const bin = path.join(dir, 'bin');
+		fs.mkdirSync(bin);
+		fs.symlinkSync(path.join(out, 'mcp.js'), path.join(bin, 'epiq-mcp'));
+		const env = {...process.env, EPIQ_SNAPSHOT: ''};
+		const run = (args: string[]) =>
+			JSON.parse(
+				execFileSync(process.execPath, args, {env, cwd: process.cwd()})
+					.toString()
+					.trim(),
+			) as string | null;
+
+		const viaBin = run([path.join(bin, 'epiq-mcp')]);
+		expect(viaBin).toEqual(expect.any(String));
+		expect(viaBin).not.toBe('sources');
+
+		const bundle = fs.readFileSync(path.join(out, 'mcp.js')).toString('base64');
+		const viaData = run([
+			'--input-type=module',
+			'-e',
+			`await import('data:text/javascript;base64,${bundle}')`,
+		]);
+		expect(viaData).toEqual(expect.any(String));
+		expect(viaData).not.toBe('sources');
 	});
 });

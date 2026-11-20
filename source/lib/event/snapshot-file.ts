@@ -4,6 +4,7 @@
 import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import v8 from 'node:v8';
 import {ulid} from 'ulid';
 
@@ -27,31 +28,41 @@ export type SnapshotKey = {
 const hashOf = (value: string | Buffer): string =>
 	createHash('sha1').update(value).digest('hex');
 
-let buildId: string | null | undefined;
-
 /**
- * The running build: a hash of the bundle or binary it was started from. None
- * from sources under a loader such as tsx, where nothing pins the code, unless
- * EPIQ_SNAPSHOT=1 asks for snapshots anyway.
+ * The build a module was loaded from, by its URL: a single-file binary's bundle
+ * is the URL itself; a bundled directory is every script in it, so a split
+ * chunk counts too. From sources (a loader such as tsx) nothing pins the code:
+ * none, unless EPIQ_SNAPSHOT=1 asks for snapshots anyway.
  */
-export const currentBuildId = (): string | null => {
-	if (buildId !== undefined) return buildId;
-
-	const entry = process.argv[1] ?? '';
-	const bundled =
-		/\.(m?js|cjs)$/.test(entry) && !entry.split(path.sep).includes('source');
+export const buildIdFor = (moduleUrl: string): string | null => {
 	try {
-		buildId = bundled
-			? hashOf(fs.readFileSync(entry))
-			: process.env['EPIQ_SNAPSHOT'] === '1'
-			? 'sources'
-			: null;
+		if (moduleUrl.startsWith('data:')) return hashOf(moduleUrl);
+
+		const file = moduleUrl.startsWith('file:') ? fileURLToPath(moduleUrl) : '';
+		if (/\.(m?js|cjs)$/.test(file)) {
+			const dir = path.dirname(file);
+			const hash = createHash('sha1');
+			for (const name of fs.readdirSync(dir).sort()) {
+				if (!/\.(m?js|cjs)$/.test(name)) continue;
+				hash
+					.update(name)
+					.update('\0')
+					.update(fs.readFileSync(path.join(dir, name)));
+			}
+			return hash.digest('hex');
+		}
 	} catch {
-		buildId = null;
+		return null;
 	}
 
-	return buildId;
+	return process.env['EPIQ_SNAPSHOT'] === '1' ? 'sources' : null;
 };
+
+let buildId: string | null | undefined;
+
+/** The running build's id, from where this module was loaded. */
+export const currentBuildId = (): string | null =>
+	(buildId ??= buildIdFor(import.meta.url));
 
 export const snapshotKey = ({
 	actions,
