@@ -8,6 +8,7 @@ import {
 import {resolveReopenParentFromLog} from '../lib/board/log-utils.js';
 import {
 	enteredLaneAt,
+	foldHistory,
 	lastEventAt,
 	parentsEver,
 	visitsOf,
@@ -141,6 +142,9 @@ describe('a node history folded as events apply', () => {
 	});
 
 	it('answers as its log does after a checkpoint is restored', () => {
+		// One clock for both sides: a far-future time reads as now.
+		vi.useFakeTimers({toFake: ['Date']});
+		vi.setSystemTime(T0 + 10 * 864e5);
 		for (let seed = 1; seed <= 8; seed++) {
 			unwrap(initWorkspaceState(nodes.workspace('root', 'Root', rank())));
 			const entries = asEntries(timed(seed, randomLog(seed, 120)));
@@ -153,3 +157,30 @@ describe('a node history folded as events apply', () => {
 		}
 	});
 });
+
+describe('folding onto a history', () => {
+	it('never writes into the history it starts from', () => {
+		const log = timed(5, randomLog(5, 200));
+		const ticket = log.find(event => event.action === 'add.issue')!.payload as {
+			id: string;
+		};
+		const events = log.filter(
+			event => (event.payload as {id?: string}).id === ticket.id,
+		);
+		let history = foldHistory(undefined, ticket.id, events.slice(0, 1));
+		for (const event of events.slice(1)) {
+			const before = structuredClone(history);
+			const frozen = deepFreeze(history);
+			history = foldHistory(frozen, ticket.id, [event]);
+			expect(frozen).toEqual(before);
+		}
+	});
+});
+
+const deepFreeze = <T>(value: T): T => {
+	if (value && typeof value === 'object') {
+		Object.freeze(value);
+		for (const child of Object.values(value)) deepFreeze(child);
+	}
+	return value;
+};
