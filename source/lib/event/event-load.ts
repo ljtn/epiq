@@ -1540,6 +1540,18 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		};
 	}
 
+	/** How many entries the loader's caches hold: what a process keeps of the log. */
+	function cachedEntryCount(): number {
+		let parsed = 0;
+		for (const remembered of parseCache.values())
+			parsed += remembered.entries.length;
+		return (
+			parsed +
+			(sortedCache?.sorted.length ?? 0) +
+			(decodedCache?.events.length ?? 0)
+		);
+	}
+
 	// For tests, which mock the filesystem; clears the parse cache too.
 	function clearEdgeCache(): void {
 		edgeCache = null;
@@ -1597,6 +1609,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		loadEffectiveEventTimes,
 		tailFromLastLoad,
 		setEdgeSource,
+		cachedEntryCount,
 	};
 };
 

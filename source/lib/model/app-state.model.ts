@@ -50,6 +50,9 @@ export type Contributor = {
 	name: string;
 	userId?: string;
 	tombstoned?: boolean;
+	// The name its last create event gave it, which a restore returns to:
+	// removal and renames leave the log's create untouched.
+	createdName?: string;
 };
 
 export type Filter = {

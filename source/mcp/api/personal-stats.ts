@@ -3,7 +3,13 @@
 
 import {getStateBranch} from '../../git/git-constants.js';
 import {readGitName} from '../../lib/config/git-identity.js';
-import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
+import {
+	failed,
+	isFail,
+	Result,
+	succeeded,
+} from '../../lib/model/result-types.js';
+import {isTailBoot} from '../../lib/board/board-tail.js';
 import {findEmailCandidates} from '../../lib/repository/email-candidates.js';
 import {PersonalStats} from '../../lib/stats/personal-stats.model.js';
 import {authoredTotals} from '../../lib/stats/personal-stats.js';
@@ -12,6 +18,13 @@ import {ToolInput, bootedWithActorAndState} from './boot.js';
 export const getPersonalStats = async (
 	input: ToolInput = {},
 ): Promise<Result<PersonalStats>> => {
+	// Counted from the log, which a process keeping no events cannot do.
+	if (isTailBoot()) {
+		return failed(
+			'Personal stats read the event log, which this process does not keep',
+		);
+	}
+
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 

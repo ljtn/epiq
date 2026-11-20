@@ -363,7 +363,7 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 
 	'create.contributor': event => {
 		const {id, name} = event.payload;
-		const result = nodeRepo.createContributor({id, name});
+		const result = nodeRepo.createContributor({id, name, createdName: name});
 
 		if (isFail(result)) {
 			return materializeSkip(

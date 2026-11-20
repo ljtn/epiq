@@ -65,6 +65,7 @@ export const {
 	loadEffectiveEventTimes,
 	tailFromLastLoad,
 	setEdgeSource,
+	cachedEntryCount,
 	mintEventId,
 	persist,
 	materializeAndPersist,

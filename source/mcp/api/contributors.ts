@@ -17,6 +17,7 @@ import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {contributorDirectory} from '../../lib/repository/contributor-directory.js';
 import {identityOf} from '../../lib/model/identity.js';
 import {filterEventsForBoard} from '../timeline-index.js';
+import {transientLoad} from '../../lib/board/board-tail.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
 	tooLong,
@@ -297,27 +298,6 @@ export const tombstoneContributor = async (
 	});
 };
 
-// Removal never rewrites the log, so the `create.contributor` payload still
-// carries the original name. Last write wins.
-const findCreatedContributorName = async (
-	stateBranchRoot: string,
-	contributorId: string,
-): Promise<string | undefined> => {
-	const eventsResult = loadMergedEvents(stateBranchRoot);
-	if (isFail(eventsResult)) return undefined;
-
-	let name: string | undefined;
-
-	for (const event of eventsResult.value) {
-		if (event.action !== 'create.contributor') continue;
-
-		const payload = event.payload as {id?: string; name?: string};
-		if (payload.id === contributorId && payload.name) name = payload.name;
-	}
-
-	return name;
-};
-
 // Undoes a removal made before somebody's events had been pulled.
 export const restoreContributor = async (
 	input: ToolInput & {contributorId: string},
@@ -332,10 +312,7 @@ export const restoreContributor = async (
 		return failed('Contributor is not tombstoned');
 	}
 
-	const originalName = await findCreatedContributorName(
-		ready.value.boot.stateBranchRoot,
-		input.contributorId,
-	);
+	const originalName = contributor.createdName;
 
 	if (!originalName) {
 		return failed(
@@ -380,7 +357,10 @@ export const getBoardContributors = async (
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
-	const eventsResult = loadMergedEvents(ready.value.boot.stateBranchRoot);
+	// Read whole, then let go: a process keeping no events keeps none after.
+	const eventsResult = transientLoad(() =>
+		loadMergedEvents(ready.value.boot.stateBranchRoot),
+	);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
 	const scopedEvents = input.boardId

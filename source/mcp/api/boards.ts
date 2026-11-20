@@ -1,7 +1,4 @@
 import {ulid} from 'ulid';
-import {getStateBranchRoot} from '../../git/git-storage.js';
-import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
-import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {
 	actorOf,
@@ -28,9 +25,7 @@ import {
 	ToolInput,
 	bootLocal,
 	bootedWithActorAndState,
-	getActor,
 	getStateResult,
-	resolveRepoRoot,
 } from './boot.js';
 import {descriptionOf} from './descriptions.js';
 import {rulesOf} from './lane-rules.js';
@@ -333,28 +328,11 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 export const moveSwimlane = async (
 	input: MoveSwimlaneInput,
 ): Promise<Result<{id: string; boardId: string}>> => {
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
-	if (isFail(repoRootResult)) return repoRootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateBranchRootResult = getStateBranchRoot({
-		repoRoot: repoRootResult.value,
-	});
-
-	if (isFail(stateBranchRootResult)) return stateBranchRootResult;
-
-	const eventsResult = loadMergedEventsWithUnreadable(
-		stateBranchRootResult.value,
-	);
-	if (isFail(eventsResult)) return eventsResult;
-
-	const bootStateResult = bootStateFromEventLog(
-		eventsResult.value.events,
-		eventsResult.value.unreadable,
-	);
-	if (isFail(bootStateResult)) return bootStateResult;
+	// The same boot as every other tool, so a tail process stays one.
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+	const actor = ready.value.actor;
+	const stateBranchRoot = ready.value.boot.stateBranchRoot;
 
 	const laneResult = findWritableSwimlane(input.swimlaneId);
 	if (isFail(laneResult)) return laneResult;
@@ -366,15 +344,15 @@ export const moveSwimlane = async (
 		input.boardId,
 		input.swimlaneId,
 		input.position ?? {at: 'end'},
-		actorResult.value,
-		stateBranchRootResult.value,
+		actor,
+		stateBranchRoot,
 	);
 
 	if (isFail(rankResult)) return rankResult;
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(actor),
 		action: 'move.node',
 		payload: {
 			id: input.swimlaneId,
@@ -383,10 +361,7 @@ export const moveSwimlane = async (
 		},
 	} satisfies AppEvent<'move.node'>;
 
-	const results = materializeAndPersistAll(
-		[event],
-		stateBranchRootResult.value,
-	);
+	const results = materializeAndPersistAll([event], stateBranchRoot);
 	if (isFail(results)) return failed(results.message);
 
 	return succeeded('Moved swimlane', {

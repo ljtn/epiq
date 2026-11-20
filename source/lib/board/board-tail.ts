@@ -94,6 +94,16 @@ const dropEvents = (): void => {
 };
 
 /**
+ * What `load` returns, with whatever it left held let go after, where this
+ * process keeps no events.
+ */
+export const transientLoad = <T>(load: () => T): T => {
+	const result = load();
+	if (enabled) clearEdgeCache();
+	return result;
+};
+
+/**
  * After a full boot: keeps the tail that load read, then lets every event go.
  * `unreadable` is that load's list.
  */

@@ -6,6 +6,7 @@ import {ulid} from 'ulid';
 import {createDefaultEvents} from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {
+	cachedEntryCount,
 	getEdgeRef,
 	getPersistFileName,
 	materializeAndPersistAll,
@@ -212,6 +213,7 @@ describe('a board kept current from the log tail alone', () => {
 			expect(unreadableInLog(), `step ${step}`).toEqual(cold.unreadable);
 			// No event kept by the process that keeps the board.
 			expect(getState().eventLog).toEqual([]);
+			expect(cachedEntryCount(), `step ${step}`).toBe(0);
 		}
 
 		// A full boot every time would pass all of the above and prove nothing:

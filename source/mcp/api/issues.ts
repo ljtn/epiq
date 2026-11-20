@@ -1,9 +1,6 @@
 import {ulid} from 'ulid';
-import {getStateBranchRoot} from '../../git/git-storage.js';
 import {createIssueEvents} from '../../lib/board/common-events.js';
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
-import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
-import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {
 	actorOf,
@@ -51,7 +48,6 @@ import {
 	bootedWithActorAndState,
 	getActor,
 	getStateResult,
-	resolveRepoRoot,
 } from './boot.js';
 import {
 	getIssueTags,
@@ -578,28 +574,11 @@ export function moveIssue(
 export async function moveIssue(
 	input: MoveIssueInput,
 ): Promise<Result<ApiBatchOutcome | (IssueRef & {parentId: string})>> {
-	const repoRootResult = resolveRepoRoot(input.repoRoot);
-	if (isFail(repoRootResult)) return repoRootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateBranchRootResult = getStateBranchRoot({
-		repoRoot: repoRootResult.value,
-	});
-
-	if (isFail(stateBranchRootResult)) return stateBranchRootResult;
-
-	const eventsResult = loadMergedEventsWithUnreadable(
-		stateBranchRootResult.value,
-	);
-	if (isFail(eventsResult)) return eventsResult;
-
-	const bootStateResult = bootStateFromEventLog(
-		eventsResult.value.events,
-		eventsResult.value.unreadable,
-	);
-	if (isFail(bootStateResult)) return bootStateResult;
+	// The same boot as every other tool, so a tail process stays one.
+	const ready = await bootedWithActorAndState(input.repoRoot);
+	if (isFail(ready)) return ready;
+	const actor = ready.value.actor;
+	const stateBranchRoot = ready.value.boot.stateBranchRoot;
 
 	const idsResult = targetIds(input);
 	if (isFail(idsResult)) return idsResult;
@@ -624,8 +603,7 @@ export async function moveIssue(
 		});
 	})();
 
-	const move = (id: string) =>
-		moveOne(id, input, actorResult.value, stateBranchRootResult.value);
+	const move = (id: string) => moveOne(id, input, actor, stateBranchRoot);
 
 	if (!input.issueIds) {
 		const moved = move(idsResult.value[0]!);
