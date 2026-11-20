@@ -6,6 +6,7 @@ import {nodeRepo} from '../repository/node-repo.js';
 import {
 	getState,
 	isStateInitialized,
+	setStateEntry,
 	updateState,
 	withDeferredDerive,
 } from '../state/state.js';
@@ -72,6 +73,26 @@ const appendEventToNodeLog = (
 			positionsFor(node, [position]),
 		),
 	});
+};
+
+// Who wrote what, kept as the log is appended to: everyone who has written an
+// event, and per id named as its target or a comment's ticket.
+const noteActor = (event: AppEvent): void => {
+	const {userId} = event;
+	if (!userId) return;
+
+	const state = getState();
+	if (!state.authors?.[userId]) {
+		setStateEntry('authors', userId, {id: userId});
+	}
+
+	const payload = event.payload as {id?: unknown; issue?: unknown};
+	for (const target of [payload.id, payload.issue]) {
+		if (typeof target !== 'string') continue;
+		const held = getState().actorsById?.[target];
+		if (held?.ids.includes(userId)) continue;
+		setStateEntry('actorsById', target, {ids: [...(held?.ids ?? []), userId]});
+	}
 };
 
 const getNodeIdWithParent = (nodeId: string): string[] => {
@@ -202,6 +223,7 @@ export const boardReplayHooks: ReplayHooks<AppEventMap> = {
 	afterApply(event, {batched, bypassLogging}) {
 		// The state now holds what no log does; the next reload must replay it all.
 		if (bypassLogging) forgetReplayed();
+		else noteActor(event);
 
 		const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
 

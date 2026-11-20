@@ -56,7 +56,8 @@ const timed = (seed: number, log: AppEvent[]): AppEvent[] => {
 					: ulid(T0 + index * 60_000);
 			ids.set(event.id, id);
 		}
-		return {...event, id};
+		// Several authors, so who touched what is not everyone, everywhere.
+		return {...event, id, userId: `u${random(3)}`};
 	});
 };
 
@@ -100,7 +101,35 @@ const parentsFromLog = (
 	return [...parents];
 };
 
+// Who wrote what, as the scans over the whole log found it.
+const expectActorsEqualLog = () => {
+	const {eventLog, actorsById, authors} = getState();
+	const byId = new Map<string, string[]>();
+	const everyone: string[] = [];
+	// A genesis applied mid-batch resets the board, yet the batch's earlier
+	// events still reach the log: who wrote those is the old board's.
+	const genesis = eventLog.findLastIndex(e => e.action === 'init.workspace');
+	for (const event of eventLog.slice(Math.max(genesis, 0))) {
+		if (!event.userId) continue;
+		if (!everyone.includes(event.userId)) everyone.push(event.userId);
+		const payload = event.payload as {id?: unknown; issue?: unknown};
+		for (const target of [payload.id, payload.issue]) {
+			if (typeof target !== 'string') continue;
+			const ids = byId.get(target) ?? [];
+			if (!ids.includes(event.userId)) ids.push(event.userId);
+			byId.set(target, ids);
+		}
+	}
+	expect(
+		Object.fromEntries(
+			Object.entries(actorsById ?? {}).map(([id, {ids}]) => [id, ids]),
+		),
+	).toEqual(Object.fromEntries(byId));
+	expect(Object.keys(authors ?? {}).sort()).toEqual([...everyone].sort());
+};
+
 const expectFoldedEqualsLog = () => {
+	expectActorsEqualLog();
 	for (const node of Object.values(getState().nodes)) {
 		const {history} = node;
 		const where = node.id;
@@ -167,13 +196,27 @@ describe('a node history folded as events apply', () => {
 			for (let at = 0; at < log.length; ) {
 				const next = Math.min(log.length, at + 1 + random(15));
 				// One at a time outside a batch, or several in one.
-				if (next - at === 1) materialize(log[at]!);
+				// Now and then applied without logging, which no log or history keeps.
+				if (next - at === 1) materialize(log[at]!, random(5) === 0);
 				else materializeAll(log.slice(at, next));
 				at = next;
 			}
 
 			// Read later than folded: times once ahead of the clock may be honest now.
 			vi.setSystemTime(T0 + 13 * 864e5);
+			expectFoldedEqualsLog();
+		}
+	});
+
+	it('keeps nothing of an event applied without logging', () => {
+		for (let seed = 1; seed <= 10; seed++) {
+			vi.useFakeTimers({toFake: ['Date']});
+			vi.setSystemTime(T0 + 10 * 864e5);
+			unwrap(initWorkspaceState(nodes.workspace('root', 'Root', rank())));
+			const random = seededRandom(seed * 7);
+			for (const event of timed(seed, randomLog(seed, 120))) {
+				materialize(event, random(2) === 0);
+			}
 			expectFoldedEqualsLog();
 		}
 	});

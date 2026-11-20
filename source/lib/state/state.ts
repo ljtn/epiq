@@ -170,6 +170,8 @@ export function initWorkspaceState(workspace: Workspace) {
 		hasInitializingEvents: false,
 		comments: {},
 		attachments: {},
+		actorsById: {},
+		authors: {},
 	};
 
 	const deriveResult = derive(base);
