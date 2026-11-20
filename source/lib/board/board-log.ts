@@ -59,6 +59,7 @@ export const {
 	loadMergedEventsBefore,
 	getEdgeRef,
 	advanceEdgeRef,
+	advanceSortedLog,
 	clearEdgeCache,
 	getSortedEvents,
 	loadEffectiveEventTimes,
@@ -91,6 +92,7 @@ export {
 export {
 	appliedAtTime,
 	effectiveEventTimes,
+	extendCutIndex,
 	indexForCuts,
 	type CutIndex,
 	parsePersistedEventsFile,

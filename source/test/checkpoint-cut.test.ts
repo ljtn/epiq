@@ -7,7 +7,9 @@ import {
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {
 	decodeReconstructedEvents,
+	extendCutIndex,
 	getSortedEvents,
+	indexForCuts,
 	materializeAll,
 	splitEventsAtTime,
 	type ReconstructedEvent,
@@ -118,5 +120,91 @@ describe('a cut from the nearest checkpoint', () => {
 		unwrap(materializeCut('second', () => succeeded('', second), end));
 
 		expect(derived()).toBe(replayedCut(second, end));
+	});
+});
+
+// Own writes: a chain off the tail, each id new.
+const ownChain = (
+	entries: ReconstructedEvent[],
+	count: number,
+	at: number,
+): ReconstructedEvent[] => {
+	const chain: ReconstructedEvent[] = [];
+	let parent = entries.at(-1)!.id[0];
+	for (let index = 0; index < count; index++) {
+		const id = ulid(at + index);
+		chain.push({
+			v: 1,
+			id: [id, parent],
+			'edit.title': {id: 'nothing', name: `own ${index}`},
+			userId: 'u1',
+			userName: 'one',
+		} as unknown as ReconstructedEvent);
+		parent = id;
+	}
+	return chain;
+};
+
+describe('the cut index of a log that grew', () => {
+	it('extends to what indexing it all again gives', () => {
+		for (let seed = 1; seed <= 20; seed++) {
+			const entries = entriesOf(seed, randomLog(seed, 50));
+			const grown = [...entries, ...ownChain(entries, 3, T0 + 99 * 60_000)];
+
+			expect(
+				extendCutIndex(indexForCuts(entries), grown, entries.length),
+			).toEqual(indexForCuts(grown));
+		}
+	});
+
+	it('refuses what own writes do not add', () => {
+		const entries = entriesOf(5, randomLog(5, 30));
+		const index = indexForCuts(entries);
+		const [own] = ownChain(entries, 1, T0 + 99 * 60_000);
+		const offTail = {
+			...own!,
+			id: [own!.id[0], entries[0]!.id[0]],
+		} as ReconstructedEvent;
+		const again = {
+			...own!,
+			id: [entries[3]!.id[0], entries.at(-1)!.id[0]],
+		} as ReconstructedEvent;
+
+		expect(
+			extendCutIndex(index, [...entries, offTail], entries.length),
+		).toBeNull();
+		expect(
+			extendCutIndex(index, [...entries, again], entries.length),
+		).toBeNull();
+	});
+
+	it('cuts as a full replay does after own writes, checkpoints kept', () => {
+		for (let seed = 1; seed <= 6; seed++) {
+			const entries = entriesOf(seed, randomLog(seed, 60));
+			const grown = [...entries, ...ownChain(entries, 4, T0 + 99 * 60_000)];
+			const end = Date.UTC(2100, 0, 1);
+
+			forgetCheckpoints();
+			unwrap(
+				materializeCut('before', () => succeeded('', entries), end, {
+					budget: 8,
+					minGap: 4,
+				}),
+			);
+
+			for (const cut of [
+				end,
+				T0 + 20 * 60_000 + 1,
+				T0 + 99 * 60_000 + 2 * 60_000,
+			]) {
+				unwrap(
+					materializeCut('after', () => succeeded('', grown), cut, {
+						budget: 8,
+						minGap: 4,
+					}),
+				);
+				expect(derived()).toBe(replayedCut(grown, cut));
+			}
+		}
 	});
 });

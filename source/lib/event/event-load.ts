@@ -506,6 +506,38 @@ export const indexForCuts = (
 };
 
 /**
+ * The index for `events`, which are `index`'s events plus a chain appended to
+ * their tail, each new: what own writes add. Null for anything else, which
+ * needs `indexForCuts`.
+ */
+export const extendCutIndex = (
+	index: CutIndex,
+	events: ReadonlyArray<Pick<ReconstructedEvent, 'id'>>,
+	from: number,
+): CutIndex | null => {
+	const idOf = new Int32Array(events.length);
+	const parentOf = new Int32Array(events.length);
+	idOf.set(index.idOf.subarray(0, from));
+	parentOf.set(index.parentOf.subarray(0, from));
+	let ids = index.ids;
+
+	for (let position = from; position < events.length; position++) {
+		const [id, refId] = events[position]!.id;
+		if (position === 0 || refId !== events[position - 1]!.id[0]) return null;
+
+		for (let earlier = 0; earlier < position; earlier++) {
+			const [otherId, otherRef] = events[earlier]!.id;
+			if (otherId === id || otherRef === id) return null;
+		}
+
+		idOf[position] = ids++;
+		parentOf[position] = idOf[position - 1]!;
+	}
+
+	return {times: effectiveEventTimes(events), idOf, parentOf, ids};
+};
+
+/**
  * Which events a cut at `targetTime` applies, by index into the causal order:
  * those before it whose parent it also applies.
  */
@@ -917,6 +949,56 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	 * Advances the cached edge to `id` without rereading; sound only for an id minted
 	 * as a child of that edge. Dropped instead if any other file moved.
 	 */
+	/**
+	 * Extends the ordered log by this process's own line, as a load would order
+	 * it: its parent is the old tail, so it comes last. Dropped instead if any
+	 * other file moved, the line names another parent, or the id is not new.
+	 */
+	function advanceSortedLog(
+		rootDir: string,
+		filePath: string,
+		line: string,
+		bytes: number,
+	): void {
+		const held = sortedCache;
+		if (!held || held.root !== rootDir) return;
+		sortedCache = null;
+
+		const next = signatureAfterOwnAppend(
+			rootDir,
+			held.signature,
+			path.basename(filePath),
+			bytes,
+		);
+		const actor = parseEventFileActor(filePath);
+		if (next === null || isFail(actor)) return;
+
+		let raw: unknown;
+		try {
+			raw = JSON.parse(line.trim());
+		} catch {
+			return;
+		}
+		const envelope = parsePersistedEnvelope(raw);
+		if (isFail(envelope)) return;
+
+		const entry: ReconstructedEvent = {
+			...envelope.value,
+			userId: actor.value.userId,
+			userName: actor.value.userName,
+		};
+		if (entry.id[1] !== held.sorted.at(-1)?.id[0]) return;
+
+		// Last only if nothing held is this id already, or waits on it as a
+		// parent: a hostile line can name an id before it exists.
+		const id = entry.id[0];
+		for (const other of held.sorted) {
+			if (other.id[0] === id || other.id[1] === id) return;
+		}
+
+		sortedCache = {...held, signature: next, sorted: [...held.sorted, entry]};
+	}
+
 	function advanceEdgeRef(
 		rootDir: string,
 		fileName: string,
@@ -988,6 +1070,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		loadMergedEventsBefore,
 		getEdgeRef,
 		advanceEdgeRef,
+		advanceSortedLog,
 		clearEdgeCache,
 		getSortedEvents,
 		loadEffectiveEventTimes,
