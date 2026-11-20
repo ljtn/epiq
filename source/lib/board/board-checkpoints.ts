@@ -19,7 +19,8 @@ import {
 import {
 	appliedAtTime,
 	decodeReconstructedEvents,
-	effectiveEventTimes,
+	indexForCuts,
+	type CutIndex,
 	materializeAll,
 	partitionMaterializeResults,
 	type ReconstructedEvent,
@@ -49,7 +50,7 @@ type Checkpoint = {
 let held: {
 	key: string;
 	entries: ReconstructedEvent[];
-	times: Array<number | null>;
+	cutIndex: CutIndex;
 	gap: number;
 	checkpoints: Checkpoint[];
 	// The deepest checkpoint's event log: every other one's is a prefix of it.
@@ -68,11 +69,7 @@ const heapAllowsAnother = (): boolean =>
 const isGenesis = (event: AppEvent): boolean =>
 	event.action === 'init.workspace';
 
-export type Cut = {
-	applied: number;
-	skipped: ReturnFail[];
-	unappliedEvents: AppEvent[];
-};
+export type Cut = {applied: number; skipped: ReturnFail[]};
 
 /**
  * Materializes the board as a cut at `targetTime` leaves it: exactly what a
@@ -92,7 +89,7 @@ export const materializeCut = (
 		held = {
 			key,
 			entries: entries.value,
-			times: effectiveEventTimes(entries.value),
+			cutIndex: indexForCuts(entries.value),
 			gap: Math.max(minGap, Math.ceil(entries.value.length / budget)),
 			checkpoints: [],
 			log: [],
@@ -100,8 +97,8 @@ export const materializeCut = (
 	}
 
 	const store = held;
-	const {entries, times, gap, checkpoints} = store;
-	const applied = appliedAtTime(entries, targetTime, times);
+	const {entries, cutIndex, gap, checkpoints} = store;
+	const applied = appliedAtTime(entries, targetTime, cutIndex);
 
 	// Everything before the first excluded entry is applied: a checkpoint there
 	// or earlier is exact, one past it never.
@@ -170,13 +167,5 @@ export const materializeCut = (
 	const tail = apply(rest);
 	if (isFail(tail)) return tail;
 
-	const unapplied = decodeReconstructedEvents(
-		entries.filter((_, position) => !applied[position]),
-	);
-
-	return succeeded('Materialized the cut', {
-		applied: count,
-		skipped,
-		unappliedEvents: isFail(unapplied) ? [] : unapplied.value,
-	});
+	return succeeded('Materialized the cut', {applied: count, skipped});
 };

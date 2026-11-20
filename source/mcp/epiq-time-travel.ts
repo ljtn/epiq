@@ -308,12 +308,12 @@ export const checkoutStateAt = (
 		if (isFail(cut)) return recoverToLiveAfterFailure(root, cut.message);
 		logSkippedEvents(cut.value.skipped);
 
-		const {unappliedEvents} = cut.value;
-
 		patchState({
 			readOnly: true,
 			timeMode: 'peek',
-			unappliedEvents,
+			// Read only by the TUI's peek and replay, which check out through
+			// their own path; decoding them here cost every scrub.
+			unappliedEvents: [],
 			replay: null,
 		});
 

@@ -2155,7 +2155,7 @@ describe('epiq-time-travel', () => {
 			expect(patchState).toHaveBeenCalledWith({
 				readOnly: true,
 				timeMode: 'peek',
-				unappliedEvents: [{id: '2'}],
+				unappliedEvents: [],
 				replay: null,
 			});
 
