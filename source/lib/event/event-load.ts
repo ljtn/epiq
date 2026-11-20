@@ -1,54 +1,47 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {z} from 'zod';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
 import {decodeTime, toEffectiveUlidTimes} from './date-utils.js';
 import {EventCatalog} from './event-catalog.js';
-import {
-	isSupportedSchemaVersion,
-	parsePersistedEnvelope,
-	PersistedEnvelope,
-} from './event-envelope.js';
-import {ActionOf, Actor, Event, EventMap} from './event.model.js';
+import {isSupportedSchemaVersion} from './event-envelope.js';
+import {ActionOf, Event, EventMap} from './event.model.js';
 import {
 	isSettledSignature,
-	isSettledStamp,
-	isVanished,
 	listEventFiles,
 	logSignature,
 	SCAN_ATTEMPTS,
 	signatureAfterOwnAppend,
 } from './log-signature.js';
-import {stripPendingMarker} from './pending-log.js';
+import {appendToOrder, sortEvents, sortEventsIndexed} from './event-order.js';
+import {
+	clearParseCache,
+	deepFreeze,
+	ENVELOPE_KEYS,
+	UNNAMED_ACTOR,
+	extendParse,
+	FREEZE_EVENTS,
+	keepParsesOf,
+	parseEventFileActor,
+	parsePersistedEventsFile,
+	type ParseLineage,
+	type ReconstructedEvent,
+	type UnreadableEvent,
+} from './event-parse.js';
 
-// The actor name a log file name without a name segment yields.
-const UNNAMED_ACTOR = 'unknown';
-
-const EventFileNameSchema = z.object({
-	userId: z.string().min(1).default(UNNAMED_ACTOR),
-	userName: z.string().min(1).default(UNNAMED_ACTOR),
-});
-
-// `v` is the version as written, maybe unsupported: an unreadable event keeps its place.
-// `userName` is the older file names' segment, read by `loadActorNames`.
-export type ReconstructedEvent = PersistedEnvelope & Actor & {userName: string};
-
-// Orderable but not interpretable; `corrupt-line` has no envelope and is only
-// reported. `targetNodeId` scopes the resulting lock.
-export type UnreadableEvent = {
-	eventId: string | null;
-	reason:
-		| 'unsupported-schema-version'
-		| 'unknown-action'
-		| 'invalid-payload'
-		| 'corrupt-line';
-	detail: string;
-	targetNodeId: string | null;
-};
-
-const ENVELOPE_KEYS = new Set(['id', 'v', 'userId', 'userName']);
+export {
+	clearParseCache,
+	parsePersistedEventsFile,
+	type ReconstructedEvent,
+	type UnreadableEvent,
+} from './event-parse.js';
+export {
+	appendToOrder,
+	sortEvents,
+	sortEventsIndexed,
+	type OrderIndex,
+} from './event-order.js';
 
 // Anything ambiguous returns null, falling back to a log-wide lock.
 const getTargetNodeId = (entry: ReconstructedEvent): string | null => {
@@ -67,47 +60,6 @@ const getTargetNodeId = (entry: ReconstructedEvent): string | null => {
 	return typeof candidate === 'string' && candidate.length > 0
 		? candidate
 		: null;
-};
-
-// File names are lowercased but ULIDs are upper case; restores the casing of
-// ULID-shaped ids only.
-const ULID_SHAPE = /^[0-9a-hjkmnp-tv-z]{26}$/i;
-
-const canonicalUserId = (userId: string): string =>
-	ULID_SHAPE.test(userId) ? userId.toUpperCase() : userId;
-
-const parseEventFileActor = (
-	filePath: string,
-): Result<{userId: string; userName: string}> => {
-	const baseName = path.basename(filePath, '.jsonl');
-
-	// Split on the FIRST '.' only: names may contain dots, ids never do.
-	const separatorIndex = baseName.indexOf('.');
-	// A pending log's marker rides on the id segment; same actor either way.
-	const userId = stripPendingMarker(
-		separatorIndex === -1 ? baseName : baseName.slice(0, separatorIndex),
-	);
-	// Undefined, not '', so the schema's 'unknown' default applies rather than
-	// tripping its min(1).
-	const userName =
-		separatorIndex === -1 ? undefined : baseName.slice(separatorIndex + 1);
-
-	const result = EventFileNameSchema.safeParse({
-		// Id only: the name segment is compared against a re-encoded (lowercased)
-		// name, so changing its case would break that match.
-		userId: canonicalUserId(userId),
-		userName,
-	});
-
-	if (!result.success) {
-		return failed(
-			`Invalid event file name ${path.basename(filePath)}: ${result.error.issues
-				.map(issue => issue.path.join('.') || issue.message)
-				.join(', ')}`,
-		);
-	}
-
-	return succeeded('Parsed event file actor', result.data);
 };
 
 // The one key that is not the envelope's, counted without copying the entry.
@@ -146,308 +98,40 @@ const hasPersistedActionPayload = (
 	action: string,
 ): entry is Record<string, unknown> => action in entry;
 
-// Parsed files, keyed by a stat stamp taken BEFORE the read, so a write landing
-// in between is reparsed next time rather than cached as seen.
-const parseCache = new Map<
-	string,
-	{stamp: string; entries: ReconstructedEvent[]; quarantined: UnreadableEvent[]}
->();
+// Per file the held order was read from: the parse lineage, and how many of
+// its entries it holds. Null lineage: nothing to grow from, so sort again.
+type HeldFiles = Map<string, {lineage: number | null; count: number}>;
 
-// Caps on lines (events and quarantined lines alike) and on entries.
-const PARSE_CACHE_MAX_LINES = 300_000;
-const PARSE_CACHE_MAX_FILES = 512;
-
-let parseCacheLines = 0;
-
-const linesOf = (entry: {
-	entries: ReconstructedEvent[];
-	quarantined: UnreadableEvent[];
-}): number => entry.entries.length + entry.quarantined.length;
-
-const rememberParse = (
-	filePath: string,
-	stamp: string,
-	entries: ReconstructedEvent[],
-	quarantined: UnreadableEvent[],
-): void => {
-	const previous = parseCache.get(filePath);
-	const next = {stamp, entries, quarantined};
-
-	// A full cache turns a new file away: loads read files in one order, so
-	// evicting for it would evict the next file read, and every load would miss.
-	if (
-		!previous &&
-		parseCache.size > 0 &&
-		(parseCacheLines + linesOf(next) > PARSE_CACHE_MAX_LINES ||
-			parseCache.size >= PARSE_CACHE_MAX_FILES)
-	) {
-		return;
-	}
-
-	if (previous) parseCacheLines -= linesOf(previous);
-
-	// Deleted first, so a re-remembered file moves to the back of the eviction order.
-	parseCache.delete(filePath);
-	parseCache.set(filePath, next);
-	parseCacheLines += linesOf(next);
-
-	for (const [key, value] of parseCache) {
+// What each file holds past what the held order took from it: null unless
+// every file it took from is still there, and has only grown since.
+const addedSince = (
+	heldFiles: HeldFiles,
+	read: ReadonlyArray<{
+		file: string;
+		entries: ReconstructedEvent[];
+		lineage: number | null;
+	}>,
+): ReconstructedEvent[] | null => {
+	const now = new Map(read.map(entry => [entry.file, entry]));
+	for (const [file, was] of heldFiles) {
+		const is = now.get(file);
 		if (
-			parseCacheLines <= PARSE_CACHE_MAX_LINES &&
-			parseCache.size <= PARSE_CACHE_MAX_FILES
+			!is ||
+			was.lineage === null ||
+			is.lineage !== was.lineage ||
+			is.entries.length < was.count
 		) {
-			break;
+			return null;
 		}
-		if (key === filePath) continue;
-
-		parseCache.delete(key);
-		parseCacheLines -= linesOf(value);
-	}
-};
-
-/** The tests drive the log through mocks, where a stamp says nothing. */
-export const clearParseCache = (): void => {
-	parseCache.clear();
-	parseCacheLines = 0;
-};
-
-const MS_IN_NS = 1_000_000n;
-const SECOND_IN_NS = 1_000_000_000n;
-
-type FileStamp = {value: string; settled: boolean};
-
-const fileStamp = (filePath: string): FileStamp | null => {
-	try {
-		const {size, mtimeNs} = fs.statSync(filePath, {bigint: true});
-
-		return {
-			value: `${size}:${mtimeNs}`,
-			settled: isSettledStamp(
-				Number(BigInt(Date.now()) * MS_IN_NS - mtimeNs) / 1e6,
-				mtimeNs % SECOND_IN_NS === 0n,
-			),
-		};
-	} catch {
-		return null;
-	}
-};
-
-/** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
-export const parsePersistedEventsFile = (
-	filePath: string,
-	unreadable?: UnreadableEvent[],
-): Result<ReconstructedEvent[] | null> => {
-	const actorResult = parseEventFileActor(filePath);
-	if (isFail(actorResult)) return failed(actorResult.message);
-
-	const stamp = fileStamp(filePath);
-	const remembered = stamp ? parseCache.get(filePath) : undefined;
-
-	if (stamp && remembered && remembered.stamp === stamp.value) {
-		// Appended one at a time rather than spread: a log can hold more lines
-		// than an argument list has room for, and a corrupt one holds them here.
-		if (unreadable)
-			for (const entry of remembered.quarantined) {
-				unreadable.push(entry);
-			}
-
-		// A copy of the list, so a caller sorting it cannot reorder the cache.
-		return succeeded('Parsed persisted events file', [...remembered.entries]);
 	}
 
-	let content: string;
-	try {
-		content = fs.readFileSync(filePath, 'utf8');
-	} catch (error) {
-		if (isVanished(error)) return succeeded('Event file missing', null);
-		throw error;
-	}
-
-	const entries: ReconstructedEvent[] = [];
-	const fileName = path.basename(filePath);
-	// Collected separately from the caller's list so the entry can be remembered
-	// with the events it belongs to, and replayed on a hit.
-	const quarantined: UnreadableEvent[] = [];
-
-	// An unparseable envelope has no id to keep its place: skip the line, never
-	// fail the load, as union merge spreads it to every clone.
-	const quarantine = (lineNumber: number, reason: string) => {
-		quarantined.push({
-			eventId: null,
-			reason: 'corrupt-line',
-			detail: `${fileName}:${lineNumber} (${reason})`,
-			targetNodeId: null,
-		});
-	};
-
-	for (const [index, line] of content.split('\n').entries()) {
-		const trimmed = line.trim();
-		if (!trimmed) continue;
-
-		let raw: unknown;
-		try {
-			raw = JSON.parse(trimmed);
-		} catch {
-			quarantine(index + 1, 'invalid JSON');
-			continue;
+	const added: ReconstructedEvent[] = [];
+	for (const {file, entries} of read) {
+		for (let at = heldFiles.get(file)?.count ?? 0; at < entries.length; at++) {
+			added.push(entries[at]!);
 		}
-
-		// Envelope only: an unreadable version is retained for its place in the
-		// chain.
-		const parsedResult = parsePersistedEnvelope(raw);
-		if (isFail(parsedResult)) {
-			quarantine(index + 1, parsedResult.message);
-			continue;
-		}
-
-		entries.push({
-			...parsedResult.value,
-			userId: actorResult.value.userId,
-			userName: actorResult.value.userName,
-		});
 	}
-
-	if (unreadable) for (const entry of quarantined) unreadable.push(entry);
-
-	// Cached only with a readable, settled stamp.
-	if (stamp?.settled) {
-		rememberParse(filePath, stamp.value, entries, quarantined);
-	}
-
-	return succeeded('Parsed persisted events file', [...entries]);
-};
-
-// Code units, not `localeCompare`, which follows the process locale.
-const byCodeUnit = (a: string, b: string): number =>
-	a < b ? -1 : a > b ? 1 : 0;
-
-/**
- * Total, so order depends only on the event set: equal ids fall through to the
- * actor and payload, which every replica has identically.
- */
-const compareEvents = (
-	a: ReconstructedEvent,
-	b: ReconstructedEvent,
-): number => {
-	const byId = byCodeUnit(a.id[0], b.id[0]);
-	if (byId !== 0) return byId;
-
-	return byCodeUnit(JSON.stringify(a), JSON.stringify(b));
-};
-
-/**
- * The causal order: a forest by `refId`, siblings by id, walked depth-first.
- * `genesis` names the only action allowed to be a root.
- */
-export const sortEvents = (
-	reconstructedEvents: ReconstructedEvent[],
-	genesis: string,
-): ReconstructedEvent[] => {
-	const events = reconstructedEvents;
-	const count = events.length;
-
-	// Ids as numbers, one per distinct id: a duplicate shares its number.
-	const idNumbers = new Map<string, number>();
-	const idOf = new Int32Array(count);
-	for (let index = 0; index < count; index++) {
-		const eventId = events[index]!.id[0];
-		let number = idNumbers.get(eventId);
-		if (number === undefined) {
-			number = idNumbers.size;
-			idNumbers.set(eventId, number);
-		}
-		idOf[index] = number;
-	}
-
-	const NO_PARENT = -1;
-	const UNKNOWN_PARENT = -2;
-	const parentOf = new Int32Array(count);
-	const childCounts = new Int32Array(idNumbers.size + 1);
-	for (let index = 0; index < count; index++) {
-		const refId = events[index]!.id[1] ?? null;
-		const parent =
-			refId === null ? NO_PARENT : idNumbers.get(refId) ?? UNKNOWN_PARENT;
-		parentOf[index] = parent;
-		if (parent >= 0) childCounts[parent + 1]!++;
-	}
-
-	// Each id's children are childIndex[childStart[id] .. childStart[id + 1]].
-	const childStart = childCounts;
-	for (let id = 1; id < childStart.length; id++) {
-		childStart[id]! += childStart[id - 1]!;
-	}
-	const childIndex = new Int32Array(childStart[idNumbers.size]!);
-	const filled = childStart.slice(0, idNumbers.size);
-	for (let index = 0; index < count; index++) {
-		const parent = parentOf[index]!;
-		if (parent >= 0) childIndex[filled[parent]!++] = index;
-	}
-
-	const byEvent = (a: number, b: number) =>
-		compareEvents(events[a]!, events[b]!);
-	for (let id = 0; id < idNumbers.size; id++) {
-		const from = childStart[id]!;
-		const to = childStart[id + 1]!;
-		if (to - from > 1) childIndex.subarray(from, to).sort(byEvent);
-	}
-
-	const result: ReconstructedEvent[] = [];
-	const placed = new Uint8Array(idNumbers.size);
-	// Each event is pushed once by its parent, plus the root.
-	const stack = new Int32Array(count + 1);
-
-	// An explicit stack: the forest is one chain as long as the log.
-	const visit = (root: number) => {
-		let top = 0;
-		stack[top++] = root;
-
-		while (top > 0) {
-			const index = stack[--top]!;
-			const id = idOf[index]!;
-
-			if (placed[id]) continue;
-
-			result.push(events[index]!);
-			placed[id] = 1;
-
-			// Reversed, so the lowest-ULID sibling is popped first.
-			for (
-				let child = childStart[id + 1]! - 1;
-				child >= childStart[id]!;
-				child--
-			) {
-				stack[top++] = childIndex[child]!;
-			}
-		}
-	};
-
-	const sortedIndexes = (keep: (index: number) => boolean): number[] => {
-		const kept: number[] = [];
-		for (let index = 0; index < count; index++)
-			if (keep(index)) kept.push(index);
-		return kept.sort(byEvent);
-	};
-
-	// Only genesis may be a root: a forged `refId: null` would sort before history.
-	// Exactly one action key, or extra keys smuggle a payload past the check.
-	const roots = sortedIndexes(index => {
-		if (parentOf[index] !== NO_PARENT) return false;
-		const keys = Object.keys(events[index]!).filter(
-			key => !ENVELOPE_KEYS.has(key),
-		);
-		return keys.length === 1 && keys[0] === genesis;
-	});
-	for (const root of roots) visit(root);
-
-	const orphanRoots = sortedIndexes(
-		index => !placed[idOf[index]!] && parentOf[index]! < 0,
-	);
-	for (const orphanRoot of orphanRoots) visit(orphanRoot);
-
-	const remaining = sortedIndexes(index => !placed[idOf[index]!]);
-	for (const index of remaining) visit(index);
-
-	return result;
+	return added;
 };
 
 // The time a checkout cut judges each event by: raw where honest, inherited
@@ -500,7 +184,6 @@ export const splitEventsAtTime = (
 	};
 };
 
-/** Reads the log for one catalog: its actions, payload checks and genesis. */
 export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	const knownActions: ReadonlySet<string> = new Set(catalog.actions);
 
@@ -594,7 +277,9 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 				continue;
 			}
 
-			decoded.push(eventResult.value);
+			decoded.push(
+				FREEZE_EVENTS ? deepFreeze(eventResult.value) : eventResult.value,
+			);
 		}
 
 		if (skippedActions.size > 0) {
@@ -625,11 +310,30 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 	// The whole ordered log, by signature: a time-travel scrub and the timeline
 	// read it again after every boot, unchanged.
+	// The array the last load's order was copied from: the held order, which
+	// only ever grows in place, or a fresh sort.
+	let lastOrder: ReconstructedEvent[] | null = null;
+
+	// That order decoded, as far as `length`: the order growing past it needs
+	// only its new entries decoded.
+	let decodedCache: {
+		order: ReconstructedEvent[];
+		length: number;
+		events: Event<M>[];
+		unreadable: UnreadableEvent[];
+	} | null = null;
+
 	let sortedCache: {
 		root: string;
 		signature: string;
 		sorted: ReconstructedEvent[];
 		quarantined: UnreadableEvent[];
+		// From the sort: every id held, and every parent a held entry names
+		// that is not one of them.
+		ids: Map<string, number>;
+		waiting: Set<string>;
+		spine: ReconstructedEvent[] | null;
+		files: HeldFiles;
 	} | null = null;
 
 	function loadAllPersistedEvents(
@@ -651,9 +355,11 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			}
 
 			// A copy, so a caller reordering its list cannot reorder the cache.
+			lastOrder = sortedCache.sorted;
 			return succeeded('All events loaded, unchanged', [...sortedCache.sorted]);
 		}
 
+		lastOrder = null;
 		if (!fs.existsSync(dir)) {
 			return succeeded('No events found', []);
 		}
@@ -662,16 +368,24 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		// collected per attempt so it is not reported twice.
 		let entries: ReconstructedEvent[] = [];
 		let quarantined: UnreadableEvent[] = [];
+		let read: Array<{
+			file: string;
+			entries: ReconstructedEvent[];
+			lineage: number | null;
+		}> = [];
 
 		for (let attempt = 1; ; attempt++) {
 			entries = [];
 			quarantined = [];
+			read = [];
 			let listAgain = false;
 
 			for (const file of listEventFiles(dir)) {
+				const seen: ParseLineage = {lineage: null};
 				const result = parsePersistedEventsFile(
 					path.join(dir, file),
 					quarantined,
+					seen,
 				);
 
 				if (isFail(result)) {
@@ -688,18 +402,57 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 				// Pushed, not spread: a spread throws past ~125k arguments.
 				for (const entry of result.value) entries.push(entry);
+				read.push({file, entries: result.value, lineage: seen.lineage});
 			}
 
 			if (!listAgain) break;
 		}
 
 		if (unreadable) for (const entry of quarantined) unreadable.push(entry);
+		keepParsesOf(new Set(read.map(({file}) => path.join(dir, file))));
 
-		const sorted = sortEvents(entries, catalog.genesis);
+		const held = sortedCache?.root === eventsRoot ? sortedCache : null;
+		sortedCache = null;
 
-		sortedCache = isSettledSignature(signature)
-			? {root: eventsRoot, signature, sorted, quarantined}
-			: null;
+		const files: HeldFiles = new Map(
+			read.map(({file, entries, lineage}) => [
+				file,
+				{lineage, count: entries.length},
+			]),
+		);
+
+		// Only grown, by events that all land after the held order: append them.
+		// A file redone whole or gone is no append, and is sorted again.
+		const added = held ? addedSince(held.files, read) : null;
+		const appended = held && added ? appendToOrder(held, added) : null;
+
+		let sorted: ReconstructedEvent[];
+		if (held && appended) {
+			for (const entry of appended.order) {
+				held.sorted.push(entry);
+				held.ids.set(entry.id[0], held.ids.size);
+			}
+			held.spine = appended.spine;
+			held.signature = signature;
+			held.quarantined = quarantined;
+			held.files = files;
+			sorted = held.sorted;
+			if (isSettledSignature(signature)) sortedCache = held;
+		} else {
+			const fresh = sortEventsIndexed(entries, catalog.genesis);
+			sorted = fresh.sorted;
+			if (isSettledSignature(signature)) {
+				sortedCache = {
+					root: eventsRoot,
+					signature,
+					quarantined,
+					files,
+					...fresh,
+				};
+			}
+		}
+
+		lastOrder = sorted;
 
 		// The causal order's tail, which is what the next write points at.
 		// Recorded here because this is the one place that has just paid for it.
@@ -709,7 +462,10 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			edge: sorted.at(-1)?.id?.[0] ?? null,
 		};
 
-		return succeeded('All events loaded', [...sorted]);
+		return succeeded(
+			appended ? 'All events loaded, appended' : 'All events loaded',
+			[...sorted],
+		);
 	}
 
 	// Boot paths use this to lock where history is unreadable; readers wanting
@@ -724,13 +480,30 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			return failed(allEvents.message);
 		}
 
-		const decoded = decodeReconstructedEvents(allEvents.value, unreadable);
+		const order = allEvents.value;
+		const held =
+			decodedCache &&
+			decodedCache.order === lastOrder &&
+			order.length >= decodedCache.length
+				? decodedCache
+				: null;
+		const from = held?.length ?? 0;
+		const fresh: UnreadableEvent[] = [];
+		const decoded = decodeReconstructedEvents(order.slice(from), fresh);
 		if (isFail(decoded)) return failed(decoded.message);
 
-		return succeeded('Loaded merged events', {
-			events: decoded.value,
-			unreadable,
-		});
+		const events = held ? held.events : [];
+		const lost = held ? held.unreadable : [];
+		for (const event of decoded.value) events.push(event);
+		for (const entry of fresh) lost.push(entry);
+		decodedCache = lastOrder
+			? {order: lastOrder, length: order.length, events, unreadable: lost}
+			: null;
+
+		for (const entry of lost) unreadable.push(entry);
+
+		// A copy, so a caller reordering its list cannot reorder the cache.
+		return succeeded('Loaded merged events', {events: [...events], unreadable});
 	}
 
 	// Actors come off file names, so they survive an undecodable payload.
@@ -866,6 +639,60 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	 * Advances the cached edge to `id` without rereading; sound only for an id minted
 	 * as a child of that edge. Dropped instead if any other file moved.
 	 */
+	/**
+	 * Extends the ordered log by this process's own line, as a load would order
+	 * it: its parent is the old tail, so it comes last. Dropped instead if any
+	 * other file moved, the line names another parent, or the id is not new.
+	 */
+	function advanceSortedLog(
+		rootDir: string,
+		filePath: string,
+		line: string,
+		bytes: number,
+	): void {
+		const held = sortedCache;
+		if (!held || held.root !== rootDir) return;
+		sortedCache = null;
+
+		const next = signatureAfterOwnAppend(
+			rootDir,
+			held.signature,
+			path.basename(filePath),
+			bytes,
+		);
+		if (next === null) return;
+
+		// The parse cache learns the line too, or the next load would read it
+		// as new and sort again.
+		const extended = extendParse(filePath, line);
+		if (!extended) return;
+
+		// The parse it grew from must be the one the order holds, entry for entry.
+		const fileName = path.basename(filePath);
+		const was = held.files.get(fileName);
+		const baseCount = extended.base?.entries.length ?? 0;
+		if (
+			was
+				? was.lineage !== extended.base?.lineage || was.count !== baseCount
+				: baseCount !== 0
+		) {
+			return;
+		}
+		const {entry} = extended;
+		// Last only where the rule for any append says so: new, waited on by
+		// nothing held, and under the spine.
+		const appended = appendToOrder(held, [entry]);
+		if (!appended) return;
+
+		// In place: every read hands out a copy, so nothing else holds this array.
+		held.sorted.push(entry);
+		held.ids.set(entry.id[0], held.ids.size);
+		held.spine = appended.spine;
+		held.files.set(fileName, {lineage: extended.lineage, count: baseCount + 1});
+		held.signature = next;
+		sortedCache = held;
+	}
+
 	function advanceEdgeRef(
 		rootDir: string,
 		fileName: string,
@@ -892,6 +719,8 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	function clearEdgeCache(): void {
 		edgeCache = null;
 		sortedCache = null;
+		lastOrder = null;
+		decodedCache = null;
 		clearParseCache();
 	}
 
@@ -920,9 +749,16 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		);
 	}
 
+	// The causal order undecoded: entries keep their parent links, which a cut
+	// at a time reads. A copy, from the ordered-log cache when unchanged.
+	const loadOrderedEntries = (
+		stateBranchRoot: string,
+	): Result<ReconstructedEvent[]> => loadAllPersistedEvents(stateBranchRoot);
+
 	return {
 		fromPersistedEvent,
 		decodeReconstructedEvents,
+		loadOrderedEntries,
 		loadMergedEventsWithUnreadable,
 		loadEventActors,
 		loadActorNames,
@@ -930,10 +766,13 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		loadMergedEventsBefore,
 		getEdgeRef,
 		advanceEdgeRef,
+		advanceSortedLog,
 		clearEdgeCache,
 		getSortedEvents,
 		loadEffectiveEventTimes,
 	};
 };
+
+/** What a tail of the log is made from: see `log-tail`. */
 
 export type Loader<M extends EventMap> = ReturnType<typeof createLoader<M>>;
