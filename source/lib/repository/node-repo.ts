@@ -242,16 +242,10 @@ export const nodeRepo = {
 		if (!issue) return failed('Unable to create attachment, missing issue');
 		if (!isTicketNode(issue)) return failed('Can only attach to issues');
 
-		const result = updateState(s => ({
-			...s,
-			attachments: {
-				...(s.attachments ?? {}),
-				[attachment.id]: {
-					...attachment,
-					deleted: false,
-				},
-			},
-		}));
+		const result = setStateEntry('attachments', attachment.id, {
+			...attachment,
+			deleted: false,
+		});
 
 		if (isFail(result)) return failed('Unable to create attachment');
 
@@ -272,13 +266,11 @@ export const nodeRepo = {
 			deleted: true,
 		};
 
-		const result = updateState(s => ({
-			...s,
-			attachments: {
-				...(s.attachments ?? {}),
-				[attachmentId]: updatedAttachment,
-			},
-		}));
+		const result = setStateEntry(
+			'attachments',
+			attachmentId,
+			updatedAttachment,
+		);
 
 		if (isFail(result)) return failed('Unable to delete attachment');
 

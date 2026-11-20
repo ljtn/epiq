@@ -1,4 +1,3 @@
-import {AppEvent} from '../board/board-events.model.js';
 import {Filter, Tag} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
@@ -36,50 +35,14 @@ const getAssigneeNames = (ticket: NavNode<'TICKET'>): string[] => {
 		.filter((name): name is string => Boolean(name));
 };
 
-/**
- * Who has worked each node, from the log; rebuilt only when the log is
- * replaced, since filters run per ticket per keystroke.
- */
-let indexedLog: AppEvent[] | null = null;
-let actorsByNode = new Map<string, Set<string>>();
-
-const getActorsByNode = (): Map<string, Set<string>> => {
-	const eventLog = getState().eventLog ?? [];
-
-	if (eventLog === indexedLog) return actorsByNode;
-
-	const byNode = new Map<string, Set<string>>();
-
-	for (const event of eventLog) {
-		if (!event.userId) continue;
-
-		const payload = event.payload as {id?: unknown; issue?: unknown};
-
-		// `id` is an event's target; `issue` is a comment's ticket. Ids are unique
-		// across kinds.
-		for (const target of [payload.id, payload.issue]) {
-			if (typeof target !== 'string') continue;
-
-			const actors = byNode.get(target) ?? new Set<string>();
-			actors.add(event.userId);
-			byNode.set(target, actors);
-		}
-	}
-
-	indexedLog = eventLog;
-	actorsByNode = byNode;
-
-	return byNode;
-};
-
 /** Names of everyone who wrote an event on this ticket, resolved by id. */
 const getActorNames = (ticket: NavNode<'TICKET'>): string[] => {
 	const {contributors} = getState();
-	const actors = getActorsByNode().get(ticket.id);
+	const actors = getState().actorsById?.[ticket.id]?.ids;
 
 	if (!actors) return [];
 
-	return [...actors]
+	return actors
 		.map(id => contributors[id]?.name)
 		.filter((name): name is string => Boolean(name));
 };

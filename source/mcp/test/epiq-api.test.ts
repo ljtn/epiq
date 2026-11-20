@@ -392,6 +392,23 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 				tags: tagRegistry,
 				contributors: contributorRegistry,
 				eventLog: stateEventLog,
+				// Who wrote that log, as the board folds it.
+				authors: Object.fromEntries(
+					(stateEventLog as {userId?: string}[])
+						.flatMap(event => (event.userId ? [event.userId] : []))
+						.map(id => [id, {id}]),
+				),
+				// The store the comment above made.
+				comments: {
+					'comment-1': {
+						id: 'comment-1',
+						issue: fixtureId('issue-1'),
+						md: 'A comment',
+						authorId: 'user-1',
+						deleted: false,
+					},
+				},
+				attachments: {},
 				syncStatus: {
 					status: 'synced',
 					msg: 'Synced',
@@ -2039,32 +2056,18 @@ describe('mcp tools', () => {
 	});
 
 	describe('restoreContributor', () => {
-		const asTombstoned = () => {
+		// Removed, keeping the name its create gave it, as the board folds it.
+		const asTombstoned = (createdName?: string) => {
 			contributorRegistry['contributor-1'] = {
 				id: 'contributor-1',
 				name: REMOVED_CONTRIBUTOR_NAME,
 				tombstoned: true,
+				...(createdName ? {createdName} : {}),
 			};
 		};
 
-		const logWithCreate = (name: string) =>
-			(
-				eventLoadModule.loadMergedEvents as ReturnType<typeof vi.fn>
-			).mockReturnValue(
-				succeeded('loaded', [
-					{
-						id: 'create-1',
-						userId: 'someone-else',
-						userName: 'Someone Else',
-						action: 'create.contributor',
-						payload: {id: 'contributor-1', name},
-					},
-				]),
-			);
-
 		it('puts back the name the contributor was created under', async () => {
-			asTombstoned();
-			logWithCreate('Temp Tester');
+			asTombstoned('Temp Tester');
 
 			const result = await tools.restoreContributor({
 				repoRoot: '/repo',
@@ -2093,8 +2096,6 @@ describe('mcp tools', () => {
 		});
 
 		it('refuses a contributor who is not tombstoned', async () => {
-			logWithCreate('Alice');
-
 			const result = await tools.restoreContributor({
 				repoRoot: '/repo',
 				contributorId: 'contributor-1',
@@ -2110,9 +2111,6 @@ describe('mcp tools', () => {
 
 		it('refuses when the log has no create.contributor to read', async () => {
 			asTombstoned();
-			(
-				eventLoadModule.loadMergedEvents as ReturnType<typeof vi.fn>
-			).mockReturnValue(succeeded('loaded', []));
 
 			const result = await tools.restoreContributor({
 				repoRoot: '/repo',

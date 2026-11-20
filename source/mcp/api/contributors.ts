@@ -186,7 +186,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	// The same union a picker offers; the registry alone misses log-only authors,
 	// and an unmatched name mints a duplicate id.
 	const matches = contributorDirectory({
-		events: ready.value.state.eventLog ?? [],
+		authors: Object.keys(ready.value.state.authors ?? {}),
 		registry: ready.value.state.contributors,
 		logFileNames: loadActorNames(ready.value.boot.stateBranchRoot),
 	}).filter(candidate => candidate.name === assigneeName);
@@ -298,27 +298,6 @@ export const tombstoneContributor = async (
 	});
 };
 
-// Removal never rewrites the log, so the `create.contributor` payload still
-// carries the original name. Last write wins.
-const findCreatedContributorName = async (
-	stateBranchRoot: string,
-	contributorId: string,
-): Promise<string | undefined> => {
-	const eventsResult = loadMergedEvents(stateBranchRoot);
-	if (isFail(eventsResult)) return undefined;
-
-	let name: string | undefined;
-
-	for (const event of eventsResult.value) {
-		if (event.action !== 'create.contributor') continue;
-
-		const payload = event.payload as {id?: string; name?: string};
-		if (payload.id === contributorId && payload.name) name = payload.name;
-	}
-
-	return name;
-};
-
 // Undoes a removal made before somebody's events had been pulled.
 export const restoreContributor = async (
 	input: ToolInput & {contributorId: string},
@@ -333,10 +312,7 @@ export const restoreContributor = async (
 		return failed('Contributor is not tombstoned');
 	}
 
-	const originalName = await findCreatedContributorName(
-		ready.value.boot.stateBranchRoot,
-		input.contributorId,
-	);
+	const originalName = contributor.createdName;
 
 	if (!originalName) {
 		return failed(
@@ -401,7 +377,11 @@ export const getBoardContributors = async (
 	const registry = ready.value.state.contributors;
 
 	const contributors = contributorDirectory({
-		events: scopedEvents,
+		authors: [
+			...new Set(
+				scopedEvents.flatMap(event => (event.userId ? [event.userId] : [])),
+			),
+		],
 		registry,
 		logFileNames: loadActorNames(ready.value.boot.stateBranchRoot),
 	}).map(({id, name, isExternal}) => ({

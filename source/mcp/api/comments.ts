@@ -72,33 +72,22 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
-	const commentEvent = ready.value.state.eventLog.find(
-		(event): event is AppEvent<'add.issue.comment'> =>
-			event.action === 'add.issue.comment' &&
-			event.payload.id === input.commentId,
-	);
+	const comment = ready.value.state.comments[input.commentId];
+	if (!comment) return failed('Unable to resolve comment');
 
-	if (!commentEvent) {
-		return failed('Unable to resolve comment');
-	}
-
-	if (commentEvent.payload.author !== ready.value.actor.userId) {
+	if (comment.authorId !== ready.value.actor.userId) {
 		return failed('You can only delete your own comments');
 	}
 
-	const issueResult = findWritableIssue(commentEvent.payload.issue);
+	const issueResult = findWritableIssue(comment.issue);
 	if (isFail(issueResult)) return issueResult;
 
-	const alreadyDeleted = ready.value.state.eventLog.some(
-		event =>
-			event.action === 'delete.issue.comment' &&
-			event.payload.id === input.commentId,
-	);
+	const alreadyDeleted = comment.deleted;
 
 	if (alreadyDeleted) {
 		return succeeded('Comment already deleted', {
 			id: input.commentId,
-			issueId: commentEvent.payload.issue,
+			issueId: comment.issue,
 		});
 	}
 
@@ -108,7 +97,7 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 		action: 'delete.issue.comment',
 		payload: {
 			id: input.commentId,
-			issue: commentEvent.payload.issue,
+			issue: comment.issue,
 		},
 	} satisfies AppEvent<'delete.issue.comment'>;
 
@@ -121,7 +110,7 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 
 	return succeeded('Deleted issue comment', {
 		id: input.commentId,
-		issueId: commentEvent.payload.issue,
+		issueId: comment.issue,
 	});
 };
 
@@ -129,28 +118,17 @@ export const editIssueComment = async (input: EditIssueCommentInput) => {
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
-	const commentEvent = ready.value.state.eventLog.find(
-		(event): event is AppEvent<'add.issue.comment'> =>
-			event.action === 'add.issue.comment' &&
-			event.payload.id === input.commentId,
-	);
+	const comment = ready.value.state.comments[input.commentId];
+	if (!comment) return failed('Unable to resolve comment');
 
-	if (!commentEvent) {
-		return failed('Unable to resolve comment');
-	}
-
-	if (commentEvent.payload.author !== ready.value.actor.userId) {
+	if (comment.authorId !== ready.value.actor.userId) {
 		return failed('You can only edit your own comments');
 	}
 
-	const issueResult = findWritableIssue(commentEvent.payload.issue);
+	const issueResult = findWritableIssue(comment.issue);
 	if (isFail(issueResult)) return issueResult;
 
-	const deleted = ready.value.state.eventLog.some(
-		event =>
-			event.action === 'delete.issue.comment' &&
-			event.payload.id === input.commentId,
-	);
+	const deleted = comment.deleted;
 
 	if (deleted) return failed('Comment was deleted');
 
@@ -172,7 +150,7 @@ export const editIssueComment = async (input: EditIssueCommentInput) => {
 		action: 'edit.issue.comment',
 		payload: {
 			id: input.commentId,
-			issue: commentEvent.payload.issue,
+			issue: comment.issue,
 			md: body,
 		},
 	} satisfies AppEvent<'edit.issue.comment'>;
@@ -186,7 +164,7 @@ export const editIssueComment = async (input: EditIssueCommentInput) => {
 
 	return succeeded('Edited issue comment', {
 		id: input.commentId,
-		issueId: commentEvent.payload.issue,
+		issueId: comment.issue,
 		body,
 	});
 };

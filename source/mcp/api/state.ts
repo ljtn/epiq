@@ -188,13 +188,6 @@ export const deriveGuiState = (): Result<ApiState> => {
 		);
 	}
 
-	const attachmentOwners = new Map<string, string>();
-	for (const event of stateResult.value.eventLog) {
-		if (event.action === 'add.issue.attachment') {
-			attachmentOwners.set(event.payload.id, event.payload.author);
-		}
-	}
-
 	const attachmentsByIssueId: ApiState['attachmentsByIssueId'] = {};
 
 	const attachmentsByIssue = nodeRepo.getAttachmentsGroupedByIssue();
@@ -211,8 +204,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 			fileName: getAttachmentFileName(attachment.hash, attachment.ext),
 			bytes: attachment.bytes,
 			createdAt: ulidTimeMs(attachment.id),
-			canDelete:
-				attachmentOwners.get(attachment.id) === settingsRes.value.userId,
+			canDelete: attachment.author === settingsRes.value.userId,
 		}));
 	}
 

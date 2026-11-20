@@ -50,6 +50,9 @@ export type Contributor = {
 	name: string;
 	userId?: string;
 	tombstoned?: boolean;
+	// The name its last create event gave it, which a restore returns to:
+	// removal and renames leave the log's create untouched.
+	createdName?: string;
 };
 
 export type Filter = {
@@ -127,6 +130,10 @@ export type AppState = {
 	replay: ReplayState | null;
 	comments: Record<string, CommentState>;
 	attachments: Record<string, AttachmentState>;
+	// Who has written an event naming each id (its target, or a comment's
+	// ticket), first seen first; and everyone who has written one at all.
+	actorsById?: Record<string, {ids: string[]}>;
+	authors?: Record<string, {id: string}>;
 };
 
 type BreadCrumbItem = BreadCrumb[number];
@@ -166,5 +173,7 @@ export type AttachmentState = {
 	ext: AttachmentExt;
 	name: string;
 	bytes: number;
+	// Who added it, as its add event says.
+	author?: string;
 	deleted?: boolean;
 };
