@@ -4,76 +4,75 @@ import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 
-// Preloaded into a bin: lists every React build file Node loads.
-const probe = `
-const Module = require('node:module');
-const fs = require('node:fs');
-const load = Module._load;
-Module._load = function (request, parent, isMain) {
-	const loaded = load.apply(this, arguments);
-	try {
-		const file = Module._resolveFilename(request, parent, isMain);
-		if (/react[^/]*[/\\\\]cjs[/\\\\]/.test(file)) {
-			fs.appendFileSync(process.env.REACT_BUILD_LOG, file + '\\n');
-		}
-	} catch {}
-	return loaded;
+// Copies the bins out of the checkout, so no node_modules is in reach.
+const isolatedDist = (): string => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-e2e-bundle-'));
+	fs.cpSync('dist', path.join(dir, 'dist'), {
+		recursive: true,
+		filter: source => !source.includes(`${path.sep}gui${path.sep}`),
+	});
+	fs.writeFileSync(path.join(dir, 'package.json'), '{"type":"module"}');
+	return dir;
 };
-`;
 
-const readLines = (file: string): string[] =>
-	fs.existsSync(file) ? fs.readFileSync(file, 'utf8').trim().split('\n') : [];
-
-// Runs a bin until it has loaded the reconciler, or for ten seconds.
-const reactBuildsLoadedBy = async (
+const run = async (
+	dir: string,
 	bin: string,
 	args: string[],
-): Promise<string[]> => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-e2e-react-'));
-	const probePath = path.join(dir, 'probe.cjs');
-	const logPath = path.join(dir, 'loaded.txt');
-	fs.writeFileSync(probePath, probe);
-
+): Promise<{code: number | null; stderr: string}> => {
 	// A shell that sets no NODE_ENV, as a user's does; vitest sets one.
 	const env: NodeJS.ProcessEnv = {
 		...process.env,
-		REACT_BUILD_LOG: logPath,
 		EPIQ_GLOBAL_DIR: path.join(dir, 'global'),
 	};
 	delete env['NODE_ENV'];
 
-	const child = spawn(
-		process.execPath,
-		['--require', probePath, path.resolve(bin), ...args],
-		{cwd: dir, env, stdio: ['pipe', 'ignore', 'ignore']},
-	);
-	const exited = new Promise(resolve => child.once('exit', resolve));
+	const child = spawn(process.execPath, [path.join(dir, bin), ...args], {
+		cwd: dir,
+		env,
+		stdio: ['pipe', 'ignore', 'pipe'],
+	});
+	let stderr = '';
+	child.stderr.on('data', chunk => {
+		stderr += String(chunk);
+	});
+	child.stdin.end();
 
-	const deadline = Date.now() + 10_000;
-	while (
-		Date.now() < deadline &&
-		!readLines(logPath).some(file => file.includes('react-reconciler.'))
-	) {
-		await new Promise(resolve => setTimeout(resolve, 100));
-	}
+	const code = await new Promise<number | null>(resolve => {
+		const timer = setTimeout(() => child.kill(), 10_000);
+		child.once('exit', exitCode => {
+			clearTimeout(timer);
+			resolve(exitCode);
+		});
+	});
 
-	child.kill();
-	await exited;
-
-	const loaded = readLines(logPath);
-	fs.rmSync(dir, {recursive: true, force: true});
-
-	return loaded;
+	return {code, stderr};
 };
 
-describe('the npm bins run React on its production build', () => {
+const bundle = (): string =>
+	fs
+		.readdirSync('dist')
+		.filter(file => file.endsWith('.js'))
+		.map(file => fs.readFileSync(path.join('dist', file), 'utf8'))
+		.join('\n');
+
+describe('the npm bins are self-contained', () => {
 	it.each([
 		['epiq', 'dist/index.js', ['--version']],
 		['epiq-mcp', 'dist/mcp.js', []],
-	])('%s', async (_name, bin, args) => {
-		const loaded = await reactBuildsLoadedBy(bin, args);
+	])('%s runs with no node_modules', async (_name, bin, args) => {
+		const dir = isolatedDist();
+		const result = await run(dir, bin, args);
+		fs.rmSync(dir, {recursive: true, force: true});
 
-		expect(loaded.some(file => file.includes('react-reconciler.'))).toBe(true);
-		expect(loaded.filter(file => file.includes('.development.'))).toEqual([]);
+		expect(result.stderr).toBe('');
+		expect(result.code).toBe(0);
+	});
+
+	it("bundles React's production build", () => {
+		const code = bundle();
+
+		expect(code).toContain('react.dev/errors/');
+		expect(code).not.toContain('unique "key" prop');
 	});
 });
