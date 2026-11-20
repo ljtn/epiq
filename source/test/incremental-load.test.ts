@@ -26,7 +26,7 @@ const THEIRS = [
 const lineOf = (id: string, parent: string | null, n: number) =>
 	`${JSON.stringify({
 		v: parent && n % 13 === 7 ? 99 : 1,
-		id: parent ? [id, parent] : [id],
+		id: [id, parent],
 		...(!parent
 			? {'init.workspace': {id: 'w', name: 'W'}}
 			: n % 11 === 5

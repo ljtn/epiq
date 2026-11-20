@@ -300,6 +300,86 @@ const extendParse = (
 	return {entry, base: held, lineage};
 };
 
+/**
+ * The events in `text`, a run of lines from one actor's file starting after
+ * line `firstLine`, each with its trimmed line; and those that do not parse.
+ */
+const parseLines = (
+	text: string,
+	fileName: string,
+	firstLine: number,
+	actor: {userId: string; userName: string},
+): {
+	entries: Array<{entry: ReconstructedEvent; line: string}>;
+	quarantined: UnreadableEvent[];
+} => {
+	const entries: Array<{entry: ReconstructedEvent; line: string}> = [];
+	const quarantined: UnreadableEvent[] = [];
+
+	// An unparseable envelope has no id to keep its place: skip the line, never
+	// fail the load, as union merge spreads it to every clone.
+	const quarantine = (lineNumber: number, reason: string) => {
+		quarantined.push({
+			eventId: null,
+			reason: 'corrupt-line',
+			detail: `${fileName}:${lineNumber} (${reason})`,
+			targetNodeId: null,
+		});
+	};
+
+	for (const [index, line] of text.split('\n').entries()) {
+		const trimmed = line.trim();
+		if (!trimmed) continue;
+
+		let raw: unknown;
+		try {
+			raw = JSON.parse(trimmed);
+		} catch {
+			quarantine(firstLine + index + 1, 'invalid JSON');
+			continue;
+		}
+
+		// Envelope only: an unreadable version is retained for its place in the
+		// chain.
+		const parsedResult = parsePersistedEnvelope(raw);
+		if (isFail(parsedResult)) {
+			quarantine(firstLine + index + 1, parsedResult.message);
+			continue;
+		}
+
+		const entry: ReconstructedEvent = {
+			...parsedResult.value,
+			userId: actor.userId,
+			userName: actor.userName,
+		};
+		entries.push({
+			entry: FREEZE_EVENTS ? deepFreeze(entry) : entry,
+			line: trimmed,
+		});
+	}
+
+	return {entries, quarantined};
+};
+
+/** The events in `bytes`, appended to `filePath` after line `firstLine`. */
+export const parseLogLines = (
+	bytes: Buffer,
+	{filePath, firstLine}: {filePath: string; firstLine: number},
+): Result<ReturnType<typeof parseLines>> => {
+	const actor = parseEventFileActor(filePath);
+	if (isFail(actor)) return failed(actor.message);
+
+	return succeeded(
+		'Parsed log lines',
+		parseLines(
+			bytes.toString('utf8'),
+			path.basename(filePath),
+			firstLine,
+			actor.value,
+		),
+	);
+};
+
 /** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
 
 export const parsePersistedEventsFile = (
@@ -356,45 +436,10 @@ export const parsePersistedEventsFile = (
 	const quarantined: UnreadableEvent[] = grown ? [...grown.quarantined] : [];
 	const firstLine = grown?.lines ?? 0;
 
-	// An unparseable envelope has no id to keep its place: skip the line, never
-	// fail the load, as union merge spreads it to every clone.
-	const quarantine = (lineNumber: number, reason: string) => {
-		quarantined.push({
-			eventId: null,
-			reason: 'corrupt-line',
-			detail: `${fileName}:${lineNumber} (${reason})`,
-			targetNodeId: null,
-		});
-	};
-
+	const parsed = parseLines(text, fileName, firstLine, actorResult.value);
+	for (const {entry} of parsed.entries) entries.push(entry);
+	for (const entry of parsed.quarantined) quarantined.push(entry);
 	const lines = text.split('\n');
-	for (const [index, line] of lines.entries()) {
-		const trimmed = line.trim();
-		if (!trimmed) continue;
-
-		let raw: unknown;
-		try {
-			raw = JSON.parse(trimmed);
-		} catch {
-			quarantine(firstLine + index + 1, 'invalid JSON');
-			continue;
-		}
-
-		// Envelope only: an unreadable version is retained for its place in the
-		// chain.
-		const parsedResult = parsePersistedEnvelope(raw);
-		if (isFail(parsedResult)) {
-			quarantine(firstLine + index + 1, parsedResult.message);
-			continue;
-		}
-
-		const entry: ReconstructedEvent = {
-			...parsedResult.value,
-			userId: actorResult.value.userId,
-			userName: actorResult.value.userName,
-		};
-		entries.push(FREEZE_EVENTS ? deepFreeze(entry) : entry);
-	}
 
 	if (unreadable) for (const entry of quarantined) unreadable.push(entry);
 
@@ -488,7 +533,8 @@ const addedSince = (
 };
 
 export type OrderIndex = {
-	ids: Map<string, number>;
+	// Whether an id is held; "maybe" must answer yes.
+	ids: {has(id: string): boolean};
 	waiting: Set<string>;
 	spine: ReconstructedEvent[] | null;
 };
