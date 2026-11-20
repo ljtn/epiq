@@ -259,6 +259,22 @@ describe('the ordered log after an own append', () => {
 		expect(extended).toEqual(freshOrder());
 	});
 
+	it('keeps extending across a run of own appends', () => {
+		const tail = writeChain('u-1', 4, baseTime);
+		settle();
+		loadOrderedEntries(root);
+
+		const first = ulid(baseTime + 10);
+		appendOwn(first, tail);
+		appendOwn(ulid(baseTime + 11), first);
+		const read = vi.spyOn(fs, 'readFileSync');
+		const extended = loadOrderedEntries(root).value;
+		expect(read).not.toHaveBeenCalled();
+		read.mockRestore();
+
+		expect(extended).toEqual(freshOrder());
+	});
+
 	// A hostile line can name an id as its parent before that id exists: held
 	// as an orphan, it moves under the new event once that is there.
 	it('reads the log again when a held line already waits on the new id', () => {
