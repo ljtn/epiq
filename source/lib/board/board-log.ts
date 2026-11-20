@@ -58,6 +58,8 @@ export const {
 	loadMergedEventsBefore,
 	getEdgeRef,
 	advanceEdgeRef,
+	advanceSortedLog,
+	loadOrderedEntries,
 	clearEdgeCache,
 	getSortedEvents,
 	loadEffectiveEventTimes,

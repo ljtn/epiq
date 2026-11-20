@@ -10,6 +10,11 @@ import {
 	loadMergedEventsWithUnreadable,
 } from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
+import {
+	clearParseCache,
+	parsePersistedEventsFile,
+} from '../lib/event/event-load.js';
+import {seededRandom} from './helpers/seeded-random.js';
 
 // A log file's parse is cached while the file is unchanged; it must never answer
 // for a file that grew, was rewritten or replaced. A real directory, since that's what it watches.
@@ -335,11 +340,81 @@ describe('the parse cache on a log past its size', () => {
 			.length;
 	};
 
-	it('rereads only the new file and what did not fit', () => {
-		expect(logReadsOfSecondLoad(seedLog(4, 80_000))).toBe(2);
+	it('keeps every file however many lines, rereading only the new one', () => {
+		expect(logReadsOfSecondLoad(seedLog(4, 80_000))).toBe(1);
 	});
 
 	it('keeps one file bigger than the cache', () => {
 		expect(logReadsOfSecondLoad(seedLog(1, 310_000))).toBe(1);
+	});
+});
+
+// A grown file is parsed from where the last parse stopped; anything else is
+// parsed whole. Either way, exactly what a fresh parse gives.
+describe('the parse of a file that grew', () => {
+	let dir = '';
+	beforeEach(() => {
+		clearParseCache();
+		dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-tail-'));
+	});
+	afterEach(() => {
+		fs.rmSync(dir, {recursive: true, force: true});
+	});
+
+	const event = (n: number) =>
+		JSON.stringify({
+			v: 1,
+			id: [`01H${String(n).padStart(23, '0')}`, null],
+			'edit.title': {id: 'x', name: `n${n}`},
+		});
+
+	const parseOf = (file: string) => {
+		const unreadable: unknown[] = [];
+		const result = parsePersistedEventsFile(file, unreadable as never);
+		if (isFail(result)) throw new Error(result.message);
+		return {entries: result.value, unreadable};
+	};
+
+	it('equals a fresh parse after every append, rewrite and truncation', () => {
+		for (let seed = 1; seed <= 40; seed++) {
+			const random = seededRandom(seed);
+			const file = path.join(
+				dir,
+				`01ARZ3NDEKTSV4RRFFQ69G5F${String(seed).padStart(2, '0')}.a.jsonl`,
+			);
+			let text = '';
+			let n = 0;
+			let at = Date.now() - 3_600_000;
+
+			for (let step = 0; step < 25; step++) {
+				const lines = Array.from({length: 1 + random(4)}, () =>
+					random(6) === 0 ? '{"broken' : event(n++),
+				).join('\n');
+				switch (random(6)) {
+					case 0:
+						// The start rewritten, the length grown.
+						text = text.replace(/n\d/, 'm0') + lines + '\n';
+						break;
+					case 1:
+						text = text.slice(0, random(text.length + 1)) + lines + '\n';
+						break;
+					case 2:
+						// No break after the last line.
+						text += lines;
+						break;
+					default:
+						text += lines + '\n';
+				}
+				fs.writeFileSync(file, text);
+				at += 1000;
+				fs.utimesSync(file, new Date(at), new Date(at));
+
+				const cached = parseOf(file);
+				clearParseCache();
+				const fresh = parseOf(file);
+				// The fresh parse is now the cached one the next step builds on.
+				expect(cached).toEqual(fresh);
+			}
+		}
 	});
 });

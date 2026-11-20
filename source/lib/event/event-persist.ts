@@ -187,6 +187,7 @@ export const createPersister = <M extends EventMap>(loader: Loader<M>) => {
 			const fileName = path.basename(filePath);
 
 			loader.advanceEdgeRef(rootDir, fileName, newId, Buffer.byteLength(line));
+			loader.advanceSortedLog(rootDir, filePath, line, Buffer.byteLength(line));
 
 			// Already materialized, so this append leaves the process up to date.
 			noteOwnAppend(rootDir, fileName, Buffer.byteLength(line));
