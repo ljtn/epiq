@@ -176,7 +176,9 @@ export const boardReplayHooks: ReplayHooks<AppEventMap> = {
 			};
 
 			for (const nodeId of affectedNodeIds) {
-				if (!bypassLogging) {
+				// Only a node there now, as applied one at a time: one created later in
+				// the batch must not gain what came before it.
+				if (!bypassLogging && nodeRepo.getNode(nodeId)) {
 					const events = replayBatch.nodeLog.get(nodeId);
 					if (events) events.push(event);
 					else replayBatch.nodeLog.set(nodeId, [event]);
