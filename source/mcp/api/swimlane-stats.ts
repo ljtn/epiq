@@ -1,6 +1,7 @@
 // A lane's own numbers: when it opened, its traffic, and its tickets' code.
 // Fetched on a click, as the code half goes to git.
 
+import {nodesOf} from '../../lib/state/state.js';
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
 import {isTicketNode} from '../../lib/model/context.model.js';
 import {
@@ -67,7 +68,7 @@ export const getSwimlaneStats = async (input: {
 	const swimlane = nodes[input.swimlaneId];
 	if (!swimlane) return failed('Swimlane not found');
 
-	const tickets = Object.values(nodes).filter(isTicketNode);
+	const tickets = nodesOf('TICKET').filter(isTicketNode);
 
 	// Every ticket: a lane's traffic is mostly tickets that have left it.
 	const journeys = tickets.map(ticket =>

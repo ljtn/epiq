@@ -2,6 +2,7 @@ import {ulid} from 'ulid';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
 import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';
+import {nodesOf} from '../../lib/state/state.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {
 	actorOf,
@@ -78,8 +79,8 @@ export const listBoards = async (input: ToolInput = {}) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const boards = Object.values(stateResult.value.nodes)
-		.filter(n => n.context === 'BOARD' && !n.isDeleted)
+	const boards = nodesOf('BOARD')
+		.filter(n => !n.isDeleted)
 		.map(n => ({
 			id: n.id,
 			ref: nodeRef(n.id),
@@ -212,8 +213,8 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const swimlanes = Object.values(stateResult.value.nodes)
-		.filter(n => n.context === 'SWIMLANE' && !n.isDeleted)
+	const swimlanes = nodesOf('SWIMLANE')
+		.filter(n => !n.isDeleted)
 		.filter(n => !input.boardId || n.parentNodeId === input.boardId)
 		.map(n => ({
 			id: n.id,

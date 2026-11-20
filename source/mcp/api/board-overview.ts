@@ -2,6 +2,7 @@
 // lane stats do, so it costs no git; fetched on opening the panel rather than
 // ridden along on the board broadcast.
 
+import {nodesOf} from '../../lib/state/state.js';
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
 import {
 	isBoardNode,
@@ -24,14 +25,12 @@ export const getBoardOverview = (input: {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const all = Object.values(stateResult.value.nodes);
-
-	const board = all.find(node => node.id === input.boardId);
+	const board = stateResult.value.nodes[input.boardId];
 	if (!board || board.isDeleted || !isBoardNode(board)) {
 		return failed('Board not found');
 	}
 
-	const boardLanes = all.filter(
+	const boardLanes = nodesOf('SWIMLANE').filter(
 		node => isSwimlaneNode(node) && node.parentNodeId === board.id,
 	);
 	const lanes = boardLanes
@@ -46,7 +45,7 @@ export const getBoardOverview = (input: {
 			formerLaneIds: boardLanes
 				.filter(lane => lane.isDeleted)
 				.map(lane => lane.id),
-			tickets: all
+			tickets: nodesOf('TICKET')
 				.filter(node => !node.isDeleted)
 				.filter(isTicketNode)
 				.map(ticket => ({
