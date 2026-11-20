@@ -15,10 +15,10 @@ export const getAssignableContributors = (
 	stateBranchRoot: string,
 ): DirectoryEntry[] => {
 	// May run before boot has populated the log.
-	const {eventLog = [], contributors} = getState();
+	const {authors = {}, contributors} = getState();
 
 	return contributorDirectory({
-		events: eventLog,
+		authors: Object.keys(authors),
 		registry: contributors,
 		logFileNames: loadActorNames(stateBranchRoot),
 	});

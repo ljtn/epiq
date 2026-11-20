@@ -1,4 +1,3 @@
-import {AppEvent} from '../board/board-events.model.js';
 import {Contributor} from '../model/app-state.model.js';
 import {normalizeEmail} from '../model/email-link.js';
 import {Identity, identityOf} from '../model/identity.js';
@@ -21,22 +20,21 @@ export type DirectoryEntry = {
  * registry. Every surface must agree, or a miss mints a duplicate id.
  */
 export const contributorDirectory = ({
-	events,
+	authors,
 	registry,
 	logFileNames,
 }: {
-	events: readonly AppEvent[];
+	// Everyone who has written an applied event, first seen first.
+	authors: readonly string[];
 	registry: Record<string, Contributor>;
 	logFileNames?: ReadonlyMap<string, string>;
 }): DirectoryEntry[] => {
 	const byId = new Map<string, string>(logFileNames);
 	const authorIds = new Set<string>();
 
-	for (const event of events) {
-		if (!event.userId) continue;
-
-		if (!byId.has(event.userId)) byId.set(event.userId, '');
-		authorIds.add(event.userId);
+	for (const id of authors) {
+		if (!byId.has(id)) byId.set(id, '');
+		authorIds.add(id);
 	}
 
 	// The registry always wins: it is the source of truth for display names, and

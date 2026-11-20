@@ -185,7 +185,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	// The same union a picker offers; the registry alone misses log-only authors,
 	// and an unmatched name mints a duplicate id.
 	const matches = contributorDirectory({
-		events: ready.value.state.eventLog ?? [],
+		authors: Object.keys(ready.value.state.authors ?? {}),
 		registry: ready.value.state.contributors,
 		logFileNames: loadActorNames(ready.value.boot.stateBranchRoot),
 	}).filter(candidate => candidate.name === assigneeName);
@@ -400,7 +400,11 @@ export const getBoardContributors = async (
 	const registry = ready.value.state.contributors;
 
 	const contributors = contributorDirectory({
-		events: scopedEvents,
+		authors: [
+			...new Set(
+				scopedEvents.flatMap(event => (event.userId ? [event.userId] : [])),
+			),
+		],
 		registry,
 		logFileNames: loadActorNames(ready.value.boot.stateBranchRoot),
 	}).map(({id, name, isExternal}) => ({
