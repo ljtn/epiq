@@ -107,8 +107,11 @@ const persistedIds = (): string[] => {
 		.map(line => (JSON.parse(line) as {id: [string, string | null]}).id[0]);
 };
 
+// The ids the board applied for a node, from its app-wide log.
 const loggedIds = (nodeId: string): string[] =>
-	(getState().nodes[nodeId]?.log ?? []).map(event => event.id);
+	getState()
+		.eventLog.filter(event => (event.payload as {id?: string}).id === nodeId)
+		.map(event => event.id);
 
 describe('an event has one identity', () => {
 	// The caller's id is a placeholder; the board must keep the minted one, or

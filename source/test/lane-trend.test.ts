@@ -3,7 +3,7 @@ import {
 	deriveLaneStayTrend,
 	deriveLaneStayTrends,
 } from '../lib/stats/lane-trend.js';
-import {LaneVisit} from '../lib/utils/lane-dwell.js';
+import {LaneVisit} from '../lib/board/node-history.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 100 * DAY;

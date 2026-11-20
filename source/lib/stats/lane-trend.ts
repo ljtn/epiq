@@ -1,4 +1,4 @@
-import {LaneVisit} from '../utils/lane-dwell.js';
+import {LaneVisit} from '../board/node-history.js';
 import {medianOfSorted} from '../utils/number.js';
 import {LaneStayPoint} from './swimlane-stats.model.js';
 

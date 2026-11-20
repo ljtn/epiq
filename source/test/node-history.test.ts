@@ -1,27 +1,32 @@
 import {ulid} from 'ulid';
 import {afterEach, beforeAll, describe, expect, it, vi} from 'vitest';
 import {AppEvent} from '../lib/board/board-events.model.js';
-import {resolveReopenParentFromLog} from '../lib/board/log-utils.js';
 import {
 	enteredLaneAt,
 	foldHistory,
-	loggedEvents,
 	lastEventAt,
 	parentsEver,
 	visitsOf,
 } from '../lib/board/node-history.js';
 import {materialize, materializeAll} from '../lib/board/board-log.js';
 import {MAX_ULID_AHEAD_MS} from '../lib/event/date-utils.js';
-import {NavNode} from '../lib/model/navigation-node.model.js';
-import {AnyContext} from '../lib/model/context.model.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {getState, initWorkspaceState} from '../lib/state/state.js';
+import {
+	getState,
+	initWorkspaceState,
+	nodeIdsOf,
+	nodeIdsWithRef,
+	entryIdsOfIssue,
+} from '../lib/state/state.js';
+import {nodeRef} from '../lib/utils/node-ref.js';
 import {setVirtualNodesEnabled} from '../lib/virtual-nodes/virtual-nodes.js';
 import {
 	laneEntryTime,
 	laneVisits,
 	lastEventTime,
-} from '../lib/utils/lane-dwell.js';
+	reopenParentFromLog,
+} from './helpers/log-reference.js';
+import {getAffectedNodeIds} from '../lib/board/board-replay.js';
 import {randomLog, rank, unwrap} from './helpers/random-board-log.js';
 import {seededRandom} from './helpers/seeded-random.js';
 
@@ -49,28 +54,155 @@ const timed = (seed: number, log: AppEvent[]): AppEvent[] => {
 					: ulid(T0 + index * 60_000);
 			ids.set(event.id, id);
 		}
-		return {...event, id};
+		// Several authors, so who touched what is not everyone, everywhere.
+		return {...event, id, userId: `u${random(3)}`};
 	});
 };
 
-// The rule `ticket-boards` reads a log by: any event naming the node and a parent.
-const parentsFromLog = (node: NavNode<AnyContext>): string[] => {
+// A node's log as the app-wide one holds it: every applied event that affects
+// it, in order. Exact for a ticket, which is never another node's parent; a
+// lane's would also need its children's parents as they were.
+// An add of a node that exists builds it afresh, so its log starts at the last.
+const CREATES = new Set([
+	'init.workspace',
+	'add.workspace',
+	'add.board',
+	'add.swimlane',
+	'add.issue',
+	'add.field',
+]);
+
+const referenceLog = (nodeId: string): Array<[number, AppEvent]> => {
+	const located = getState()
+		.eventLog.map((event, position): [number, AppEvent] => [position, event])
+		.filter(([, event]) => getAffectedNodeIds(event).includes(nodeId));
+	const created = located.findLastIndex(
+		([, event]) =>
+			CREATES.has(event.action) &&
+			(event.payload as {id?: string}).id === nodeId,
+	);
+	return located.slice(Math.max(created, 0));
+};
+
+// Now and then, before a ticket is filed, an event naming it already: forged,
+// or out of causal order. It must count for that ticket as the old scan did.
+const forgeEarly = (seed: number, log: AppEvent[]): AppEvent[] => {
+	const random = seededRandom(seed * 5 + 3);
+	return log.flatMap(event => {
+		if (event.action !== 'add.issue' || random(4) !== 0) return [event];
+		const ticket = (event.payload as {id: string}).id;
+		const early = [
+			{action: 'edit.title', payload: {id: ticket, name: 'early'}},
+			{
+				action: 'add.issue.comment',
+				payload: {
+					id: `early-${ticket}`,
+					issue: ticket,
+					author: 'u2',
+					md: 'early',
+				},
+			},
+			{action: 'add.issue.tag', payload: {id: ticket, tag: 'early-tag'}},
+		][random(3)]!;
+		return [
+			{...early, id: `${event.id}x`, userId: `u${random(3)}`} as AppEvent,
+			event,
+		];
+	});
+};
+
+// The rule `ticket-boards` read a log by: any event naming the node and a parent.
+const parentsFromLog = (
+	nodeId: string,
+	current: string | null,
+	log: readonly AppEvent[],
+): string[] => {
 	const parents = new Set<string>();
-	if (node.parentNodeId) parents.add(node.parentNodeId);
-	for (const entry of node.log ?? []) {
+	if (current) parents.add(current);
+	for (const entry of log) {
 		const payload = entry.payload as {id?: string; parent?: string};
-		if (payload.id === node.id && payload.parent) parents.add(payload.parent);
+		if (payload.id === nodeId && payload.parent) parents.add(payload.parent);
 	}
 	return [...parents];
 };
 
+// Who wrote what, as the scans over the whole log found it.
+const expectActorsEqualLog = () => {
+	const {eventLog, actorsById, authors} = getState();
+	const byId = new Map<string, string[]>();
+	const everyone: string[] = [];
+	// A genesis applied mid-batch resets the board, yet the batch's earlier
+	// events still reach the log: who wrote those is the old board's.
+	const genesis = eventLog.findLastIndex(e => e.action === 'init.workspace');
+	for (const event of eventLog.slice(Math.max(genesis, 0))) {
+		if (!event.userId) continue;
+		if (!everyone.includes(event.userId)) everyone.push(event.userId);
+		const payload = event.payload as {id?: unknown; issue?: unknown};
+		for (const target of [payload.id, payload.issue]) {
+			if (typeof target !== 'string') continue;
+			const ids = byId.get(target) ?? [];
+			if (!ids.includes(event.userId)) ids.push(event.userId);
+			byId.set(target, ids);
+		}
+	}
+	// Only tickets are asked about: for each, the old scan's answer.
+	const tickets = Object.values(getState().nodes)
+		.filter(node => node.context === 'TICKET')
+		.map(node => node.id);
+	for (const id of tickets) {
+		expect(actorsById?.[id]?.ids ?? [], id).toEqual(byId.get(id) ?? []);
+	}
+	for (const id of Object.keys(actorsById ?? {})) {
+		expect(tickets, id).toContain(id);
+	}
+	expect(Object.keys(authors ?? {}).sort()).toEqual([...everyone].sort());
+};
+
+// Each kind's ids, as a scan of the node map finds them, in its order.
+const expectKindsEqualScan = () => {
+	const all = Object.values(getState().nodes);
+	for (const context of new Set(all.map(node => node.context))) {
+		expect([...nodeIdsOf(context)], context).toEqual(
+			all.filter(node => node.context === context).map(node => node.id),
+		);
+	}
+	// Comments and attachments by their ticket, as a scan finds them.
+	for (const key of ['comments', 'attachments'] as const) {
+		const entries = Object.entries(getState()[key] ?? {});
+		for (const issue of new Set(entries.map(([, entry]) => entry.issue))) {
+			expect([...entryIdsOfIssue(key, issue)], `${key} ${issue}`).toEqual(
+				entries.filter(([, entry]) => entry.issue === issue).map(([id]) => id),
+			);
+		}
+	}
+	for (const ref of new Set(all.map(node => nodeRef(node.id)))) {
+		expect([...nodeIdsWithRef(ref)], ref).toEqual(
+			all.filter(node => nodeRef(node.id) === ref).map(node => node.id),
+		);
+	}
+};
+
 const expectFoldedEqualsLog = () => {
+	expectActorsEqualLog();
+	expectKindsEqualScan();
 	for (const node of Object.values(getState().nodes)) {
-		const log = node.log ?? [];
-		const createdAt = T0 - 5;
 		const {history} = node;
 		const where = node.id;
+		const located = referenceLog(node.id);
+		const log = located.map(([, event]) => event);
 
+		expect(parentsEver(history, node.parentNodeId), where).toEqual(
+			parentsFromLog(node.id, node.parentNodeId, log),
+		);
+		if (node.context !== 'TICKET') {
+			expect(history?.logged ?? [], where).toEqual([]);
+			continue;
+		}
+
+		const createdAt = T0 - 5;
+		expect(history?.logged ?? [], where).toEqual(
+			located.map(([position]) => position),
+		);
 		expect(visitsOf(history, createdAt), where).toEqual(
 			laneVisits(log, createdAt),
 		);
@@ -84,19 +216,8 @@ const expectFoldedEqualsLog = () => {
 			log.findLast(event => event.action === 'close.issue')?.id ?? null,
 		);
 		expect(history?.reopenParent ?? null, where).toBe(
-			resolveReopenParentFromLog(node as NavNode<'TICKET'>),
+			reopenParentFromLog(node.id, log),
 		);
-		expect(parentsEver(history, node.parentNodeId), where).toEqual(
-			parentsFromLog(node),
-		);
-		// The same objects, in the same order: the log, without a copy of it.
-		if (node.context === 'TICKET') {
-			const found = loggedEvents(history, getState().eventLog);
-			expect(found.length, where).toBe(log.length);
-			found.forEach((event, index) => expect(event, where).toBe(log[index]));
-		} else {
-			expect(history?.logged ?? [], where).toEqual([]);
-		}
 	}
 };
 
@@ -112,18 +233,34 @@ describe('a node history folded as events apply', () => {
 			vi.setSystemTime(T0 + 10 * 864e5);
 			unwrap(initWorkspaceState(nodes.workspace('root', 'Root', rank())));
 
-			const log = timed(seed, randomLog(seed, 150));
+			const log = forgeEarly(seed, timed(seed, randomLog(seed, 150)));
 			const random = seededRandom(seed);
 			for (let at = 0; at < log.length; ) {
 				const next = Math.min(log.length, at + 1 + random(15));
 				// One at a time outside a batch, or several in one.
-				if (next - at === 1) materialize(log[at]!);
+				// Now and then applied without logging, which no log or history keeps.
+				if (next - at === 1) materialize(log[at]!, random(5) === 0);
 				else materializeAll(log.slice(at, next));
 				at = next;
+				// Read each time, so a later write finds it built.
+				expectKindsEqualScan();
 			}
 
 			// Read later than folded: times once ahead of the clock may be honest now.
 			vi.setSystemTime(T0 + 13 * 864e5);
+			expectFoldedEqualsLog();
+		}
+	});
+
+	it('keeps nothing of an event applied without logging', () => {
+		for (let seed = 1; seed <= 10; seed++) {
+			vi.useFakeTimers({toFake: ['Date']});
+			vi.setSystemTime(T0 + 10 * 864e5);
+			unwrap(initWorkspaceState(nodes.workspace('root', 'Root', rank())));
+			const random = seededRandom(seed * 7);
+			for (const event of timed(seed, randomLog(seed, 120))) {
+				materialize(event, random(2) === 0);
+			}
 			expectFoldedEqualsLog();
 		}
 	});
