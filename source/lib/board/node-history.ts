@@ -21,7 +21,8 @@ export type NodeHistory = {
 	// Fold state: the latest parent the node's own events named.
 	lastParent: string | null;
 	// Where a ticket's events sit in the app-wide event log, in order: its
-	// history, without a copy of it.
+	// history, without a copy of it. Valid only while that log is appended to,
+	// or replaced together with the nodes.
 	logged: number[];
 };
 

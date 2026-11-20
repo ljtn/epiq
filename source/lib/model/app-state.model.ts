@@ -125,6 +125,7 @@ export type AppState = {
 
 	// Time tracking
 	timeMode: 'live' | 'peek' | 'replay';
+	// Append only, or replaced with the nodes: tickets' histories index into it.
 	eventLog: AppEvent[];
 	unappliedEvents: AppEvent[];
 	replay: ReplayState | null;
