@@ -328,8 +328,6 @@ type StateMapKey = {
 let nodeKinds: {
 	nodes: Record<string, NavNode<AnyContext>>;
 	byContext: Map<string, Set<string>>;
-	// By the full ref each id shortens to: a ref is not unique.
-	byRef: Map<string, string[]>;
 } | null = null;
 
 const kindsRead = () => {
@@ -337,17 +335,37 @@ const kindsRead = () => {
 	if (nodeKinds?.nodes === nodes) return nodeKinds;
 
 	const byContext = new Map<string, Set<string>>();
-	const byRef = new Map<string, string[]>();
 	for (const [id, node] of Object.entries(nodes)) {
 		let ids = byContext.get(node.context);
 		if (!ids) byContext.set(node.context, (ids = new Set()));
 		ids.add(id);
-		const ref = nodeRef(id);
-		const same = byRef.get(ref);
-		if (same) same.push(id);
-		else byRef.set(ref, [id]);
 	}
-	return (nodeKinds = {nodes, byContext, byRef});
+	return (nodeKinds = {nodes, byContext});
+};
+
+// Node ids by the full ref each shortens to, which is not unique: built only
+// once a ref is looked up, kept the same way.
+let nodeRefs: {
+	nodes: Record<string, NavNode<AnyContext>>;
+	byRef: Map<string, string[] | string>;
+} | null = null;
+
+const refsRead = () => {
+	const {nodes} = getState();
+	if (nodeRefs?.nodes === nodes) return nodeRefs;
+
+	nodeRefs = {nodes, byRef: new Map()};
+	for (const id of Object.keys(nodes)) addRef(nodeRefs.byRef, id);
+	return nodeRefs;
+};
+
+// A lone id is held bare: most refs name one node.
+const addRef = (byRef: Map<string, string[] | string>, id: string): void => {
+	const ref = nodeRef(id);
+	const same = byRef.get(ref);
+	if (same === undefined) byRef.set(ref, id);
+	else if (typeof same === 'string') byRef.set(ref, [same, id]);
+	else same.push(id);
 };
 
 const NO_IDS: ReadonlySet<string> = new Set();
@@ -357,8 +375,10 @@ export const nodeIdsOf = (context: AnyContext): ReadonlySet<string> =>
 	kindsRead().byContext.get(context) ?? NO_IDS;
 
 /** Ids of every node whose full ref is `ref`, in the node map's order. */
-export const nodeIdsWithRef = (ref: string): readonly string[] =>
-	kindsRead().byRef.get(ref) ?? [];
+export const nodeIdsWithRef = (ref: string): readonly string[] => {
+	const ids = refsRead().byRef.get(ref);
+	return ids === undefined ? [] : typeof ids === 'string' ? [ids] : ids;
+};
 
 /** Every node of `context`, deleted ones included. */
 export const nodesOf = <C extends AnyContext>(context: C): NavNode<C>[] => {
@@ -374,6 +394,10 @@ const noteNodeKind = (
 	before: NavNode<AnyContext> | undefined,
 	after: NavNode<AnyContext>,
 ): void => {
+	if (nodeRefs?.nodes === from) {
+		if (!before) addRef(nodeRefs.byRef, id);
+		nodeRefs.nodes = to as Record<string, NavNode<AnyContext>>;
+	}
 	if (!nodeKinds || nodeKinds.nodes !== from) return;
 	if (before && before.context !== after.context) {
 		nodeKinds.byContext.get(before.context)?.delete(id);
@@ -381,12 +405,6 @@ const noteNodeKind = (
 	let ids = nodeKinds.byContext.get(after.context);
 	if (!ids) nodeKinds.byContext.set(after.context, (ids = new Set()));
 	ids.add(id);
-	if (!before) {
-		const ref = nodeRef(id);
-		const same = nodeKinds.byRef.get(ref);
-		if (same) same.push(id);
-		else nodeKinds.byRef.set(ref, [id]);
-	}
 	nodeKinds.nodes = to as Record<string, NavNode<AnyContext>>;
 };
 
