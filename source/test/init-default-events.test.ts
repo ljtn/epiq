@@ -18,6 +18,10 @@ describe('init default events', () => {
 		const state = getSafeState();
 		if (isFail(state)) throw new Error(state.message);
 
-		expect(state.value.contributors['U1']).toEqual({id: 'U1', name: 'Jo'});
+		expect(state.value.contributors['U1']).toEqual({
+			id: 'U1',
+			name: 'Jo',
+			createdName: 'Jo',
+		});
 	});
 });
