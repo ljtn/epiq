@@ -82,14 +82,14 @@ const isGenesis = (event: AppEvent): boolean =>
 export type Cut = {applied: number; skipped: ReturnFail[]};
 
 /**
- * Materializes the board as a cut at `targetTime` leaves it: exactly what a
- * replay of every applied event does. `key` names the log `entries` came from;
+ * Materializes the board as a cut at `targetTime` leaves it, or the live board
+ * for null: exactly what a replay of every applied event does. `key` names the log `entries` came from;
  * checkpoints are kept only while it stays the same.
  */
 export const materializeCut = (
 	key: string,
 	loadEntries: () => Result<ReconstructedEvent[]>,
-	targetTime: number,
+	targetTime: number | null,
 	{budget = CHECKPOINT_BUDGET, minGap = MIN_GAP} = {},
 ): Result<Cut> => {
 	if (!held || held.key !== key) {
@@ -118,7 +118,12 @@ export const materializeCut = (
 
 	const store = held;
 	const {entries, cutIndex, gap, checkpoints} = store;
-	const applied = appliedAtTime(entries, targetTime, cutIndex);
+	// Null is the live board: every entry, an undecodable time included,
+	// which any cut at a time leaves out.
+	const applied =
+		targetTime === null
+			? new Uint8Array(entries.length).fill(1)
+			: appliedAtTime(entries, targetTime, cutIndex);
 
 	// Everything before the first excluded entry is applied: a checkpoint there
 	// or earlier is exact, one past it never.
