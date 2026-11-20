@@ -7,4 +7,7 @@
 # The script fails open on anything it cannot determine, so a missing board or
 # an unreadable log never blocks a commit.
 
+# Without npm install, npx would fetch tsx from the network.
+[ -d node_modules ] || exit 0
+
 npx tsx source/scripts/check-commit-ref.ts "$1"

@@ -64,7 +64,7 @@
 		"inspect:mcp": "npx @modelcontextprotocol/inspector",
 		"lint": "eslint .",
 		"lint:err": "eslint . --quiet",
-		"prepare": "husky"
+		"prepare": "node -e \"const {spawnSync: run} = require('child_process'); run('git', ['rev-parse', '--git-dir']).status === 0 && run('git', ['config', 'core.hooksPath', '.husky'])\""
 	},
 	"files": [
 		"dist"
@@ -83,7 +83,6 @@
 		"chalk": "^5.2.0",
 		"esbuild": "^0.28.2",
 		"eslint": "^9.39.1",
-		"husky": "^9.1.7",
 		"ink": "^8.0.0",
 		"node-pty": "^1.1.0",
 		"prettier": "^2.8.7",
