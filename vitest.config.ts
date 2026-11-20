@@ -8,6 +8,7 @@ export default defineConfig({
 			'source/test/setup/no-git-outside-tmp.ts',
 			'source/test/setup/global-dir-in-tmp.ts',
 			'source/test/setup/allow-local-repos.ts',
+			'source/test/setup/state-indexes-hold.ts',
 		],
 		// Worktrees live under `.claude/worktrees`, and a checkout of a code
 		// branch there carries its own copy of every test. Without this they run

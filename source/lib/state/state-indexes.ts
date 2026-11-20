@@ -167,3 +167,64 @@ export const noteEntry = (
 		);
 	}
 };
+
+/**
+ * Where an index held for these maps disagrees with a scan of them: none,
+ * unless something wrote to a map around `setStateEntry`.
+ */
+export const heldIndexDisagreements = (maps: {
+	nodes: Record<string, NavNode<AnyContext>>;
+	comments: Record<string, {issue: string}>;
+	attachments: Record<string, {issue: string}>;
+}): string[] => {
+	const found: string[] = [];
+	const same = (label: string, held: readonly string[], scanned: string[]) => {
+		if (held.join('\n') !== scanned.join('\n')) found.push(label);
+	};
+
+	const all = Object.values(maps.nodes);
+	if (nodeKinds?.nodes === maps.nodes) {
+		const contexts = new Set([
+			...all.map(node => node.context),
+			...nodeKinds.byContext.keys(),
+		]);
+		for (const context of contexts) {
+			same(
+				`nodes of ${context}`,
+				[...(nodeKinds.byContext.get(context) ?? [])],
+				all.filter(node => node.context === context).map(node => node.id),
+			);
+		}
+	}
+	if (nodeRefs?.nodes === maps.nodes) {
+		const refs = new Set([
+			...all.map(node => nodeRef(node.id)),
+			...nodeRefs.byRef.keys(),
+		]);
+		for (const ref of refs) {
+			same(
+				`nodes with ref ${ref}`,
+				nodeIdsWithRefIn(maps.nodes, ref),
+				all.filter(node => nodeRef(node.id) === ref).map(node => node.id),
+			);
+		}
+	}
+	for (const key of ['comments', 'attachments'] as const) {
+		const held = byIssue[key];
+		if (held?.map !== maps[key]) continue;
+		const entries = Object.entries(maps[key]);
+		const issues = new Set([
+			...entries.map(([, entry]) => entry.issue),
+			...held.ids.keys(),
+		]);
+		for (const issue of issues) {
+			same(
+				`${key} of ${issue}`,
+				held.ids.get(issue) ?? [],
+				entries.filter(([, entry]) => entry.issue === issue).map(([id]) => id),
+			);
+		}
+	}
+
+	return found;
+};

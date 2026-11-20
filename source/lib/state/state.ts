@@ -1,6 +1,7 @@
 import {emptyRepoRegistry} from '../board/board-repos.js';
 import {
 	entryIdsOfIssueIn,
+	heldIndexDisagreements,
 	type IssueKeyed,
 	nodeIdsOfKind,
 	nodeIdsWithRefIn,
@@ -174,6 +175,7 @@ export function initWorkspaceState(workspace: Workspace) {
 	if (isFail(deriveResult)) return deriveResult;
 
 	_appState = deriveResult.value;
+	buildIndexesForChecks();
 	emit();
 
 	return succeeded('State initialized', null);
@@ -198,6 +200,7 @@ export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 		deferredBase = nextBase;
 		// Readers inside the batch see every base field, but no derived ones.
 		_appState = {...prev, ...nextBase};
+		buildIndexesForChecks();
 		return succeeded('State updated', null);
 	}
 
@@ -206,6 +209,7 @@ export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 		return failed(deriveResult.message ?? 'Unable to update state');
 	}
 	_appState = deriveResult.value;
+	buildIndexesForChecks();
 	emit();
 	return succeeded('State updated', null);
 }
@@ -235,6 +239,7 @@ export function withDeferredDerive<T>(fn: () => T): Result<T> {
 		}
 
 		_appState = deriveResult.value;
+		buildIndexesForChecks();
 		emit();
 
 		return succeeded('State updated', null);
@@ -272,10 +277,9 @@ type StateMapKey = {
 }[keyof BaseState];
 
 /**
- * Writes one entry of a keyed collection. In place inside a replay batch: nothing
- * reads derived state mid-batch, and a copy per write is quadratic. Copied outside one.
+ * Ids of every node of `context`, deleted ones included, in the node map's
+ * order. The index's own set: it changes with the next write, so copy it to keep it.
  */
-/** Ids of every node of `context`, deleted ones included, in the node map's order. */
 export const nodeIdsOf = (context: AnyContext): ReadonlySet<string> =>
 	nodeIdsOfKind(getState().nodes, context);
 
@@ -300,6 +304,31 @@ export const entryIdsOfIssue = (
 		issueId,
 	);
 
+// Under test, every index is built as soon as the state changes, so a write
+// that goes around `setStateEntry` later leaves one stale for the check.
+const CHECK_INDEXES = process.env['EPIQ_CHECK_INDEXES'] === '1';
+function buildIndexesForChecks(): void {
+	if (!CHECK_INDEXES || !_appState) return;
+	nodeIdsOfKind(_appState.nodes, 'WORKSPACE');
+	nodeIdsWithRefIn(_appState.nodes, '');
+	entryIdsOfIssueIn('comments', _appState.comments ?? {}, '');
+	entryIdsOfIssueIn('attachments', _appState.attachments ?? {}, '');
+}
+
+/** Where an index beside the state disagrees with it: for tests, which expect none. */
+export const indexDisagreements = (): string[] =>
+	_appState
+		? heldIndexDisagreements({
+				nodes: _appState.nodes,
+				comments: _appState.comments ?? {},
+				attachments: _appState.attachments ?? {},
+		  })
+		: [];
+
+/**
+ * Writes one entry of a keyed collection. In place inside a replay batch: nothing
+ * reads derived state mid-batch, and a copy per write is quadratic. Copied outside one.
+ */
 export function setStateEntry<K extends StateMapKey>(
 	key: K,
 	id: string,
@@ -336,6 +365,7 @@ export function setStateEntry<K extends StateMapKey>(
 
 	deferredBase = nextBase;
 	_appState = {...prev, ...nextBase};
+	buildIndexesForChecks();
 
 	return succeeded('State updated', null);
 }

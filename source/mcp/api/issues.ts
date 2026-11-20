@@ -145,8 +145,8 @@ export const getIssue = async (input: GetIssueInput) => {
 	const exact = nodes[query];
 
 	// `nodeRefMatches` is a substring match, so a short query can legitimately
-	// hit several tickets. Naming them beats guessing. A whole ref can only
-	// equal one: those are looked up, not scanned for.
+	// hit several tickets. Naming them beats guessing. A whole ref matches by
+	// equality, so it is looked up rather than scanned for.
 	const normalized = normalizeRef(query);
 	const matches = isLive(exact)
 		? [exact]
