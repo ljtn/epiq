@@ -6,6 +6,7 @@ import {mkdirSync, copyFileSync, rmSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, relative, resolve} from 'node:path';
 import * as esbuild from 'esbuild';
+import {writeThirdPartyLicenses} from './third-party-licenses.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '../..');
@@ -46,7 +47,7 @@ const nodeEnv =
 
 // The API rather than the CLI: a define's value is JSON, so `"production"`
 // carries quotes that a Windows shell would eat before esbuild saw them.
-await esbuild.build({
+const {metafile} = await esbuild.build({
 	absWorkingDir: root,
 	// Built beside the client so both share one set of grammar chunks.
 	// `lib/diffs-worker-pool` loads it by the name given here.
@@ -63,4 +64,10 @@ await esbuild.build({
 	minify: nodeEnv === 'production',
 	define: {'process.env.NODE_ENV': JSON.stringify(nodeEnv)},
 	logLevel: 'info',
+	metafile: true,
 });
+writeThirdPartyLicenses(
+	root,
+	metafile,
+	resolve(root, 'dist/gui/THIRD_PARTY_LICENSES.txt'),
+);

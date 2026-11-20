@@ -1,19 +1,7 @@
 import * as esbuild from 'esbuild';
+import {npmBuildOptions} from './npm-build-options.mjs';
 
-const context = await esbuild.context({
-	entryPoints: {index: 'source/cli.ts', mcp: 'source/mcp/index.ts'},
-	bundle: true,
-	splitting: true,
-	packages: 'external',
-	platform: 'node',
-	format: 'esm',
-	target: 'node22',
-	minify: true,
-	outdir: 'dist',
-	banner: {
-		js: '#!/usr/bin/env node',
-	},
-});
+const context = await esbuild.context(npmBuildOptions(process.cwd()));
 
 await context.watch();
 
