@@ -9,9 +9,9 @@ import ReactMarkdown, {
 	type Components,
 	defaultUrlTransform,
 } from 'react-markdown';
-import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import {GUI_THEME, PROSE, TEXT} from '../lib/gui-theme';
+import {remarkBreaks} from '../lib/remark-breaks';
 import {
 	remarkTicketRefs,
 	TICKET_REF_URL_PREFIX,
