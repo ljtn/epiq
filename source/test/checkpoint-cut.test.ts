@@ -209,6 +209,49 @@ describe('the cut index of a log that grew', () => {
 	});
 });
 
+describe("checkpoints after a teammate's event lands mid-order", () => {
+	it('are dropped, so a cut lands as a full replay does', () => {
+		for (let seed = 1; seed <= 8; seed++) {
+			const entries = entriesOf(seed, randomLog(seed, 60));
+			const lane = (
+				entries.find(entry => 'add.swimlane' in entry) as unknown as {
+					'add.swimlane': {id: string};
+				}
+			)['add.swimlane'].id;
+			const teammate = {
+				v: 1,
+				id: [ulid(T0 + 15 * 60_000 + 1), entries[15]!.id[0]],
+				'add.issue': {
+					id: `teammate-${seed}`,
+					name: 'Late',
+					parent: lane,
+					rank: rank(),
+				},
+				userId: 'u2',
+				userName: 'two',
+			} as unknown as ReconstructedEvent;
+			const merged = getSortedEvents([...entries, teammate]);
+			expect(merged.at(-1)).not.toBe(teammate);
+			const end = Date.UTC(2100, 0, 1);
+
+			forgetCheckpoints();
+			unwrap(
+				materializeCut('before', () => succeeded('', entries), end, {
+					budget: 8,
+					minGap: 4,
+				}),
+			);
+			unwrap(
+				materializeCut('after', () => succeeded('', merged), end, {
+					budget: 8,
+					minGap: 4,
+				}),
+			);
+			expect(derived()).toBe(replayedCut(merged, end));
+		}
+	});
+});
+
 // Live is every entry, an undecodable time included, which a cut at any time,
 // however late, leaves out.
 describe('the live board from a checkpoint', () => {
