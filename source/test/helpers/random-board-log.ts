@@ -175,6 +175,8 @@ export const derived = (): string => {
 			repos: state.repos,
 			emailLinks: state.emailLinks,
 			eventLog: state.eventLog,
+			authors: state.authors,
+			actorsById: state.actorsById,
 			children: Object.fromEntries(
 				Object.entries(state.renderedChildrenIndex).map(([parent, list]) => [
 					parent,
