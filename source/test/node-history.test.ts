@@ -2,6 +2,12 @@ import {ulid} from 'ulid';
 import {afterEach, beforeAll, describe, expect, it, vi} from 'vitest';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {
+	forgetCheckpoints,
+	materializeCut,
+} from '../lib/board/board-checkpoints.js';
+import {succeeded} from '../lib/model/result-types.js';
+import type {ReconstructedEvent} from '../lib/event/event-load.js';
+import {
 	enteredLaneAt,
 	foldHistory,
 	lastEventAt,
@@ -221,9 +227,22 @@ const expectFoldedEqualsLog = () => {
 	}
 };
 
+const asEntries = (events: AppEvent[]): ReconstructedEvent[] =>
+	events.map(
+		(event, index) =>
+			({
+				v: 1,
+				id: index === 0 ? [event.id] : [event.id, events[index - 1]!.id],
+				[event.action]: event.payload,
+				userId: event.userId,
+				userName: 'one',
+			} as unknown as ReconstructedEvent),
+	);
+
 beforeAll(() => setVirtualNodesEnabled(false));
 afterEach(() => {
 	vi.useRealTimers();
+	forgetCheckpoints();
 });
 
 describe('a node history folded as events apply', () => {
@@ -249,6 +268,22 @@ describe('a node history folded as events apply', () => {
 			// Read later than folded: times once ahead of the clock may be honest now.
 			vi.setSystemTime(T0 + 13 * 864e5);
 			expectFoldedEqualsLog();
+		}
+	});
+
+	it('answers as its log does after a checkpoint is restored', () => {
+		// One clock for both sides: a far-future time reads as now.
+		vi.useFakeTimers({toFake: ['Date']});
+		vi.setSystemTime(T0 + 10 * 864e5);
+		for (let seed = 1; seed <= 8; seed++) {
+			unwrap(initWorkspaceState(nodes.workspace('root', 'Root', rank())));
+			const entries = asEntries(timed(seed, randomLog(seed, 120)));
+			const load = () => succeeded('', entries);
+
+			for (const cut of [T0 + 60 * 60_000, null, T0 + 20 * 60_000, null]) {
+				unwrap(materializeCut(`h-${seed}`, load, cut, {budget: 6, minGap: 4}));
+				expectFoldedEqualsLog();
+			}
 		}
 	});
 
