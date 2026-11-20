@@ -1,9 +1,11 @@
 import {describe, expect, it} from 'vitest';
 import {seededRandom} from './helpers/seeded-random.js';
 import {
+	appendToOrder,
 	appliedAtTime,
 	indexForCuts as indexForCutsOf,
 	sortEvents,
+	sortEventsIndexed,
 } from '../lib/event/event-load.js';
 import type {ReconstructedEvent} from '../lib/event/event-load.js';
 
@@ -124,5 +126,89 @@ describe('appliedAtTime', () => {
 				);
 			}
 		}
+	});
+});
+
+// A board's log as writers make it: a genesis root, chains, and now and then a
+// branch off an older event.
+const chainLog = (seed: number, size: number): ReconstructedEvent[] => {
+	const random = seededRandom(seed);
+	const ids = ['E0000'];
+	const log = [
+		{id: ['E0000', null], userId: 'u0', userName: 'one', [GENESIS]: {}},
+	] as unknown as ReconstructedEvent[];
+	for (let index = 1; index < size; index++) {
+		const id = `E${String(index).padStart(4, '0')}`;
+		const parent = random(10) < 7 ? ids.at(-1)! : ids[random(ids.length)]!;
+		ids.push(id);
+		log.push({
+			id: [id, parent],
+			userId: `u${random(3)}`,
+			userName: 'someone',
+			edit: {n: index},
+		} as unknown as ReconstructedEvent);
+	}
+	return log;
+};
+
+describe('appendToOrder', () => {
+	it('places additions where a full sort does, or declines', () => {
+		let accepted = 0;
+		let tried = 0;
+
+		for (let seed = 1; seed <= 600; seed++) {
+			const log =
+				seed % 3 === 0
+					? randomLog(seed, 5 + (seed % 60))
+					: chainLog(seed, 5 + (seed % 60));
+			const held = sortEventsIndexed([...log], GENESIS);
+			const random = seededRandom(seed * 31 + 7);
+			const heldIds = held.sorted.map(entry => entry.id[0]);
+			const spineIds = (held.spine ?? []).map(entry => entry.id[0]);
+			const added: ReconstructedEvent[] = [];
+
+			for (let k = 0; k < 1 + random(4); k++) {
+				const roll = random(20);
+				const id =
+					roll === 0
+						? heldIds[random(heldIds.length)]!
+						: roll === 1
+						? `X${random(5)}`
+						: roll === 2 && added.length > 0
+						? added[0]!.id[0]
+						: `${random(8) === 0 ? 'A' : 'N'}${seed}-${k}`;
+				const pick = random(20);
+				const parent =
+					pick < 8
+						? held.sorted.at(-1)?.id[0] ?? null
+						: pick < 12 && spineIds.length > 0
+						? spineIds[random(spineIds.length)]!
+						: pick < 15
+						? heldIds[random(heldIds.length)]!
+						: pick < 18 && added.length > 0
+						? added[random(added.length)]!.id[0]
+						: pick === 18
+						? null
+						: `Y${random(3)}`;
+				added.push({
+					id: [id, parent],
+					userId: 'u9',
+					userName: 'them',
+					edit: {n: k},
+				} as unknown as ReconstructedEvent);
+			}
+
+			tried++;
+			const result = appendToOrder(held, added);
+			if (!result) continue;
+			accepted++;
+
+			const fresh = sortEventsIndexed([...log, ...added], GENESIS);
+			expect([...held.sorted, ...result.order]).toEqual(fresh.sorted);
+			expect(result.spine).toEqual(fresh.spine);
+		}
+
+		// Declining everything would pass the check above and prove nothing.
+		expect(accepted).toBeGreaterThan(tried / 5);
 	});
 });

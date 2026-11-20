@@ -211,9 +211,13 @@ const fileStamp = (filePath: string): FileStamp | null => {
 };
 
 /** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
+/** What a parse read anew: the entries, and whether a cached file was redone whole. */
+export type ParseChanges = {fresh: ReconstructedEvent[]; replaced: boolean};
+
 export const parsePersistedEventsFile = (
 	filePath: string,
 	unreadable?: UnreadableEvent[],
+	changes?: ParseChanges,
 ): Result<ReconstructedEvent[] | null> => {
 	const actorResult = parseEventFileActor(filePath);
 	if (isFail(actorResult)) return failed(actorResult.message);
@@ -302,6 +306,13 @@ export const parsePersistedEventsFile = (
 
 	if (unreadable) for (const entry of quarantined) unreadable.push(entry);
 
+	if (changes) {
+		if (remembered && !grown) changes.replaced = true;
+		for (let at = grown?.entries.length ?? 0; at < entries.length; at++) {
+			changes.fresh.push(entries[at]!);
+		}
+	}
+
 	// Cached only with a readable, settled stamp. Lines so far: all but the
 	// piece after the last break, which a later append continues.
 	if (stamp?.settled) {
@@ -350,6 +361,117 @@ export const sortEvents = (
 ): ReconstructedEvent[] =>
 	sortEventsIndexed(reconstructedEvents, genesis).sorted;
 
+// Every file the held order was read from is still there.
+const keepsEveryFile = (signature: string, files: string[]): boolean => {
+	const now = new Set(files);
+	return signature
+		.split('|')
+		.filter(Boolean)
+		.every(part => now.has(part.slice(0, part.indexOf(':'))));
+};
+
+export type OrderIndex = {
+	ids: Map<string, number>;
+	waiting: Set<string>;
+	spine: ReconstructedEvent[] | null;
+};
+
+/**
+ * Where `added` lands when it all lands after the order `index` describes: in
+ * the order a full sort gives it, with the spine after it. Null otherwise, and
+ * only a full sort is exact.
+ */
+export const appendToOrder = (
+	index: OrderIndex,
+	added: ReadonlyArray<ReconstructedEvent>,
+): {order: ReconstructedEvent[]; spine: ReconstructedEvent[]} | null => {
+	const {ids, waiting, spine} = index;
+	if (!spine) return null;
+
+	const depthOf = new Map(spine.map((entry, depth) => [entry.id[0], depth]));
+	const newIds = new Set<string>();
+	for (const entry of added) {
+		const id = entry.id[0];
+		// New, and nothing held waits on it: else it would sort in among them.
+		if (ids.has(id) || waiting.has(id) || newIds.has(id)) return null;
+		newIds.add(id);
+	}
+
+	const childrenOf = new Map<string, ReconstructedEvent[]>();
+	for (const entry of added) {
+		const parent = entry.id[1];
+		if (!parent) return null;
+
+		if (!newIds.has(parent)) {
+			// Under a held event: only on the spine, and after the child the
+			// tail hangs from, or it sorts in among what is held.
+			const depth = depthOf.get(parent);
+			if (depth === undefined) return null;
+			const next = spine[depth + 1];
+			if (next && compareEvents(entry, next) <= 0) return null;
+		}
+
+		const siblings = childrenOf.get(parent) ?? [];
+		siblings.push(entry);
+		childrenOf.set(parent, siblings);
+	}
+	for (const siblings of childrenOf.values()) siblings.sort(compareEvents);
+
+	// Deepest first: a full sort reaches a spine node's later children only
+	// after everything below its path.
+	const order: ReconstructedEvent[] = [];
+	const parentIn = new Map<string, ReconstructedEvent>();
+	for (let depth = spine.length - 1; depth >= 0; depth--) {
+		const stack = [...(childrenOf.get(spine[depth]!.id[0]) ?? [])].reverse();
+		while (stack.length > 0) {
+			const entry = stack.pop()!;
+			order.push(entry);
+			for (const child of [...(childrenOf.get(entry.id[0]) ?? [])].reverse()) {
+				parentIn.set(child.id[0], entry);
+				stack.push(child);
+			}
+		}
+	}
+
+	// A new event under one that never landed hangs off nothing held.
+	if (order.length !== added.length) return null;
+	if (order.length === 0) return {order, spine};
+
+	// The new tail's path, back up to where it joins the old spine.
+	const path: ReconstructedEvent[] = [];
+	let at: ReconstructedEvent | undefined = order.at(-1);
+	while (at && newIds.has(at.id[0])) {
+		path.push(at);
+		at = parentIn.get(at.id[0]);
+	}
+	const joinedAt = depthOf.get(path.at(-1)!.id[1]!)!;
+
+	return {order, spine: [...spine.slice(0, joinedAt + 1), ...path.reverse()]};
+};
+
+// The tail and its ancestors, root first: an event appended under one of them
+// sorts last. None where the tail closed a cycle, which only a full sort orders.
+const spineOf = (
+	events: ReconstructedEvent[],
+	parentOf: Int32Array,
+	placedAt: Int32Array,
+	tail: number,
+	tailPhase: number,
+): ReconstructedEvent[] | null => {
+	if (tail < 0 || tailPhase > 2) return null;
+
+	const path: ReconstructedEvent[] = [];
+	let at = tail;
+	for (let steps = 0; steps <= events.length; steps++) {
+		path.push(events[at]!);
+		const parent = parentOf[at]!;
+		if (parent < 0) return path.reverse();
+		at = placedAt[parent]!;
+	}
+
+	return null;
+};
+
 /**
  * The causal order, with the ids it holds and the parents it names but does
  * not hold: what an append to it has to check, built on the way.
@@ -361,6 +483,7 @@ export const sortEventsIndexed = (
 	sorted: ReconstructedEvent[];
 	ids: Map<string, number>;
 	waiting: Set<string>;
+	spine: ReconstructedEvent[] | null;
 } => {
 	const events = reconstructedEvents;
 	const count = events.length;
@@ -414,6 +537,10 @@ export const sortEventsIndexed = (
 
 	const result: ReconstructedEvent[] = [];
 	const placed = new Uint8Array(idNumbers.size);
+	// Where each id was placed, and the phase the tail was placed in.
+	const placedAt = new Int32Array(idNumbers.size);
+	let tail = -1;
+	let phase = 0;
 	// Each event is pushed once by its parent, plus the root.
 	const stack = new Int32Array(count + 1);
 
@@ -430,6 +557,8 @@ export const sortEventsIndexed = (
 
 			result.push(events[index]!);
 			placed[id] = 1;
+			placedAt[id] = index;
+			tail = index;
 
 			// Reversed, so the lowest-ULID sibling is popped first.
 			for (
@@ -458,17 +587,32 @@ export const sortEventsIndexed = (
 		);
 		return keys.length === 1 && keys[0] === genesis;
 	});
+	phase = 1;
 	for (const root of roots) visit(root);
 
 	const orphanRoots = sortedIndexes(
 		index => !placed[idOf[index]!] && parentOf[index]! < 0,
 	);
+	phase = 2;
 	for (const orphanRoot of orphanRoots) visit(orphanRoot);
 
 	const remaining = sortedIndexes(index => !placed[idOf[index]!]);
+	const tailPhase = phase;
+	phase = 3;
 	for (const index of remaining) visit(index);
 
-	return {sorted: result, ids: idNumbers, waiting};
+	return {
+		sorted: result,
+		ids: idNumbers,
+		waiting,
+		spine: spineOf(
+			events,
+			parentOf,
+			placedAt,
+			remaining.length > 0 ? -1 : tail,
+			tailPhase,
+		),
+	};
 };
 
 // The time a checkout cut judges each event by: raw where honest, inherited
@@ -738,6 +882,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		// that is not one of them.
 		ids: Map<string, number>;
 		waiting: Set<string>;
+		spine: ReconstructedEvent[] | null;
 	} | null = null;
 
 	function loadAllPersistedEvents(
@@ -770,16 +915,21 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		// collected per attempt so it is not reported twice.
 		let entries: ReconstructedEvent[] = [];
 		let quarantined: UnreadableEvent[] = [];
+		let changes: ParseChanges = {fresh: [], replaced: false};
+		let files: string[] = [];
 
 		for (let attempt = 1; ; attempt++) {
 			entries = [];
 			quarantined = [];
+			changes = {fresh: [], replaced: false};
+			files = listEventFiles(dir);
 			let listAgain = false;
 
-			for (const file of listEventFiles(dir)) {
+			for (const file of files) {
 				const result = parsePersistedEventsFile(
 					path.join(dir, file),
 					quarantined,
+					changes,
 				);
 
 				if (isFail(result)) {
@@ -803,11 +953,34 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		if (unreadable) for (const entry of quarantined) unreadable.push(entry);
 
-		const {sorted, ids, waiting} = sortEventsIndexed(entries, catalog.genesis);
+		const held = sortedCache?.root === eventsRoot ? sortedCache : null;
+		sortedCache = null;
 
-		sortedCache = isSettledSignature(signature)
-			? {root: eventsRoot, signature, sorted, quarantined, ids, waiting}
-			: null;
+		// Only grown, by events that all land after the held order: append them.
+		// A file redone whole or gone is no append, and is sorted again.
+		const appended =
+			held && !changes.replaced && keepsEveryFile(held.signature, files)
+				? appendToOrder(held, changes.fresh)
+				: null;
+
+		let sorted: ReconstructedEvent[];
+		if (held && appended) {
+			for (const entry of appended.order) {
+				held.sorted.push(entry);
+				held.ids.set(entry.id[0], held.ids.size);
+			}
+			held.spine = appended.spine;
+			held.signature = signature;
+			held.quarantined = quarantined;
+			sorted = held.sorted;
+			if (isSettledSignature(signature)) sortedCache = held;
+		} else {
+			const fresh = sortEventsIndexed(entries, catalog.genesis);
+			sorted = fresh.sorted;
+			if (isSettledSignature(signature)) {
+				sortedCache = {root: eventsRoot, signature, quarantined, ...fresh};
+			}
+		}
 
 		// The causal order's tail, which is what the next write points at.
 		// Recorded here because this is the one place that has just paid for it.
@@ -1012,16 +1185,15 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			userId: actor.value.userId,
 			userName: actor.value.userName,
 		};
-		if (entry.id[1] !== held.sorted.at(-1)?.id[0]) return;
-
-		// Last only if nothing held is this id already, or waits on it as a
-		// parent: a hostile line can name an id before it exists.
-		const id = entry.id[0];
-		if (held.ids.has(id) || held.waiting.has(id)) return;
+		// Last only where the rule for any append says so: new, waited on by
+		// nothing held, and under the spine.
+		const appended = appendToOrder(held, [entry]);
+		if (!appended) return;
 
 		// In place: every read hands out a copy, so nothing else holds this array.
 		held.sorted.push(entry);
-		held.ids.set(id, held.ids.size);
+		held.ids.set(entry.id[0], held.ids.size);
+		held.spine = appended.spine;
 		held.signature = next;
 		sortedCache = held;
 	}
