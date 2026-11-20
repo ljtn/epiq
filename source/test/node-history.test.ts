@@ -292,3 +292,27 @@ const deepFreeze = <T>(value: T): T => {
 	}
 	return value;
 };
+
+describe('lane visits', () => {
+	it('count a move within the same lane as no new visit', () => {
+		const at = (n: number, action: string, parent: string) =>
+			({
+				id: ulid(T0 + n * 60_000),
+				action,
+				payload: {id: 't', parent, rank: 'a0'},
+				userId: 'u1',
+			} as AppEvent);
+		const history = foldHistory(undefined, 't', [
+			at(0, 'add.issue', 'A'),
+			at(1, 'move.node', 'A'),
+			at(2, 'move.node', 'B'),
+			at(3, 'move.node', 'B'),
+		]);
+
+		expect(visitsOf(history, T0).map(visit => visit.laneId)).toEqual([
+			'A',
+			'B',
+		]);
+		expect(enteredLaneAt(history, T0)).toBe(T0 + 2 * 60_000);
+	});
+});
