@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {decodeTime as decodeTimeSlowly, ulid} from 'ulid';
+import {decodeTime as decodeTimeSlowly, ulid} from '../lib/event/ulid.js';
 import {
 	clampUlidTime,
 	decodeTime,

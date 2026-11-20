@@ -1,4 +1,4 @@
-import {monotonicFactory, ulid} from 'ulid';
+import {monotonicFactory, ulid} from '../event/ulid.js';
 import {Result, succeeded} from '../model/result-types.js';
 import {User} from '../state/settings.state.js';
 import {AppEvent} from './board-events.model.js';

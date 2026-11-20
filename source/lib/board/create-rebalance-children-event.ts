@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../event/ulid.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getOrderedChildren} from '../repository/rank.js';
 import {evenlySpacedRanks} from '../utils/rank.js';

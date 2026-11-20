@@ -13,7 +13,7 @@ export const TICKET_REF_URL_PREFIX = 'epiq-ref:';
 
 // Structural subset of mdast — enough to walk and rewrite, without taking a
 // dependency on the full AST types for a plugin this small.
-type MdastNode = {
+export type MdastNode = {
 	type: string;
 	value?: string;
 	url?: string;

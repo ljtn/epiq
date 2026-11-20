@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../lib/event/ulid.js';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {nodeIdsWithRef, nodesOf} from '../../lib/state/state.js';
 import {createIssueEvents} from '../../lib/board/common-events.js';

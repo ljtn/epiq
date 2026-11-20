@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../event/ulid.js';
 import {
 	NAV_JUMP_SIZE,
 	navigationUtils,

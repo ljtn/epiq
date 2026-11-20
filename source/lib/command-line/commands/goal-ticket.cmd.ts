@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../event/ulid.js';
 import {findAncestor} from '../../repository/node-repo.js';
 import {
 	materializeAndPersistAll,

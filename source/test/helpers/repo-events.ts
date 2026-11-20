@@ -2,7 +2,7 @@
 // them: no booted board, no actor setup, the line a real connect would leave.
 // Written as another process would, so a board booted here derives them on
 // its next read rather than taking them for its own applied writes.
-import {ulid} from 'ulid';
+import {ulid} from '../../lib/event/ulid.js';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {persist} from '../../lib/board/board-log.js';
 import {clearAccountedSignature} from '../../lib/event/log-signature.js';

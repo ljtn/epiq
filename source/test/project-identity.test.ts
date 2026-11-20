@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import {describe, expect, it} from 'vitest';
 import {getStateBranchRoot, getWorktreesRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';

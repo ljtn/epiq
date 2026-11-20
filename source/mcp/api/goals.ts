@@ -1,7 +1,7 @@
 // A goal is a name in the project that tickets belong to, one goal each as
 // set here; how far along it is comes from its tickets.
 
-import {ulid} from 'ulid';
+import {ulid} from '../../lib/event/ulid.js';
 import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {Goal} from '../../lib/model/app-state.model.js';

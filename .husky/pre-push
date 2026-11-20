@@ -1,3 +1,8 @@
 #!/usr/bin/env sh
 
+if [ ! -d node_modules ]; then
+	echo "pre-push: no node_modules, so the gate cannot run. Run npm install, or push with --no-verify on purpose." >&2
+	exit 1
+fi
+
 sh source/scripts/pre-push.sh

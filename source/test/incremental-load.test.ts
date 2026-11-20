@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import * as warm from '../lib/board/board-log.js';
 import {isFail, succeeded} from '../lib/model/result-types.js';
 import {seededRandom} from './helpers/seeded-random.js';

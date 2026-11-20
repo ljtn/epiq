@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import {afterEach, beforeAll, describe, expect, it} from 'vitest';
 import {
 	forgetCheckpoints,

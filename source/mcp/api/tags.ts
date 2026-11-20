@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../lib/event/ulid.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {

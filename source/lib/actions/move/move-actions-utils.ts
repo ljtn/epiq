@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../event/ulid.js';
 import {materialize} from '../../board/board-log.js';
 import {resolveActorId} from '../../board/board-log.js';
 import {AppEvent, MovePosition} from '../../board/board-events.model.js';

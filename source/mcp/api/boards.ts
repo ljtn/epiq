@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../lib/event/ulid.js';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
 import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';

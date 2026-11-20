@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import {render} from 'ink';
-import meow from 'meow';
 import React from 'react';
 import {startGui} from './gui/init.js';
 import EpiqApp from './lib/components/EpiqApp.js';
@@ -20,10 +19,12 @@ import {
 } from './lib/command-line/setup-flow.js';
 import {setScreenRelease} from './lib/actions/default/navigation-action-utils.js';
 import {patchSetupSession} from './lib/state/setup-session.state.js';
+import {parseCliArgs} from './lib/command-line/cli-args.js';
 
 initUiState();
 
-const helpText = `${chalk.bold('Epiq CLI')}
+const helpText = `
+${chalk.bold('Epiq CLI')}
 
 ${chalk.dim('Boot in directory:')}
   ${chalk.cyan('$ epiq')}
@@ -42,38 +43,24 @@ ${chalk.dim('Act as somebody other than the configured user:')}
   ${chalk.cyan('$ epiq --as claude')}
 `;
 
-const cli = meow(helpText, {
-	importMeta: import.meta,
-	version: EPIQ_VERSION,
-	flags: {
-		init: {
-			type: 'boolean',
-			default: false,
-		},
-		as: {
-			type: 'string',
-		},
-		open: {
-			type: 'boolean',
-			default: true,
-		},
-	},
-});
+const cli = parseCliArgs(process.argv.slice(2));
 
-const command = cli.input[0];
-if (command && !['gui', 'setup', 'init'].includes(command)) {
-	console.error(chalk.red(`Unknown command: ${command}`));
-	process.exit(1);
+if (cli.kind === 'help' || cli.kind === 'version') {
+	console.log(
+		cli.kind === 'help' ? helpText.replace(/^(?=.)/gm, '  ') : EPIQ_VERSION,
+	);
+	process.exit(0);
 }
-// `epiq init foo` must not quietly start a board here instead of in foo.
-if (cli.input.length > 1) {
-	console.error(chalk.red(`Unexpected argument: ${cli.input[1]}`));
+
+if (cli.kind === 'error') {
+	console.error(chalk.red(cli.message));
 	process.exit(1);
 }
 
-// A flag rather than a positional, because `input[0]` is already the command.
-if (cli.flags.as !== undefined) {
-	const actor = applyActorNameArgument(cli.flags.as, '--as');
+const {command} = cli;
+
+if (cli.as !== undefined) {
+	const actor = applyActorNameArgument(cli.as, '--as');
 
 	if (isFail(actor)) {
 		console.error(chalk.red(actor.message));
@@ -143,7 +130,7 @@ if (command === 'init') {
 } else if (command === 'gui') {
 	const guiResult = await startGui({
 		repoRoot: process.cwd(),
-		open: cli.flags.open,
+		open: cli.open,
 	});
 
 	if (isFail(guiResult)) {

@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo} from 'react';
-import {ulid} from 'ulid';
+import {ulid} from '../event/ulid.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {ActionHint, parseActionHint} from '../hints/hints.js';
 import {isTextNode} from '../model/context.model.js';

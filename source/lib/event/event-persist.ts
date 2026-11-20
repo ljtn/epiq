@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {decodeTime, monotonicFactory} from 'ulid';
+import {decodeTime, monotonicFactory} from './ulid.js';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';

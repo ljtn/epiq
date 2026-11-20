@@ -1,6 +1,6 @@
 // A lane's rules, set one at a time by name.
 
-import {ulid} from 'ulid';
+import {ulid} from '../../lib/event/ulid.js';
 import {actorOf} from '../../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {Swimlane} from '../../lib/model/context.model.js';

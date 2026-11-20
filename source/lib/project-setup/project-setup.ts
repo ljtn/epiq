@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import {ulid} from 'ulid';
+import {ulid} from '../event/ulid.js';
 import {z} from 'zod';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEpiqDirPath, getProjectFilePath} from '../storage/paths.js';

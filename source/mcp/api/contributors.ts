@@ -6,7 +6,7 @@ import {
 } from '../../lib/model/result-types.js';
 import {nodesOf} from '../../lib/state/state.js';
 import {REMOVED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
-import {ulid} from 'ulid';
+import {ulid} from '../../lib/event/ulid.js';
 import {applyActorNameArgument} from '../../lib/config/actor-env.js';
 import {
 	loadActorNames,
