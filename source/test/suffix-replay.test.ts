@@ -4,7 +4,7 @@ import {
 	createDefaultEvents,
 } from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
-import {materialize} from '../lib/board/board-log.js';
+import {materialize, materializeAll} from '../lib/board/board-log.js';
 import {setSuffixReplay} from '../lib/board/board-replayed.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 import {isFail, Result} from '../lib/model/result-types.js';
@@ -250,6 +250,90 @@ describe('a reload that only adds to the log', () => {
 		unwrap(resetState());
 		bootMessage(reread);
 		expect(incremental).toBe(derived());
+	});
+
+	// A forged root in a later sync must not wipe a board already applied.
+	it('skips a second genesis in the suffix, as a full replay does', () => {
+		setSuffixReplay(true);
+		const log = randomLog(11, 30);
+		const forged = {
+			id: '01J9999000000000000000000F',
+			action: 'init.workspace',
+			payload: {id: '01J9999000000000000000000W', name: 'Forged', rank: rank()},
+			userId: 'u1',
+		} as AppEvent;
+		const grown = [...log, forged];
+
+		unwrap(resetState());
+		bootMessage(log);
+		expect(bootMessage(grown)).toMatch(/^State extended/);
+		const incremental = derived();
+
+		unwrap(resetState());
+		bootMessage(grown);
+		expect(incremental).toBe(derived());
+	});
+
+	// Ours was applied live after the boot; theirs sorts before it.
+	it('replays in full when a foreign event sorts before an own write', () => {
+		setSuffixReplay(true);
+		const events = randomLog(12, 40);
+		const own = events[30]!;
+		const foreign = events[29]!;
+
+		unwrap(resetState());
+		bootMessage(events.slice(0, 29));
+		materialize(own);
+		const reordered = [
+			...events.slice(0, 29),
+			foreign,
+			own,
+			...events.slice(31),
+		];
+		expect(bootMessage(reordered)).toBe('State booted successfully');
+		const incremental = derived();
+
+		unwrap(resetState());
+		bootMessage(reordered);
+		expect(incremental).toBe(derived());
+	});
+
+	it('lands where a full replay does when the suffix fails', () => {
+		setSuffixReplay(true);
+		const events = randomLog(13, 30);
+		const broken = {
+			...events[5]!,
+			id: '01J9999000000000000000000B',
+			userId: '',
+		} as AppEvent;
+		const grown = [...events, broken];
+
+		unwrap(resetState());
+		bootMessage(events);
+		const incremental = bootStateFromEventLog(grown);
+		const afterIncremental = derived();
+
+		unwrap(resetState());
+		const full = bootStateFromEventLog(grown);
+
+		expect(isFail(incremental) && incremental.message).toBe(
+			isFail(full) && full.message,
+		);
+		expect(afterIncremental).toBe(derived());
+	});
+
+	// Rebuilt from the very same event objects, the log looks unchanged; only
+	// the state's generation says it was replaced.
+	it('replays in full after the state was rebuilt from the same events', () => {
+		setSuffixReplay(true);
+		const events = randomLog(14, 30);
+
+		unwrap(resetState());
+		bootMessage(events.slice(0, 20));
+		unwrap(resetState());
+		materializeAll(events.slice(0, 20));
+
+		expect(bootMessage(events)).toBe('State booted successfully');
 	});
 
 	it('replays in full where it was not allowed, as the TUI does', () => {

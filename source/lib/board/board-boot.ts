@@ -293,14 +293,11 @@ export function bootStateFromEventLog(
 
 	// Only what is new, where the state already holds the rest exactly.
 	const suffix = unappliedSuffix(eventLog);
-	let results = suffix
+	// A fatal event changes nothing and replay goes on past it, so a suffix
+	// fails exactly as the full replay would.
+	const results = suffix
 		? materializeAll(suffix, {continues: true})
 		: materializeAll(eventLog);
-
-	// A suffix that fails is replayed in full, which reports it the same way.
-	const fullAfterAll =
-		suffix !== null && partitionMaterializeResults(results).fatal.length > 0;
-	if (fullAfterAll) results = materializeAll(eventLog);
 
 	const {fatal, skipped} = partitionMaterializeResults(results);
 	if (fatal.length > 0) {
@@ -320,7 +317,7 @@ export function bootStateFromEventLog(
 	reportUnreadableEvents(unreadable);
 
 	return succeeded(
-		suffix && !fullAfterAll
+		suffix
 			? `State extended by ${suffix.length} event(s)`
 			: 'State booted successfully',
 		null,

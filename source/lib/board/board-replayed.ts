@@ -2,7 +2,7 @@
 // adds to the log applies just the addition.
 
 import {isFail} from '../model/result-types.js';
-import {getSafeState} from '../state/state.js';
+import {getSafeState, stateGeneration} from '../state/state.js';
 import {AppEvent} from './board-events.model.js';
 
 // Off by default: the TUI changes state outside the log (a move's preview, its
@@ -21,6 +21,7 @@ let replayed: {
 	input: AppEvent[];
 	appliedCount: number;
 	lastApplied: AppEvent;
+	generation: number;
 } | null = null;
 
 /** The next reload replays in full: the state no longer matches the record. */
@@ -34,7 +35,12 @@ export const rememberReplayed = (events: AppEvent[]): void => {
 	const lastApplied = eventLog.at(-1);
 
 	replayed = lastApplied
-		? {input: events, appliedCount: eventLog.length, lastApplied}
+		? {
+				input: events,
+				appliedCount: eventLog.length,
+				lastApplied,
+				generation: stateGeneration(),
+		  }
 		: null;
 };
 
@@ -57,8 +63,11 @@ export const unappliedSuffix = (events: AppEvent[]): AppEvent[] | null => {
 	const {eventLog, timeMode, replay} = stateResult.value;
 	if (timeMode !== 'live' || replay !== null) return null;
 
-	// The same event object where the replay left it, or the log was rebuilt.
-	if (eventLog[replayed.appliedCount - 1] !== replayed.lastApplied) {
+	// The same state, and its log where the replay left it, or it was rebuilt.
+	if (
+		stateGeneration() !== replayed.generation ||
+		eventLog[replayed.appliedCount - 1] !== replayed.lastApplied
+	) {
 		return null;
 	}
 
