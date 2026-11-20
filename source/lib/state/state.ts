@@ -122,7 +122,13 @@ setClaimedEmailsReader(contributor =>
 	_appState ? emailsOf(_appState.emailLinks, contributor) : [],
 );
 
+// Bumped whenever the state is replaced wholesale, so a record of what it was
+// built from can tell it no longer describes it.
+let generation = 0;
+export const stateGeneration = (): number => generation;
+
 export function initWorkspaceState(workspace: Workspace) {
+	generation++;
 	_initialWorkspace = workspace;
 	const repoRootResult = resolveClosestEpiqProjectRoot(process.cwd());
 
