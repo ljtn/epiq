@@ -1,10 +1,10 @@
 import {AppEvent} from '../board/board-events.model.js';
+import {loggedEvents} from '../board/node-history.js';
 import {formatLogLine} from '../board/format-log-utils.js';
 import {
 	isFieldListNode,
 	isFieldNode,
 	isTicketNode,
-	Ticket,
 	TicketContext,
 } from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -273,7 +273,7 @@ export const materializeTicketVirtualNodes = (
 		name: FieldNames.HISTORY,
 		parentNodeId: node.id,
 		rank: ranks.log,
-		value: ticketHistory(node),
+		value: ticketHistory(loggedEvents(node.history, getState().eventLog)),
 		readonly: true,
 		childRenderAxis: 'vertical',
 	});
@@ -302,10 +302,10 @@ export type LogEvolutionForEvent<A extends AppEvent['action']> = Extract<
 >['payload'][];
 
 // Oldest first, so each line is told only what came before it; shown newest first.
-export const ticketHistory = (node: Pick<Ticket, 'log'>): string => {
+export const ticketHistory = (events: readonly AppEvent[]): string => {
 	const earlier: LogActionEvolution = new Map();
 
-	const lines = node.log.map(event => {
+	const lines = events.map(event => {
 		const evolution = earlier.get(event.action) ?? [];
 		const line = formatLogLine(event, evolution);
 

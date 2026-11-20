@@ -1,4 +1,6 @@
 import {isTicketNode} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
+import {AnyContext} from '../model/context.model.js';
 import {isFail, ReturnFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {
@@ -47,14 +49,29 @@ const refreshAffectedVirtualNodes = (nodeIds: string[]): ReturnFail | null => {
 	return null;
 };
 
-const appendEventToNodeLog = (nodeId: string, event: AppEvent): void => {
+// Only a ticket's history is ever shown, so only a ticket keeps where it sits.
+const positionsFor = (
+	node: NavNode<AnyContext>,
+	positions: number[],
+): number[] | null => (isTicketNode(node) ? positions : null);
+
+const appendEventToNodeLog = (
+	nodeId: string,
+	event: AppEvent,
+	position: number,
+): void => {
 	const node = nodeRepo.getNode(nodeId);
 	if (!node) return;
 
 	nodeRepo.updateNode({
 		...node,
 		log: [...(node.log ?? []), event],
-		history: foldHistory(node.history, nodeId, [event]),
+		history: foldHistory(
+			node.history,
+			nodeId,
+			[event],
+			positionsFor(node, [position]),
+		),
 	});
 };
 
@@ -171,21 +188,33 @@ const appendEventToAppLog = (event: AppEvent): void => {
 // virtual fields were rebuilt once for every event that touched it.
 type ReplayBatch = {
 	appLog: AppEvent[];
-	nodeLog: Map<string, AppEvent[]>;
+	// Each node's events, and each one's place in `appLog`.
+	nodeLog: Map<string, {events: AppEvent[]; offsets: number[]}>;
 	virtualNodeIds: Set<string>;
 };
 
 let replayBatch: ReplayBatch | null = null;
 
 const flushReplayBatch = (batch: ReplayBatch): ReturnFail | null => {
-	for (const [nodeId, events] of batch.nodeLog) {
+	// Where the batch's own log starts in the app-wide one, appended below.
+	const base = getState().eventLog.length;
+
+	for (const [nodeId, {events, offsets}] of batch.nodeLog) {
 		const node = nodeRepo.getNode(nodeId);
 		if (!node) continue;
 
 		nodeRepo.updateNode({
 			...node,
 			log: [...(node.log ?? []), ...events],
-			history: foldHistory(node.history, nodeId, events),
+			history: foldHistory(
+				node.history,
+				nodeId,
+				events,
+				positionsFor(
+					node,
+					offsets.map(offset => base + offset),
+				),
+			),
 		});
 	}
 
@@ -223,9 +252,18 @@ export const boardReplayHooks: ReplayHooks<AppEventMap> = {
 				// Only a node there now, as applied one at a time: one created later in
 				// the batch must not gain what came before it.
 				if (!bypassLogging && nodeRepo.getNode(nodeId)) {
-					const events = replayBatch.nodeLog.get(nodeId);
-					if (events) events.push(event);
-					else replayBatch.nodeLog.set(nodeId, [event]);
+					// Its place in the batch's log, which it is pushed onto below.
+					const offset = replayBatch.appLog.length;
+					const held = replayBatch.nodeLog.get(nodeId);
+					if (held) {
+						held.events.push(event);
+						held.offsets.push(offset);
+					} else {
+						replayBatch.nodeLog.set(nodeId, {
+							events: [event],
+							offsets: [offset],
+						});
+					}
 				}
 
 				if (areVirtualNodesEnabled()) {
@@ -244,7 +282,11 @@ export const boardReplayHooks: ReplayHooks<AppEventMap> = {
 		}
 
 		if (!bypassLogging) {
-			affectedNodeIds.forEach(nodeId => appendEventToNodeLog(nodeId, event));
+			// The place it takes in the app-wide log, appended just after.
+			const position = getState().eventLog.length;
+			affectedNodeIds.forEach(nodeId =>
+				appendEventToNodeLog(nodeId, event, position),
+			);
 			appendEventToAppLog(event);
 		}
 

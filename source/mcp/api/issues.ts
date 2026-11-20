@@ -40,7 +40,7 @@ import {
 	MAX_TITLE_LENGTH,
 	tooLong,
 } from '../../lib/utils/text.limits.js';
-import {enteredLaneAt} from '../../lib/board/node-history.js';
+import {enteredLaneAt, loggedEvents} from '../../lib/board/node-history.js';
 import {
 	NODE_REF_LENGTH,
 	nodeRef,
@@ -668,7 +668,7 @@ export const getIssueHistory = (
 
 	return succeeded(
 		'Read issue history',
-		(issue.log ?? []).map(event => ({
+		loggedEvents(issue.history, stateResult.value.eventLog).map(event => ({
 			id: event.id,
 			t: ulidTimeMs(event.id),
 			action: event.action,
