@@ -126,9 +126,21 @@ describe('a load from what the process holds', () => {
 						roll === 10
 							? path.join(dir(), GHOST)
 							: path.join(dir(), THEIRS[1]!);
-					if (roll === 10)
-						fs.writeFileSync(later, lineOf(ulid(clock + 1), id, n++));
-					else if (!fs.existsSync(later)) fs.writeFileSync(later, '');
+					if (roll === 11 && !fs.existsSync(later)) fs.writeFileSync(later, '');
+
+					// The ghost appears after the signature is taken, in time for the
+					// listing the scan reads: so the held signature never names it.
+					const list = fs.readdirSync;
+					let listings = 0;
+					const listSpy = vi.spyOn(fs, 'readdirSync').mockImplementation(((
+						where: fs.PathLike,
+						...rest: unknown[]
+					) => {
+						if (roll === 10 && String(where) === dir() && ++listings === 2) {
+							fs.writeFileSync(later, lineOf(ulid(clock + 1), id, n++));
+						}
+						return (list as (...args: unknown[]) => unknown)(where, ...rest);
+					}) as typeof fs.readdirSync);
 
 					const read = fs.readFileSync;
 					let tripped = false;
@@ -149,15 +161,18 @@ describe('a load from what the process holds', () => {
 						// The failed load: what matters is the next one.
 					}
 					spy.mockRestore();
+					listSpy.mockRestore();
 
-					// An own write straight after, before any load succeeds.
-					const own = ulid(clock + 2);
-					const line = lineOf(own, id, n++);
-					const file = path.join(dir(), OWN);
-					fs.appendFileSync(file, line);
-					warm.advanceEdgeRef(root, OWN, own, Buffer.byteLength(line));
-					warm.advanceSortedLog(root, file, line, Buffer.byteLength(line));
-					written.push(own);
+					// At times an own write straight after, before any load succeeds.
+					if (random(2) === 0) {
+						const own = ulid(clock + 2);
+						const line = lineOf(own, id, n++);
+						const file = path.join(dir(), OWN);
+						fs.appendFileSync(file, line);
+						warm.advanceEdgeRef(root, OWN, own, Buffer.byteLength(line));
+						warm.advanceSortedLog(root, file, line, Buffer.byteLength(line));
+						written.push(own);
+					}
 				} else if (roll === 12) {
 					// A sync renames a teammate's file away; its events stay elsewhere.
 					const [from, to] = random(2) === 0 ? THEIRS : [...THEIRS].reverse();
@@ -256,4 +271,73 @@ describe('a load from what the process holds', () => {
 			}
 		}
 	}, 120_000);
+});
+
+describe('the parse cache at scale', () => {
+	const actorFile = (index: number) =>
+		`01ARZ3NDEKTSV4RRFF${String(index).padStart(8, '0')}.a${index}.jsonl`;
+
+	const seed = (count: number): string => {
+		let parent = ulid(Date.UTC(2023, 0, 1));
+		fs.writeFileSync(path.join(dir(), actorFile(0)), lineOf(parent, null, 0));
+		for (let index = 1; index < count; index++) {
+			const id = ulid(Date.UTC(2023, 0, 1) + index);
+			fs.writeFileSync(
+				path.join(dir(), actorFile(index)),
+				lineOf(id, parent, index),
+			);
+			parent = id;
+		}
+		const past = new Date(Date.UTC(2023, 0, 1));
+		for (let index = 0; index < count; index++) {
+			fs.utimesSync(path.join(dir(), actorFile(index)), past, past);
+		}
+		return parent;
+	};
+
+	it('appends a teammate past hundreds of actor files', () => {
+		const tail = seed(700);
+		expect(warm.loadOrderedEntries(root).message).toBe('All events loaded');
+
+		const file = path.join(dir(), actorFile(350));
+		fs.appendFileSync(file, lineOf(ulid(Date.UTC(2024, 0, 1)), tail, 1));
+		fs.utimesSync(
+			file,
+			new Date(Date.UTC(2023, 1, 1)),
+			new Date(Date.UTC(2023, 1, 1)),
+		);
+
+		expect(warm.loadOrderedEntries(root).message).toBe(
+			'All events loaded, appended',
+		);
+	});
+
+	it('forgets one board once another is read', () => {
+		seed(5);
+		const first = root;
+		warm.loadOrderedEntries(first);
+
+		const second = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-incremental-'));
+		try {
+			root = second;
+			fs.mkdirSync(dir(), {recursive: true});
+			seed(3);
+			warm.loadOrderedEntries(second);
+
+			root = first;
+			// Touched, so the order is not served whole and the files are scanned.
+			const past = new Date(Date.UTC(2023, 5, 1));
+			fs.utimesSync(path.join(dir(), actorFile(0)), past, past);
+			const spy = vi.spyOn(fs, 'readFileSync');
+			warm.loadOrderedEntries(first);
+			const reads = spy.mock.calls.filter(([file]) =>
+				String(file).startsWith(first),
+			);
+			spy.mockRestore();
+			expect(reads).toHaveLength(5);
+		} finally {
+			root = first;
+			fs.rmSync(second, {recursive: true, force: true});
+		}
+	});
 });

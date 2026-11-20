@@ -184,23 +184,23 @@ type RememberedParse = {
 	settled: boolean;
 };
 
-// No cap on lines: the ordered log keeps every entry alive whatever this
-// holds. Should it stop holding them all, this needs a cap again.
+// Every file the last scan read, and nothing else: the ordered log keeps every
+// entry alive whatever this holds. Should it stop holding them all, this needs
+// a cap.
 const parseCache = new Map<string, RememberedParse>();
-const PARSE_CACHE_MAX_FILES = 512;
 
 let lastLineage = 0;
 const newLineage = (): number => ++lastLineage;
 
-// Whether it was kept: a full cache turns a new file away rather than evicting
-// one, as loads read files in one order and would evict the next file read.
-const rememberParse = (filePath: string, next: RememberedParse): boolean => {
-	if (!parseCache.has(filePath) && parseCache.size >= PARSE_CACHE_MAX_FILES) {
-		return false;
-	}
-
+const rememberParse = (filePath: string, next: RememberedParse): void => {
 	parseCache.set(filePath, next);
-	return true;
+};
+
+// Forgets every file but those a scan just read: another board's, or one gone.
+const keepParsesOf = (read: ReadonlySet<string>): void => {
+	for (const filePath of parseCache.keys()) {
+		if (!read.has(filePath)) parseCache.delete(filePath);
+	}
 };
 
 const hashOf = (bytes: Buffer): string =>
@@ -284,7 +284,7 @@ const extendParse = (
 		appended,
 	);
 	const lineage = held?.lineage ?? newLineage();
-	const kept = rememberParse(filePath, {
+	rememberParse(filePath, {
 		stamp: stamp.value,
 		entries: [...(held?.entries ?? []), entry],
 		quarantined: held?.quarantined ?? [],
@@ -297,7 +297,7 @@ const extendParse = (
 		settled: stamp.settled,
 	});
 
-	return kept ? {entry, base: held, lineage} : null;
+	return {entry, base: held, lineage};
 };
 
 /** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
@@ -405,7 +405,7 @@ export const parsePersistedEventsFile = (
 			bytes.subarray(from),
 		);
 		const lineage = grown?.lineage ?? newLineage();
-		const kept = rememberParse(filePath, {
+		rememberParse(filePath, {
 			stamp: stamp.value,
 			entries,
 			quarantined,
@@ -417,7 +417,7 @@ export const parsePersistedEventsFile = (
 			endsWithBreak: bytes.length === 0 || bytes.at(-1) === NEWLINE,
 			settled: stamp.settled,
 		});
-		if (seen && kept) seen.lineage = lineage;
+		if (seen) seen.lineage = lineage;
 	}
 
 	return succeeded('Parsed persisted events file', [...entries]);
@@ -1109,6 +1109,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		}
 
 		if (unreadable) for (const entry of quarantined) unreadable.push(entry);
+		keepParsesOf(new Set(read.map(({file}) => path.join(dir, file))));
 
 		const held = sortedCache?.root === eventsRoot ? sortedCache : null;
 		sortedCache = null;
