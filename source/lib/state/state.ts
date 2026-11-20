@@ -292,6 +292,15 @@ export const copyBaseState = (state: AppState): BaseState => {
 	return copy as BaseState;
 };
 
+/**
+ * Takes `base` as the state itself, uncopied: only for one nothing else holds,
+ * such as one just read from disk.
+ */
+export const adoptBaseState = (base: BaseState): Result<string> => {
+	generation++;
+	return updateState(() => base);
+};
+
 /** Puts back a state `copyBaseState` took, copied again so it stays as taken. */
 export const restoreBaseState = (base: BaseState): Result<string> => {
 	generation++;

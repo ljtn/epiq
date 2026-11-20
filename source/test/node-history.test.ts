@@ -86,6 +86,33 @@ const referenceLog = (nodeId: string): Array<[number, AppEvent]> => {
 	return located.slice(Math.max(created, 0));
 };
 
+// Now and then, before a ticket is filed, an event naming it already: forged,
+// or out of causal order. It must count for that ticket as the old scan did.
+const forgeEarly = (seed: number, log: AppEvent[]): AppEvent[] => {
+	const random = seededRandom(seed * 5 + 3);
+	return log.flatMap(event => {
+		if (event.action !== 'add.issue' || random(4) !== 0) return [event];
+		const ticket = (event.payload as {id: string}).id;
+		const early = [
+			{action: 'edit.title', payload: {id: ticket, name: 'early'}},
+			{
+				action: 'add.issue.comment',
+				payload: {
+					id: `early-${ticket}`,
+					issue: ticket,
+					author: 'u2',
+					md: 'early',
+				},
+			},
+			{action: 'add.issue.tag', payload: {id: ticket, tag: 'early-tag'}},
+		][random(3)]!;
+		return [
+			{...early, id: `${event.id}x`, userId: `u${random(3)}`} as AppEvent,
+			event,
+		];
+	});
+};
+
 // The rule `ticket-boards` read a log by: any event naming the node and a parent.
 const parentsFromLog = (
 	nodeId: string,
@@ -120,11 +147,16 @@ const expectActorsEqualLog = () => {
 			byId.set(target, ids);
 		}
 	}
-	expect(
-		Object.fromEntries(
-			Object.entries(actorsById ?? {}).map(([id, {ids}]) => [id, ids]),
-		),
-	).toEqual(Object.fromEntries(byId));
+	// Only tickets are asked about: for each, the old scan's answer.
+	const tickets = Object.values(getState().nodes)
+		.filter(node => node.context === 'TICKET')
+		.map(node => node.id);
+	for (const id of tickets) {
+		expect(actorsById?.[id]?.ids ?? [], id).toEqual(byId.get(id) ?? []);
+	}
+	for (const id of Object.keys(actorsById ?? {})) {
+		expect(tickets, id).toContain(id);
+	}
 	expect(Object.keys(authors ?? {}).sort()).toEqual([...everyone].sort());
 };
 
@@ -191,7 +223,7 @@ describe('a node history folded as events apply', () => {
 			vi.setSystemTime(T0 + 10 * 864e5);
 			unwrap(initWorkspaceState(nodes.workspace('root', 'Root', rank())));
 
-			const log = timed(seed, randomLog(seed, 150));
+			const log = forgeEarly(seed, timed(seed, randomLog(seed, 150)));
 			const random = seededRandom(seed);
 			for (let at = 0; at < log.length; ) {
 				const next = Math.min(log.length, at + 1 + random(15));

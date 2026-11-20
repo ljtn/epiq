@@ -32,7 +32,7 @@ import {
 	getState,
 	initWorkspaceState,
 	isStateInitialized,
-	restoreBaseState,
+	adoptBaseState,
 	type BaseState,
 	updateState,
 } from '../state/state.js';
@@ -209,7 +209,8 @@ const loadSnapshot = (root: string): boolean => {
 		);
 		if (isFail(placeholder)) return false;
 	}
-	if (isFail(restoreBaseState(base as BaseState))) return false;
+	// Read from disk just now: nothing else holds it, so it needs no copy.
+	if (isFail(adoptBaseState(base as BaseState))) return false;
 
 	// From another process: nothing it says of a file is taken on trust.
 	held = {
