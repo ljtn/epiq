@@ -136,6 +136,32 @@ describe('the build a snapshot is keyed on', () => {
 		expect(buildIdFor(url)).not.toBe(before);
 	});
 
+	it('changes with the version of a dependency installed beside the bundle', () => {
+		const dist = path.join(dir, 'pkg', 'dist');
+		fs.mkdirSync(dist, {recursive: true});
+		fs.writeFileSync(path.join(dist, 'mcp.js'), 'main');
+		fs.writeFileSync(
+			path.join(dir, 'pkg', 'package.json'),
+			JSON.stringify({dependencies: {zod: '^4'}}),
+		);
+		// Installed above the package, as npm hoists it.
+		const installed = path.join(dir, 'node_modules', 'zod');
+		fs.mkdirSync(installed, {recursive: true});
+		const install = (version: string) =>
+			fs.writeFileSync(
+				path.join(installed, 'package.json'),
+				JSON.stringify({version}),
+			);
+		const url = pathToFileURL(path.join(dist, 'mcp.js')).href;
+
+		install('4.1.0');
+		const before = buildIdFor(url);
+		install('4.2.0');
+		expect(buildIdFor(url)).not.toBe(before);
+		install('4.1.0');
+		expect(buildIdFor(url)).toBe(before);
+	});
+
 	it('is none from sources unless asked for', () => {
 		const source = pathToFileURL(path.join(dir, 'snapshot-file.ts')).href;
 		vi.stubEnv('EPIQ_SNAPSHOT', '');

@@ -49,6 +49,9 @@ export const buildIdFor = (moduleUrl: string): string | null => {
 					.update('\0')
 					.update(fs.readFileSync(path.join(dir, name)));
 			}
+			// The packages it imports are installed beside it, not bundled: the
+			// versions resolved there decide what it reads too.
+			for (const dependency of dependencyVersions(dir)) hash.update(dependency);
 			return hash.digest('hex');
 		}
 	} catch {
@@ -56,6 +59,32 @@ export const buildIdFor = (moduleUrl: string): string | null => {
 	}
 
 	return process.env['EPIQ_SNAPSHOT'] === '1' ? 'sources' : null;
+};
+
+// Each runtime dependency the package beside `dir` names, as Node would
+// resolve it from there: name and installed version.
+const dependencyVersions = (dir: string): string[] => {
+	const manifestPath = path.join(dir, '..', 'package.json');
+	if (!fs.existsSync(manifestPath)) return [];
+
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+		dependencies?: Record<string, string>;
+	};
+
+	return Object.keys(manifest.dependencies ?? {})
+		.sort()
+		.map(name => {
+			for (let at = dir; ; at = path.dirname(at)) {
+				const found = path.join(at, 'node_modules', name, 'package.json');
+				if (fs.existsSync(found)) {
+					const {version} = JSON.parse(fs.readFileSync(found, 'utf8')) as {
+						version?: string;
+					};
+					return `${name}@${version ?? '?'}\n`;
+				}
+				if (path.dirname(at) === at) return `${name}@missing\n`;
+			}
+		});
 };
 
 let buildId: string | null | undefined;
