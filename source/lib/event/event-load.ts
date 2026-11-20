@@ -342,7 +342,21 @@ const compareEvents = (
 export const sortEvents = (
 	reconstructedEvents: ReconstructedEvent[],
 	genesis: string,
-): ReconstructedEvent[] => {
+): ReconstructedEvent[] =>
+	sortEventsIndexed(reconstructedEvents, genesis).sorted;
+
+/**
+ * The causal order, with the ids it holds and the parents it names but does
+ * not hold: what an append to it has to check, built on the way.
+ */
+export const sortEventsIndexed = (
+	reconstructedEvents: ReconstructedEvent[],
+	genesis: string,
+): {
+	sorted: ReconstructedEvent[];
+	ids: Map<string, number>;
+	waiting: Set<string>;
+} => {
 	const events = reconstructedEvents;
 	const count = events.length;
 
@@ -363,12 +377,14 @@ export const sortEvents = (
 	const UNKNOWN_PARENT = -2;
 	const parentOf = new Int32Array(count);
 	const childCounts = new Int32Array(idNumbers.size + 1);
+	const waiting = new Set<string>();
 	for (let index = 0; index < count; index++) {
 		const refId = events[index]!.id[1] ?? null;
 		const parent =
 			refId === null ? NO_PARENT : idNumbers.get(refId) ?? UNKNOWN_PARENT;
 		parentOf[index] = parent;
 		if (parent >= 0) childCounts[parent + 1]!++;
+		else if (parent === UNKNOWN_PARENT) waiting.add(refId!);
 	}
 
 	// Each id's children are childIndex[childStart[id] .. childStart[id + 1]].
@@ -447,7 +463,7 @@ export const sortEvents = (
 	const remaining = sortedIndexes(index => !placed[idOf[index]!]);
 	for (const index of remaining) visit(index);
 
-	return result;
+	return {sorted: result, ids: idNumbers, waiting};
 };
 
 // The time a checkout cut judges each event by: raw where honest, inherited
@@ -713,10 +729,10 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		signature: string;
 		sorted: ReconstructedEvent[];
 		quarantined: UnreadableEvent[];
-		// Built on the first own append: every id held, and every parent a
-		// held entry names that is not one of them.
-		ids?: Set<string>;
-		waiting?: Set<string>;
+		// From the sort: every id held, and every parent a held entry names
+		// that is not one of them.
+		ids: Map<string, number>;
+		waiting: Set<string>;
 	} | null = null;
 
 	function loadAllPersistedEvents(
@@ -782,10 +798,10 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		if (unreadable) for (const entry of quarantined) unreadable.push(entry);
 
-		const sorted = sortEvents(entries, catalog.genesis);
+		const {sorted, ids, waiting} = sortEventsIndexed(entries, catalog.genesis);
 
 		sortedCache = isSettledSignature(signature)
-			? {root: eventsRoot, signature, sorted, quarantined}
+			? {root: eventsRoot, signature, sorted, quarantined, ids, waiting}
 			: null;
 
 		// The causal order's tail, which is what the next write points at.
@@ -995,20 +1011,12 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		// Last only if nothing held is this id already, or waits on it as a
 		// parent: a hostile line can name an id before it exists.
-		if (!held.ids || !held.waiting) {
-			held.ids = new Set(held.sorted.map(other => other.id[0]));
-			held.waiting = new Set();
-			for (const other of held.sorted) {
-				const parent = other.id[1];
-				if (parent && !held.ids.has(parent)) held.waiting.add(parent);
-			}
-		}
 		const id = entry.id[0];
 		if (held.ids.has(id) || held.waiting.has(id)) return;
 
 		// In place: every read hands out a copy, so nothing else holds this array.
 		held.sorted.push(entry);
-		held.ids.add(id);
+		held.ids.set(id, held.ids.size);
 		held.signature = next;
 		sortedCache = held;
 	}
