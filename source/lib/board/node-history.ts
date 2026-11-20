@@ -22,13 +22,17 @@ export type NodeHistory = {
 	lastParent: string | null;
 };
 
+// Shared by every node that has none: most never gain an ahead time, and many
+// no visits or parents.
+const NONE: never[] = Object.freeze([]) as unknown as never[];
+
 export const emptyHistory = (): NodeHistory => ({
-	visits: [],
+	visits: NONE,
 	latestPast: null,
-	ahead: [],
+	ahead: NONE,
 	lastCloseId: null,
 	reopenParent: null,
-	parents: [],
+	parents: NONE,
 	lastParent: null,
 });
 
@@ -64,10 +68,11 @@ export const foldHistory = (
 	now = Date.now(),
 ): NodeHistory => {
 	const next = history ?? emptyHistory();
-	const visits = [...next.visits];
-	const ahead = [...next.ahead];
-	const parents = [...next.parents];
-	const known = new Set(parents);
+	// Copied on first change only: a list no event adds to stays the one held.
+	let {visits, ahead, parents} = next;
+	let ownVisits = false;
+	let ownAhead = false;
+	let ownParents = false;
 	let {latestPast, lastCloseId, reopenParent, lastParent} = next;
 
 	for (const event of events) {
@@ -75,13 +80,17 @@ export const foldHistory = (
 
 		const lane = laneOf(event);
 		if (lane !== null && lane !== visits.at(-1)?.laneId) {
+			if (!ownVisits) [visits, ownVisits] = [[...visits], true];
 			visits.push({laneId: lane, at: time});
 		}
 
 		if (time !== null) {
 			if (clampUlidTime(time, now) === time) {
 				latestPast = latestPast === null ? time : Math.max(latestPast, time);
-			} else ahead.push(time);
+			} else {
+				if (!ownAhead) [ahead, ownAhead] = [[...ahead], true];
+				ahead.push(time);
+			}
 		}
 
 		if (event.action === 'close.issue') {
@@ -92,8 +101,9 @@ export const foldHistory = (
 		const parent = ownParent(event, nodeId);
 		if (parent !== null) {
 			lastParent = parent;
-			if (!known.has(parent)) {
-				known.add(parent);
+			// A handful per node: a scan beats keeping a set beside them.
+			if (!parents.includes(parent)) {
+				if (!ownParents) [parents, ownParents] = [[...parents], true];
 				parents.push(parent);
 			}
 		}
