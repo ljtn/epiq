@@ -1,7 +1,7 @@
 // One of several processes connecting repos to one board at the same moment,
 // each as its own actor.
 // argv: <board> <name> <count> <start at, epoch ms>
-import {ulid} from 'ulid';
+import {ulid} from '../../lib/event/ulid.js';
 import {writeRepoEvents} from './repo-events.js';
 
 const [board = '', name = '', count = '0', startAt = '0'] =

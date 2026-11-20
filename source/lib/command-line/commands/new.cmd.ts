@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../event/ulid.js';
 import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
 import {createIssueEvents} from '../../board/common-events.js';
 import {materializeAndPersistAll} from '../../board/board-log.js';

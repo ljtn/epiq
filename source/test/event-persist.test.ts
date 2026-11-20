@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {decodeTime, ulid} from 'ulid';
+import {decodeTime, ulid} from '../lib/event/ulid.js';
 import {beforeEach, describe, expect, it} from 'vitest';
 import {
 	isSupportedSchemaVersion,

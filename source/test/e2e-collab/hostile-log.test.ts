@@ -3,7 +3,7 @@
  * both machines, with the same order and issues, and still takes writes.
  */
 import {afterAll, describe, expect, it} from 'vitest';
-import {encodeTime} from 'ulid';
+import {encodeTime} from '../../lib/event/ulid.js';
 import {
 	appendRawToOwnLog,
 	cleanUp,

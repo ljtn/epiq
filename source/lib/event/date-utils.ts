@@ -1,4 +1,4 @@
-import {decodeTime as decodeTimeSlowly} from 'ulid';
+import {decodeTime as decodeTimeSlowly} from './ulid.js';
 import {failed, Result, succeeded} from '../model/result-types.js';
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 
 import {
 	advanceEdgeRef,

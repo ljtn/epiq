@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {seededRandom} from './helpers/seeded-random.js';
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import {AppEvent, EventAction} from '../lib/board/board-events.model.js';
 import {
 	enteredLaneAt,

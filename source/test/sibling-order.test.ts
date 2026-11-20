@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import {createDefaultEvents} from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {materializeAndPersistAll} from '../lib/board/board-log.js';

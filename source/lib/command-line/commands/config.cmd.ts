@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../event/ulid.js';
 import {ACTOR_NAME_ENV} from '../../config/actor-env.js';
 import {readEpiqConfig, setConfig} from '../../config/user-config.js';
 import {CommandLineInput} from '../../model/action-map.model.js';

@@ -1,7 +1,7 @@
 import {spawn, spawnSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import {ulid} from 'ulid';
+import {ulid} from '../event/ulid.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';

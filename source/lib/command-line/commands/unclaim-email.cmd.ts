@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../event/ulid.js';
 import {AppEvent} from '../../board/board-events.model.js';
 import {materializeAndPersistAll} from '../../board/board-log.js';
 import {getStateBranchRoot} from '../../../git/git-storage.js';

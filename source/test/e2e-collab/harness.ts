@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import esbuild from 'esbuild';
-import {ulid} from 'ulid';
+import {ulid} from '../../lib/event/ulid.js';
 import {execGit} from '../../git/git-utils.js';
 import {deriveActorId} from '../../lib/config/actor-env.js';
 import {isFail} from '../../lib/model/result-types.js';

@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-vi.mock('ulid', () => ({
+vi.mock('../lib/event/ulid.js', () => ({
 	monotonicFactory: () => () => 'generated-id',
 	ulid: vi.fn(),
 }));
@@ -81,7 +81,7 @@ vi.mock('../git/auto-sync.js', () => ({
 	queueAutoSync: vi.fn(),
 }));
 
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import {CmdIntent} from '../lib/command-line/command-intent.js';
 import {ConfigModifiers} from '../lib/command-line/command-modifiers.js';
 import {commands} from '../lib/command-line/commands.js';

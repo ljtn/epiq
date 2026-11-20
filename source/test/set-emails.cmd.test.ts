@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import {bootStateFromEventLog} from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {emailsOf} from '../lib/model/email-link.js';

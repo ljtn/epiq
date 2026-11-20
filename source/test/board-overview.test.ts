@@ -1,4 +1,4 @@
-import {decodeTime, ulid} from 'ulid';
+import {decodeTime, ulid} from '../lib/event/ulid.js';
 import {describe, expect, it} from 'vitest';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {foldHistory} from '../lib/board/node-history.js';

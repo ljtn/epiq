@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../event/ulid.js';
 import {nodeRepo, findAncestor} from '../../repository/node-repo.js';
 import {materializeAndPersistAll} from '../../board/board-log.js';
 import {resolveActorId} from '../../board/board-log.js';

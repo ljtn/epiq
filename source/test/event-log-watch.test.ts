@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {decodeTime, ulid} from 'ulid';
+import {decodeTime, ulid} from '../lib/event/ulid.js';
 import {reloadIfEventLogMoved} from '../git/event-log-watch.js';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit, getGitDir} from '../git/git-utils.js';

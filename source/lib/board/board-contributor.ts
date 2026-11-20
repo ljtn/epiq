@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../event/ulid.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getSettingsState} from '../state/settings.state.js';

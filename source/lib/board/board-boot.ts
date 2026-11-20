@@ -1,4 +1,4 @@
-import {monotonicFactory, ulid} from 'ulid';
+import {monotonicFactory, ulid} from '../event/ulid.js';
 import {logger} from '../../logger.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {Mode} from '../model/action-map.model.js';

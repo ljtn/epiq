@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
-import {ulid} from 'ulid';
+import {ulid} from '../event/ulid.js';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {accountedSignature, logSignature} from '../event/log-signature.js';
 import {

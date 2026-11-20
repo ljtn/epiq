@@ -1,6 +1,6 @@
 import {repoIdOf} from '../lib/board/board-repos.js';
 import {describe, expect, it} from 'vitest';
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import {bootStateFromEventLog} from '../lib/board/board-boot.js';
 import {materializeAll} from '../lib/board/board-log.js';
 import {partitionMaterializeResults} from '../lib/event/event-materialize.js';

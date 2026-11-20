@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../../event/ulid.js';
 import {materializeAndPersistAll} from '../../board/board-log.js';
 import {resolveActorId} from '../../board/board-log.js';
 import {CLOSED_SWIMLANE_ID} from '../../board/static-ids.js';

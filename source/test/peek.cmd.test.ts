@@ -71,7 +71,7 @@ import {getState, patchState, resetState} from '../lib/state/state.js';
 
 import {parsePeekDateInput} from '../lib/command-line/validate-date.js';
 
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import {peekCommand} from '../lib/command-line/commands/peek.cmd.js';
 import {Board} from '../lib/model/context.model.js';
 

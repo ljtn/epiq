@@ -13,7 +13,7 @@ import {nodes} from '../state/node-builder.js';
 import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
-import {ulid} from 'ulid';
+import {ulid} from '../event/ulid.js';
 import {capitalize} from '../utils/string.utils.js';
 import {getUiState} from '../state/ux-state.js';
 import {commands} from '../command-line/commands.js';

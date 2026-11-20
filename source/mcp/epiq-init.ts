@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {ulid} from '../lib/event/ulid.js';
 import {ACTOR_NAME_ENV} from '../lib/config/actor-env.js';
 import {recordRecentProject} from '../lib/config/recent-projects.js';
 import {readGitName} from '../lib/config/git-identity.js';
