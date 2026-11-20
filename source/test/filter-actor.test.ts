@@ -3,20 +3,14 @@ import {Filter} from '../lib/model/app-state.model.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {ticketMatchesFilter} from '../lib/utils/filter.js';
 
-// Authorship is not on the node — it is only ever in the log — so the actor
-// filter is the one filter that reads events rather than props.
+// Authorship is not on the node, so the actor filter reads who wrote what,
+// folded from the log, rather than props.
 
 const TICKET = '01KS22YK9AXCMATZXTR5JZCS5M';
 const OTHER = '01KS22YK9AXCMATZXTR5JZCS5N';
 
 const PETER = 'HVK8KMV924DBNFBDQV8RCZ9S06';
 const FRED = 'HVK8KMV924DBNFBDQV8RCZ9S07';
-
-const event = (
-	userId: string,
-	action: string,
-	payload: Record<string, unknown>,
-) => ({id: ['x', null], userId, userName: 'ignored', action, payload});
 
 vi.mock('../lib/state/state.js', () => ({
 	getState: () => ({
@@ -26,15 +20,16 @@ vi.mock('../lib/state/state.js', () => ({
 			[FRED]: {id: FRED, name: 'codex/fred'},
 			unregistered: {id: 'unregistered', name: ''},
 		},
-		eventLog: [
-			event(PETER, 'add.ticket', {id: TICKET, name: 'Fix bug'}),
-			event(FRED, 'add.issue.comment', {id: 'c1', issue: TICKET, md: 'hi'}),
-			event(FRED, 'add.ticket', {id: OTHER, name: 'Other'}),
-			// A contributor event naming its own id, which is not a node.
-			event(PETER, 'create.contributor', {id: PETER, name: 'claude/peter'}),
-			// An author the registry has never seen.
-			event('ghost', 'edit.ticket.title', {id: TICKET, title: 'Fix bug'}),
-		],
+		// As the board folds them from its log: who wrote an event naming each
+		// id, as its target or a comment's ticket. A contributor event names
+		// its own id, which is not a node; 'ghost' is an author the registry
+		// has never seen.
+		actorsById: {
+			[TICKET]: {ids: [PETER, FRED, 'ghost']},
+			[OTHER]: {ids: [FRED]},
+			c1: {ids: [FRED]},
+			[PETER]: {ids: [PETER]},
+		},
 	}),
 }));
 

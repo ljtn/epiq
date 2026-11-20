@@ -127,6 +127,10 @@ export type AppState = {
 	replay: ReplayState | null;
 	comments: Record<string, CommentState>;
 	attachments: Record<string, AttachmentState>;
+	// Who has written an event naming each id (its target, or a comment's
+	// ticket), first seen first; and everyone who has written one at all.
+	actorsById?: Record<string, {ids: string[]}>;
+	authors?: Record<string, {id: string}>;
 };
 
 type BreadCrumbItem = BreadCrumb[number];
