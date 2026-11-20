@@ -1,4 +1,5 @@
 import {ulid} from 'ulid';
+import {nodeIdsWithRef, nodesOf} from '../../lib/state/state.js';
 import {createIssueEvents} from '../../lib/board/common-events.js';
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
 import {materializeAndPersistAll} from '../../lib/board/board-log.js';
@@ -8,7 +9,12 @@ import {
 	MovePosition,
 } from '../../lib/board/board-events.model.js';
 import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
-import {isTicketNode, Ticket} from '../../lib/model/context.model.js';
+import {
+	AnyContext,
+	isTicketNode,
+	Ticket,
+} from '../../lib/model/context.model.js';
+import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {identityOf} from '../../lib/model/identity.js';
 import {
 	failed,
@@ -32,7 +38,11 @@ import {
 	tooLong,
 } from '../../lib/utils/text.limits.js';
 import {enteredLaneAt, loggedEvents} from '../../lib/board/node-history.js';
-import {nodeRef, nodeRefMatches} from '../../lib/utils/node-ref.js';
+import {
+	NODE_REF_LENGTH,
+	nodeRef,
+	nodeRefMatches,
+} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {
 	ApiBatchOutcome,
@@ -122,17 +132,23 @@ export const getIssue = async (input: GetIssueInput) => {
 	const query = input.idOrRef.trim();
 	if (!query) return failed('Provide an issue id or ref');
 
-	const tickets = Object.values(stateResult.value.nodes)
-		.filter(isTicketNode)
-		.filter(n => !n.isDeleted);
+	const {nodes} = stateResult.value;
+	const isLive = (node: NavNode<AnyContext> | undefined): node is Ticket =>
+		!!node && isTicketNode(node) && !node.isDeleted;
 
-	const exact = tickets.find(n => n.id === query);
+	const exact = nodes[query];
 
 	// `nodeRefMatches` is a substring match, so a short query can legitimately
-	// hit several tickets. Naming them beats guessing.
-	const matches = exact
+	// hit several tickets. Naming them beats guessing. A whole ref can only
+	// equal one: those are looked up, not scanned for.
+	const normalized = query.replace(/-/g, '').trim().toUpperCase();
+	const matches = isLive(exact)
 		? [exact]
-		: tickets.filter(n => nodeRefMatches(n.id, query));
+		: normalized.length === NODE_REF_LENGTH
+		? nodeIdsWithRef(normalized)
+				.map(id => nodes[id])
+				.filter(isLive)
+		: nodesOf('TICKET').filter(n => isLive(n) && nodeRefMatches(n.id, query));
 
 	if (matches.length === 0) {
 		return failed(`No issue matches "${query}"`);
@@ -186,8 +202,7 @@ export async function listIssues(
 	const nodes = stateResult.value.nodes;
 	const query = input.query?.trim().toLowerCase();
 
-	const tickets = Object.values(nodes)
-		.filter(isTicketNode)
+	const tickets = nodesOf('TICKET')
 		.filter(n => !n.isDeleted)
 		.filter(n => input.includeClosed || n.parentNodeId !== CLOSED_SWIMLANE_ID)
 		.filter(n => {

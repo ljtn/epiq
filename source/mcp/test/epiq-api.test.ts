@@ -413,6 +413,17 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 					msg: 'Synced',
 				},
 			}),
+		// The indexes, over the fixture's nodes.
+		nodesOf: (context: string) =>
+			Object.values(nodes).filter(node => node.context === context),
+		nodeIdsOf: (context: string) =>
+			new Set(
+				Object.values(nodes)
+					.filter(node => node.context === context)
+					.map(node => node.id),
+			),
+		nodeIdsWithRef: (ref: string) =>
+			Object.keys(nodes).filter(id => nodeRef(id) === ref),
 		getRenderedChildren: (id: string) =>
 			Object.values(nodes).filter(
 				node => !node.isDeleted && node.parentNodeId === id,

@@ -1,4 +1,5 @@
 import {emptyRepoRegistry} from '../board/board-repos.js';
+import {nodeRef} from '../utils/node-ref.js';
 import {useSyncExternalStore} from 'react';
 import {contextActions} from '../actions/action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
@@ -322,19 +323,165 @@ type StateMapKey = {
  * Writes one entry of a keyed collection. In place inside a replay batch: nothing
  * reads derived state mid-batch, and a copy per write is quadratic. Copied outside one.
  */
+// Node ids by what each node is, as of the node map they were read from: a
+// write carries them along, a map replaced whole has them read again.
+let nodeKinds: {
+	nodes: Record<string, NavNode<AnyContext>>;
+	byContext: Map<string, Set<string>>;
+	// By the full ref each id shortens to: a ref is not unique.
+	byRef: Map<string, string[]>;
+} | null = null;
+
+const kindsRead = () => {
+	const {nodes} = getState();
+	if (nodeKinds?.nodes === nodes) return nodeKinds;
+
+	const byContext = new Map<string, Set<string>>();
+	const byRef = new Map<string, string[]>();
+	for (const [id, node] of Object.entries(nodes)) {
+		let ids = byContext.get(node.context);
+		if (!ids) byContext.set(node.context, (ids = new Set()));
+		ids.add(id);
+		const ref = nodeRef(id);
+		const same = byRef.get(ref);
+		if (same) same.push(id);
+		else byRef.set(ref, [id]);
+	}
+	return (nodeKinds = {nodes, byContext, byRef});
+};
+
+const NO_IDS: ReadonlySet<string> = new Set();
+
+/** Ids of every node of `context`, deleted ones included, in the node map's order. */
+export const nodeIdsOf = (context: AnyContext): ReadonlySet<string> =>
+	kindsRead().byContext.get(context) ?? NO_IDS;
+
+/** Ids of every node whose full ref is `ref`, in the node map's order. */
+export const nodeIdsWithRef = (ref: string): readonly string[] =>
+	kindsRead().byRef.get(ref) ?? [];
+
+/** Every node of `context`, deleted ones included. */
+export const nodesOf = <C extends AnyContext>(context: C): NavNode<C>[] => {
+	const {nodes} = getState();
+	return [...nodeIdsOf(context)].map(id => nodes[id] as NavNode<C>);
+};
+
+// One node written: the index read from `from` holds for `to` with it.
+const noteNodeKind = (
+	from: Record<string, unknown>,
+	to: Record<string, unknown>,
+	id: string,
+	before: NavNode<AnyContext> | undefined,
+	after: NavNode<AnyContext>,
+): void => {
+	if (!nodeKinds || nodeKinds.nodes !== from) return;
+	if (before && before.context !== after.context) {
+		nodeKinds.byContext.get(before.context)?.delete(id);
+	}
+	let ids = nodeKinds.byContext.get(after.context);
+	if (!ids) nodeKinds.byContext.set(after.context, (ids = new Set()));
+	ids.add(id);
+	if (!before) {
+		const ref = nodeRef(id);
+		const same = nodeKinds.byRef.get(ref);
+		if (same) same.push(id);
+		else nodeKinds.byRef.set(ref, [id]);
+	}
+	nodeKinds.nodes = to as Record<string, NavNode<AnyContext>>;
+};
+
+// Comment and attachment ids by the ticket each belongs to, as of the map
+// they were read from, kept the same way as the kinds above.
+type IssueKeyed = 'comments' | 'attachments';
+const byIssue: Partial<
+	Record<IssueKeyed, {map: object; ids: Map<string, string[]>}>
+> = {};
+
+/** Ids of every comment or attachment of `issueId`, deleted ones included, in the map's order. */
+export const entryIdsOfIssue = (
+	key: IssueKeyed,
+	issueId: string,
+): readonly string[] => {
+	const map = (getState()[key] ?? {}) as Record<string, {issue: string}>;
+	let held = byIssue[key];
+	if (held?.map !== map) {
+		const ids = new Map<string, string[]>();
+		for (const [id, entry] of Object.entries(map)) {
+			const list = ids.get(entry.issue);
+			if (list) list.push(id);
+			else ids.set(entry.issue, [id]);
+		}
+		byIssue[key] = held = {map, ids};
+	}
+	return held.ids.get(issueId) ?? [];
+};
+
+const noteIssueEntry = (
+	key: IssueKeyed,
+	from: object,
+	to: object,
+	id: string,
+	before: {issue: string} | undefined,
+	after: {issue: string},
+): void => {
+	const held = byIssue[key];
+	if (!held || held.map !== from) return;
+	if (before?.issue !== after.issue) {
+		if (before) {
+			const list = held.ids.get(before.issue);
+			if (list)
+				held.ids.set(
+					before.issue,
+					list.filter(other => other !== id),
+				);
+		}
+		const list = held.ids.get(after.issue);
+		if (list) list.push(id);
+		else held.ids.set(after.issue, [id]);
+	}
+	held.map = to;
+};
+
+// One entry written: every index read from `from` holds for `to` with it.
+const noteEntry = (
+	key: string,
+	from: Record<string, unknown>,
+	to: Record<string, unknown>,
+	id: string,
+	before: unknown,
+	after: unknown,
+): void => {
+	if (key === 'nodes') {
+		noteNodeKind(
+			from,
+			to,
+			id,
+			before as NavNode<AnyContext> | undefined,
+			after as NavNode<AnyContext>,
+		);
+	} else if (key === 'comments' || key === 'attachments') {
+		noteIssueEntry(
+			key,
+			from,
+			to,
+			id,
+			before as {issue: string} | undefined,
+			after as {issue: string},
+		);
+	}
+};
+
 export function setStateEntry<K extends StateMapKey>(
 	key: K,
 	id: string,
 	value: NonNullable<BaseState[K]>[string],
 ): Result<string> {
 	if (!deferring) {
-		return updateState(
-			old =>
-				({
-					...old,
-					[key]: {...((old[key] ?? {}) as object), [id]: value},
-				} as BaseState),
-		);
+		const from = (getState()[key] ?? {}) as Record<string, unknown>;
+		const to = {...from, [id]: value};
+		const result = updateState(old => ({...old, [key]: to} as BaseState));
+		if (!isFail(result)) noteEntry(key, from, to, id, from[id], value);
+		return result;
 	}
 
 	const prev = getState();
@@ -347,6 +494,7 @@ export function setStateEntry<K extends StateMapKey>(
 		if (after.parentNodeId) dirtyParents?.add(after.parentNodeId);
 		dirtyNodes.add(id);
 	}
+	noteEntry(key, collection, collection, id, collection[id], value);
 
 	collection[id] = value;
 

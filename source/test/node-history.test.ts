@@ -20,7 +20,14 @@ import {
 import {MAX_ULID_AHEAD_MS} from '../lib/event/date-utils.js';
 import {succeeded} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {getState, initWorkspaceState} from '../lib/state/state.js';
+import {
+	getState,
+	initWorkspaceState,
+	nodeIdsOf,
+	nodeIdsWithRef,
+	entryIdsOfIssue,
+} from '../lib/state/state.js';
+import {nodeRef} from '../lib/utils/node-ref.js';
 import {setVirtualNodesEnabled} from '../lib/virtual-nodes/virtual-nodes.js';
 import {
 	laneEntryTime,
@@ -160,8 +167,33 @@ const expectActorsEqualLog = () => {
 	expect(Object.keys(authors ?? {}).sort()).toEqual([...everyone].sort());
 };
 
+// Each kind's ids, as a scan of the node map finds them, in its order.
+const expectKindsEqualScan = () => {
+	const all = Object.values(getState().nodes);
+	for (const context of new Set(all.map(node => node.context))) {
+		expect([...nodeIdsOf(context)], context).toEqual(
+			all.filter(node => node.context === context).map(node => node.id),
+		);
+	}
+	// Comments and attachments by their ticket, as a scan finds them.
+	for (const key of ['comments', 'attachments'] as const) {
+		const entries = Object.entries(getState()[key] ?? {});
+		for (const issue of new Set(entries.map(([, entry]) => entry.issue))) {
+			expect([...entryIdsOfIssue(key, issue)], `${key} ${issue}`).toEqual(
+				entries.filter(([, entry]) => entry.issue === issue).map(([id]) => id),
+			);
+		}
+	}
+	for (const ref of new Set(all.map(node => nodeRef(node.id)))) {
+		expect([...nodeIdsWithRef(ref)], ref).toEqual(
+			all.filter(node => nodeRef(node.id) === ref).map(node => node.id),
+		);
+	}
+};
+
 const expectFoldedEqualsLog = () => {
 	expectActorsEqualLog();
+	expectKindsEqualScan();
 	for (const node of Object.values(getState().nodes)) {
 		const {history} = node;
 		const where = node.id;
@@ -232,6 +264,8 @@ describe('a node history folded as events apply', () => {
 				if (next - at === 1) materialize(log[at]!, random(5) === 0);
 				else materializeAll(log.slice(at, next));
 				at = next;
+				// Read each time, so a later write finds it built.
+				expectKindsEqualScan();
 			}
 
 			// Read later than folded: times once ahead of the clock may be honest now.

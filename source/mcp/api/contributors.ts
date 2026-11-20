@@ -4,6 +4,7 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
+import {nodesOf} from '../../lib/state/state.js';
 import {REMOVED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
 import {ulid} from 'ulid';
 import {applyActorNameArgument} from '../../lib/config/actor-env.js';
@@ -90,7 +91,7 @@ export const assumeActor = async (
 	}
 
 	// The conventions an agent works under, handed over when it arrives.
-	const boards = Object.values(ready.value.state.nodes)
+	const boards = nodesOf('BOARD')
 		.filter(n => isBoardNode(n) && !n.isDeleted)
 		.flatMap(n => {
 			const {boardDescription} = boardDescriptionOf(n.id);
