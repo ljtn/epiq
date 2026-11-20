@@ -392,6 +392,12 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 				tags: tagRegistry,
 				contributors: contributorRegistry,
 				eventLog: stateEventLog,
+				// Who wrote that log, as the board folds it.
+				authors: Object.fromEntries(
+					(stateEventLog as {userId?: string}[])
+						.flatMap(event => (event.userId ? [event.userId] : []))
+						.map(id => [id, {id}]),
+				),
 				// The store the comment above made.
 				comments: {
 					'comment-1': {
