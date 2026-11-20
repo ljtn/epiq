@@ -391,6 +391,17 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 				tags: tagRegistry,
 				contributors: contributorRegistry,
 				eventLog: stateEventLog,
+				// The store the comment above made.
+				comments: {
+					'comment-1': {
+						id: 'comment-1',
+						issue: fixtureId('issue-1'),
+						md: 'A comment',
+						authorId: 'user-1',
+						deleted: false,
+					},
+				},
+				attachments: {},
 				syncStatus: {
 					status: 'synced',
 					msg: 'Synced',

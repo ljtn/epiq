@@ -166,5 +166,7 @@ export type AttachmentState = {
 	ext: AttachmentExt;
 	name: string;
 	bytes: number;
+	// Who added it, as its add event says.
+	author?: string;
 	deleted?: boolean;
 };
