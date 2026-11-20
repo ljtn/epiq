@@ -94,6 +94,8 @@ export type LogTail = {
 	// Lines this actor's pending files held, by hash: a line read again with
 	// the same bytes is the same event, so a sync moving them changes nothing.
 	pendingLines: string[];
+	// Those of them seen again in a tracked log, where they stay for good.
+	movedLines: string[];
 	// Whether every file stamp was verified by this process.
 	verified: boolean;
 };
@@ -147,6 +149,7 @@ export const tailFromSeed = (seed: LogTailSeed): LogTail => ({
 	waiting: seed.waiting,
 	held: heldIdsFor(seed.ids, seed.idCount * 2),
 	pendingLines: seed.pendingLines,
+	movedLines: seed.movedLines,
 	verified: true,
 });
 
@@ -166,6 +169,7 @@ export const tailOf = ({
 }): LogTail | null => {
 	const files: Record<string, TailFile> = {};
 	const pendingLines: string[] = [];
+	const trackedLines = new Set<string>();
 
 	for (const name of listEventFiles(dir)) {
 		const filePath = path.join(dir, name);
@@ -190,6 +194,7 @@ export const tailOf = ({
 			quarantined: parsed.value.quarantined,
 		};
 		if (isPendingFileName(name)) pendingLines.push(...lineHashes(whole));
+		else for (const line of lineHashes(whole)) trackedLines.add(line);
 	}
 
 	const ids = new Set(sorted.map(entry => entry.id[0]));
@@ -199,6 +204,7 @@ export const tailOf = ({
 		waiting: [...waiting],
 		held: heldIdsFor(ids, ids.size * 2),
 		pendingLines,
+		movedLines: pendingLines.filter(line => trackedLines.has(line)),
 		verified: true,
 	};
 };
@@ -217,13 +223,16 @@ export const readTail = (
 	const files: Record<string, TailFile> = {};
 	const pendingLines = new Set(tail.pendingLines);
 	const nextPendingLines = [...tail.pendingLines];
+	const moved = new Set(tail.movedLines);
 	const fresh: ReconstructedEvent[] = [];
+	// A pending file gone or begun again: a sync moved its lines, which must
+	// then be somewhere still, or the log lost events this process holds.
+	let pendingMoved = false;
 
 	for (const name of Object.keys(tail.files)) {
-		// A pending file a sync folded away: its lines were read already.
-		if (!present.has(name) && !isPendingFileName(name)) {
-			return {rebuild: `${name} is gone`};
-		}
+		if (present.has(name)) continue;
+		if (!isPendingFileName(name)) return {rebuild: `${name} is gone`};
+		pendingMoved = true;
 	}
 
 	for (const name of names) {
@@ -244,14 +253,21 @@ export const readTail = (
 			return {rebuild: `${name} vanished mid-read`};
 		}
 
-		const from = held?.bytes ?? 0;
+		let read = held;
 		if (
 			held &&
 			(bytes.length < held.bytes ||
 				hashOf(bytes.subarray(0, held.bytes)) !== held.hash)
 		) {
-			return {rebuild: `${name} changed before where it was read to`};
+			// A live pending file begun again after a sync: read as new, its
+			// lines held already being skipped as moved.
+			if (!isPendingFileName(name)) {
+				return {rebuild: `${name} changed before where it was read to`};
+			}
+			pendingMoved = true;
+			read = undefined;
 		}
+		const from = read?.bytes ?? 0;
 
 		// Whole lines only: a piece past the last break is still being written,
 		// by another process or a pull, and is read once it ends.
@@ -259,24 +275,27 @@ export const readTail = (
 		const added = bytes.subarray(from, end);
 		const parsed = parseLogLines(added, {
 			filePath,
-			firstLine: held?.lines ?? 0,
+			firstLine: read?.lines ?? 0,
 		});
 		if (isFail(parsed)) return {rebuild: parsed.message};
 
 		for (const {entry, line} of parsed.value.entries) {
 			const lineHash = hashOf(line);
 			// The same bytes as a line already read: the same event, held once.
-			if (pendingLines.has(lineHash)) continue;
+			if (pendingLines.has(lineHash)) {
+				if (!isPendingFileName(name)) moved.add(lineHash);
+				continue;
+			}
 			if (isPendingFileName(name)) nextPendingLines.push(lineHash);
 			fresh.push(entry);
 		}
 
 		files[name] = {
 			bytes: end,
-			lines: (held?.lines ?? 0) + added.toString('utf8').split('\n').length - 1,
+			lines: (read?.lines ?? 0) + added.toString('utf8').split('\n').length - 1,
 			hash: hashOf(bytes.subarray(0, end)),
 			...stamp,
-			quarantined: [...(held?.quarantined ?? []), ...parsed.value.quarantined],
+			quarantined: [...(read?.quarantined ?? []), ...parsed.value.quarantined],
 		};
 	}
 
@@ -298,6 +317,26 @@ export const readTail = (
 
 	const pendingLeft = names.some(isPendingFileName);
 
+	// Every own line read before is in a pending file still, or moved to a
+	// tracked log: one lost would leave this board holding what the log lacks.
+	if (pendingMoved || !pendingLeft) {
+		const stillPending = new Set<string>();
+		for (const name of names.filter(isPendingFileName)) {
+			try {
+				for (const line of lineHashes(fs.readFileSync(path.join(dir, name)))) {
+					stillPending.add(line);
+				}
+			} catch {
+				return {rebuild: `${name} vanished mid-read`};
+			}
+		}
+		for (const line of tail.pendingLines) {
+			if (!stillPending.has(line) && !moved.has(line)) {
+				return {rebuild: 'an own line is in no file any more'};
+			}
+		}
+	}
+
 	return {
 		appended: appended.order,
 		quarantined: names.flatMap(name => files[name]?.quarantined ?? []),
@@ -308,6 +347,7 @@ export const readTail = (
 			held,
 			// Kept while a pending file may still be folded; none left, none needed.
 			pendingLines: pendingLeft ? nextPendingLines : [],
+			movedLines: pendingLeft ? [...moved] : [],
 			verified: true,
 		},
 	};

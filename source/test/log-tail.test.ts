@@ -155,6 +155,17 @@ describe('reading the log past where a process stopped', () => {
 					const before = ownSize();
 					flushPendingLogs(root, OWN);
 					folded = ownSize() > before;
+				} else if (roll === 9 && random(2) === 0) {
+					// Own lines lost without a fold: removed, or cut short.
+					const pending = fs
+						.readdirSync(dir())
+						.filter(name => name.includes('~pending'));
+					const victim = pending[random(Math.max(pending.length, 1))];
+					if (victim) {
+						const file = path.join(dir(), victim);
+						if (random(2) === 0) fs.rmSync(file);
+						else fs.writeFileSync(file, fs.readFileSync(file).subarray(0, 0));
+					}
 				} else if (roll === 6) {
 					// A teammate's file rewritten before where it was read to.
 					const target = path.join(dir(), THEIRS[random(2)]!);

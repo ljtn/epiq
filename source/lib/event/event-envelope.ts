@@ -114,7 +114,7 @@ export const parsePersistedEnvelopeStrict = (
 };
 
 // Listed one by one: a bump that changes a payload's shape needs a migration first.
-const READABLE_SCHEMA_VERSIONS = [1] as const;
+export const READABLE_SCHEMA_VERSIONS = [1] as const;
 
 // Fails to compile if a version bump forgets to add itself to the list above. So: fail compile time instead of runtime.
 const _assertCurrentVersionReadable: typeof SCHEMA_VERSION extends (typeof READABLE_SCHEMA_VERSIONS)[number]

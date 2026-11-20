@@ -1,3 +1,5 @@
+import {createHash} from 'node:crypto';
+import path from 'node:path';
 // The board kept current from the log's tail alone, for a process that holds
 // no events: after one full boot it reads only what is new, and drops the rest.
 
@@ -14,9 +16,27 @@ import {
 } from '../event/log-signature.js';
 import {logSkippedEvents} from '../event/event-materialize.js';
 import {onOwnAppend} from '../event/own-append.js';
+import {READABLE_SCHEMA_VERSIONS} from '../event/event-envelope.js';
+import {
+	readSnapshot,
+	snapshotKey,
+	writeSnapshot,
+	type SnapshotKey,
+} from '../event/snapshot-file.js';
+import {getGlobalConfigDir} from '../storage/global-config-dir.js';
+import {nodes} from '../state/node-builder.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
-import {isStateInitialized, updateState} from '../state/state.js';
+import {
+	copyBaseState,
+	getState,
+	initWorkspaceState,
+	isStateInitialized,
+	restoreBaseState,
+	type BaseState,
+	updateState,
+} from '../state/state.js';
+import {EVENT_ACTIONS} from './board-events.model.js';
 import {
 	bootStateFromEventLog,
 	isCheckedOutInThePast,
@@ -83,6 +103,7 @@ onOwnAppend((root, filePath, line) => {
 		isSettledStamp,
 	);
 	held = next ? {...held, tail: next} : null;
+	if (held && ++sinceSaved >= SAVE_EVERY) saveSoon(root);
 });
 
 // Nothing below reads an event once applied: let them all go.
@@ -91,6 +112,106 @@ const dropEvents = (): void => {
 	forgetCheckpoints();
 	clearEdgeCache();
 	updateState(state => ({...state, eventLog: []}));
+};
+
+// ---------------------------------------------------------------------------
+// The tail and the board it describes, saved so the next process starts from
+// them rather than the whole log. Only ever a cache.
+
+// Events read since the last save before another is due.
+const SAVE_EVERY = 5_000;
+let sinceSaved = 0;
+
+// State a save leaves out: no events, and what loading derives again.
+const UNSAVED = new Set([
+	'eventLog',
+	'unappliedEvents',
+	'renderedChildrenIndex',
+	'replay',
+]);
+
+const keyNow = (): SnapshotKey | null =>
+	snapshotKey({
+		actions: EVENT_ACTIONS,
+		schemaVersions: READABLE_SCHEMA_VERSIONS,
+		scope: 'mcp-tail',
+	});
+
+const snapshotPathFor = (root: string): string =>
+	path.join(
+		getGlobalConfigDir(),
+		'snapshots',
+		`${createHash('sha1').update(root).digest('hex')}.snapshot`,
+	);
+
+/**
+ * Saves the board and the tail it is exactly the replay of: only while
+ * both are held and agree, never in the past. True when one was written.
+ */
+export const saveSnapshot = (root: string): boolean => {
+	const key = keyNow();
+	if (!enabled || !held || held.root !== root || !key) return false;
+	if (isCheckedOutInThePast()) return false;
+
+	const parts: Record<string, unknown> = {
+		root,
+		tail: held.tail,
+		undecodable: held.undecodable,
+		unreadable: unreadableNow,
+	};
+	// The base state only: what is derived is derived again on load.
+	for (const [name, value] of Object.entries(copyBaseState(getState()))) {
+		if (!UNSAVED.has(name)) parts[`state.${name}`] = value;
+	}
+
+	const written = writeSnapshot(snapshotPathFor(root), key, parts);
+	if (written) sinceSaved = 0;
+	return written;
+};
+
+// After the reply that called for it, never inside a request.
+const saveSoon = (root: string): void => {
+	setTimeout(() => saveSnapshot(root), 0).unref?.();
+};
+
+// Roots this process has tried a snapshot for: only a first boot reads one.
+const triedSnapshot = new Set<string>();
+
+/** The board and tail a snapshot holds, taken as this process's own. */
+const loadSnapshot = (root: string): boolean => {
+	if (triedSnapshot.has(root)) return false;
+	triedSnapshot.add(root);
+
+	const key = keyNow();
+	const parts = key ? readSnapshot(snapshotPathFor(root), key) : null;
+	if (!parts || parts['root'] !== root) return false;
+
+	const base: Record<string, unknown> = {
+		eventLog: [],
+		unappliedEvents: [],
+		renderedChildrenIndex: {},
+		replay: null,
+	};
+	for (const [name, value] of Object.entries(parts)) {
+		if (name.startsWith('state.')) base[name.slice('state.'.length)] = value;
+	}
+
+	if (!isStateInitialized()) {
+		const placeholder = initWorkspaceState(
+			nodes.workspace('snapshot-placeholder', 'Workspace', 'a0'),
+		);
+		if (isFail(placeholder)) return false;
+	}
+	if (isFail(restoreBaseState(base as BaseState))) return false;
+
+	// From another process: nothing it says of a file is taken on trust.
+	held = {
+		root,
+		tail: {...(parts['tail'] as LogTail), verified: false},
+		undecodable: parts['undecodable'] as UnreadableEvent[],
+	};
+	unreadableNow = parts['unreadable'] as UnreadableEvent[];
+	return true;
 };
 
 /**
@@ -124,6 +245,7 @@ export const adoptTail = (
 		  }
 		: null;
 	dropEvents();
+	if (held) saveSoon(root);
 };
 
 /**
@@ -163,6 +285,8 @@ export const bootFromTail = (root: string): Result<boolean> => {
 		tail: read.tail,
 		undecodable: [...held.undecodable, ...undecodable],
 	};
+	sinceSaved += read.appended.length;
+	if (sinceSaved >= SAVE_EVERY) saveSoon(root);
 	dropEvents();
 	logSkippedEvents(skipped);
 	unreadableNow = [...read.quarantined, ...held.undecodable];
@@ -180,7 +304,7 @@ export const syncBoardWithLog = (
 	signature: string,
 	// Asked only when the rest says the board is unchanged.
 	isLive: () => boolean,
-): Result<'unchanged' | 'tail' | 'full'> => {
+): Result<'unchanged' | 'snapshot' | 'tail' | 'full'> => {
 	if (
 		accountedSignature(root) === signature &&
 		isStateInitialized() &&
@@ -189,11 +313,14 @@ export const syncBoardWithLog = (
 		return succeeded('Unchanged', 'unchanged');
 	}
 
+	// A process's first boot starts from a snapshot, where one is good.
+	const fromSnapshot = enabled && !held && loadSnapshot(root);
+
 	const fromTail = bootFromTail(root);
 	if (isFail(fromTail)) return failed(fromTail.message);
 	if (fromTail.value) {
 		accountFor(root, signature);
-		return succeeded('From the tail', 'tail');
+		return succeeded('From the tail', fromSnapshot ? 'snapshot' : 'tail');
 	}
 
 	const events = loadMergedEventsWithUnreadable(root);

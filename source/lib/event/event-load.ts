@@ -22,7 +22,11 @@ import {
 	SCAN_ATTEMPTS,
 	signatureAfterOwnAppend,
 } from './log-signature.js';
-import {isPendingFileName, stripPendingMarker} from './pending-log.js';
+import {
+	isPendingFileName,
+	stripPendingMarker,
+	trackedFileNameFor,
+} from './pending-log.js';
 
 // The actor name a log file name without a name segment yields.
 const UNNAMED_ACTOR = 'unknown';
@@ -1530,6 +1534,29 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			}
 		}
 
+		// Those already folded into their tracked log, as that load read it.
+		const pooled = new Set(pendingLines);
+		const movedLines = new Set<string>();
+		for (const name of Object.keys(files)) {
+			const tracked = trackedFileNameFor(name);
+			const read = tracked ? files[tracked] : undefined;
+			if (!tracked || !read) continue;
+			let bytes: Buffer;
+			try {
+				bytes = fs
+					.readFileSync(path.join(dir, tracked))
+					.subarray(0, read.bytes);
+			} catch {
+				return null;
+			}
+			if (hashOf(bytes) !== read.hash) return null;
+			for (const line of bytes.toString('utf8').split('\n')) {
+				const trimmed = line.trim();
+				const lineHash = trimmed ? hashOf(trimmed) : '';
+				if (pooled.has(lineHash)) movedLines.add(lineHash);
+			}
+		}
+
 		return {
 			files,
 			ids: held.ids.keys(),
@@ -1537,6 +1564,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			spine: held.spine,
 			waiting: [...held.waiting],
 			pendingLines,
+			movedLines: [...movedLines],
 		};
 	}
 
@@ -1631,6 +1659,7 @@ export type LogTailSeed = {
 	spine: ReconstructedEvent[];
 	waiting: string[];
 	pendingLines: string[];
+	movedLines: string[];
 };
 
 export type Loader<M extends EventMap> = ReturnType<typeof createLoader<M>>;
