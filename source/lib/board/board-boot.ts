@@ -18,6 +18,11 @@ import {
 	partitionMaterializeResults,
 } from './board-log.js';
 import {AppEvent} from './board-events.model.js';
+import {
+	forgetReplayed,
+	rememberReplayed,
+	unappliedSuffix,
+} from './board-replayed.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {AnyContext} from '../model/context.model.js';
@@ -209,7 +214,7 @@ export function createDefaultEvents({
 
 // Booting resets `timeMode` to live and `readOnly` to false: re-booting in the
 // past would drop the checkout and allow writes.
-const isCheckedOutInThePast = (): boolean => {
+export const isCheckedOutInThePast = (): boolean => {
 	const stateResult = getSafeState();
 	if (isFail(stateResult)) return false;
 
@@ -219,7 +224,7 @@ const isCheckedOutInThePast = (): boolean => {
 
 // Reported, not locked: an unreadable event leaves part of the board out of
 // date, like any unsynced client.
-const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
+export const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
 	if (unreadable.length === 0) return;
 
 	const corrupt = unreadable.filter(
@@ -263,6 +268,7 @@ export function bootStateFromEventLog(
 	}
 
 	if (!eventLog.length) {
+		forgetReplayed();
 		const workspace = nodes.workspace(
 			'temporary-uninitialized-workspace',
 			'Workspace',
@@ -281,17 +287,26 @@ export function bootStateFromEventLog(
 	}
 
 	if (!eventLog.some(e => e.action === 'init.workspace')) {
+		forgetReplayed();
 		return failed('Initialized Epiq project has no workspace init event');
 	}
 
-	const results = materializeAll(eventLog);
+	// Only what is new, where the state already holds the rest exactly.
+	const suffix = unappliedSuffix(eventLog);
+	// A fatal event changes nothing and replay goes on past it, so a suffix
+	// fails exactly as the full replay would.
+	const results = suffix
+		? materializeAll(suffix, {continues: true})
+		: materializeAll(eventLog);
 
 	const {fatal, skipped} = partitionMaterializeResults(results);
 	if (fatal.length > 0) {
+		forgetReplayed();
 		return failed(
 			`Materializing failed:\n${fatal.map(x => x.message).join('\n')}`,
 		);
 	}
+	rememberReplayed(eventLog);
 	logSkippedEvents(skipped);
 	navigateToInitialNode();
 
@@ -301,5 +316,10 @@ export function bootStateFromEventLog(
 
 	reportUnreadableEvents(unreadable);
 
-	return succeeded('State booted successfully', null);
+	return succeeded(
+		suffix
+			? `State extended by ${suffix.length} event(s)`
+			: 'State booted successfully',
+		null,
+	);
 }

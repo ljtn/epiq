@@ -1,4 +1,5 @@
 import {isTicketNode} from '../model/context.model.js';
+import {forgetReplayed} from './board-replayed.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {isFail, ReturnFail} from '../model/result-types.js';
@@ -235,7 +236,9 @@ export const boardReplayHooks: ReplayHooks<AppEventMap> = {
 
 	afterApply(event, {batched, bypassLogging}) {
 		// Who wrote what is kept as the log takes each event.
-		if (!bypassLogging) noteActor(event);
+		// The state now holds what no log does; the next reload must replay it all.
+		if (bypassLogging) forgetReplayed();
+		else noteActor(event);
 
 		const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
 

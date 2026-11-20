@@ -1,3 +1,4 @@
+import {setSuffixReplay} from '../../lib/board/board-replayed.js';
 import {readFile, stat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {setVirtualNodesEnabled} from '../../lib/virtual-nodes/virtual-nodes.js';
@@ -271,6 +272,8 @@ export const startGuiServer = async (input: {
 }): Promise<Result<{url: string; server: http.Server}>> => {
 	// Nothing this server sends reads virtual fields, the costliest part of replay.
 	setVirtualNodesEnabled(false);
+	// Its state is only what events derive, so a reload may apply just what is new.
+	setSuffixReplay(true);
 
 	// Known only after `listen`, and the handler below closes over it.
 	let boundPort = 0;
