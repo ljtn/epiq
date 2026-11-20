@@ -212,3 +212,48 @@ describe('appendToOrder', () => {
 		expect(accepted).toBeGreaterThan(tried / 5);
 	});
 });
+
+describe('appendToOrder, at the phase boundaries', () => {
+	const entry = (id: string, parent: string | null, action = 'edit') =>
+		({
+			id: [id, parent],
+			userId: 'u0',
+			userName: 'one',
+			[action]: {},
+		} as unknown as ReconstructedEvent);
+
+	// The genesis tree, then an orphan's tree, which holds the tail.
+	const log = [
+		entry('A0', null, GENESIS),
+		entry('A1', 'A0'),
+		entry('A2', 'A1'),
+		entry('B0', 'MISSING'),
+		entry('B1', 'B0'),
+	];
+
+	const expectExact = (added: ReconstructedEvent[]) => {
+		const held = sortEventsIndexed([...log], GENESIS);
+		const result = appendToOrder(held, added);
+		expect(result).not.toBeNull();
+		const fresh = sortEventsIndexed([...log, ...added], GENESIS);
+		expect([...held.sorted, ...result!.order]).toEqual(fresh.sorted);
+	};
+
+	it('appends under an orphan tree that holds the tail', () => {
+		expectExact([entry('C0', 'B1')]);
+	});
+
+	it('declines under the genesis tree when an orphan tree holds the tail', () => {
+		const held = sortEventsIndexed([...log], GENESIS);
+		expect(appendToOrder(held, [entry('C0', 'A2')])).toBeNull();
+		// The full sort would place it before the orphan tree.
+		const fresh = sortEventsIndexed([...log, entry('C0', 'A2')], GENESIS);
+		expect(fresh.sorted.at(-1)!.id[0]).not.toBe('C0');
+	});
+
+	it('declines the parent an orphan waits on, which re-homes it', () => {
+		const held = sortEventsIndexed([...log], GENESIS);
+		expect(appendToOrder(held, [entry('MISSING', 'B1')])).toBeNull();
+		expect(appendToOrder(held, [entry('MISSING', 'A2')])).toBeNull();
+	});
+});

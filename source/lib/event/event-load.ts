@@ -162,10 +162,15 @@ type RememberedParse = {
 	hash: string;
 	// The hash's state after those bytes, so the next only adds what is new.
 	hasher: Hash;
+	// Whether those bytes end on a line break, so an append starts a line.
+	endsWithBreak: boolean;
+	// Trusted by its stamp alone only once settled; the hash check makes any
+	// remembered parse a sound base for the next.
+	settled: boolean;
 };
 
 // No cap on lines: the ordered log keeps every entry alive whatever this
-// holds, so dropping a file only made the next load parse it again.
+// holds. Should it stop holding them all, this needs a cap again.
 const parseCache = new Map<string, RememberedParse>();
 const PARSE_CACHE_MAX_FILES = 512;
 
@@ -210,9 +215,67 @@ const fileStamp = (filePath: string): FileStamp | null => {
 	}
 };
 
-/** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
 /** What a parse read anew: the entries, and whether a cached file was redone whole. */
 export type ParseChanges = {fresh: ReconstructedEvent[]; replaced: boolean};
+
+/**
+ * The parse of `filePath` after appending `line`, from the parse held of it,
+ * without reading it: null when what is held is not the file before it. The
+ * hash keeps it honest: a file that is not what was hashed is parsed whole.
+ */
+const extendParse = (
+	filePath: string,
+	line: string,
+): ReconstructedEvent | null => {
+	const actor = parseEventFileActor(filePath);
+	const stamp = fileStamp(filePath);
+	if (isFail(actor) || !stamp) return null;
+
+	const appended = Buffer.from(line);
+	const size = Number(stamp.value.slice(0, stamp.value.indexOf(':')));
+	const held = parseCache.get(filePath);
+	const before = held?.bytes ?? 0;
+	if (
+		!line.endsWith('\n') ||
+		before + appended.length !== size ||
+		(held && !held.endsWithBreak)
+	) {
+		return null;
+	}
+
+	let raw: unknown;
+	try {
+		raw = JSON.parse(line);
+	} catch {
+		return null;
+	}
+	const envelope = parsePersistedEnvelope(raw);
+	if (isFail(envelope)) return null;
+
+	const entry: ReconstructedEvent = {
+		...envelope.value,
+		userId: actor.value.userId,
+		userName: actor.value.userName,
+	};
+	const hasher = (held ? held.hasher.copy() : createHash('sha1')).update(
+		appended,
+	);
+	rememberParse(filePath, {
+		stamp: stamp.value,
+		entries: [...(held?.entries ?? []), entry],
+		quarantined: held?.quarantined ?? [],
+		bytes: size,
+		lines: (held?.lines ?? 0) + 1,
+		endsWithBreak: true,
+		hash: digestOf(hasher),
+		hasher,
+		settled: stamp.settled,
+	});
+
+	return entry;
+};
+
+/** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
 
 export const parsePersistedEventsFile = (
 	filePath: string,
@@ -225,7 +288,7 @@ export const parsePersistedEventsFile = (
 	const stamp = fileStamp(filePath);
 	const remembered = stamp ? parseCache.get(filePath) : undefined;
 
-	if (stamp && remembered && remembered.stamp === stamp.value) {
+	if (stamp && remembered?.settled && remembered.stamp === stamp.value) {
 		// Appended one at a time rather than spread: a log can hold more lines
 		// than an argument list has room for, and a corrupt one holds them here.
 		if (unreadable)
@@ -251,8 +314,8 @@ export const parsePersistedEventsFile = (
 	// on a line break, so only what follows them is new.
 	const grown =
 		remembered &&
-		bytes.length > remembered.bytes &&
-		bytes[remembered.bytes - 1] === NEWLINE &&
+		bytes.length >= remembered.bytes &&
+		remembered.endsWithBreak &&
 		hashOf(bytes.subarray(0, remembered.bytes)) === remembered.hash
 			? remembered
 			: undefined;
@@ -313,9 +376,9 @@ export const parsePersistedEventsFile = (
 		}
 	}
 
-	// Cached only with a readable, settled stamp. Lines so far: all but the
-	// piece after the last break, which a later append continues.
-	if (stamp?.settled) {
+	// Remembered with any readable stamp. Lines so far: all but the piece after
+	// the last break, which a later append continues.
+	if (stamp) {
 		const hasher = (grown ? grown.hasher.copy() : createHash('sha1')).update(
 			bytes.subarray(from),
 		);
@@ -327,6 +390,8 @@ export const parsePersistedEventsFile = (
 			lines: firstLine + lines.length - 1,
 			hash: digestOf(hasher),
 			hasher,
+			endsWithBreak: bytes.length === 0 || bytes.at(-1) === NEWLINE,
+			settled: stamp.settled,
 		});
 	}
 
@@ -378,7 +443,7 @@ export type OrderIndex = {
 
 /**
  * Where `added` lands when it all lands after the order `index` describes: in
- * the order a full sort gives it, with the spine after it. Null otherwise, and
+ * the order a full sort gives it, and the spine after it. Null otherwise, and
  * only a full sort is exact.
  */
 export const appendToOrder = (
@@ -388,7 +453,14 @@ export const appendToOrder = (
 	const {ids, waiting, spine} = index;
 	if (!spine) return null;
 
-	const depthOf = new Map(spine.map((entry, depth) => [entry.id[0], depth]));
+	// Searched from the end: a new event's parent is nearly always the tail.
+	const depthOf = (id: string): number => {
+		for (let depth = spine.length - 1; depth >= 0; depth--) {
+			if (spine[depth]!.id[0] === id) return depth;
+		}
+		return -1;
+	};
+
 	const newIds = new Set<string>();
 	for (const entry of added) {
 		const id = entry.id[0];
@@ -398,6 +470,7 @@ export const appendToOrder = (
 	}
 
 	const childrenOf = new Map<string, ReconstructedEvent[]>();
+	const spineParents = new Map<string, number>();
 	for (const entry of added) {
 		const parent = entry.id[1];
 		if (!parent) return null;
@@ -405,10 +478,11 @@ export const appendToOrder = (
 		if (!newIds.has(parent)) {
 			// Under a held event: only on the spine, and after the child the
 			// tail hangs from, or it sorts in among what is held.
-			const depth = depthOf.get(parent);
-			if (depth === undefined) return null;
+			const depth = depthOf(parent);
+			if (depth < 0) return null;
 			const next = spine[depth + 1];
 			if (next && compareEvents(entry, next) <= 0) return null;
+			spineParents.set(parent, depth);
 		}
 
 		const siblings = childrenOf.get(parent) ?? [];
@@ -421,8 +495,9 @@ export const appendToOrder = (
 	// after everything below its path.
 	const order: ReconstructedEvent[] = [];
 	const parentIn = new Map<string, ReconstructedEvent>();
-	for (let depth = spine.length - 1; depth >= 0; depth--) {
-		const stack = [...(childrenOf.get(spine[depth]!.id[0]) ?? [])].reverse();
+	const deepestFirst = [...spineParents].sort((a, b) => b[1] - a[1]);
+	for (const [parent] of deepestFirst) {
+		const stack = [...childrenOf.get(parent)!].reverse();
 		while (stack.length > 0) {
 			const entry = stack.pop()!;
 			order.push(entry);
@@ -444,13 +519,21 @@ export const appendToOrder = (
 		path.push(at);
 		at = parentIn.get(at.id[0]);
 	}
-	const joinedAt = depthOf.get(path.at(-1)!.id[1]!)!;
+	const joinedAt = spineParents.get(path.at(-1)!.id[1]!)!;
+	const next = [...spine.slice(0, joinedAt + 1), ...path.reverse()];
 
-	return {order, spine: [...spine.slice(0, joinedAt + 1), ...path.reverse()]};
+	return {
+		order,
+		spine: next.length > SPINE_LIMIT ? next.slice(-SPINE_LIMIT) : next,
+	};
 };
 
-// The tail and its ancestors, root first: an event appended under one of them
-// sorts last. None where the tail closed a cycle, which only a full sort orders.
+// How many of the tail's ancestors are kept: an event appended under a deeper
+// one is declined, and the order is sorted again.
+const SPINE_LIMIT = 4096;
+
+// The tail's nearest ancestors, nearest last: an event appended under one of
+// them sorts last. None where the tail closed a cycle, which only a sort orders.
 const spineOf = (
 	events: ReconstructedEvent[],
 	parentOf: Int32Array,
@@ -462,14 +545,14 @@ const spineOf = (
 
 	const path: ReconstructedEvent[] = [];
 	let at = tail;
-	for (let steps = 0; steps <= events.length; steps++) {
+	while (path.length < SPINE_LIMIT) {
 		path.push(events[at]!);
 		const parent = parentOf[at]!;
-		if (parent < 0) return path.reverse();
+		if (parent < 0) break;
 		at = placedAt[parent]!;
 	}
 
-	return null;
+	return path.reverse();
 };
 
 /**
@@ -990,7 +1073,10 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			edge: sorted.at(-1)?.id?.[0] ?? null,
 		};
 
-		return succeeded('All events loaded', [...sorted]);
+		return succeeded(
+			appended ? 'All events loaded, appended' : 'All events loaded',
+			[...sorted],
+		);
 	}
 
 	// Boot paths use this to lock where history is unreadable; readers wanting
@@ -1168,23 +1254,12 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			path.basename(filePath),
 			bytes,
 		);
-		const actor = parseEventFileActor(filePath);
-		if (next === null || isFail(actor)) return;
+		if (next === null) return;
 
-		let raw: unknown;
-		try {
-			raw = JSON.parse(line.trim());
-		} catch {
-			return;
-		}
-		const envelope = parsePersistedEnvelope(raw);
-		if (isFail(envelope)) return;
-
-		const entry: ReconstructedEvent = {
-			...envelope.value,
-			userId: actor.value.userId,
-			userName: actor.value.userName,
-		};
+		// The parse cache learns the line too, or the next load would read it
+		// as new and sort again.
+		const entry = extendParse(filePath, line);
+		if (!entry) return;
 		// Last only where the rule for any append says so: new, waited on by
 		// nothing held, and under the spine.
 		const appended = appendToOrder(held, [entry]);
