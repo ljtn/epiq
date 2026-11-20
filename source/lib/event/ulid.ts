@@ -1,5 +1,5 @@
 // ULIDs: 10 chars of millisecond time, 16 of randomness, in Crockford base32.
-// Same contract as the ulid package, throws included: callers catch an undecodable id.
+// Throws on a time it cannot encode or an id it cannot decode; callers catch it.
 
 const ENCODING = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const TIME_LEN = 10;

@@ -9,7 +9,7 @@ import {
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
 describe('ulid', () => {
-	// Vectors from the ulid package this module replaced.
+	// Vectors from the ULID spec.
 	it.each([
 		[0, '0000000000'],
 		[1_469_918_176_385, '01ARYZ6S41'],
