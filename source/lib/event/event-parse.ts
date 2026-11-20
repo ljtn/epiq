@@ -128,7 +128,7 @@ const rememberParse = (filePath: string, next: RememberedParse): void => {
 	parseCache.set(filePath, next);
 };
 
-// Forgets every file but those a scan just read: another board's, or one gone.
+// Forgets every file but those a scan just read: another log's, or one gone.
 export const keepParsesOf = (read: ReadonlySet<string>): void => {
 	for (const filePath of parseCache.keys()) {
 		if (!read.has(filePath)) parseCache.delete(filePath);
