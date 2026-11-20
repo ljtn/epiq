@@ -7,6 +7,8 @@ import {groupChildrenByParent} from '../lib/repository/children.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState, patchState} from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
+import {randomLog} from './helpers/random-board-log.js';
+import {seededRandom} from './helpers/seeded-random.js';
 
 // A write in a batch rebuilds only the touched parents' child lists; the rest
 // keep their identity, and the whole still equals a full regrouping.
@@ -167,5 +169,31 @@ describe('the child index across a batched write', () => {
 
 		expect(index[IDS.laneA]?.map(n => n.id)).toEqual([ticketId(1)]);
 		expect(index[IDS.laneB]).toBeUndefined();
+	});
+});
+
+describe('the child index over random batches', () => {
+	const ids = (index: Record<string, Array<{id: string}>>) =>
+		Object.fromEntries(
+			Object.entries(index)
+				.map(([parent, list]) => [parent, list.map(node => node.id)])
+				.sort(([a], [b]) => (a! < b! ? -1 : 1)),
+		);
+
+	it('equals a full regrouping after every batch', () => {
+		for (let seed = 1; seed <= 40; seed++) {
+			initWorkspaceState(nodes.workspace(IDS.root, 'Test Root', rank()));
+			const log = randomLog(seed, 120);
+			const random = seededRandom(seed * 13 + 5);
+
+			for (let at = 0; at < log.length; ) {
+				const next = Math.min(log.length, at + 1 + random(12));
+				// Lost races are skipped, as replay skips them.
+				materializeAll(log.slice(at, next));
+				at = next;
+
+				expect(ids(getState().renderedChildrenIndex)).toEqual(ids(fullIndex()));
+			}
+		}
 	});
 });
