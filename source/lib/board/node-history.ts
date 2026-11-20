@@ -25,6 +25,16 @@ export type NodeHistory = {
 	logged: number[];
 };
 
+// Whether tickets keep where their events sit in the app-wide log: off in a
+// process that does not keep that log, where the places would point nowhere.
+let keepPositions = true;
+
+export const setHistoryPositions = (on: boolean): void => {
+	keepPositions = on;
+};
+
+export const keepsHistoryPositions = (): boolean => keepPositions;
+
 // Shared by every node that has none: most never gain an ahead time, and many
 // no visits or parents.
 const NONE: never[] = Object.freeze([]) as unknown as never[];

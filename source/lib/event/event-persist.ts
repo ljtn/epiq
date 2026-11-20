@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import {announceOwnAppend} from './own-append.js';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {logger} from '../../logger.js';
@@ -191,6 +192,7 @@ export const createPersister = <M extends EventMap>(loader: Loader<M>) => {
 
 			// Already materialized, so this append leaves the process up to date.
 			noteOwnAppend(rootDir, fileName, Buffer.byteLength(line));
+			announceOwnAppend(rootDir, filePath, line);
 
 			return succeeded('Event persisted', {
 				path: filePath,

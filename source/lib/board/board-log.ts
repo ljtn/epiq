@@ -63,6 +63,8 @@ export const {
 	clearEdgeCache,
 	getSortedEvents,
 	loadEffectiveEventTimes,
+	tailFromLastLoad,
+	setEdgeSource,
 	mintEventId,
 	persist,
 	materializeAndPersist,

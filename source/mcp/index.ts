@@ -49,5 +49,10 @@ setVirtualNodesEnabled(false);
 const {setSuffixReplay} = await import('../lib/board/board-replayed.js');
 setSuffixReplay(true);
 
+// One per agent: after its first boot it keeps the board, not the events, and
+// reads only what is new.
+const {setTailBoot} = await import('../lib/board/board-tail.js');
+setTailBoot(true);
+
 const {startMcpServer} = await import('./server.js');
 await startMcpServer();

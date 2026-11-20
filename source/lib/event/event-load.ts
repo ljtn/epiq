@@ -22,7 +22,7 @@ import {
 	SCAN_ATTEMPTS,
 	signatureAfterOwnAppend,
 } from './log-signature.js';
-import {stripPendingMarker} from './pending-log.js';
+import {isPendingFileName, stripPendingMarker} from './pending-log.js';
 
 // The actor name a log file name without a name segment yields.
 const UNNAMED_ACTOR = 'unknown';
@@ -203,7 +203,7 @@ const keepParsesOf = (read: ReadonlySet<string>): void => {
 	}
 };
 
-const hashOf = (bytes: Buffer): string =>
+const hashOf = (bytes: Buffer | string): string =>
 	createHash('sha1').update(bytes).digest('hex');
 
 const digestOf = (hasher: Hash): string => hasher.copy().digest('hex');
@@ -1357,6 +1357,17 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		});
 	}
 
+	// Where a process that keeps no order says what its tail is: undefined
+	// when it cannot, and the order is loaded to find it.
+	let edgeSource: ((rootDir: string) => string | null | undefined) | null =
+		null;
+
+	function setEdgeSource(
+		source: ((rootDir: string) => string | null | undefined) | null,
+	): void {
+		edgeSource = source;
+	}
+
 	function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
 		const signature = logSignature(rootDir);
 
@@ -1366,6 +1377,12 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			edgeCache.signature === signature
 		) {
 			return succeeded('Loaded edge reference, unchanged', edgeCache.edge);
+		}
+
+		// Any event this process has seen is a sound parent.
+		const known = edgeSource?.(rootDir);
+		if (known !== undefined) {
+			return succeeded('Loaded edge reference, from the tail', known);
 		}
 
 		// Populates the cache on its way through, so a boot pays for this once
@@ -1461,6 +1478,68 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			next === null ? null : {root: rootDir, signature: next, edge: id};
 	}
 
+	/**
+	 * The tail the last load leaves: the files, order and ids it was built from,
+	 * read from that same parse rather than the files as they are now, which a
+	 * writer may have grown since. Null where that load cannot vouch for every
+	 * file, such as one read with a line still being written.
+	 */
+	function tailFromLastLoad(eventsRoot: string): LogTailSeed | null {
+		const held = sortedCache?.root === eventsRoot ? sortedCache : null;
+		if (!held?.spine) return null;
+
+		const dir = getEventsDirPath(eventsRoot);
+		const files: LogTailSeed['files'] = {};
+		const pendingLines: string[] = [];
+
+		for (const [name, {lineage}] of held.files) {
+			const filePath = path.join(dir, name);
+			const remembered = parseCache.get(filePath);
+			if (
+				lineage === null ||
+				!remembered ||
+				remembered.lineage !== lineage ||
+				!remembered.endsWithBreak
+			) {
+				return null;
+			}
+
+			const [size, mtime] = remembered.stamp.split(':');
+			files[name] = {
+				bytes: remembered.bytes,
+				lines: remembered.lines,
+				hash: remembered.hash,
+				stamp: `${size}:${mtime}`,
+				settled: remembered.settled,
+				quarantined: remembered.quarantined,
+			};
+
+			// A pending file's lines, from its bytes as that load read them.
+			if (isPendingFileName(name)) {
+				let bytes: Buffer;
+				try {
+					bytes = fs.readFileSync(filePath).subarray(0, remembered.bytes);
+				} catch {
+					return null;
+				}
+				if (hashOf(bytes) !== remembered.hash) return null;
+				for (const line of bytes.toString('utf8').split('\n')) {
+					const trimmed = line.trim();
+					if (trimmed) pendingLines.push(hashOf(trimmed));
+				}
+			}
+		}
+
+		return {
+			files,
+			ids: held.ids.keys(),
+			idCount: held.ids.size,
+			spine: held.spine,
+			waiting: [...held.waiting],
+			pendingLines,
+		};
+	}
+
 	// For tests, which mock the filesystem; clears the parse cache too.
 	function clearEdgeCache(): void {
 		edgeCache = null;
@@ -1516,7 +1595,29 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		clearEdgeCache,
 		getSortedEvents,
 		loadEffectiveEventTimes,
+		tailFromLastLoad,
+		setEdgeSource,
 	};
+};
+
+/** What a tail of the log is made from: see `log-tail`. */
+export type LogTailSeed = {
+	files: Record<
+		string,
+		{
+			bytes: number;
+			lines: number;
+			hash: string;
+			stamp: string;
+			settled: boolean;
+			quarantined: UnreadableEvent[];
+		}
+	>;
+	ids: Iterable<string>;
+	idCount: number;
+	spine: ReconstructedEvent[];
+	waiting: string[];
+	pendingLines: string[];
 };
 
 export type Loader<M extends EventMap> = ReturnType<typeof createLoader<M>>;

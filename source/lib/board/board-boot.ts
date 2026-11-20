@@ -214,7 +214,7 @@ export function createDefaultEvents({
 
 // Booting resets `timeMode` to live and `readOnly` to false: re-booting in the
 // past would drop the checkout and allow writes.
-const isCheckedOutInThePast = (): boolean => {
+export const isCheckedOutInThePast = (): boolean => {
 	const stateResult = getSafeState();
 	if (isFail(stateResult)) return false;
 
@@ -224,7 +224,7 @@ const isCheckedOutInThePast = (): boolean => {
 
 // Reported, not locked: an unreadable event leaves part of the board out of
 // date, like any unsynced client.
-const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
+export const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
 	if (unreadable.length === 0) return;
 
 	const corrupt = unreadable.filter(

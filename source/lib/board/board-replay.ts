@@ -17,7 +17,7 @@ import {
 import {ReplayHooks} from '../event/event-catalog.js';
 import {AppEvent, AppEventMap} from './board-events.model.js';
 import {forgetReplayed} from './board-replayed.js';
-import {foldHistory} from './node-history.js';
+import {foldHistory, keepsHistoryPositions} from './node-history.js';
 
 // What the board keeps beside its state as events apply: each node's own log,
 // the app-wide log, and the virtual fields a ticket derives from both.
@@ -54,7 +54,8 @@ const refreshAffectedVirtualNodes = (nodeIds: string[]): ReturnFail | null => {
 const positionsFor = (
 	node: NavNode<AnyContext>,
 	positions: number[],
-): number[] | null => (isTicketNode(node) ? positions : null);
+): number[] | null =>
+	isTicketNode(node) && keepsHistoryPositions() ? positions : null;
 
 const appendEventToNodeLog = (
 	nodeId: string,

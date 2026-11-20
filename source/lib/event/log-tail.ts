@@ -11,6 +11,7 @@ import {listEventFiles} from './log-signature.js';
 import {
 	appendToOrder,
 	parseLogLines,
+	type LogTailSeed,
 	type ReconstructedEvent,
 	type UnreadableEvent,
 } from './event-load.js';
@@ -138,6 +139,16 @@ const lineHashes = (bytes: Buffer): string[] =>
 		.map(line => line.trim())
 		.filter(Boolean)
 		.map(line => hashOf(line));
+
+/** The tail a load's own record of what it read makes. */
+export const tailFromSeed = (seed: LogTailSeed): LogTail => ({
+	files: seed.files,
+	spine: seed.spine,
+	waiting: seed.waiting,
+	held: heldIdsFor(seed.ids, seed.idCount * 2),
+	pendingLines: seed.pendingLines,
+	verified: true,
+});
 
 /** What a full read of the log leaves a tail to start from. */
 export const tailOf = ({
@@ -299,5 +310,80 @@ export const readTail = (
 			pendingLines: pendingLeft ? nextPendingLines : [],
 			verified: true,
 		},
+	};
+};
+
+/**
+ * `tail` with a line this process has just appended to `filePath`: null
+ * unless the file is exactly what it held plus that line, and the event lands
+ * after the order, so the next read starts from a tail that is still exact.
+ */
+export const withOwnLine = (
+	dir: string,
+	tail: LogTail,
+	filePath: string,
+	line: string,
+	settledFor: (ageMs: number, wholeSecond: boolean) => boolean,
+): LogTail | null => {
+	const name = path.basename(filePath);
+	const held = tail.files[name];
+	const appendedBytes = Buffer.byteLength(line);
+	if (!line.endsWith('\n')) return null;
+
+	let bytes: Buffer;
+	try {
+		bytes = fs.readFileSync(path.join(dir, name));
+	} catch {
+		return null;
+	}
+	const before = held?.bytes ?? 0;
+	if (
+		bytes.length !== before + appendedBytes ||
+		(held && hashOf(bytes.subarray(0, before)) !== held.hash) ||
+		!bytes.subarray(before).equals(Buffer.from(line))
+	) {
+		return null;
+	}
+
+	const parsed = parseLogLines(Buffer.from(line), {
+		filePath,
+		firstLine: held?.lines ?? 0,
+	});
+	if (isFail(parsed) || parsed.value.entries.length !== 1) return null;
+	const [{entry, line: trimmed}] = parsed.value.entries as [
+		{entry: ReconstructedEvent; line: string},
+	];
+
+	const appended = appendToOrder(
+		{
+			ids: {has: id => mayHoldId(tail.held, id)},
+			waiting: new Set(tail.waiting),
+			spine: tail.spine,
+		},
+		[entry],
+	);
+	const stamp = stampOf(path.join(dir, name), settledFor);
+	if (!appended || !stamp) return null;
+
+	const heldIds: HeldIds = {...tail.held, bits: tail.held.bits.slice()};
+	holdId(heldIds, entry.id[0]);
+
+	return {
+		...tail,
+		files: {
+			...tail.files,
+			[name]: {
+				bytes: bytes.length,
+				lines: (held?.lines ?? 0) + 1,
+				hash: hashOf(bytes),
+				...stamp,
+				quarantined: held?.quarantined ?? [],
+			},
+		},
+		spine: appended.spine,
+		held: heldIds,
+		pendingLines: isPendingFileName(name)
+			? [...tail.pendingLines, hashOf(trimmed)]
+			: tail.pendingLines,
 	};
 };

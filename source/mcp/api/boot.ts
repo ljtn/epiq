@@ -9,24 +9,19 @@ import {
 import {readGitEmail, readGitName} from '../../lib/config/git-identity.js';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {patchSettingsState} from '../../lib/state/settings.state.js';
-import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
-import {
-	accountedSignature,
-	accountFor,
-	logSignature,
-} from '../../lib/event/log-signature.js';
+import {syncBoardWithLog} from '../../lib/board/board-tail.js';
+import {logSignature} from '../../lib/event/log-signature.js';
 import {
 	getEpiqDirPath,
 	resolveClosestEpiqProjectRoot,
 } from '../../lib/storage/paths.js';
-import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';
 import {
 	failed,
 	isFail,
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
-import {getSafeState, isStateInitialized} from '../../lib/state/state.js';
+import {getSafeState} from '../../lib/state/state.js';
 import {logger} from '../../logger.js';
 import {getTimeTravelStatus} from '../epiq-time-travel.js';
 
@@ -141,29 +136,19 @@ export const boot = async (
 
 	// Skips re-deriving an unchanged board. Only while live: a past checkout is
 	// time travel's to materialize.
-	if (
-		accountedSignature(stateBranchRootResult.value) === signature &&
-		isStateInitialized() &&
-		getTimeTravelStatus().mode === 'live'
-	) {
-		return succeeded('Booted Epiq state, unchanged', booted);
-	}
-
-	const eventsResult = loadMergedEventsWithUnreadable(
+	const synced = syncBoardWithLog(
 		stateBranchRootResult.value,
+		signature,
+		() => getTimeTravelStatus().mode === 'live',
 	);
-	if (isFail(eventsResult)) return failed(eventsResult.message);
+	if (isFail(synced)) return failed(synced.message);
 
-	const bootResult = bootStateFromEventLog(
-		eventsResult.value.events,
-		eventsResult.value.unreadable,
+	return succeeded(
+		synced.value === 'unchanged'
+			? 'Booted Epiq state, unchanged'
+			: 'Booted Epiq state',
+		booted,
 	);
-	if (isFail(bootResult)) return failed(bootResult.message);
-
-	// Recorded after the boot, so a failed one is retried; writes then advance it.
-	accountFor(stateBranchRootResult.value, signature);
-
-	return succeeded('Booted Epiq state', booted);
 };
 
 export const getActor = (): Result<Actor> => {
