@@ -2,10 +2,15 @@ import {afterEach, beforeAll, describe, expect, it} from 'vitest';
 import {bootStateFromEventLog} from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {materialize, materializeAll} from '../lib/board/board-log.js';
-import {setSuffixReplay} from '../lib/board/board-replayed.js';
+import {setSuffixReplay, unappliedSuffix} from '../lib/board/board-replayed.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {initWorkspaceState, resetState} from '../lib/state/state.js';
+import {
+	initWorkspaceState,
+	patchState,
+	resetState,
+	updateState,
+} from '../lib/state/state.js';
 import {setVirtualNodesEnabled} from '../lib/virtual-nodes/virtual-nodes.js';
 import {derived, randomLog, rank, unwrap} from './helpers/random-board-log.js';
 
@@ -194,5 +199,27 @@ describe('a reload that only adds to the log', () => {
 		);
 
 		expect(bootMessage(events)).toBe('State booted successfully');
+	});
+	it("replays in full once the state's log no longer ends where it did", () => {
+		setSuffixReplay(true);
+		const events = randomLog(21, 40);
+
+		unwrap(resetState());
+		bootMessage(events.slice(0, 20));
+		updateState(state => ({...state, eventLog: state.eventLog.slice(0, -1)}));
+
+		expect(bootMessage(events)).toBe('State booted successfully');
+	});
+
+	it('offers no suffix while the state is not live', () => {
+		setSuffixReplay(true);
+		const events = randomLog(22, 40);
+
+		unwrap(resetState());
+		bootMessage(events.slice(0, 20));
+		patchState({timeMode: 'peek'});
+
+		expect(unappliedSuffix(events)).toBeNull();
+		patchState({timeMode: 'live'});
 	});
 });
