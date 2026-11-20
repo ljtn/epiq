@@ -131,33 +131,22 @@ export const deleteIssueAttachment = async (
 	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
-	const attachmentEvent = ready.value.state.eventLog.find(
-		(event): event is AppEvent<'add.issue.attachment'> =>
-			event.action === 'add.issue.attachment' &&
-			event.payload.id === input.attachmentId,
-	);
+	const attachment = ready.value.state.attachments[input.attachmentId];
+	if (!attachment) return failed('Unable to resolve attachment');
 
-	if (!attachmentEvent) {
-		return failed('Unable to resolve attachment');
-	}
-
-	if (attachmentEvent.payload.author !== ready.value.actor.userId) {
+	if (attachment.author !== ready.value.actor.userId) {
 		return failed('You can only delete your own attachments');
 	}
 
-	const issueResult = findWritableIssue(attachmentEvent.payload.issue);
+	const issueResult = findWritableIssue(attachment.issue);
 	if (isFail(issueResult)) return issueResult;
 
-	const alreadyDeleted = ready.value.state.eventLog.some(
-		event =>
-			event.action === 'delete.issue.attachment' &&
-			event.payload.id === input.attachmentId,
-	);
+	const alreadyDeleted = attachment.deleted === true;
 
 	if (alreadyDeleted) {
 		return succeeded('Attachment already deleted', {
 			id: input.attachmentId,
-			issueId: attachmentEvent.payload.issue,
+			issueId: attachment.issue,
 		});
 	}
 
@@ -167,7 +156,7 @@ export const deleteIssueAttachment = async (
 		action: 'delete.issue.attachment',
 		payload: {
 			id: input.attachmentId,
-			issue: attachmentEvent.payload.issue,
+			issue: attachment.issue,
 		},
 	} satisfies AppEvent<'delete.issue.attachment'>;
 
@@ -180,7 +169,7 @@ export const deleteIssueAttachment = async (
 
 	return succeeded('Deleted issue attachment', {
 		id: input.attachmentId,
-		issueId: attachmentEvent.payload.issue,
+		issueId: attachment.issue,
 	});
 };
 

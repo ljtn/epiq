@@ -763,7 +763,7 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 	},
 
 	'add.issue.attachment': event => {
-		const {id, issue, hash, ext, name, bytes} = event.payload;
+		const {id, issue, hash, ext, name, bytes, author} = event.payload;
 
 		const result = nodeRepo.createAttachment({
 			id,
@@ -772,6 +772,7 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 			ext,
 			name,
 			bytes,
+			author,
 			deleted: false,
 		});
 
