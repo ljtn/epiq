@@ -14,6 +14,8 @@ import {seededRandom} from './helpers/seeded-random.js';
 let root = '';
 const dir = () => path.join(root, '.epiq', 'events');
 const OWN = '01ARZ3NDEKTSV4RRFFQ69G5FAV.me.jsonl';
+// Sorts after every other file, so the scan reaches it last.
+const GHOST = '01ARZ3NDEKTSV4RRFFQ69G5FAZ.ghost.jsonl';
 const THEIRS = [
 	'01ARZ3NDEKTSV4RRFFQ69G5FAW.them.jsonl',
 	'01ARZ3NDEKTSV4RRFFQ69G5FAX.other.jsonl',
@@ -87,7 +89,74 @@ describe('a load from what the process holds', () => {
 				const roll = random(20);
 				clock += 1000;
 
-				if (roll === 6) {
+				if (roll === 10 || roll === 11) {
+					// A teammate's file grows; then, mid-scan, a new file vanishes
+					// (the scan lists again) or a later read fails outright.
+					const grown = path.join(dir(), THEIRS[0]!);
+					const id = ulid(clock);
+					fs.appendFileSync(grown, lineOf(id, tail, n++));
+					written.push(id);
+					touch(THEIRS[0]!);
+					// At times the own file too, from another clone.
+					const ownTheirs = random(2) === 0 ? ulid(clock - 2) : null;
+					if (ownTheirs) {
+						fs.appendFileSync(
+							path.join(dir(), OWN),
+							lineOf(ownTheirs, tail, n++),
+						);
+						written.push(ownTheirs);
+						touch(OWN);
+					}
+
+					const later =
+						roll === 10
+							? path.join(dir(), GHOST)
+							: path.join(dir(), THEIRS[1]!);
+					if (roll === 10)
+						fs.writeFileSync(later, lineOf(ulid(clock + 1), id, n++));
+					else if (!fs.existsSync(later)) fs.writeFileSync(later, '');
+
+					const read = fs.readFileSync;
+					let tripped = false;
+					const spy = vi.spyOn(fs, 'readFileSync').mockImplementation(((
+						file: fs.PathOrFileDescriptor,
+						...rest: unknown[]
+					) => {
+						if (!tripped && String(file) === later) {
+							tripped = true;
+							if (roll === 10) fs.rmSync(later);
+							else throw Object.assign(new Error('EACCES'), {code: 'EACCES'});
+						}
+						return (read as (...args: unknown[]) => unknown)(file, ...rest);
+					}) as typeof fs.readFileSync);
+					try {
+						warm.loadMergedEventsWithUnreadable(root);
+					} catch {
+						// The failed load: what matters is the next one.
+					}
+					spy.mockRestore();
+
+					// An own write straight after, before any load succeeds.
+					const own = ulid(clock + 2);
+					const line = lineOf(own, id, n++);
+					const file = path.join(dir(), OWN);
+					fs.appendFileSync(file, line);
+					warm.advanceEdgeRef(root, OWN, own, Buffer.byteLength(line));
+					warm.advanceSortedLog(root, file, line, Buffer.byteLength(line));
+					written.push(own);
+				} else if (roll === 12) {
+					// A sync renames a teammate's file away; its events stay elsewhere.
+					const [from, to] = random(2) === 0 ? THEIRS : [...THEIRS].reverse();
+					const source = path.join(dir(), from!);
+					if (fs.existsSync(source)) {
+						fs.appendFileSync(
+							path.join(dir(), to!),
+							fs.readFileSync(source, 'utf8').replace(/[^\n]$/, '$&\n'),
+						);
+						fs.rmSync(source);
+						touch(to!);
+					}
+				} else if (roll === 6) {
 					// The same actor writing from another clone, behind this
 					// process's back, at times with no break after it.
 					const id = ulid(clock);

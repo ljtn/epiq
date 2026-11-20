@@ -151,6 +151,18 @@ const hasPersistedActionPayload = (
 // in between is reparsed next time rather than cached as seen.
 const NEWLINE = 0x0a;
 
+// Parsed and decoded events are shared by every load that follows: the suites
+// freeze them, so a caller that writes into one fails there.
+const FREEZE_EVENTS = process.env['EPIQ_FREEZE_EVENTS'] === '1';
+
+const deepFreeze = <T>(value: T): T => {
+	if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+		Object.freeze(value);
+		for (const child of Object.values(value)) deepFreeze(child);
+	}
+	return value;
+};
+
 type RememberedParse = {
 	stamp: string;
 	entries: ReconstructedEvent[];
@@ -164,6 +176,9 @@ type RememberedParse = {
 	hasher: Hash;
 	// Whether those bytes end on a line break, so an append starts a line.
 	endsWithBreak: boolean;
+	// Kept by every parse that only adds to this one, new for one parsed whole:
+	// the same lineage means the entries before are the same entries.
+	lineage: number;
 	// Trusted by its stamp alone only once settled; the hash check makes any
 	// remembered parse a sound base for the next.
 	settled: boolean;
@@ -174,14 +189,18 @@ type RememberedParse = {
 const parseCache = new Map<string, RememberedParse>();
 const PARSE_CACHE_MAX_FILES = 512;
 
-const rememberParse = (filePath: string, next: RememberedParse): void => {
-	// A full cache turns a new file away rather than evicting one: loads read
-	// files in one order, so evicting would evict the next file read.
+let lastLineage = 0;
+const newLineage = (): number => ++lastLineage;
+
+// Whether it was kept: a full cache turns a new file away rather than evicting
+// one, as loads read files in one order and would evict the next file read.
+const rememberParse = (filePath: string, next: RememberedParse): boolean => {
 	if (!parseCache.has(filePath) && parseCache.size >= PARSE_CACHE_MAX_FILES) {
-		return;
+		return false;
 	}
 
 	parseCache.set(filePath, next);
+	return true;
 };
 
 const hashOf = (bytes: Buffer): string =>
@@ -215,8 +234,8 @@ const fileStamp = (filePath: string): FileStamp | null => {
 	}
 };
 
-/** What a parse read anew: the entries, and whether a cached file was redone whole. */
-export type ParseChanges = {fresh: ReconstructedEvent[]; replaced: boolean};
+/** The lineage of the parse returned, or null where none was remembered. */
+export type ParseLineage = {lineage: number | null};
 
 /**
  * The parse of `filePath` after appending `line`, from the parse held of it,
@@ -226,7 +245,11 @@ export type ParseChanges = {fresh: ReconstructedEvent[]; replaced: boolean};
 const extendParse = (
 	filePath: string,
 	line: string,
-): ReconstructedEvent | null => {
+): {
+	entry: ReconstructedEvent;
+	base: RememberedParse | undefined;
+	lineage: number;
+} | null => {
 	const actor = parseEventFileActor(filePath);
 	const stamp = fileStamp(filePath);
 	if (isFail(actor) || !stamp) return null;
@@ -260,19 +283,21 @@ const extendParse = (
 	const hasher = (held ? held.hasher.copy() : createHash('sha1')).update(
 		appended,
 	);
-	rememberParse(filePath, {
+	const lineage = held?.lineage ?? newLineage();
+	const kept = rememberParse(filePath, {
 		stamp: stamp.value,
 		entries: [...(held?.entries ?? []), entry],
 		quarantined: held?.quarantined ?? [],
 		bytes: size,
 		lines: (held?.lines ?? 0) + 1,
 		endsWithBreak: true,
+		lineage,
 		hash: digestOf(hasher),
 		hasher,
 		settled: stamp.settled,
 	});
 
-	return entry;
+	return kept ? {entry, base: held, lineage} : null;
 };
 
 /** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
@@ -280,8 +305,9 @@ const extendParse = (
 export const parsePersistedEventsFile = (
 	filePath: string,
 	unreadable?: UnreadableEvent[],
-	changes?: ParseChanges,
+	seen?: ParseLineage,
 ): Result<ReconstructedEvent[] | null> => {
+	if (seen) seen.lineage = null;
 	const actorResult = parseEventFileActor(filePath);
 	if (isFail(actorResult)) return failed(actorResult.message);
 
@@ -295,6 +321,8 @@ export const parsePersistedEventsFile = (
 			for (const entry of remembered.quarantined) {
 				unreadable.push(entry);
 			}
+
+		if (seen) seen.lineage = remembered.lineage;
 
 		// A copy of the list, so a caller sorting it cannot reorder the cache.
 		return succeeded('Parsed persisted events file', [...remembered.entries]);
@@ -360,21 +388,15 @@ export const parsePersistedEventsFile = (
 			continue;
 		}
 
-		entries.push({
+		const entry: ReconstructedEvent = {
 			...parsedResult.value,
 			userId: actorResult.value.userId,
 			userName: actorResult.value.userName,
-		});
+		};
+		entries.push(FREEZE_EVENTS ? deepFreeze(entry) : entry);
 	}
 
 	if (unreadable) for (const entry of quarantined) unreadable.push(entry);
-
-	if (changes) {
-		if (remembered && !grown) changes.replaced = true;
-		for (let at = grown?.entries.length ?? 0; at < entries.length; at++) {
-			changes.fresh.push(entries[at]!);
-		}
-	}
 
 	// Remembered with any readable stamp. Lines so far: all but the piece after
 	// the last break, which a later append continues.
@@ -382,10 +404,12 @@ export const parsePersistedEventsFile = (
 		const hasher = (grown ? grown.hasher.copy() : createHash('sha1')).update(
 			bytes.subarray(from),
 		);
-		rememberParse(filePath, {
+		const lineage = grown?.lineage ?? newLineage();
+		const kept = rememberParse(filePath, {
 			stamp: stamp.value,
 			entries,
 			quarantined,
+			lineage,
 			bytes: bytes.length,
 			lines: firstLine + lines.length - 1,
 			hash: digestOf(hasher),
@@ -393,6 +417,7 @@ export const parsePersistedEventsFile = (
 			endsWithBreak: bytes.length === 0 || bytes.at(-1) === NEWLINE,
 			settled: stamp.settled,
 		});
+		if (seen && kept) seen.lineage = lineage;
 	}
 
 	return succeeded('Parsed persisted events file', [...entries]);
@@ -426,13 +451,40 @@ export const sortEvents = (
 ): ReconstructedEvent[] =>
 	sortEventsIndexed(reconstructedEvents, genesis).sorted;
 
-// Every file the held order was read from is still there.
-const keepsEveryFile = (signature: string, files: string[]): boolean => {
-	const now = new Set(files);
-	return signature
-		.split('|')
-		.filter(Boolean)
-		.every(part => now.has(part.slice(0, part.indexOf(':'))));
+// Per file the held order was read from: the parse lineage, and how many of
+// its entries it holds. Null lineage: nothing to grow from, so sort again.
+type HeldFiles = Map<string, {lineage: number | null; count: number}>;
+
+// What each file holds past what the held order took from it: null unless
+// every file it took from is still there, and has only grown since.
+const addedSince = (
+	heldFiles: HeldFiles,
+	read: ReadonlyArray<{
+		file: string;
+		entries: ReconstructedEvent[];
+		lineage: number | null;
+	}>,
+): ReconstructedEvent[] | null => {
+	const now = new Map(read.map(entry => [entry.file, entry]));
+	for (const [file, was] of heldFiles) {
+		const is = now.get(file);
+		if (
+			!is ||
+			was.lineage === null ||
+			is.lineage !== was.lineage ||
+			is.entries.length < was.count
+		) {
+			return null;
+		}
+	}
+
+	const added: ReconstructedEvent[] = [];
+	for (const {file, entries} of read) {
+		for (let at = heldFiles.get(file)?.count ?? 0; at < entries.length; at++) {
+			added.push(entries[at]!);
+		}
+	}
+	return added;
 };
 
 export type OrderIndex = {
@@ -925,7 +977,9 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 				continue;
 			}
 
-			decoded.push(eventResult.value);
+			decoded.push(
+				FREEZE_EVENTS ? deepFreeze(eventResult.value) : eventResult.value,
+			);
 		}
 
 		if (skippedActions.size > 0) {
@@ -966,6 +1020,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		ids: Map<string, number>;
 		waiting: Set<string>;
 		spine: ReconstructedEvent[] | null;
+		files: HeldFiles;
 	} | null = null;
 
 	function loadAllPersistedEvents(
@@ -998,21 +1053,24 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		// collected per attempt so it is not reported twice.
 		let entries: ReconstructedEvent[] = [];
 		let quarantined: UnreadableEvent[] = [];
-		let changes: ParseChanges = {fresh: [], replaced: false};
-		let files: string[] = [];
+		let read: Array<{
+			file: string;
+			entries: ReconstructedEvent[];
+			lineage: number | null;
+		}> = [];
 
 		for (let attempt = 1; ; attempt++) {
 			entries = [];
 			quarantined = [];
-			changes = {fresh: [], replaced: false};
-			files = listEventFiles(dir);
+			read = [];
 			let listAgain = false;
 
-			for (const file of files) {
+			for (const file of listEventFiles(dir)) {
+				const seen: ParseLineage = {lineage: null};
 				const result = parsePersistedEventsFile(
 					path.join(dir, file),
 					quarantined,
-					changes,
+					seen,
 				);
 
 				if (isFail(result)) {
@@ -1029,6 +1087,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 				// Pushed, not spread: a spread throws past ~125k arguments.
 				for (const entry of result.value) entries.push(entry);
+				read.push({file, entries: result.value, lineage: seen.lineage});
 			}
 
 			if (!listAgain) break;
@@ -1039,12 +1098,17 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		const held = sortedCache?.root === eventsRoot ? sortedCache : null;
 		sortedCache = null;
 
+		const files: HeldFiles = new Map(
+			read.map(({file, entries, lineage}) => [
+				file,
+				{lineage, count: entries.length},
+			]),
+		);
+
 		// Only grown, by events that all land after the held order: append them.
 		// A file redone whole or gone is no append, and is sorted again.
-		const appended =
-			held && !changes.replaced && keepsEveryFile(held.signature, files)
-				? appendToOrder(held, changes.fresh)
-				: null;
+		const added = held ? addedSince(held.files, read) : null;
+		const appended = held && added ? appendToOrder(held, added) : null;
 
 		let sorted: ReconstructedEvent[];
 		if (held && appended) {
@@ -1055,13 +1119,20 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 			held.spine = appended.spine;
 			held.signature = signature;
 			held.quarantined = quarantined;
+			held.files = files;
 			sorted = held.sorted;
 			if (isSettledSignature(signature)) sortedCache = held;
 		} else {
 			const fresh = sortEventsIndexed(entries, catalog.genesis);
 			sorted = fresh.sorted;
 			if (isSettledSignature(signature)) {
-				sortedCache = {root: eventsRoot, signature, quarantined, ...fresh};
+				sortedCache = {
+					root: eventsRoot,
+					signature,
+					quarantined,
+					files,
+					...fresh,
+				};
 			}
 		}
 
@@ -1258,8 +1329,21 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 
 		// The parse cache learns the line too, or the next load would read it
 		// as new and sort again.
-		const entry = extendParse(filePath, line);
-		if (!entry) return;
+		const extended = extendParse(filePath, line);
+		if (!extended) return;
+
+		// The parse it grew from must be the one the order holds, entry for entry.
+		const fileName = path.basename(filePath);
+		const was = held.files.get(fileName);
+		const baseCount = extended.base?.entries.length ?? 0;
+		if (
+			was
+				? was.lineage !== extended.base?.lineage || was.count !== baseCount
+				: baseCount !== 0
+		) {
+			return;
+		}
+		const {entry} = extended;
 		// Last only where the rule for any append says so: new, waited on by
 		// nothing held, and under the spine.
 		const appended = appendToOrder(held, [entry]);
@@ -1269,6 +1353,7 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 		held.sorted.push(entry);
 		held.ids.set(entry.id[0], held.ids.size);
 		held.spine = appended.spine;
+		held.files.set(fileName, {lineage: extended.lineage, count: baseCount + 1});
 		held.signature = next;
 		sortedCache = held;
 	}
