@@ -46,6 +46,7 @@ import {
 	NODE_REF_LENGTH,
 	nodeRef,
 	nodeRefMatches,
+	normalizeRef,
 } from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {
@@ -146,7 +147,7 @@ export const getIssue = async (input: GetIssueInput) => {
 	// `nodeRefMatches` is a substring match, so a short query can legitimately
 	// hit several tickets. Naming them beats guessing. A whole ref can only
 	// equal one: those are looked up, not scanned for.
-	const normalized = query.replace(/-/g, '').trim().toUpperCase();
+	const normalized = normalizeRef(query);
 	const matches = isLive(exact)
 		? [exact]
 		: normalized.length === NODE_REF_LENGTH

@@ -1,5 +1,11 @@
 import {emptyRepoRegistry} from '../board/board-repos.js';
-import {nodeRef} from '../utils/node-ref.js';
+import {
+	entryIdsOfIssueIn,
+	type IssueKeyed,
+	nodeIdsOfKind,
+	nodeIdsWithRefIn,
+	noteEntry,
+} from './state-indexes.js';
 import {useSyncExternalStore} from 'react';
 import {contextActions} from '../actions/action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
@@ -269,62 +275,13 @@ type StateMapKey = {
  * Writes one entry of a keyed collection. In place inside a replay batch: nothing
  * reads derived state mid-batch, and a copy per write is quadratic. Copied outside one.
  */
-// Node ids by what each node is, as of the node map they were read from: a
-// write carries them along, a map replaced whole has them read again.
-let nodeKinds: {
-	nodes: Record<string, NavNode<AnyContext>>;
-	byContext: Map<string, Set<string>>;
-} | null = null;
-
-const kindsRead = () => {
-	const {nodes} = getState();
-	if (nodeKinds?.nodes === nodes) return nodeKinds;
-
-	const byContext = new Map<string, Set<string>>();
-	for (const [id, node] of Object.entries(nodes)) {
-		let ids = byContext.get(node.context);
-		if (!ids) byContext.set(node.context, (ids = new Set()));
-		ids.add(id);
-	}
-	return (nodeKinds = {nodes, byContext});
-};
-
-// Node ids by the full ref each shortens to, which is not unique: built only
-// once a ref is looked up, kept the same way.
-let nodeRefs: {
-	nodes: Record<string, NavNode<AnyContext>>;
-	byRef: Map<string, string[] | string>;
-} | null = null;
-
-const refsRead = () => {
-	const {nodes} = getState();
-	if (nodeRefs?.nodes === nodes) return nodeRefs;
-
-	nodeRefs = {nodes, byRef: new Map()};
-	for (const id of Object.keys(nodes)) addRef(nodeRefs.byRef, id);
-	return nodeRefs;
-};
-
-// A lone id is held bare: most refs name one node.
-const addRef = (byRef: Map<string, string[] | string>, id: string): void => {
-	const ref = nodeRef(id);
-	const same = byRef.get(ref);
-	if (same === undefined) byRef.set(ref, id);
-	else if (typeof same === 'string') byRef.set(ref, [same, id]);
-	else same.push(id);
-};
-
-const NO_IDS: ReadonlySet<string> = new Set();
-
 /** Ids of every node of `context`, deleted ones included, in the node map's order. */
 export const nodeIdsOf = (context: AnyContext): ReadonlySet<string> =>
-	kindsRead().byContext.get(context) ?? NO_IDS;
+	nodeIdsOfKind(getState().nodes, context);
 
 /** Ids of every node whose full ref is `ref`, in the node map's order. */
-export const nodeIdsWithRef = (ref: string): readonly string[] => {
-	const ids = refsRead().byRef.get(ref);
-	return ids === undefined ? [] : typeof ids === 'string' ? [ids] : ids;
-};
+export const nodeIdsWithRef = (ref: string): readonly string[] =>
+	nodeIdsWithRefIn(getState().nodes, ref);
 
 /** Every node of `context`, deleted ones included. */
 export const nodesOf = <C extends AnyContext>(context: C): NavNode<C>[] => {
@@ -332,108 +289,16 @@ export const nodesOf = <C extends AnyContext>(context: C): NavNode<C>[] => {
 	return [...nodeIdsOf(context)].map(id => nodes[id] as NavNode<C>);
 };
 
-// One node written: the index read from `from` holds for `to` with it.
-const noteNodeKind = (
-	from: Record<string, unknown>,
-	to: Record<string, unknown>,
-	id: string,
-	before: NavNode<AnyContext> | undefined,
-	after: NavNode<AnyContext>,
-): void => {
-	if (nodeRefs?.nodes === from) {
-		if (!before) addRef(nodeRefs.byRef, id);
-		nodeRefs.nodes = to as Record<string, NavNode<AnyContext>>;
-	}
-	if (!nodeKinds || nodeKinds.nodes !== from) return;
-	if (before && before.context !== after.context) {
-		nodeKinds.byContext.get(before.context)?.delete(id);
-	}
-	let ids = nodeKinds.byContext.get(after.context);
-	if (!ids) nodeKinds.byContext.set(after.context, (ids = new Set()));
-	ids.add(id);
-	nodeKinds.nodes = to as Record<string, NavNode<AnyContext>>;
-};
-
-// Comment and attachment ids by the ticket each belongs to, as of the map
-// they were read from, kept the same way as the kinds above.
-type IssueKeyed = 'comments' | 'attachments';
-const byIssue: Partial<
-	Record<IssueKeyed, {map: object; ids: Map<string, string[]>}>
-> = {};
-
 /** Ids of every comment or attachment of `issueId`, deleted ones included, in the map's order. */
 export const entryIdsOfIssue = (
 	key: IssueKeyed,
 	issueId: string,
-): readonly string[] => {
-	const map = (getState()[key] ?? {}) as Record<string, {issue: string}>;
-	let held = byIssue[key];
-	if (held?.map !== map) {
-		const ids = new Map<string, string[]>();
-		for (const [id, entry] of Object.entries(map)) {
-			const list = ids.get(entry.issue);
-			if (list) list.push(id);
-			else ids.set(entry.issue, [id]);
-		}
-		byIssue[key] = held = {map, ids};
-	}
-	return held.ids.get(issueId) ?? [];
-};
-
-const noteIssueEntry = (
-	key: IssueKeyed,
-	from: object,
-	to: object,
-	id: string,
-	before: {issue: string} | undefined,
-	after: {issue: string},
-): void => {
-	const held = byIssue[key];
-	if (!held || held.map !== from) return;
-	if (before?.issue !== after.issue) {
-		if (before) {
-			const list = held.ids.get(before.issue);
-			if (list)
-				held.ids.set(
-					before.issue,
-					list.filter(other => other !== id),
-				);
-		}
-		const list = held.ids.get(after.issue);
-		if (list) list.push(id);
-		else held.ids.set(after.issue, [id]);
-	}
-	held.map = to;
-};
-
-// One entry written: every index read from `from` holds for `to` with it.
-const noteEntry = (
-	key: string,
-	from: Record<string, unknown>,
-	to: Record<string, unknown>,
-	id: string,
-	before: unknown,
-	after: unknown,
-): void => {
-	if (key === 'nodes') {
-		noteNodeKind(
-			from,
-			to,
-			id,
-			before as NavNode<AnyContext> | undefined,
-			after as NavNode<AnyContext>,
-		);
-	} else if (key === 'comments' || key === 'attachments') {
-		noteIssueEntry(
-			key,
-			from,
-			to,
-			id,
-			before as {issue: string} | undefined,
-			after as {issue: string},
-		);
-	}
-};
+): readonly string[] =>
+	entryIdsOfIssueIn(
+		key,
+		(getState()[key] ?? {}) as Record<string, {issue: string}>,
+		issueId,
+	);
 
 export function setStateEntry<K extends StateMapKey>(
 	key: K,
