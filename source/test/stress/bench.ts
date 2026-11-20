@@ -5,7 +5,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import {ulid} from 'ulid';
 
 const DIR = process.env['BENCH_DIR'];
 const OUT = process.env['BENCH_OUT'];
@@ -44,6 +43,7 @@ const {setVirtualNodesEnabled} = await import(
 setVirtualNodesEnabled(false);
 const api = await import('../../mcp/epiq-api.js');
 const {getEdgeRef} = await import('../../lib/board/board-log.js');
+const {ulid} = await import('../../lib/event/ulid.js');
 const {getState} = await import('../../lib/state/state.js');
 const {nodeRef} = await import('../../lib/utils/node-ref.js');
 const {getStateBranchRoot} = await import('../../git/git-storage.js');

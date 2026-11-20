@@ -78,6 +78,8 @@ const report = [
 ].join('\n');
 
 console.log(report);
+// Shown on the run, not only in its log: a comparison that never ran is no pass.
+if (base.length === 0) console.log(`::warning::${verdict}`);
 const summary = process.env['GITHUB_STEP_SUMMARY'];
 if (summary) fs.appendFileSync(summary, report + '\n');
 
