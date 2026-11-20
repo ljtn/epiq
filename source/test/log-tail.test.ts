@@ -8,6 +8,7 @@ import {
 	clearParseCache,
 	sortEventsIndexed,
 	type ReconstructedEvent,
+	type UnreadableEvent,
 } from '../lib/event/event-load.js';
 import {readTail, tailOf, type LogTail} from '../lib/event/log-tail.js';
 import {isSettledStamp, listEventFiles} from '../lib/event/log-signature.js';
@@ -50,16 +51,27 @@ const lineOf = (id: string, parent: string | null, n: number) =>
 			: {[GENESIS]: {id: 'w', name: 'W'}}),
 	})}\n`;
 
-// Every file read whole, sorted: what a process starting now would hold.
+// Every file's whole lines read cold and sorted: what a process starting now
+// would hold, a line still being written aside.
 const fullOrder = () => {
 	clearParseCache();
-	const entries: ReconstructedEvent[] = [];
-	for (const name of listEventFiles(dir())) {
-		const parsed = parsePersistedEventsFile(path.join(dir(), name));
-		if (isFail(parsed)) throw new Error(parsed.message);
-		for (const entry of parsed.value ?? []) entries.push(entry);
+	const mirror = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-tail-cold-'));
+	try {
+		const entries: ReconstructedEvent[] = [];
+		const quarantined: UnreadableEvent[] = [];
+		for (const name of listEventFiles(dir())) {
+			const bytes = fs.readFileSync(path.join(dir(), name));
+			const copy = path.join(mirror, name);
+			fs.writeFileSync(copy, bytes.subarray(0, bytes.lastIndexOf(10) + 1));
+			const parsed = parsePersistedEventsFile(copy, quarantined);
+			if (isFail(parsed)) throw new Error(parsed.message);
+			for (const entry of parsed.value ?? []) entries.push(entry);
+		}
+		return {...sortEventsIndexed(entries, GENESIS), quarantined};
+	} finally {
+		fs.rmSync(mirror, {recursive: true, force: true});
+		clearParseCache();
 	}
-	return sortEventsIndexed(entries, GENESIS);
 };
 
 const fresh = (): {order: ReconstructedEvent[]; tail: LogTail} => {
@@ -111,6 +123,7 @@ describe('reading the log past where a process stopped', () => {
 			touchAll();
 
 			let {order, tail} = fresh();
+			let partial: string | null = null;
 
 			for (let step = 0; step < 30; step++) {
 				clock += 1000;
@@ -118,6 +131,10 @@ describe('reading the log past where a process stopped', () => {
 				const roll = random(12);
 				let folded = false;
 				let sameStamp = false;
+				if (partial && random(2) === 0) {
+					fs.appendFileSync(partial, '\n');
+					partial = null;
+				}
 
 				if (roll < 4) {
 					// Own writes, as persist appends them.
@@ -125,7 +142,9 @@ describe('reading the log past where a process stopped', () => {
 						const id = ulid(clock + k);
 						appendPendingLine(
 							getPendingLogPath(root, OWN),
-							lineOf(id, written.at(-1)!, n++),
+							random(8) === 0
+								? '{"own broken\n'
+								: lineOf(id, written.at(-1)!, n++),
 						);
 						written.push(id);
 					}
@@ -174,10 +193,16 @@ describe('reading the log past where a process stopped', () => {
 							? last
 							: written[Math.max(0, written.length - 1 - random(5))]!;
 					const id = pick === 9 ? ulid(clock - 1000 * random(10)) : ulid(clock);
-					fs.appendFileSync(
-						target,
-						random(15) === 0 ? '{"broken\n' : lineOf(id, parent, n++),
-					);
+					const line =
+						random(15) === 0 ? '{"broken\n' : lineOf(id, parent, n++);
+					// Now and then caught mid-write: the rest lands with a later
+					// write, or a writer runs straight into it.
+					if (random(6) === 0) {
+						fs.appendFileSync(target, line.slice(0, random(line.length)));
+						partial = target;
+					} else {
+						fs.appendFileSync(target, line);
+					}
 					written.push(id);
 				}
 				if (!sameStamp) touchAll();
@@ -198,6 +223,7 @@ describe('reading the log past where a process stopped', () => {
 					order = [...order, ...read.appended];
 					tail = read.tail;
 					expect(keyOf(order)).toEqual(keyOf(full.sorted));
+					expect(read.quarantined).toEqual(full.quarantined);
 				}
 			}
 		}

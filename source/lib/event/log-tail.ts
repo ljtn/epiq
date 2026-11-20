@@ -77,11 +77,12 @@ export type TailFile = {
 	bytes: number;
 	lines: number;
 	hash: string;
-	endsWithBreak: boolean;
 	// Size and mtime when read, and whether that stamp was settled then: a
 	// settled stamp unchanged is trusted in the same process, never across.
 	stamp: string;
 	settled: boolean;
+	// Its lines that did not parse: the file's, so they go with it.
+	quarantined: UnreadableEvent[];
 };
 
 export type LogTail = {
@@ -99,6 +100,8 @@ export type LogTail = {
 export type TailRead =
 	| {
 			appended: ReconstructedEvent[];
+			// Every unparseable line of every file read so far, as a full read
+			// of the files there now lists them.
 			quarantined: UnreadableEvent[];
 			tail: LogTail;
 	  }
@@ -164,15 +167,18 @@ export const tailOf = ({
 		}
 		if (!stamp) return null;
 
-		const lines = bytes.toString('utf8').split('\n').length - 1;
+		// Whole lines only: a piece past the last break is still being written.
+		const whole = bytes.subarray(0, bytes.lastIndexOf(NEWLINE) + 1);
+		const parsed = parseLogLines(whole, {filePath, firstLine: 0});
+		if (isFail(parsed)) return null;
 		files[name] = {
-			bytes: bytes.length,
-			lines,
-			hash: hashOf(bytes),
-			endsWithBreak: bytes.length === 0 || bytes.at(-1) === NEWLINE,
+			bytes: whole.length,
+			lines: whole.toString('utf8').split('\n').length - 1,
+			hash: hashOf(whole),
 			...stamp,
+			quarantined: parsed.value.quarantined,
 		};
-		if (isPendingFileName(name)) pendingLines.push(...lineHashes(bytes));
+		if (isPendingFileName(name)) pendingLines.push(...lineHashes(whole));
 	}
 
 	const ids = new Set(sorted.map(entry => entry.id[0]));
@@ -201,7 +207,6 @@ export const readTail = (
 	const pendingLines = new Set(tail.pendingLines);
 	const nextPendingLines = [...tail.pendingLines];
 	const fresh: ReconstructedEvent[] = [];
-	const quarantined: UnreadableEvent[] = [];
 
 	for (const name of Object.keys(tail.files)) {
 		// A pending file a sync folded away: its lines were read already.
@@ -232,20 +237,21 @@ export const readTail = (
 		if (
 			held &&
 			(bytes.length < held.bytes ||
-				!held.endsWithBreak ||
 				hashOf(bytes.subarray(0, held.bytes)) !== held.hash)
 		) {
 			return {rebuild: `${name} changed before where it was read to`};
 		}
 
-		const added = bytes.subarray(from);
+		// Whole lines only: a piece past the last break is still being written,
+		// by another process or a pull, and is read once it ends.
+		const end = Math.max(from, bytes.lastIndexOf(NEWLINE) + 1);
+		const added = bytes.subarray(from, end);
 		const parsed = parseLogLines(added, {
 			filePath,
 			firstLine: held?.lines ?? 0,
 		});
 		if (isFail(parsed)) return {rebuild: parsed.message};
 
-		for (const entry of parsed.value.quarantined) quarantined.push(entry);
 		for (const {entry, line} of parsed.value.entries) {
 			const lineHash = hashOf(line);
 			// The same bytes as a line already read: the same event, held once.
@@ -255,11 +261,11 @@ export const readTail = (
 		}
 
 		files[name] = {
-			bytes: bytes.length,
+			bytes: end,
 			lines: (held?.lines ?? 0) + added.toString('utf8').split('\n').length - 1,
-			hash: hashOf(bytes),
-			endsWithBreak: bytes.length === 0 || bytes.at(-1) === NEWLINE,
+			hash: hashOf(bytes.subarray(0, end)),
 			...stamp,
+			quarantined: [...(held?.quarantined ?? []), ...parsed.value.quarantined],
 		};
 	}
 
@@ -283,7 +289,7 @@ export const readTail = (
 
 	return {
 		appended: appended.order,
-		quarantined,
+		quarantined: names.flatMap(name => files[name]?.quarantined ?? []),
 		tail: {
 			files,
 			spine: appended.spine,
