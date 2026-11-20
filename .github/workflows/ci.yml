@@ -69,10 +69,14 @@ jobs:
       - name: Compare with main
         if: github.ref != 'refs/heads/main'
         run: |
-          git fetch --depth=1 origin main
-          git worktree add "$RUNNER_TEMP/base" FETCH_HEAD
-          (cd "$RUNNER_TEMP/base" && npm ci)
-          sh source/scripts/bench-against-main.sh "$RUNNER_TEMP/stress" "$RUNNER_TEMP/base" 3
+          # Only a measured regression fails the job, never a setup hiccup.
+          if git fetch --depth=1 origin main &&
+            git worktree add "$RUNNER_TEMP/base" FETCH_HEAD &&
+            (cd "$RUNNER_TEMP/base" && npm ci); then
+            sh source/scripts/bench-against-main.sh "$RUNNER_TEMP/stress" "$RUNNER_TEMP/base" 3
+          else
+            echo "::warning::Could not set up main, so nothing was compared"
+          fi
 
   # Its own job rather than more steps on `test`: it needs a browser and its
   # own build, shares no state with anything above, and a red GUI run should
