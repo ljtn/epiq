@@ -1,21 +1,12 @@
 import {AppEvent} from '../board/board-events.model.js';
 import {Comment, Ticket} from '../model/context.model.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
 
-export const getVisibleCommentCount = (ticket: Ticket) => {
-	const deleted = new Set(
-		(ticket.log ?? [])
-			.filter(event => event.action === 'delete.issue.comment')
-			.map(event => event.payload.id),
-	);
-
-	return (ticket.log ?? []).filter(
-		event =>
-			event.action === 'add.issue.comment' &&
-			event.payload.issue === ticket.id &&
-			!deleted.has(event.payload.id),
-	).length;
-};
+// From the comment store, as the GUI and MCP count: an edit after a delete
+// brings the comment back.
+export const getVisibleCommentCount = (ticket: Ticket) =>
+	nodeRepo.getCommentsByIssue(ticket.id).length;
 
 export const createCommentNode = (
 	comment: CommentItem,
