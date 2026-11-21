@@ -532,11 +532,10 @@ describe('mcp tools', () => {
 		}
 	});
 
-	it('does not pull from remote when listing boards, swimlanes, issues, or state (#80)', async () => {
+	it('does not pull from remote when listing boards, swimlanes or issues (#80)', async () => {
 		await tools.listBoards({repoRoot: '/repo'});
 		await tools.listSwimlanes({repoRoot: '/repo'});
 		await tools.listIssues({repoRoot: '/repo', includeClosed: false});
-		await tools.getEpiqState({repoRoot: '/repo'});
 
 		const pullCalls = vi
 			.mocked(gitUtilsModule.execGit)
@@ -1623,18 +1622,6 @@ describe('mcp tools', () => {
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
 			expect(result.message).toBe('Swimlane is readonly');
-		}
-	});
-
-	it('gets full Epiq state', async () => {
-		const result = await tools.getEpiqState({repoRoot: '/repo'});
-
-		expect(isFail(result)).toBe(false);
-		if (!isFail(result)) {
-			expect(result.value.root).toBe('/repo');
-			expect(result.value.stateBranchRoot).toBe('/state');
-			expect(result.value.rootNodeId).toBe('workspace-1');
-			expect(result.value.nodes).toBe(nodes);
 		}
 	});
 

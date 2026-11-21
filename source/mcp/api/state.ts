@@ -49,24 +49,6 @@ import {
 	setSyncing,
 } from '../../lib/state/sync-state.js';
 
-export const getEpiqState = async (input: ToolInput = {}) => {
-	const bootResult = await bootLocal(input.repoRoot);
-	if (isFail(bootResult)) return bootResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	return succeeded('Retrieved Epiq state', {
-		root: bootResult.value.repoRoot,
-		stateBranchRoot: bootResult.value.stateBranchRoot,
-		nodes: stateResult.value.nodes,
-		rootNodeId: stateResult.value.rootNodeId,
-		contextNode: stateResult.value.contextNode,
-		selectedIndex: stateResult.value.selectedIndex,
-		eventLog: stateResult.value.eventLog,
-	});
-};
-
 // How far back the closed lane is sent: the one collection that grows without bound.
 const CLOSED_TICKET_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
 

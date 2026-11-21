@@ -37,6 +37,8 @@ describe('MCP tool list', () => {
 		expect(tools.length).toBeGreaterThan(40);
 		expect(tools.filter(tool => '$schema' in tool.inputSchema)).toEqual([]);
 		expect(tools.filter(tool => 'execution' in tool)).toEqual([]);
+		// A dump of the whole board and its log outgrows any agent's context.
+		expect(tools.map(tool => tool.name)).not.toContain('epiq_state_get');
 		expect(
 			tools.find(tool => tool.name === 'epiq_issue_create')?.inputSchema,
 		).toMatchObject({

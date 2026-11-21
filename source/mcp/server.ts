@@ -55,7 +55,6 @@ import {
 	editSwimlaneDescription,
 	editGoalDescription,
 	setSwimlaneRule,
-	getEpiqState,
 	getIssue,
 	listBoards,
 	listIssues,
@@ -191,18 +190,6 @@ export const createMcpServer = () => {
 	trimToolList(server);
 
 	server.registerTool(
-		'epiq_state_get',
-		{
-			description:
-				'Get the full current Epiq state, including nodes and event log',
-			inputSchema: z.object({
-				repoRoot: z.string().optional(),
-			}),
-		},
-		exclusiveTool(getEpiqState),
-	);
-
-	server.registerTool(
 		'epiq_issue_list',
 		{
 			description:
@@ -228,7 +215,7 @@ export const createMcpServer = () => {
 		'epiq_issue_get',
 		{
 			description:
-				'Get one Epiq issue by ref or id, with its comments in log order: the latest three whole, earlier ones by their first three lines (olderComments says so); allComments returns every one whole. When you know which issue you want, prefer it to listing the board or epiq_state_get.',
+				'Get one Epiq issue by ref or id, with its comments in log order: the latest three whole, earlier ones by their first three lines (olderComments says so); allComments returns every one whole. When you know which issue you want, prefer it to listing the board.',
 			inputSchema: z.object({
 				idOrRef: z.string().min(1),
 				allComments: z.boolean().optional(),
