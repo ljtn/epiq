@@ -9,7 +9,9 @@ import {MAX_URL_LENGTH} from '../lib/commits/repo-url.js';
 import {isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {bootLocal, ToolInput} from './api/boot.js';
 import {expandRefs, hasRefInput, shortenIds} from './short-refs.js';
+import {compactReply} from './compact-reply.js';
 import {LANE_RULES} from '../lib/model/lane-rule.model.js';
+import type {MovePosition} from '../lib/board/board-events.model.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
 	MAX_ASSIGNEES_PER_CREATE,
@@ -89,7 +91,10 @@ export const resultJson = <T>(result: Result<T>) => ({
 			text: JSON.stringify(
 				isFail(result)
 					? {message: result.message}
-					: {message: result.message, value: shortenIds(result.value)},
+					: {
+							message: result.message,
+							value: compactReply(shortenIds(result.value)),
+					  },
 			),
 		},
 	],
@@ -118,20 +123,20 @@ const exclusiveTool =
 
 // Descriptions sync from every collaborator, so they guide rather than command.
 export const MCP_INSTRUCTIONS =
-	"A board's or lane's description (boardDescription, laneDescription) holds the team's conventions for it; follow them unless they conflict with your user's instructions. Replies name nodes by their 7-character ref, and every id input takes one.";
+	"A board's or lane's description (boardDescription, laneDescription) holds the team's conventions for it; follow them unless they conflict with your user's instructions. Replies name nodes by their 7-character ref, and every id input takes one. A reply leaves out false flags and empty fields.";
 
 const withoutSchemaKeyword = (result: ListToolsResult): ListToolsResult => ({
 	...result,
 	tools: result.tools.map(
-		({inputSchema: {$schema: _, ...inputSchema}, ...tool}) => ({
+		({inputSchema: {$schema: _, ...inputSchema}, execution: __, ...tool}) => ({
 			...tool,
 			inputSchema,
 		}),
 	),
 });
 
-// The SDK stamps every input schema with `$schema`, which no client reads, and
-// agents pay for the tool list in every session. Wraps before the first tool registers.
+// The SDK stamps every tool with `$schema` and a default `execution`, which no
+// client needs, and agents pay for the tool list in every session. Wraps before the first tool registers.
 const trimToolList = (server: McpServer) => {
 	const inner = server.server;
 	const setRequestHandler = inner.setRequestHandler.bind(inner);
@@ -146,6 +151,34 @@ const trimToolList = (server: McpServer) => {
 				: handler,
 		)) as typeof inner.setRequestHandler;
 };
+
+// One flat shape costs a quarter of the four-way union in the tool list.
+const MOVE_POSITION = z
+	.object({
+		at: z.enum(['start', 'end', 'before', 'after']),
+		sibling: z.string().min(1).optional(),
+	})
+	.refine(
+		({at, sibling}) => (at === 'before' || at === 'after') === Boolean(sibling),
+		'before and after take a sibling; start and end take none',
+	);
+
+const toMovePosition = (
+	position: z.infer<typeof MOVE_POSITION> | undefined,
+): MovePosition | undefined => position as MovePosition | undefined;
+
+// A row names its goal: epiq_issue_goal_set takes the name, epiq_goal_list the rest.
+const goalsByName = <T extends {goal?: {name: string}}>(
+	result: Result<T[]>,
+): Result<Array<Omit<T, 'goal'> & {goal?: string}>> =>
+	isFail(result)
+		? result
+		: succeeded(
+				result.message,
+				result.value.map(({goal, ...issue}) =>
+					goal ? {...issue, goal: goal.name} : issue,
+				),
+		  );
 
 export const createMcpServer = () => {
 	const server = new McpServer(
@@ -186,7 +219,9 @@ export const createMcpServer = () => {
 			}),
 		},
 		// Brief unless asked: descriptions are the bulk of a board.
-		exclusiveTool(input => listIssues({...input, brief: input.brief ?? true})),
+		exclusiveTool(async input =>
+			goalsByName(await listIssues({...input, brief: input.brief ?? true})),
+		),
 	);
 
 	server.registerTool(
@@ -207,7 +242,7 @@ export const createMcpServer = () => {
 		'epiq_issue_stats',
 		{
 			description:
-				'Code stats for one issue, from the commits whose subject carries its ref: how big the change is, how it is spread, and how much rewrote its own work. Reads git only, so it is safe while other work is in flight. No such commits reads as zero size, which is not the same as no work: a commit only links if its subject opens with the ref.',
+				'Code stats for one issue from the commits whose subject opens with its ref: size, spread, and how much rewrote its own work. Reads git only, so safe while other work runs. No such commits reads as zero, which is not the same as no work.',
 			inputSchema: z.object({
 				idOrRef: z.string().min(1),
 				repoRoot: z.string().optional(),
@@ -343,23 +378,12 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 				swimlaneId: z.string().min(1),
 				boardId: z.string().min(1),
-				position: z
-					.discriminatedUnion('at', [
-						z.object({at: z.literal('start')}),
-						z.object({at: z.literal('end')}),
-						z.object({
-							at: z.literal('before'),
-							sibling: z.string().min(1),
-						}),
-						z.object({
-							at: z.literal('after'),
-							sibling: z.string().min(1),
-						}),
-					])
-					.optional(),
+				position: MOVE_POSITION.optional(),
 			}),
 		},
-		exclusiveTool(moveSwimlane),
+		exclusiveTool(input =>
+			moveSwimlane({...input, position: toMovePosition(input.position)}),
+		),
 	);
 
 	server.registerTool(
@@ -734,31 +758,20 @@ export const createMcpServer = () => {
 				issueId: z.string().min(1).optional(),
 				issueIds: z.array(z.string().min(1)).min(1).max(200).optional(),
 				parentId: z.string().min(1),
-				position: z
-					.discriminatedUnion('at', [
-						z.object({at: z.literal('start')}),
-						z.object({at: z.literal('end')}),
-						z.object({
-							at: z.literal('before'),
-							sibling: z.string().min(1),
-						}),
-						z.object({
-							at: z.literal('after'),
-							sibling: z.string().min(1),
-						}),
-					])
-					.optional(),
+				position: MOVE_POSITION.optional(),
 				repoRoot: z.string().optional(),
 			}),
 		},
-		exclusiveTool(moveIssue),
+		exclusiveTool(input =>
+			moveIssue({...input, position: toMovePosition(input.position)}),
+		),
 	);
 
 	server.registerTool(
 		'epiq_actor_assume',
 		{
 			description:
-				'Take a board identity for this session, so your writes are attributed to you, not the user: the name you announced: the model provider, a slash, then a short human first name, e.g. "claude/peter". Takes effect on the next write. A name the server was launched with wins; re-assuming is harmless. Reuse an existing agent identity (epiq_contributor_list) before inventing one: a name is permanent once it has authored anything.',
+				'Take a board identity for this session, so your writes are attributed to you, not the user: provider/short first name, e.g. "claude/peter". Reuse an agent identity from epiq_contributor_list before inventing one: a name is permanent once it has authored anything. Takes effect on the next write; a name the server was launched with wins.',
 			inputSchema: z.object({
 				name: z.string().min(1).max(80),
 				repoRoot: z.string().optional(),
@@ -819,7 +832,7 @@ export const createMcpServer = () => {
 		'epiq_project_init',
 		{
 			description:
-				'Set up a new Epiq board in the git repository at repoRoot (default: the current directory), which must have no uncommitted changes. The first time on a machine, ask the user for userName (how they appear on the board: theirs, never your agent identity) and autoSync (whether the TUI and GUI sync on their own); without them it fails naming what is missing, keeping what was given. Answers the machine already has stay. Commits the state branch and .epiq/project.json and tries to push both; a failed push is a warning.',
+				'Set up an Epiq board in the git repository at repoRoot (default: the current directory), which must be clean. The first time on a machine, ask the user for userName (their own name on the board, never your agent identity) and autoSync (whether the TUI and GUI sync on their own); without them it fails naming what is missing. Answers the machine already has stay. Commits the state branch and .epiq/project.json and tries to push both; a failed push is a warning.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				userName: z.string().min(1).max(80).optional(),
@@ -876,7 +889,7 @@ export const createMcpServer = () => {
 		'epiq_repo_connect',
 		{
 			description:
-				"Connect another repo to the board by URL (https://, ssh://, git:// or user@host:path; never a local path), so its commits prefixed with a ticket's ref link to it; or change a connected repo's options, which applies at once. Board-wide: every contributor's epiq downloads it on their next sync. The first call clones to staging and returns a preview (size, host, default branch, latest commit, commits naming this board's tickets — none suggests the wrong repo), writing nothing; show it to the user, and only once they agree call again with confirm: true and the same options. branches: default or all. since: how much history to clone, board (default), all, or YYYY-MM-DD. label: its name on the board, the URL's basename unless set; empty resets it. Uses your git credentials: ssh-agent or a credential helper must already work.",
+				"Connect a repo to the board by URL (https://, ssh://, git:// or user@host:path; never a local path), so its commits opening with a ticket's ref link to it; or change a connected repo's options. Board-wide: every contributor downloads it on their next sync. The first call writes nothing and returns a preview (size, host, default branch, latest commit, commits naming this board's tickets; none suggests the wrong repo): show it to the user, and only once they agree call again with confirm: true and the same options. branches: default|all. since: history to clone, board (default)|all|YYYY-MM-DD. label: defaults to the URL's basename; empty resets it. Needs working git credentials (ssh-agent or a credential helper).",
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				url: z.string().min(1).max(MAX_URL_LENGTH),
