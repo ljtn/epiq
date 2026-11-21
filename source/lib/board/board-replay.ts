@@ -9,6 +9,7 @@ import {
 	setStateEntry,
 	updateState,
 	withDeferredDerive,
+	stateGeneration,
 } from '../state/state.js';
 import {
 	areVirtualNodesEnabled,
@@ -77,7 +78,7 @@ const appendEventToNodeLog = (
 // Who wrote what, kept as the log is appended to: everyone who has written an
 // event, and per ticket, who wrote one naming it as its target or a comment's
 // ticket. Only tickets are ever asked about.
-const noteActor = (event: AppEvent): void => {
+const noteActor = (event: AppEvent, batch: ReplayBatch | null): void => {
 	const {userId} = event;
 	if (!userId) return;
 
@@ -91,11 +92,23 @@ const noteActor = (event: AppEvent): void => {
 		if (typeof target !== 'string') continue;
 		const node = getState().nodes[target];
 		if (!node || !isTicketNode(node)) continue;
-		const held = getState().actorsById?.[target];
-		if (held?.ids.includes(userId)) continue;
-		setStateEntry('actorsById', target, {
-			ids: actorList([...(held?.ids ?? []), userId]),
-		});
+
+		// A batch collects each ticket's actors and writes them once, at its flush.
+		if (batch && batch.actorsGeneration !== stateGeneration()) {
+			batch.actors.clear();
+			batch.actorsGeneration = stateGeneration();
+		}
+		const pending = batch?.actors.get(target);
+		const held = pending ?? getState().actorsById?.[target]?.ids ?? [];
+		if (held.includes(userId)) continue;
+
+		if (pending) pending.push(userId);
+		else if (batch) batch.actors.set(target, [...held, userId]);
+		else {
+			setStateEntry('actorsById', target, {
+				ids: actorList([...held, userId]),
+			});
+		}
 	}
 };
 
@@ -189,6 +202,10 @@ type ReplayBatch = {
 	appLog: AppEvent[];
 	// Each node's events, and each one's place in `appLog`.
 	nodeLog: Map<string, {events: AppEvent[]; offsets: number[]}>;
+	// Each ticket's actors as the batch leaves them, written at the flush; only
+	// since the state was last replaced, as a genesis mid-batch does.
+	actors: Map<string, string[]>;
+	actorsGeneration: number;
 	virtualNodeIds: Set<string>;
 };
 
@@ -216,6 +233,11 @@ const flushReplayBatch = (batch: ReplayBatch): ReturnFail | null => {
 		});
 	}
 
+	if (batch.actorsGeneration !== stateGeneration()) batch.actors.clear();
+	for (const [ticketId, ids] of batch.actors) {
+		setStateEntry('actorsById', ticketId, {ids: actorList(ids)});
+	}
+
 	if (batch.appLog.length > 0) {
 		updateState(s => ({...s, eventLog: [...s.eventLog, ...batch.appLog]}));
 	}
@@ -234,18 +256,22 @@ export const boardReplayHooks: ReplayHooks<AppEventMap> = {
 	batch: fn => withDeferredDerive(fn),
 
 	afterApply(event, {batched, bypassLogging}) {
-		// Who wrote what is kept as the log takes each event.
-		if (!bypassLogging) noteActor(event);
-
-		const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
-
 		if (batched) {
 			replayBatch ??= {
 				appLog: [],
 				nodeLog: new Map(),
+				actors: new Map(),
+				actorsGeneration: stateGeneration(),
 				virtualNodeIds: new Set(),
 			};
+		}
 
+		// Who wrote what is kept as the log takes each event.
+		if (!bypassLogging) noteActor(event, batched ? replayBatch : null);
+
+		const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
+
+		if (batched && replayBatch) {
 			for (const nodeId of affectedNodeIds) {
 				// Only a node there now, as applied one at a time: one created later in
 				// the batch must not gain what came before it.
