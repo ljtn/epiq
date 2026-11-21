@@ -88,7 +88,8 @@ export const listBoards = async (input: ToolInput = {}) => {
 			parentId: n.parentNodeId,
 			readonly: Boolean(n.readonly),
 			...descriptionOf(n.id),
-			goals: apiBoardGoals(n.id),
+			// Members are epiq_goal_list's and epiq_issue_list's to tell.
+			goals: apiBoardGoals(n.id).map(({members: _, ...goal}) => goal),
 		}));
 
 	return succeeded('Listed boards', boards);
