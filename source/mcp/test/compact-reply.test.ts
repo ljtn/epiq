@@ -22,6 +22,13 @@ describe('compactReply', () => {
 		expect(compactReply(false)).toBe(false);
 	});
 
+	it('passes a non-plain object through, so it serializes as itself', () => {
+		const at = new Date(0);
+
+		expect(compactReply({at})).toEqual({at});
+		expect(JSON.stringify(compactReply({at}))).toBe(JSON.stringify({at}));
+	});
+
 	it('rounds floats and leaves integers alone', () => {
 		expect(
 			compactReply({

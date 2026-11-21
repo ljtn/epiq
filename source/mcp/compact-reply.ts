@@ -21,6 +21,8 @@ export const compactReply = (value: unknown): unknown => {
 	if (typeof value === 'number') return round(value);
 	if (Array.isArray(value)) return value.map(compactReply);
 	if (!value || typeof value !== 'object') return value;
+	// A Date or class instance serializes through its own toJSON.
+	if (Object.getPrototypeOf(value) !== Object.prototype) return value;
 
 	const out: Record<string, unknown> = {};
 	for (const [key, item] of Object.entries(value)) {
