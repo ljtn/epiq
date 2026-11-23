@@ -24,7 +24,7 @@ description: Workflow for working an epiq issue board through the epiq MCP — t
 - **Link commits** with an `Epiq-Ref: <ref>` line in the commit body. The MCP names every ticket by its 7-character ref; use that. Several tickets go on one line, comma-separated. A subject starting with the ref also links, but puts the ref in everyone's history.
 - *If you decide to take a new approach*, add a `fork` tag, and document the fork in a comment, also, update the description to reflect the new plan.
 - **Attachments are permanent** in every clone (max 500 KB): use with moderation, make sure images are cropped and compressed. An oversized image is permanent, for everybody.
-- **Be concise, use clear language.** Titles, descriptions, and comments should be scannable, easy to understand, not essays.
-- **When a ticket is done, Document the outcome in a comment starting with "Solution:"**. Use that exact prefix as the comment's opening line.
+- **Write token-lean, clear and concise.** Every reader, human or agent, pays for each word, often many times over. Titles, descriptions and comments are scannable lines, not essays: don't restate the ticket, skip tables and logs where a sentence will do, and point to a PR or commit instead of pasting it.
+- **When a ticket is done, Document the outcome in a comment starting with "Solution:"**. Use that exact prefix as the comment's opening line, then a few lines: what changed and where, not how you got there.
 - **The git user is the sole author of every commit you write.** Commit under the repo's configured user.name / user.email and nothing else: no Co-Authored-By: line, no Claude-Session: line, no 🤖 Generated with footer, and never an --author override naming Claude or a tool.
 - On rebase or merge, make sure Epiq refs survive. Dropping them from commit messages breaks commit linking.
