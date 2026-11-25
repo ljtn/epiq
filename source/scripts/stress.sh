@@ -9,6 +9,7 @@
 #   npm run stress                     # the default: ~960k events, serves the GUI
 #   STRESS_EVENTS=50000 npm run stress # something smaller, to see it work first
 #   STRESS_SERVE=false npm run stress  # numbers only, exits when done
+#   npm run stress:6m                  # 6M events, on the host: wants ~16 GB
 #
 # A container so it neither touches the real board nor depends on this machine
 # having the right node. The image is the e2e one, which already carries git and
