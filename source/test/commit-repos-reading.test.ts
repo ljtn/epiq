@@ -253,6 +253,36 @@ describe("a clone's window", () => {
 		expect(subjects).toContain(`${REF} inside it`);
 		expect(subjects).not.toContain(`${REF} before the window`);
 	});
+	it('diffs only the commits inside a scrubbed window', async () => {
+		const june = commit(upstream, `${REF} june`, '2024-06-01T00:00:00Z');
+		const september = commit(
+			upstream,
+			`${REF} september`,
+			'2024-09-01T00:00:00Z',
+		);
+		connectRepoEvent(board, url, {since: '2024-01-01'});
+		value(await fetchCommitRepos({repoRoot: board}));
+		vi.mocked(execGit).mockClear();
+
+		const subjects = value(
+			await getCommitTimeline({
+				repoRoot: board,
+				start: Date.parse('2024-08-01'),
+				end: Date.parse('2024-12-01'),
+			}),
+		).map(entry => entry.subject);
+
+		const diffed = vi
+			.mocked(execGit)
+			.mock.calls.map(([call]) => call)
+			.filter(
+				call => call.cwd === clonePath && call.args.includes('--shortstat'),
+			);
+		expect(diffed).toHaveLength(1);
+		expect(diffed[0]!.input).toContain(september);
+		expect(diffed[0]!.input).not.toContain(june);
+		expect(subjects).toEqual([`${REF} september`]);
+	});
 });
 
 describe('what reading a clone is bounded by', () => {
