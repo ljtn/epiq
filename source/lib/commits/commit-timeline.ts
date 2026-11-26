@@ -284,7 +284,7 @@ const readSourceLog = async (
 	const separators = separatorsFor();
 
 	const logResult = source.notBefore
-		? await readWindowedLog(source, separators)
+		? await readWindowedLog(source, separators, window)
 		: await execGit({
 				cwd: source.cwd,
 				...cloneLimits(source),
@@ -354,7 +354,13 @@ const readRefCandidates = async (
 /** Every listed commit's sha in log order, without stats: cheap at any length. */
 const readSourceOrder = async (
 	source: CommitSource,
+	// By commit date, as `--since` and `--until` cut; needs a windowed source.
+	window: Window = {},
 ): Promise<Result<string[]>> => {
+	const fromSeconds =
+		window.start === undefined ? -Infinity : Math.floor(window.start / 1000);
+	const toSeconds =
+		window.end === undefined ? Infinity : Math.floor(window.end / 1000);
 	const field = GIT_LOG_FIELD_SEP;
 	const logResult = await execGit({
 		cwd: source.cwd,
@@ -372,7 +378,12 @@ const readSourceOrder = async (
 		logResult.value.stdout
 			.split('\n')
 			.map(line => line.split(field))
-			.filter(([sha, ct]) => listed(source, sha, ct))
+			.filter(
+				([sha, ct]) =>
+					listed(source, sha, ct) &&
+					(ct === undefined ||
+						(Number(ct) >= fromSeconds && Number(ct) <= toSeconds)),
+			)
 			.map(([sha]) => sha!),
 	);
 };
@@ -384,8 +395,9 @@ const readSourceOrder = async (
 const readWindowedLog = async (
 	source: CommitSource,
 	separators: Separators,
+	window: Window,
 ): Promise<Result<GitExecResult>> => {
-	const order = await readSourceOrder(source);
+	const order = await readSourceOrder(source, window);
 	if (isFail(order)) return failed(order.message);
 	if (order.value.length === 0) {
 		return succeeded('No commits in the window', {
