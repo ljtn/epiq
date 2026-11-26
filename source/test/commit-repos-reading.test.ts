@@ -1,10 +1,12 @@
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {execGit} from '../git/git-utils.js';
 import {
 	fetchCommitRepos,
 	getCommitPatch,
+	getCommitTimeline,
 	getCommitsForRef,
 	getSquashedDiffForRef,
 	repoIdOf,
@@ -16,6 +18,11 @@ import {deriveIssueStats} from '../lib/stats/issue-stats.js';
 import {scanTicketPatch} from '../lib/stats/patch-scan.js';
 import {makeTempDir} from './helpers/git-repo.js';
 import {connectRepoEvent} from './helpers/repo-events.js';
+
+vi.mock('../git/git-utils.js', async importOriginal => {
+	const real = await importOriginal<typeof import('../git/git-utils.js')>();
+	return {...real, execGit: vi.fn(real.execGit)};
+});
 
 const REF = 'AAAAAAA';
 
@@ -213,6 +220,38 @@ describe('a fork that merged a commit the board has', () => {
 			[repoIdOf(url), 'a.txt'],
 			[repoIdOf(forkUrl), 'b.txt'],
 		]);
+	});
+});
+
+describe("a clone's window", () => {
+	it('diffs only the commits inside it', async () => {
+		const before = commit(
+			upstream,
+			`${REF} before the window`,
+			'2023-06-01T00:00:00Z',
+		);
+		const inside = commit(upstream, `${REF} inside it`, '2024-06-01T00:00:00Z');
+		connectRepoEvent(board, url, {since: 'all'});
+		value(await fetchCommitRepos({repoRoot: board}));
+		connectRepoEvent(board, url, {since: '2024-01-01'});
+		resetCommitTimelineCacheForTests();
+		vi.mocked(execGit).mockClear();
+
+		const subjects = value(await getCommitTimeline({repoRoot: board})).map(
+			entry => entry.subject,
+		);
+
+		const diffed = vi
+			.mocked(execGit)
+			.mock.calls.map(([call]) => call)
+			.filter(
+				call => call.cwd === clonePath && call.args.includes('--shortstat'),
+			);
+		expect(diffed).toHaveLength(1);
+		expect(diffed[0]!.input).toContain(inside);
+		expect(diffed[0]!.input).not.toContain(before);
+		expect(subjects).toContain(`${REF} inside it`);
+		expect(subjects).not.toContain(`${REF} before the window`);
 	});
 });
 
