@@ -1,6 +1,11 @@
 import {randomBytes} from 'node:crypto';
 import fs from 'node:fs';
-import {execGit, isGitTimeout, isOutputOverflow} from '../../git/git-utils.js';
+import {
+	execGit,
+	GitExecResult,
+	isGitTimeout,
+	isOutputOverflow,
+} from '../../git/git-utils.js';
 import {logger} from '../../logger.js';
 import {CommitAuthor} from '../repository/contributor-directory.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
@@ -162,6 +167,15 @@ const logArgs = (
 	'log',
 	...source.revisions,
 	...extra,
+	...readArgs(source, separators, stats),
+];
+
+/** How each commit reads, whichever commits are read. */
+const readArgs = (
+	source: CommitSource,
+	separators: Separators,
+	stats: boolean,
+): string[] => [
 	...(stats ? ['--shortstat'] : []),
 	// The commit date only where a window is cut by it: the board's own
 	// log reads as it always has.
@@ -269,18 +283,20 @@ const readSourceLog = async (
 
 	const separators = separatorsFor();
 
-	const logResult = await execGit({
-		cwd: source.cwd,
-		...cloneLimits(source),
-		args: logArgs(source, separators, [
-			...(window.start !== undefined
-				? [`--since=@${Math.floor(window.start / 1000)}`]
-				: []),
-			...(window.end !== undefined
-				? [`--until=@${Math.floor(window.end / 1000)}`]
-				: []),
-		]),
-	});
+	const logResult = source.notBefore
+		? await readWindowedLog(source, separators)
+		: await execGit({
+				cwd: source.cwd,
+				...cloneLimits(source),
+				args: logArgs(source, separators, [
+					...(window.start !== undefined
+						? [`--since=@${Math.floor(window.start / 1000)}`]
+						: []),
+					...(window.end !== undefined
+						? [`--until=@${Math.floor(window.end / 1000)}`]
+						: []),
+				]),
+		  });
 
 	if (isFail(logResult)) {
 		// A read that ran out of time under load is tried again on the next.
@@ -359,6 +375,37 @@ const readSourceOrder = async (
 			.filter(([sha, ct]) => listed(source, sha, ct))
 			.map(([sha]) => sha!),
 	);
+};
+
+/**
+ * A windowed clone's log: walked whole without stats, then diffed only for the
+ * commits inside the window. `--since` would stop at a commit dated before it.
+ */
+const readWindowedLog = async (
+	source: CommitSource,
+	separators: Separators,
+): Promise<Result<GitExecResult>> => {
+	const order = await readSourceOrder(source);
+	if (isFail(order)) return failed(order.message);
+	if (order.value.length === 0) {
+		return succeeded('No commits in the window', {
+			stdout: '',
+			stderr: '',
+			exitCode: 0,
+		});
+	}
+
+	return execGit({
+		cwd: source.cwd,
+		...cloneLimits(source),
+		input: `${order.value.join('\n')}\n`,
+		args: [
+			'log',
+			'--no-walk=unsorted',
+			'--stdin',
+			...readArgs(source, separators, true),
+		],
+	});
 };
 
 // Up to this many refs, git's own search beats the full scan; past it (a big
